@@ -14,52 +14,51 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 {
 	constexpr float KClearColor[4]{ 0.2f, 0.6f, 0.9f, 1.0f };
 
-	CGameWindow game_window{ hInstance, XMFLOAT2(800, 450) };
-	game_window.CreateWin32(WndProc, TEXT("Game"), true);
+	CGameWindow GameWindow{ hInstance, XMFLOAT2(800, 450) };
+	GameWindow.CreateWin32(WndProc, TEXT("Game"), true);
 
-	CShader vs{ game_window.GetDevicePtr(), game_window.GetDeviceContextPtr() };
-	vs.Create(EShaderType::VertexShader, L"Shader\\VertexShader.hlsl", "main", KInputElementDescs, ARRAYSIZE(KInputElementDescs));
+	CShader VS{ GameWindow.GetDevicePtr(), GameWindow.GetDeviceContextPtr() };
+	VS.Create(EShaderType::VertexShader, L"Shader\\VertexShader.hlsl", "main", KInputElementDescs, ARRAYSIZE(KInputElementDescs));
 	
-	CShader ps{ game_window.GetDevicePtr(), game_window.GetDeviceContextPtr() };
-	ps.Create(EShaderType::PixelShader, L"Shader\\PixelShader.hlsl", "main");
+	CShader PS{ GameWindow.GetDevicePtr(), GameWindow.GetDeviceContextPtr() };
+	PS.Create(EShaderType::PixelShader, L"Shader\\PixelShader.hlsl", "main");
 
-	CObject3D obj{ game_window.GetDevicePtr(), game_window.GetDeviceContextPtr() };
+	CObject3D Object{ GameWindow.GetDevicePtr(), GameWindow.GetDeviceContextPtr() };
 	{
-		vector<SVertex3D> vertices{};
-		vertices.emplace_back(XMVectorSet(-0.5f, +0.5f, 0, 1), XMVectorSet(1.0f, 0.5f, 1.0f, 1));
-		vertices.emplace_back(XMVectorSet(+0.5f, +0.5f, 0, 1), XMVectorSet(0.5f, 1.0f, 0.5f, 1));
-		vertices.emplace_back(XMVectorSet(-0.5f, -0.5f, 0, 1), XMVectorSet(0.5f, 1.0f, 1.0f, 1));
-		vertices.emplace_back(XMVectorSet(+0.5f, -0.5f, 0, 1), XMVectorSet(0.5f, 0.5f, 0.5f, 1));
+		vector<SVertex3D> Vertices{};
+		Vertices.emplace_back(XMVectorSet(-0.5f, +0.5f, 0, 1), XMVectorSet(1.0f, 0.5f, 1.0f, 1));
+		Vertices.emplace_back(XMVectorSet(+0.5f, +0.5f, 0, 1), XMVectorSet(0.5f, 1.0f, 0.5f, 1));
+		Vertices.emplace_back(XMVectorSet(-0.5f, -0.5f, 0, 1), XMVectorSet(0.5f, 1.0f, 1.0f, 1));
+		Vertices.emplace_back(XMVectorSet(+0.5f, -0.5f, 0, 1), XMVectorSet(0.5f, 0.5f, 0.5f, 1));
 
-		vector<SFace> faces{};
-		faces.emplace_back(0, 1, 2);
-		faces.emplace_back(1, 3, 2);
+		vector<SFace> Faces{};
+		Faces.emplace_back(0, 1, 2);
+		Faces.emplace_back(1, 3, 2);
 
-		obj.Create(vertices, faces);
+		Object.Create(Vertices, Faces);
 	}
-	
 
 	while (true)
 	{
-		static MSG msg{};
+		static MSG Msg{};
 
-		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		if (PeekMessage(&Msg, nullptr, 0, 0, PM_REMOVE))
 		{
-			if (msg.message == WM_QUIT) break;
+			if (Msg.message == WM_QUIT) break;
 
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			TranslateMessage(&Msg);
+			DispatchMessage(&Msg);
 		}
 		else
 		{
-			game_window.BeginRendering(Colors::CornflowerBlue);
+			GameWindow.BeginRendering(Colors::CornflowerBlue);
 
-			vs.Use();
-			ps.Use();
+			VS.Use();
+			PS.Use();
 
-			obj.Draw();
+			Object.Draw();
 
-			game_window.EndRendering();
+			GameWindow.EndRendering();
 		}
 	}
 	return 0;
