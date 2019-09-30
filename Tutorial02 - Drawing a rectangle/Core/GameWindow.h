@@ -12,14 +12,14 @@ public:
 
 	void CreateWin32(WNDPROC WndProc, LPCTSTR WindowName, bool bWindowed);
 
-	void BeginRendering(const FLOAT* ClearColor);
-	void EndRendering();
-
 	CShader* AddShader();
 	CShader* GetShader(size_t Index);
 
 	CObject3D* AddObject3D();
 	CObject3D* GetObject3D(size_t Index);
+
+	void BeginRendering(const FLOAT* ClearColor);
+	void EndRendering();
 
 private:
 	void CreateWin32Window(WNDPROC WndProc, LPCTSTR WindowName);

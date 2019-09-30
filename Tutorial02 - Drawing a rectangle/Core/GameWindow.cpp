@@ -120,17 +120,6 @@ void CGameWindow::SetViewports()
 	m_DeviceContext->RSSetViewports(static_cast<UINT>(vViewPorts.size()), &vViewPorts[0]);
 }
 
-void CGameWindow::BeginRendering(const FLOAT* ClearColor)
-{
-	m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), Colors::CornflowerBlue);
-	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-}
-
-void CGameWindow::EndRendering()
-{
-	m_SwapChain->Present(0, 0);
-}
-
 CShader* CGameWindow::AddShader()
 {
 	m_vShaders.emplace_back(make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get()));
@@ -153,4 +142,15 @@ CObject3D* CGameWindow::GetObject3D(size_t Index)
 {
 	assert(Index < m_vObject3Ds.size());
 	return m_vObject3Ds[Index].get();
+}
+
+void CGameWindow::BeginRendering(const FLOAT* ClearColor)
+{
+	m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), Colors::CornflowerBlue);
+	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+}
+
+void CGameWindow::EndRendering()
+{
+	m_SwapChain->Present(0, 0);
 }
