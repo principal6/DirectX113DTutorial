@@ -25,17 +25,17 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 	CObject3D Object{ GameWindow.GetDevicePtr(), GameWindow.GetDeviceContextPtr() };
 	{
-		vector<SVertex3D> Vertices{};
-		Vertices.emplace_back(XMVectorSet(-0.5f, +0.5f, 0, 1), XMVectorSet(1.0f, 0.5f, 1.0f, 1));
-		Vertices.emplace_back(XMVectorSet(+0.5f, +0.5f, 0, 1), XMVectorSet(0.5f, 1.0f, 0.5f, 1));
-		Vertices.emplace_back(XMVectorSet(-0.5f, -0.5f, 0, 1), XMVectorSet(0.5f, 1.0f, 1.0f, 1));
-		Vertices.emplace_back(XMVectorSet(+0.5f, -0.5f, 0, 1), XMVectorSet(0.5f, 0.5f, 0.5f, 1));
+		SObject3DData Data{};
 
-		vector<SFace> Faces{};
-		Faces.emplace_back(0, 1, 2);
-		Faces.emplace_back(1, 3, 2);
+		Data.vVertices.emplace_back(XMVectorSet(-0.5f, +0.5f, 0, 1), XMVectorSet(1.0f, 0.5f, 1.0f, 1));
+		Data.vVertices.emplace_back(XMVectorSet(+0.5f, +0.5f, 0, 1), XMVectorSet(0.5f, 1.0f, 0.5f, 1));
+		Data.vVertices.emplace_back(XMVectorSet(-0.5f, -0.5f, 0, 1), XMVectorSet(0.5f, 1.0f, 1.0f, 1));
+		Data.vVertices.emplace_back(XMVectorSet(+0.5f, -0.5f, 0, 1), XMVectorSet(0.5f, 0.5f, 0.5f, 1));
 
-		Object.Create(Vertices, Faces);
+		Data.vFaces.emplace_back(0, 1, 2);
+		Data.vFaces.emplace_back(1, 3, 2);
+
+		Object.Create(Data);
 	}
 
 	while (true)
