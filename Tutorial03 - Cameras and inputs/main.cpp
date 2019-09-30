@@ -1,6 +1,4 @@
 #include "Core/GameWindow.h"
-#include "Core/Shader.h"
-#include "Core/Object3D.h"
 
 constexpr D3D11_INPUT_ELEMENT_DESC KInputElementDescs[]
 {
@@ -20,13 +18,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	GameWindow.AddCamera(SCameraData(ECameraType::FreeLook));
 	GameWindow.SetCamera(0);
 	
-	CShader VS{ GameWindow.GetDevicePtr(), GameWindow.GetDeviceContextPtr() };
-	VS.Create(EShaderType::VertexShader, L"Shader\\VertexShader.hlsl", "main", KInputElementDescs, ARRAYSIZE(KInputElementDescs));
+	CShader* VS{ GameWindow.AddShader() };
+	VS->Create(EShaderType::VertexShader, L"Shader\\VertexShader.hlsl", "main", KInputElementDescs, ARRAYSIZE(KInputElementDescs));
 	
-	CShader PS{ GameWindow.GetDevicePtr(), GameWindow.GetDeviceContextPtr() };
-	PS.Create(EShaderType::PixelShader, L"Shader\\PixelShader.hlsl", "main");
+	CShader* PS{ GameWindow.AddShader() };
+	PS->Create(EShaderType::PixelShader, L"Shader\\PixelShader.hlsl", "main");
 
-	CObject3D TestObjects{ GameWindow.GetDevicePtr(), GameWindow.GetDeviceContextPtr() };
+	CObject3D* TestObjects{ GameWindow.AddObject3D() };
 	{
 		SObject3DData Data{};
 
@@ -46,7 +44,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		Data.vTriangles.emplace_back(4, 5, 6);
 		Data.vTriangles.emplace_back(5, 7, 6);
 
-		TestObjects.Create(Data);
+		TestObjects->Create(Data);
 	}
 
 	while (true)
@@ -64,8 +62,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		{
 			GameWindow.BeginRendering(Colors::CornflowerBlue);
 
-			VS.Use();
-			PS.Use();
+			VS->Use();
+			PS->Use();
 
 			Keyboard::State KeyState{ GameWindow.GetKeyState() };
 			if (KeyState.Escape)
@@ -101,7 +99,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 			GameWindow.UpdateCBWVP(XMMatrixIdentity());
 
-			TestObjects.Draw();
+			TestObjects->Draw();
 
 			GameWindow.EndRendering();
 		}
