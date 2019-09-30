@@ -1,6 +1,4 @@
 #include "Core/GameWindow.h"
-#include "Core/Shader.h"
-#include "Core/Object3D.h"
 
 constexpr D3D11_INPUT_ELEMENT_DESC KInputElementDescs[]
 {
@@ -17,13 +15,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	CGameWindow GameWindow{ hInstance, XMFLOAT2(800, 450) };
 	GameWindow.CreateWin32(WndProc, TEXT("Game"), true);
 
-	CShader VS{ GameWindow.GetDevicePtr(), GameWindow.GetDeviceContextPtr() };
-	VS.Create(EShaderType::VertexShader, L"Shader\\VertexShader.hlsl", "main", KInputElementDescs, ARRAYSIZE(KInputElementDescs));
+	CShader* VS{ GameWindow.AddShader() };
+	VS->Create(EShaderType::VertexShader, L"Shader\\VertexShader.hlsl", "main", KInputElementDescs, ARRAYSIZE(KInputElementDescs));
 	
-	CShader PS{ GameWindow.GetDevicePtr(), GameWindow.GetDeviceContextPtr() };
-	PS.Create(EShaderType::PixelShader, L"Shader\\PixelShader.hlsl", "main");
+	CShader* PS{ GameWindow.AddShader() };
+	PS->Create(EShaderType::PixelShader, L"Shader\\PixelShader.hlsl", "main");
 
-	CObject3D Object{ GameWindow.GetDevicePtr(), GameWindow.GetDeviceContextPtr() };
+	CObject3D* Object{ GameWindow.AddObject3D() };
 	{
 		SObject3DData Data{};
 
@@ -35,7 +33,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		Data.vTriangles.emplace_back(0, 1, 2);
 		Data.vTriangles.emplace_back(1, 3, 2);
 
-		Object.Create(Data);
+		Object->Create(Data);
 	}
 
 	while (true)
@@ -53,10 +51,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		{
 			GameWindow.BeginRendering(Colors::CornflowerBlue);
 
-			VS.Use();
-			PS.Use();
+			VS->Use();
+			PS->Use();
 
-			Object.Draw();
+			Object->Draw();
 
 			GameWindow.EndRendering();
 		}

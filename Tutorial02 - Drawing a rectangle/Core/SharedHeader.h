@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cassert>
+#include <memory>
 #include <d3d11.h>
 #include <wrl.h>
 #include "../DirectXTK/DirectXTK.h"
@@ -16,6 +17,8 @@ using namespace DirectX;
 using std::string;
 using std::wstring;
 using std::vector;
+using std::unique_ptr;
+using std::make_unique;
 
 struct STriangle
 {
