@@ -280,6 +280,30 @@ void CGameWindow::CreateCBWVP()
 	m_Device->CreateBuffer(&cbWVPDesc, nullptr, &m_CBWVP);
 }
 
+CShader* CGameWindow::AddShader()
+{
+	m_vShaders.emplace_back(make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get()));
+	return m_vShaders.back().get();
+}
+
+CShader* CGameWindow::GetShader(size_t Index)
+{
+	assert(Index < m_vShaders.size());
+	return m_vShaders[Index].get();
+}
+
+CObject3D* CGameWindow::AddObject3D()
+{
+	m_vObject3Ds.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get()));
+	return m_vObject3Ds.back().get();
+}
+
+CObject3D* CGameWindow::GetObject3D(size_t Index)
+{
+	assert(Index < m_vObject3Ds.size());
+	return m_vObject3Ds[Index].get();
+}
+
 void CGameWindow::BeginRendering(const FLOAT* ClearColor)
 {
 	m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), Colors::CornflowerBlue);

@@ -1,7 +1,8 @@
 #pragma once
 
 #include <Windows.h>
-#include "SharedHeader.h"
+#include "Object3D.h"
+#include "Shader.h"
 
 enum class ECameraType
 {
@@ -63,13 +64,17 @@ public:
 	void RotateCamera(int DeltaX, int DeltaY, float RotationFactor = 1.0f);
 	void ZoomCamera(int DeltaWheel, float ZoomFactor = 1.0f);
 
+	CShader* AddShader();
+	CShader* GetShader(size_t Index);
+
+	CObject3D* AddObject3D();
+	CObject3D* GetObject3D(size_t Index);
+
 	void BeginRendering(const FLOAT* ClearColor);
 	void UpdateCBWVP(const XMMATRIX& MatrixWorld);
 	void EndRendering();
 
 public:
-	ID3D11Device* GetDevicePtr() { return m_Device.Get(); }
-	ID3D11DeviceContext* GetDeviceContextPtr() { return m_DeviceContext.Get(); }
 	HWND GetHWND() { return m_hWnd; }
 	Keyboard::State GetKeyState();
 	Mouse::State GetMouseState();
@@ -93,17 +98,21 @@ private:
 	static constexpr float KDefaultFarZ{ 1000.0f };
 
 private:
-	HWND		m_hWnd{};
-	HINSTANCE	m_hInstance{};
-	XMFLOAT2	m_WindowSize{};
+	vector<unique_ptr<CShader>>		m_vShaders{};
+	vector<unique_ptr<CObject3D>>	m_vObject3Ds{};
 
 private:
-	XMMATRIX			m_MatrixProjection{};
-	XMMATRIX			m_MatrixView{};
-	vector<SCameraData>	m_vCameras{};
-	SCameraData*		m_PtrCurrentCamera{};
-	XMVECTOR			m_BaseForward{};
-	XMVECTOR			m_BaseUp{};
+	HWND							m_hWnd{};
+	HINSTANCE						m_hInstance{};
+	XMFLOAT2						m_WindowSize{};
+
+private:
+	XMMATRIX						m_MatrixProjection{};
+	XMMATRIX						m_MatrixView{};
+	vector<SCameraData>				m_vCameras{};
+	SCameraData*					m_PtrCurrentCamera{};
+	XMVECTOR						m_BaseForward{};
+	XMVECTOR						m_BaseUp{};
 
 private:
 	ComPtr<IDXGISwapChain>			m_SwapChain{};
