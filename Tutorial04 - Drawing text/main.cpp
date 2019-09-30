@@ -40,11 +40,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		Data.vVertices.emplace_back(XMVectorSet(-10.0f, -1.0f, -10.0f, 1), XMVectorSet(0.3f, 1.0f, 0.3f, 1));
 		Data.vVertices.emplace_back(XMVectorSet(+10.0f, -1.0f, -10.0f, 1), XMVectorSet(0.3f, 1.0f, 0.3f, 1));
 
-		Data.vFaces.emplace_back(0, 1, 2);
-		Data.vFaces.emplace_back(1, 3, 2);
+		Data.vTriangles.emplace_back(0, 1, 2);
+		Data.vTriangles.emplace_back(1, 3, 2);
 
-		Data.vFaces.emplace_back(4, 5, 6);
-		Data.vFaces.emplace_back(5, 7, 6);
+		Data.vTriangles.emplace_back(4, 5, 6);
+		Data.vTriangles.emplace_back(5, 7, 6);
 
 		TestObjects.Create(Data);
 	}

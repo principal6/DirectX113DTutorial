@@ -21,10 +21,10 @@ using std::vector;
 using std::unique_ptr;
 using std::make_unique;
 
-struct SFace
+struct STriangle
 {
-	SFace() {}
-	SFace(uint32_t _0, uint32_t _1, uint32_t _2) : I0{ _0 }, I1{ _1 }, I2{ _2 } {}
+	STriangle() {}
+	STriangle(uint32_t _0, uint32_t _1, uint32_t _2) : I0{ _0 }, I1{ _1 }, I2{ _2 } {}
 
 	uint32_t I0{};
 	uint32_t I1{};

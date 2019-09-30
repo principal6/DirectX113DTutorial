@@ -14,7 +14,7 @@ struct SVertex3D
 struct SObject3DData
 {
 	vector<SVertex3D>	vVertices{};
-	vector<SFace>		vFaces{};
+	vector<STriangle>	vTriangles{};
 };
 
 class CObject3D
