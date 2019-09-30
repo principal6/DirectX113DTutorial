@@ -11,7 +11,7 @@ void CObject3D::Create(const vector<SVertex3D>& vVertices, const vector<SFace>& 
 		BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SVertex3D) * m_vVertices.size());
 		BufferDesc.CPUAccessFlags = 0;
 		BufferDesc.MiscFlags = 0;
-		BufferDesc.StructureByteStride = sizeof(SVertex3D);
+		BufferDesc.StructureByteStride = 0;
 		BufferDesc.Usage = D3D11_USAGE_DEFAULT;
 
 		D3D11_SUBRESOURCE_DATA SubresourceData{};
@@ -25,7 +25,7 @@ void CObject3D::Create(const vector<SVertex3D>& vVertices, const vector<SFace>& 
 		BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SFace) * m_vFaces.size());
 		BufferDesc.CPUAccessFlags = 0;
 		BufferDesc.MiscFlags = 0;
-		BufferDesc.StructureByteStride = sizeof(uint32_t);
+		BufferDesc.StructureByteStride = 0;
 		BufferDesc.Usage = D3D11_USAGE_DEFAULT;
 
 		D3D11_SUBRESOURCE_DATA SubresourceData{};
