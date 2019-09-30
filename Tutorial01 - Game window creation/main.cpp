@@ -6,25 +6,25 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 {
 	constexpr float KClearColor[4]{ 0.2f, 0.6f, 0.9f, 1.0f };
 
-	CGameWindow game_window{ hInstance, XMFLOAT2(800, 450) };
-	game_window.CreateWin32(WndProc, TEXT("Game"), true);
+	CGameWindow GameWindow{ hInstance, XMFLOAT2(800, 450) };
+	GameWindow.CreateWin32(WndProc, TEXT("Game"), true);
 
 	while (true)
 	{
-		static MSG msg{};
+		static MSG Msg{};
 
-		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		if (PeekMessage(&Msg, nullptr, 0, 0, PM_REMOVE))
 		{
-			if (msg.message == WM_QUIT) break;
+			if (Msg.message == WM_QUIT) break;
 
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			TranslateMessage(&Msg);
+			DispatchMessage(&Msg);
 		}
 		else
 		{
-			game_window.BeginRendering(Colors::CornflowerBlue);
+			GameWindow.BeginRendering(Colors::CornflowerBlue);
 
-			game_window.EndRendering();
+			GameWindow.EndRendering();
 		}
 	}
 	return 0;
