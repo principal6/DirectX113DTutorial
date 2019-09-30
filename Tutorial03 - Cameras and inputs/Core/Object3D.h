@@ -11,6 +11,12 @@ struct SVertex3D
 	XMVECTOR Color{};
 };
 
+struct SObject3DData
+{
+	vector<SVertex3D>	vVertices{};
+	vector<SFace>		vFaces{};
+};
+
 class CObject3D
 {
 public:
@@ -22,7 +28,7 @@ public:
 	}
 	~CObject3D() {}
 
-	void Create(const vector<SVertex3D>& vVertices, const vector<SFace>& vFaces);
+	void Create(const SObject3DData& Object3DData);
 
 	void Draw();
 
@@ -31,8 +37,7 @@ private:
 	ID3D11DeviceContext*	m_PtrDeviceContext{};
 
 private:
-	vector<SVertex3D>		m_vVertices{};
-	vector<SFace>			m_vFaces{};
+	SObject3DData			m_Object3DData{};
 
 	ComPtr<ID3D11Buffer>	m_VertexBuffer{};
 	UINT					m_VertexBufferStride{ sizeof(SVertex3D) };
