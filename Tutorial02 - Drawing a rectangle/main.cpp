@@ -32,8 +32,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		Data.vVertices.emplace_back(XMVectorSet(-0.5f, -0.5f, 0, 1), XMVectorSet(0.5f, 1.0f, 1.0f, 1));
 		Data.vVertices.emplace_back(XMVectorSet(+0.5f, -0.5f, 0, 1), XMVectorSet(0.5f, 0.5f, 0.5f, 1));
 
-		Data.vFaces.emplace_back(0, 1, 2);
-		Data.vFaces.emplace_back(1, 3, 2);
+		Data.vTriangles.emplace_back(0, 1, 2);
+		Data.vTriangles.emplace_back(1, 3, 2);
 
 		Object.Create(Data);
 	}
