@@ -1,14 +1,83 @@
 #pragma once
 
 #include "Object3D.h"
+#include <unordered_map>
 
-static void CalculateVertexNormals(vector<SVertex3D>& vVertices, const vector<STriangle>& vTriangles)
+static bool operator==(const XMVECTOR& A, const XMVECTOR& B)
 {
-	for (const STriangle& Triangle : vTriangles)
+	return XMVector3Equal(A, B);
+}
+
+static string ConvertXMVECTORToString(const XMVECTOR& Vector)
+{
+	float X{ XMVectorGetX(Vector) };
+	float Y{ XMVectorGetY(Vector) };
+	float Z{ XMVectorGetZ(Vector) };
+	float W{ XMVectorGetW(Vector) };
+
+	string Result{ to_string(X) + "#" + to_string(Y) + "#" + to_string(Z) + "#" + to_string(W) };
+	return Result;
+}
+
+static void CalculateVertexNormalsFromFaceNormals(SObject3DData& Object3DData)
+{
+	using std::unordered_map;
+	using std::pair;
+
+	unordered_map<string, vector<XMVECTOR>> MapVertexToNormals{};
+	for (const STriangle& Triangle : Object3DData.vTriangles)
 	{
-		SVertex3D& V0{ vVertices[Triangle.I0] };
-		SVertex3D& V1{ vVertices[Triangle.I1] };
-		SVertex3D& V2{ vVertices[Triangle.I2] };
+		SVertex3D& V0{ Object3DData.vVertices[Triangle.I0] };
+		SVertex3D& V1{ Object3DData.vVertices[Triangle.I1] };
+		SVertex3D& V2{ Object3DData.vVertices[Triangle.I2] };
+
+		string V0Str{ ConvertXMVECTORToString(V0.Position) };
+		string V1Str{ ConvertXMVECTORToString(V1.Position) };
+		string V2Str{ ConvertXMVECTORToString(V2.Position) };
+
+		vector<XMVECTOR>& V0List{ MapVertexToNormals[V0Str] };
+		{
+			auto found{ std::find(V0List.begin(), V0List.end(), V0.Normal) };
+			if (found == V0List.end()) MapVertexToNormals[V0Str].emplace_back(V0.Normal);
+		}
+		
+		vector<XMVECTOR>& V1List{ MapVertexToNormals[V1Str] };
+		{
+			auto found{ std::find(V1List.begin(), V1List.end(), V1.Normal) };
+			if (found == V1List.end()) MapVertexToNormals[V1Str].emplace_back(V1.Normal);
+		}
+		
+		vector<XMVECTOR>& V2List{ MapVertexToNormals[V2Str] };
+		{
+			auto found{ std::find(V2List.begin(), V2List.end(), V2.Normal) };
+			if (found == V2List.end()) MapVertexToNormals[V2Str].emplace_back(V2.Normal);
+		}
+	}
+
+	for (SVertex3D& Vertex : Object3DData.vVertices)
+	{
+		string VStr{ ConvertXMVECTORToString(Vertex.Position) };
+
+		vector<XMVECTOR> NormalList{ MapVertexToNormals[VStr] };
+
+		XMVECTOR Sum{};
+		for (const auto& i : NormalList)
+		{
+			Sum += i;
+		}
+		XMVECTOR TriangleNormal{ Sum / (float)NormalList.size() };
+
+		Vertex.Normal = TriangleNormal;
+	}
+}
+
+static void CalculateFaceNormals(SObject3DData& Object3DData)
+{
+	for (const STriangle& Triangle : Object3DData.vTriangles)
+	{
+		SVertex3D& V0{ Object3DData.vVertices[Triangle.I0] };
+		SVertex3D& V1{ Object3DData.vVertices[Triangle.I1] };
+		SVertex3D& V2{ Object3DData.vVertices[Triangle.I2] };
 
 		XMVECTOR Edge01{ V1.Position - V0.Position };
 		XMVECTOR Edge02{ V2.Position - V0.Position };
@@ -42,7 +111,9 @@ static SObject3DData GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, co
 	
 	Data.vTriangles.emplace_back(0, 1, 2);
 
-	CalculateVertexNormals(Data.vVertices, Data.vTriangles);
+	CalculateFaceNormals(Data);
+
+	CalculateVertexNormalsFromFaceNormals(Data);
 
 	return Data;
 }
@@ -61,7 +132,9 @@ static SObject3DData GenerateSquareXZPlane(const XMVECTOR& Color = XMVectorSet(1
 
 	Data.vTriangles = GenerateContinuousFaces(1);
 
-	CalculateVertexNormals(Data.vVertices, Data.vTriangles);
+	CalculateFaceNormals(Data);
+
+	CalculateVertexNormalsFromFaceNormals(Data);
 
 	return Data;
 }
@@ -95,7 +168,9 @@ static SObject3DData GenerateCircleXZPlane(uint32_t SideCount = 16, const XMVECT
 		Data.vTriangles.emplace_back(i * 3 + 0, i * 3 + 1, i * 3 + 2);
 	}
 
-	CalculateVertexNormals(Data.vVertices, Data.vTriangles);
+	CalculateFaceNormals(Data);
+
+	CalculateVertexNormalsFromFaceNormals(Data);
 
 	return Data;
 }
@@ -145,7 +220,9 @@ static SObject3DData GeneratePyramid(const XMVECTOR& Color = XMVectorSet(1, 1, 1
 		Data.vTriangles.emplace_back(13, 15, 14);
 	}
 
-	CalculateVertexNormals(Data.vVertices, Data.vTriangles);
+	CalculateFaceNormals(Data);
+
+	CalculateVertexNormalsFromFaceNormals(Data);
 
 	return Data;
 }
@@ -198,7 +275,9 @@ static SObject3DData GenerateCube(const XMVECTOR& Color = XMVectorSet(1, 1, 1, 1
 
 	Data.vTriangles = GenerateContinuousFaces(6);
 	
-	CalculateVertexNormals(Data.vVertices, Data.vTriangles);
+	CalculateFaceNormals(Data);
+
+	CalculateVertexNormalsFromFaceNormals(Data);
 
 	return Data;
 }
@@ -247,7 +326,9 @@ static SObject3DData GenerateCone(float RadiusRatio = 0.0f, uint32_t SideCount =
 		Data.vTriangles.emplace_back(i * 6 + 1, i * 6 + 4, i * 6 + 2);
 	}
 
-	CalculateVertexNormals(Data.vVertices, Data.vTriangles);
+	CalculateFaceNormals(Data);
+
+	CalculateVertexNormalsFromFaceNormals(Data);
 
 	return Data;
 }
@@ -310,7 +391,9 @@ static SObject3DData GenerateSphere(uint32_t SegmentCount = 16, const XMVECTOR& 
 		Data.vTriangles.emplace_back(i * 6 + 3, i * 6 + 4, i * 6 + 5);
 	}
 
-	CalculateVertexNormals(Data.vVertices, Data.vTriangles);
+	CalculateFaceNormals(Data);
+
+	CalculateVertexNormalsFromFaceNormals(Data);
 
 	return Data;
 }

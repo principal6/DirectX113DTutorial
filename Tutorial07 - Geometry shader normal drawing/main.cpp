@@ -31,11 +31,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		TextureGround->CreateFromFile(L"Asset\\ground.png");
 	}
 
-	CTexture* TextureTransparent{ GameWindow.AddTexture() };
-	{
-		TextureTransparent->CreateFromFile(L"Asset\\transparent.png");
-	}
-
 	CObject3D* ObjectSquare{ GameWindow.AddObject3D() };
 	{
 		ObjectSquare->Create(GenerateSquareXZPlane(XMVectorSet(0.0f, 0.8f, 0.4f, 1)));
@@ -51,8 +46,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	goCube->ComponentTransform.Rotation = XMQuaternionRotationAxis(XMVectorSet(0, 1, 0, 0), XM_PIDIV4);
 	goCube->UpdateWorldMatrix();
 	goCube->ComponentRender.PtrObject3D = ObjectCube;
-	goCube->ComponentRender.PtrTexture = TextureTransparent;
-	goCube->ComponentRender.IsTransparent = true;
 
 	CGameObject* goFloor{ GameWindow.AddGameObject() };
 	goFloor->ComponentTransform.Translation = XMVectorSet(0.0f, -1.0f, 0.0f, 0);
