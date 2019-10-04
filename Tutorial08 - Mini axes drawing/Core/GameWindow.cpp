@@ -367,7 +367,7 @@ void CGameWindow::CreateMiniAxis()
 void CGameWindow::UpdateCBVSDefaultSpace(const XMMATRIX& MatrixWorld)
 {
 	m_CBVSDefaultSpaceData.WVP = XMMatrixTranspose(MatrixWorld * m_MatrixView * m_MatrixProjection);
-	m_CBVSDefaultSpaceData.World = MatrixWorld;
+	m_CBVSDefaultSpaceData.World = XMMatrixTranspose(MatrixWorld);
 
 	UpdateCB(m_CBVSDefaultSpace.Get(), &m_CBVSDefaultSpaceData, sizeof(SCBVSDefaultSpaceData));
 
