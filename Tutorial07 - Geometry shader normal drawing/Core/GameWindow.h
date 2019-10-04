@@ -65,13 +65,13 @@ public:
 	XMVECTOR Forward{};
 };
 
-struct SCBSpaceData
+struct SCBVSBaseSpaceData
 {
 	XMMATRIX WVP{};
 	XMMATRIX World{};
 };
 
-struct SCBTextureData
+struct SCBPSBaseFlagsData
 {
 	BOOL bUseTexture{};
 	BOOL Pad[3]{};
@@ -130,10 +130,13 @@ private:
 	void SetViewports();
 	void CreateInputDevices();
 	void CreateGSNormal();
-	void CreateCBSpace();
-	void CreateCBTexture();
-	void UpdateCBSpace(const XMMATRIX& MatrixWorld);
-	void UpdateCBTexture(BOOL UseTexture);
+	void CreateCBs();
+	void UpdateCBVSBaseSpace(const XMMATRIX& MatrixWorld);
+	void UpdateCBPSBaseFlags(BOOL UseTexture);
+
+private:
+	void CreateCB(size_t ByteWidth, ID3D11Buffer** ppBuffer);
+	void UpdateCB(size_t ByteWidth, ID3D11Buffer* pBuffer, void* pValue);
 
 private:
 	static constexpr float KDefaultFOV{ 60.0f / 360.0f * XM_2PI };
@@ -145,6 +148,7 @@ private:
 	vector<unique_ptr<CObject3D>>	m_vObject3Ds{};
 	vector<unique_ptr<CTexture>>	m_vTextures{};
 	vector<unique_ptr<CGameObject>>	m_vGameObjects{};
+
 	unique_ptr<CShader>				m_ShaderGSNormal{};
 
 private:
@@ -179,8 +183,8 @@ private:
 	unique_ptr<CommonStates>		m_CommonStates{};
 
 private:
-	ComPtr<ID3D11Buffer>			m_CBSpace{};
-	ComPtr<ID3D11Buffer>			m_CBTexture{};
-	SCBSpaceData					m_CBSpaceData{};
-	SCBTextureData					m_CBTextureData{};
+	ComPtr<ID3D11Buffer>			m_cbVSBaseSpace{};
+	ComPtr<ID3D11Buffer>			m_cbPSBaseFlags{};
+	SCBVSBaseSpaceData				m_cbVSBaseSpaceData{};
+	SCBPSBaseFlagsData				m_cbPSBaseFlagsData{};
 };

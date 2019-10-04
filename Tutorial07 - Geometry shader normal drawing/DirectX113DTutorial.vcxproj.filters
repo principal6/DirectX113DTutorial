@@ -143,13 +143,13 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shader\VertexShader.hlsl">
+    <FxCompile Include="Shader\GSNormal.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shader\PixelShader.hlsl">
+    <FxCompile Include="Shader\PSBase.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shader\GeometryShader.hlsl">
+    <FxCompile Include="Shader\VSBase.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

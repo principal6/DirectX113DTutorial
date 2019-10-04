@@ -191,8 +191,7 @@ void CGameWindow::InitializeDirectX(const wstring& FontFileName, bool bWindowed)
 
 	CreateGSNormal();
 
-	CreateCBSpace();
-	CreateCBTexture();
+	CreateCBs();
 
 	m_SpriteBatch = make_unique<SpriteBatch>(m_DeviceContext.Get());
 	m_SpriteFont = make_unique<SpriteFont>(m_Device.Get(), FontFileName.c_str());
@@ -278,64 +277,57 @@ void CGameWindow::CreateInputDevices()
 void CGameWindow::CreateGSNormal()
 {
 	m_ShaderGSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_ShaderGSNormal->Create(EShaderType::GeometryShader, L"Shader\\GeometryShader.hlsl", "main");
+	m_ShaderGSNormal->Create(EShaderType::GeometryShader, L"Shader\\GSNormal.hlsl", "main");
 }
 
-void CGameWindow::CreateCBSpace()
+void CGameWindow::CreateCBs()
 {
-	D3D11_BUFFER_DESC cbSpaceDesc{};
-	cbSpaceDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	cbSpaceDesc.ByteWidth = sizeof(SCBSpaceData);
-	cbSpaceDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	cbSpaceDesc.MiscFlags = 0;
-	cbSpaceDesc.StructureByteStride = 0;
-	cbSpaceDesc.Usage = D3D11_USAGE_DYNAMIC;
+	CreateCB(sizeof(SCBVSBaseSpaceData), m_cbVSBaseSpace.GetAddressOf());
 
-	m_Device->CreateBuffer(&cbSpaceDesc, nullptr, &m_CBSpace);
+	CreateCB(sizeof(SCBPSBaseFlagsData), m_cbPSBaseFlags.GetAddressOf());
 }
 
-void CGameWindow::CreateCBTexture()
+void CGameWindow::CreateCB(size_t ByteWidth, ID3D11Buffer** ppBuffer)
 {
-	D3D11_BUFFER_DESC cbTextureDesc{};
-	cbTextureDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	cbTextureDesc.ByteWidth = sizeof(SCBTextureData);
-	cbTextureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	cbTextureDesc.MiscFlags = 0;
-	cbTextureDesc.StructureByteStride = 0;
-	cbTextureDesc.Usage = D3D11_USAGE_DYNAMIC;
+	D3D11_BUFFER_DESC BufferDesc{};
+	BufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	BufferDesc.ByteWidth = static_cast<UINT>(ByteWidth);
+	BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	BufferDesc.MiscFlags = 0;
+	BufferDesc.StructureByteStride = 0;
+	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 
-	m_Device->CreateBuffer(&cbTextureDesc, nullptr, &m_CBTexture);
+	m_Device->CreateBuffer(&BufferDesc, nullptr, ppBuffer);
 }
 
-void CGameWindow::UpdateCBSpace(const XMMATRIX& MatrixWorld)
+void CGameWindow::UpdateCBVSBaseSpace(const XMMATRIX& MatrixWorld)
 {
-	m_CBSpaceData.WVP = XMMatrixTranspose(MatrixWorld * m_MatrixView * m_MatrixProjection);
-	m_CBSpaceData.World = XMMatrixTranspose(MatrixWorld);
+	m_cbVSBaseSpaceData.WVP = XMMatrixTranspose(MatrixWorld * m_MatrixView * m_MatrixProjection);
+	m_cbVSBaseSpaceData.World = XMMatrixTranspose(MatrixWorld);
 	
-	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
-	if (SUCCEEDED(m_DeviceContext->Map(m_CBSpace.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
-	{
-		memcpy(MappedSubresource.pData, &m_CBSpaceData, sizeof(SCBSpaceData));
+	UpdateCB(sizeof(SCBVSBaseSpaceData), m_cbVSBaseSpace.Get(), &m_cbVSBaseSpaceData);
 
-		m_DeviceContext->Unmap(m_CBSpace.Get(), 0);
-	}
-
-	m_DeviceContext->VSSetConstantBuffers(0, 1, m_CBSpace.GetAddressOf());
+	m_DeviceContext->VSSetConstantBuffers(0, 1, m_cbVSBaseSpace.GetAddressOf());
 }
 
-void CGameWindow::UpdateCBTexture(BOOL UseTexture)
+void CGameWindow::UpdateCBPSBaseFlags(BOOL UseTexture)
 {
-	m_CBTextureData.bUseTexture = UseTexture;
+	m_cbPSBaseFlagsData.bUseTexture = UseTexture;
 
+	UpdateCB(sizeof(SCBPSBaseFlagsData), m_cbPSBaseFlags.Get(), &m_cbPSBaseFlagsData);
+
+	m_DeviceContext->PSSetConstantBuffers(0, 1, m_cbPSBaseFlags.GetAddressOf());
+}
+
+void CGameWindow::UpdateCB(size_t ByteWidth, ID3D11Buffer* pBuffer, void* pValue)
+{
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
-	if (SUCCEEDED(m_DeviceContext->Map(m_CBTexture.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
+	if (SUCCEEDED(m_DeviceContext->Map(pBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
 	{
-		memcpy(MappedSubresource.pData, &m_CBTextureData, sizeof(SCBTextureData));
+		memcpy(MappedSubresource.pData, pValue, ByteWidth);
 
-		m_DeviceContext->Unmap(m_CBTexture.Get(), 0);
+		m_DeviceContext->Unmap(pBuffer, 0);
 	}
-
-	m_DeviceContext->PSSetConstantBuffers(0, 1, m_CBTexture.GetAddressOf());
 }
 
 CShader* CGameWindow::AddShader()
@@ -443,17 +435,17 @@ void CGameWindow::DrawGameObjects()
 
 void CGameWindow::DrawGameObject(CGameObject* PtrGO)
 {
-	UpdateCBSpace(PtrGO->ComponentTransform.MatrixWorld);
+	UpdateCBVSBaseSpace(PtrGO->ComponentTransform.MatrixWorld);
 
 	if (PtrGO->ComponentRender.PtrTexture)
 	{
-		UpdateCBTexture(TRUE);
+		UpdateCBPSBaseFlags(TRUE);
 
 		PtrGO->ComponentRender.PtrTexture->Use();
 	}
 	else
 	{
-		UpdateCBTexture(FALSE);
+		UpdateCBPSBaseFlags(FALSE);
 	}
 
 	if (PtrGO->ComponentRender.PtrObject3D)
@@ -462,7 +454,7 @@ void CGameWindow::DrawGameObject(CGameObject* PtrGO)
 
 		if ((m_eFlagsGamerendering & EFlagsGameRendering::DrawNormals) == EFlagsGameRendering::DrawNormals)
 		{
-			UpdateCBTexture(FALSE);
+			UpdateCBPSBaseFlags(FALSE);
 
 			m_ShaderGSNormal->Use();
 

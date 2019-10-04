@@ -20,11 +20,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	GameWindow.AddCamera(SCameraData(ECameraType::FreeLook));
 	GameWindow.SetCamera(0);
 	
-	CShader* VS{ GameWindow.AddShader() };
-	VS->Create(EShaderType::VertexShader, L"Shader\\VertexShader.hlsl", "main", KInputElementDescs, ARRAYSIZE(KInputElementDescs));
+	CShader* VSBase{ GameWindow.AddShader() };
+	VSBase->Create(EShaderType::VertexShader, L"Shader\\VSBase.hlsl", "main", KInputElementDescs, ARRAYSIZE(KInputElementDescs));
 	
-	CShader* PS{ GameWindow.AddShader() };
-	PS->Create(EShaderType::PixelShader, L"Shader\\PixelShader.hlsl", "main");
+	CShader* PSBase{ GameWindow.AddShader() };
+	PSBase->Create(EShaderType::PixelShader, L"Shader\\PSBase.hlsl", "main");
 
 	CTexture* TextureGround{ GameWindow.AddTexture() };
 	{
@@ -71,8 +71,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		{
 			GameWindow.BeginRendering(Colors::CornflowerBlue);
 
-			VS->Use();
-			PS->Use();
+			VSBase->Use();
+			PSBase->Use();
 
 			Keyboard::State KeyState{ GameWindow.GetKeyState() };
 			if (KeyState.Escape)
