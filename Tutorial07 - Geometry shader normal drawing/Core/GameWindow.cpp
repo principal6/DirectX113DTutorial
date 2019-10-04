@@ -310,7 +310,7 @@ void CGameWindow::CreateCBTexture()
 void CGameWindow::UpdateCBSpace(const XMMATRIX& MatrixWorld)
 {
 	m_CBSpaceData.WVP = XMMatrixTranspose(MatrixWorld * m_MatrixView * m_MatrixProjection);
-	m_CBSpaceData.World = MatrixWorld;
+	m_CBSpaceData.World = XMMatrixTranspose(MatrixWorld);
 	
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_DeviceContext->Map(m_CBSpace.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
