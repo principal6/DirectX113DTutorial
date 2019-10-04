@@ -125,6 +125,7 @@ private:
 	void CreateWin32Window(WNDPROC WndProc, LPCTSTR WindowName);
 	void InitializeDirectX(const wstring& FontFileName, bool bWindowed);
 	void DrawGameObject(CGameObject* PtrGO);
+	void DrawGameObjectNormal(CGameObject* PtrGO);
 
 private:
 	void CreateSwapChain(bool bWindowed);
@@ -158,6 +159,7 @@ private:
 	unique_ptr<CShader>				m_VSBase{};
 	unique_ptr<CShader>				m_PSBase{};
 	unique_ptr<CShader>				m_GSNormal{};
+	unique_ptr<CShader>				m_PSNormal{};
 
 	vector<D3D11_VIEWPORT>			m_vViewports{};
 

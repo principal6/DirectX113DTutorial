@@ -303,6 +303,9 @@ void CGameWindow::CreateBaseShaders()
 
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSNormal->Create(EShaderType::GeometryShader, L"Shader\\GSNormal.hlsl", "main");
+
+	m_PSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSNormal->Create(EShaderType::PixelShader, L"Shader\\PSNormal.hlsl", "main");
 }
 
 void CGameWindow::CreateCBs()
@@ -489,6 +492,19 @@ void CGameWindow::DrawGameObjects()
 
 		DrawGameObject(go.get());
 	}
+
+	if ((m_eFlagsGamerendering & EFlagsGameRendering::DrawNormals) == EFlagsGameRendering::DrawNormals)
+	{
+		m_GSNormal->Use();
+		m_PSNormal->Use();
+
+		for (auto& go : m_vGameObjects)
+		{
+			DrawGameObjectNormal(go.get());
+		}
+
+		m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
+	}
 }
 
 void CGameWindow::DrawMiniAxes()
@@ -532,17 +548,16 @@ void CGameWindow::DrawGameObject(CGameObject* PtrGO)
 	if (PtrGO->ComponentRender.PtrObject3D)
 	{
 		PtrGO->ComponentRender.PtrObject3D->Draw();
+	}
+}
 
-		if ((m_eFlagsGamerendering & EFlagsGameRendering::DrawNormals) == EFlagsGameRendering::DrawNormals)
-		{
-			UpdateCBPSBaseFlags(FALSE);
+void CGameWindow::DrawGameObjectNormal(CGameObject* PtrGO)
+{
+	UpdateCBVSBaseSpace(PtrGO->ComponentTransform.MatrixWorld);
 
-			m_GSNormal->Use();
-
-			PtrGO->ComponentRender.PtrObject3D->DrawNormals();
-
-			m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
-		}
+	if (PtrGO->ComponentRender.PtrObject3D)
+	{
+		PtrGO->ComponentRender.PtrObject3D->DrawNormals();
 	}
 }
 
