@@ -9,24 +9,25 @@ void CObject3D::Create(const SMesh& Mesh, const SMaterial& Material)
 	Create(vMeshes, vMaterials);
 }
 
-void CObject3D::Create(const SModel& Model)
-{
-	Create(Model.vMeshes, Model.vMaterials);
-}
-
 void CObject3D::Create(const vector<SMesh>& vMeshes, const vector<SMaterial>& vMaterials)
 {
-	m_vMeshes = vMeshes;
-	m_vMaterials = vMaterials;
+	SModel Model{ vMeshes, vMaterials };
+	
+	Create(Model);
+}
 
-	m_vMeshBuffers.resize(m_vMeshes.size());
-	for (size_t iMesh = 0; iMesh < m_vMeshes.size(); ++iMesh)
+void CObject3D::Create(const SModel& Model)
+{
+	m_Model = Model;
+
+	m_vMeshBuffers.resize(m_Model.vMeshes.size());
+	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
 	{
 		CreateMeshBuffers(iMesh);
 	}
 
-	m_vTextures.reserve(m_vMaterials.size());
-	for (SMaterial& Material : m_vMaterials)
+	m_vTextures.reserve(m_Model.vMaterials.size());
+	for (SMaterial& Material : m_Model.vMaterials)
 	{
 		if (Material.bHasTexture && Material.vEmbeddedTextureRawData.size())
 		{
@@ -39,7 +40,7 @@ void CObject3D::Create(const vector<SMesh>& vMeshes, const vector<SMaterial>& vM
 
 void CObject3D::CreateMeshBuffers(size_t MeshIndex)
 {
-	const SMesh& Mesh{ m_vMeshes[MeshIndex] };
+	const SMesh& Mesh{ m_Model.vMeshes[MeshIndex] };
 
 	{
 		D3D11_BUFFER_DESC BufferDesc{};
@@ -72,10 +73,10 @@ void CObject3D::CreateMeshBuffers(size_t MeshIndex)
 
 void CObject3D::Draw() const
 {
-	for (size_t iMesh = 0; iMesh < m_vMeshes.size(); ++iMesh)
+	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
 	{
-		const SMesh& Mesh{ m_vMeshes[iMesh] };
-		const SMaterial& Material{ m_vMaterials[Mesh.MaterialID] };
+		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };
+		const SMaterial& Material{ m_Model.vMaterials[Mesh.MaterialID] };
 
 		m_PtrGameWindow->UpdateCBPSBaseMaterial(Material);
 
@@ -98,9 +99,9 @@ void CObject3D::Draw() const
 
 void CObject3D::DrawNormals() const
 {
-	for (size_t iMesh = 0; iMesh < m_vMeshes.size(); ++iMesh)
+	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
 	{
-		const SMesh& Mesh{ m_vMeshes[iMesh] };
+		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };
 
 		m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_vMeshBuffers[iMesh].VertexBuffer.GetAddressOf(), 
 			&m_vMeshBuffers[iMesh].VertexBufferStride, &m_vMeshBuffers[iMesh].VertexBufferOffset);

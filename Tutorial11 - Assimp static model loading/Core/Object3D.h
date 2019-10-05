@@ -88,8 +88,7 @@ private:
 	CGameWindow*					m_PtrGameWindow{};
 
 private:
-	vector<SMesh>					m_vMeshes{};
-	vector<SMaterial>				m_vMaterials{};
+	SModel							m_Model{};
 	vector<SMeshBuffers>			m_vMeshBuffers{};
 	vector<unique_ptr<CTexture>>	m_vTextures{};
 };
