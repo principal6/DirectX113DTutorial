@@ -19,9 +19,10 @@ struct SVertex3D
 
 struct SMesh
 {
-	vector<SVertex3D>	vVertices{};
-	vector<STriangle>	vTriangles{};
-	size_t				MaterialID{};
+	vector<SVertex3D>		vVertices{};
+	vector<STriangle>		vTriangles{};
+
+	size_t					MaterialID{};
 };
 
 struct SMeshBuffers
