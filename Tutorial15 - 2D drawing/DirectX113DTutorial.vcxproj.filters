@@ -25,6 +25,12 @@
     <Filter Include="Assimp">
       <UniqueIdentifier>{b891ad76-8e31-4859-a6df-49e85822dbbe}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Asset">
+      <UniqueIdentifier>{f1b0f6da-c27d-445e-82b8-c2f2f69284b0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="TinyXml2">
+      <UniqueIdentifier>{fff3cf0d-0073-4b99-a250-3f6d9ace4d91}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -36,13 +42,7 @@
     <ClCompile Include="Core\Object3D.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Core\GameObject.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="Core\Texture.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Core\ObjectLine.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\Game.cpp">
@@ -55,6 +55,18 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\GameObject2D.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="TinyXml2\tinyxml2.cpp">
+      <Filter>TinyXml2</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\GameObject3D.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Object3DLine.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\GameObject3DLine.cpp">
       <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
@@ -132,9 +144,6 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\PrimitiveGenerator.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\GameObject.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\Texture.h">
@@ -362,9 +371,6 @@
     <ClInclude Include="Assimp\config.h">
       <Filter>Assimp</Filter>
     </ClInclude>
-    <ClInclude Include="Core\ObjectLine.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Core\Math.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -381,6 +387,18 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\GameObject2D.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="TinyXml2\tinyxml2.h">
+      <Filter>TinyXml2</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\GameObject3D.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Object3DLine.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\GameObject3DLine.h">
       <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
@@ -467,5 +485,10 @@
     <FxCompile Include="Shader\VSBase2D.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="Asset\Sky.xml">
+      <Filter>Asset</Filter>
+    </Xml>
   </ItemGroup>
 </Project>

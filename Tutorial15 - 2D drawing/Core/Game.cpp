@@ -54,6 +54,116 @@ void CGame::ToggleGameRenderingFlags(EFlagsGameRendering Flags)
 	m_eFlagsGameRendering ^= Flags;
 }
 
+void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
+{
+	using namespace tinyxml2;
+
+	size_t Point{ SkyDataFileName.find_last_of('.') };
+	string Extension{ SkyDataFileName.substr(Point + 1) };
+	for (auto& c : Extension)
+	{
+		c = toupper(c);
+	}
+	assert(Extension == "XML");
+	
+	tinyxml2::XMLDocument xmlDocument{};
+	assert(xmlDocument.LoadFile(SkyDataFileName.c_str()) == XML_SUCCESS);
+	
+	XMLElement* xmlRoot{ xmlDocument.FirstChildElement() };
+	XMLElement* xmlTexture{ xmlRoot->FirstChildElement() };
+	m_SkyData.TextureFileName = xmlTexture->GetText();
+
+	XMLElement* xmlSun{ xmlTexture->NextSiblingElement() };
+	{
+		LoadSkyObjectData(xmlSun, m_SkyData.Sun);
+	}
+
+	XMLElement* xmlMoon{ xmlSun->NextSiblingElement() };
+	{
+		LoadSkyObjectData(xmlMoon, m_SkyData.Moon);
+	}
+
+	XMLElement* xmlCloud{ xmlMoon->NextSiblingElement() };
+	{
+		LoadSkyObjectData(xmlCloud, m_SkyData.Cloud);
+	}
+
+	m_SkyTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
+	m_SkyTexture->CreateFromFile(wstring(m_SkyData.TextureFileName.begin(), m_SkyData.TextureFileName.end()));
+
+	m_Object3DSkySphere = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
+
+	m_Object3DSun = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DSun->Create(GenerateSquareYZPlane(KColorWhite));
+	m_Object3DSun->UpdateQuadUV(m_SkyData.Sun.UVOffset, m_SkyData.Sun.UVSize);
+
+	m_Object3DMoon = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DMoon->Create(GenerateSquareYZPlane(KColorWhite));
+	m_Object3DMoon->UpdateQuadUV(m_SkyData.Moon.UVOffset, m_SkyData.Moon.UVSize);
+
+	m_Object3DCloud = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DCloud->Create(GenerateSquareYZPlane(KColorWhite));
+	m_Object3DCloud->UpdateQuadUV(m_SkyData.Cloud.UVOffset, m_SkyData.Cloud.UVSize);
+
+	m_GameObject3DSkySphere = make_unique<CGameObject3D>("SkySphere");
+	m_GameObject3DSkySphere->ComponentRender.PtrObject3D = m_Object3DSkySphere.get();
+	m_GameObject3DSkySphere->ComponentRender.PtrVS = VSSky.get();
+	m_GameObject3DSkySphere->ComponentRender.PtrPS = PSSky.get();
+	m_GameObject3DSkySphere->ComponentPhysics.bIsPickable = false;
+	m_GameObject3DSkySphere->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoCulling | EFlagsGameObject3DRendering::NoLighting;
+
+	m_GameObject3DSun = make_unique<CGameObject3D>("Sun");
+	m_GameObject3DSun->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Sun.WidthHeightRatio, 0);
+	m_GameObject3DSun->ComponentRender.PtrObject3D = m_Object3DSun.get();
+	m_GameObject3DSun->ComponentRender.PtrVS = VSSky.get();
+	m_GameObject3DSun->ComponentRender.PtrPS = PSBase.get();
+	m_GameObject3DSun->ComponentRender.PtrTexture = m_SkyTexture.get();
+	m_GameObject3DSun->ComponentRender.bIsTransparent = true;
+	m_GameObject3DSun->ComponentPhysics.bIsPickable = false;
+	m_GameObject3DSun->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoCulling | EFlagsGameObject3DRendering::NoLighting;
+
+	m_GameObject3DMoon = make_unique<CGameObject3D>("Moon");
+	m_GameObject3DMoon->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Moon.WidthHeightRatio, 0);
+	m_GameObject3DMoon->ComponentRender.PtrObject3D = m_Object3DMoon.get();
+	m_GameObject3DMoon->ComponentRender.PtrVS = VSSky.get();
+	m_GameObject3DMoon->ComponentRender.PtrPS = PSBase.get();
+	m_GameObject3DMoon->ComponentRender.PtrTexture = m_SkyTexture.get();
+	m_GameObject3DMoon->ComponentRender.bIsTransparent = true;
+	m_GameObject3DMoon->ComponentPhysics.bIsPickable = false;
+	m_GameObject3DMoon->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoCulling | EFlagsGameObject3DRendering::NoLighting;
+
+	m_GameObject3DCloud = make_unique<CGameObject3D>("Cloud");
+	m_GameObject3DCloud->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Cloud.WidthHeightRatio, 0);
+	m_GameObject3DCloud->ComponentRender.PtrObject3D = m_Object3DCloud.get();
+	m_GameObject3DCloud->ComponentRender.PtrVS = VSSky.get();
+	m_GameObject3DCloud->ComponentRender.PtrPS = PSBase.get();
+	m_GameObject3DCloud->ComponentRender.PtrTexture = m_SkyTexture.get();
+	m_GameObject3DCloud->ComponentRender.bIsTransparent = true;
+	m_GameObject3DCloud->ComponentPhysics.bIsPickable = false;
+	m_GameObject3DCloud->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoCulling | EFlagsGameObject3DRendering::NoLighting;
+
+	m_SkyData.bIsDataSet = true;
+
+	return;
+}
+
+void CGame::LoadSkyObjectData(tinyxml2::XMLElement* xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData)
+{
+	using namespace tinyxml2;
+
+	XMLElement* xmlUVOffset{ xmlSkyObject->FirstChildElement() };
+	SkyObjectData.UVOffset.x = xmlUVOffset->FloatAttribute("U");
+	SkyObjectData.UVOffset.y = xmlUVOffset->FloatAttribute("V");
+
+	XMLElement* xmlUVSize{ xmlUVOffset->NextSiblingElement() };
+	SkyObjectData.UVSize.x = xmlUVSize->FloatAttribute("U");
+	SkyObjectData.UVSize.y = xmlUVSize->FloatAttribute("V");
+
+	XMLElement* xmlWidthHeightRatio{ xmlUVSize->NextSiblingElement() };
+	SkyObjectData.WidthHeightRatio = stof(xmlWidthHeightRatio->GetText());
+}
+
 void CGame::SetDirectionalLight(const XMVECTOR& LightSourcePosition)
 {
 	cbPSBaseLightsData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
@@ -75,26 +185,6 @@ void CGame::SetAmbientlLight(const XMFLOAT3& Color, float Intensity)
 	cbPSBaseLightsData.AmbientLightIntensity = Intensity;
 
 	PSBase->UpdateConstantBuffer(1);
-}
-
-void CGame::SetGameObjectSky(CGameObject* GameObject)
-{
-	m_PtrSky = GameObject;
-}
-
-void CGame::SetGameObjectCloud(CGameObject* GameObject)
-{
-	m_PtrCloud = GameObject;
-}
-
-void CGame::SetGameObjectSun(CGameObject* GameObject)
-{
-	m_PtrSun = GameObject;
-}
-
-void CGame::SetGameObjectMoon(CGameObject* GameObject)
-{
-	m_PtrMoon = GameObject;
 }
 
 CCamera* CGame::AddCamera(const SCameraData& CameraData)
@@ -302,43 +392,51 @@ void CGame::CreateShaders()
 
 void CGame::CreateMiniAxes()
 {
-	m_vMiniAxisObject3Ds.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
-	m_vMiniAxisObject3Ds.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
-	m_vMiniAxisObject3Ds.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
+	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
+	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
+	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
 
 	SMesh Cone{ GenerateCone(0, 16) };
 	vector<SMaterial> vMaterials{ SMaterial(XMFLOAT3(1, 0, 0)), SMaterial(XMFLOAT3(0, 1, 0)), SMaterial(XMFLOAT3(0, 0, 1)) };
-	m_vMiniAxisObject3Ds[0]->Create(Cone, vMaterials[0]);
-	m_vMiniAxisObject3Ds[1]->Create(Cone, vMaterials[1]);
-	m_vMiniAxisObject3Ds[2]->Create(Cone, vMaterials[2]);
+	m_vObject3DMiniAxes[0]->Create(Cone, vMaterials[0]);
+	m_vObject3DMiniAxes[1]->Create(Cone, vMaterials[1]);
+	m_vObject3DMiniAxes[2]->Create(Cone, vMaterials[2]);
 
-	m_vMiniAxisGameObjects.emplace_back(make_unique<CGameObject>("AxisX"));
-	m_vMiniAxisGameObjects.emplace_back(make_unique<CGameObject>("AxisY"));
-	m_vMiniAxisGameObjects.emplace_back(make_unique<CGameObject>("AxisZ"));
-	m_vMiniAxisGameObjects[0]->ComponentRender.PtrObject3D = m_vMiniAxisObject3Ds[0].get();
-	m_vMiniAxisGameObjects[0]->ComponentTransform.RotationQuaternion = XMQuaternionRotationRollPitchYaw(0, 0, -XM_PIDIV2);
-	m_vMiniAxisGameObjects[1]->ComponentRender.PtrObject3D = m_vMiniAxisObject3Ds[1].get();
-	m_vMiniAxisGameObjects[2]->ComponentRender.PtrObject3D = m_vMiniAxisObject3Ds[2].get();
-	m_vMiniAxisGameObjects[2]->ComponentTransform.RotationQuaternion = XMQuaternionRotationRollPitchYaw(0, -XM_PIDIV2, -XM_PIDIV2);
+	m_vGameObject3DMiniAxes.emplace_back(make_unique<CGameObject3D>("AxisX"));
+	m_vGameObject3DMiniAxes.emplace_back(make_unique<CGameObject3D>("AxisY"));
+	m_vGameObject3DMiniAxes.emplace_back(make_unique<CGameObject3D>("AxisZ"));
+
+	m_vGameObject3DMiniAxes[0]->ComponentRender.PtrObject3D = m_vObject3DMiniAxes[0].get();
+	m_vGameObject3DMiniAxes[0]->ComponentRender.PtrVS = VSBase.get();
+	m_vGameObject3DMiniAxes[0]->ComponentRender.PtrPS = PSBase.get();
+	m_vGameObject3DMiniAxes[0]->ComponentTransform.RotationQuaternion = XMQuaternionRotationRollPitchYaw(0, 0, -XM_PIDIV2);
+	m_vGameObject3DMiniAxes[0]->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoLighting;
+
+	m_vGameObject3DMiniAxes[1]->ComponentRender.PtrObject3D = m_vObject3DMiniAxes[1].get();
+	m_vGameObject3DMiniAxes[1]->ComponentRender.PtrVS = VSBase.get();
+	m_vGameObject3DMiniAxes[1]->ComponentRender.PtrPS = PSBase.get();
+	m_vGameObject3DMiniAxes[1]->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoLighting;
+
+	m_vGameObject3DMiniAxes[2]->ComponentRender.PtrObject3D = m_vObject3DMiniAxes[2].get();
+	m_vGameObject3DMiniAxes[2]->ComponentRender.PtrVS = VSBase.get();
+	m_vGameObject3DMiniAxes[2]->ComponentRender.PtrPS = PSBase.get();
+	m_vGameObject3DMiniAxes[2]->ComponentTransform.RotationQuaternion = XMQuaternionRotationRollPitchYaw(0, -XM_PIDIV2, -XM_PIDIV2);
+	m_vGameObject3DMiniAxes[2]->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoLighting;
 	
-	m_vMiniAxisGameObjects[0]->ComponentTransform.Scaling = 
-		m_vMiniAxisGameObjects[1]->ComponentTransform.Scaling =
-		m_vMiniAxisGameObjects[2]->ComponentTransform.Scaling = XMVectorSet(0.1f, 1.0f, 0.1f, 0);
-
-	m_vMiniAxisGameObjects[0]->UpdateWorldMatrix();
-	m_vMiniAxisGameObjects[1]->UpdateWorldMatrix();
-	m_vMiniAxisGameObjects[2]->UpdateWorldMatrix();
+	m_vGameObject3DMiniAxes[0]->ComponentTransform.Scaling = 
+		m_vGameObject3DMiniAxes[1]->ComponentTransform.Scaling =
+		m_vGameObject3DMiniAxes[2]->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.8f, 0.1f, 0);
 }
 
 void CGame::CreatePickingRay()
 {
-	m_ObjectLinePickingRay = make_unique<CObjectLine>(m_Device.Get(), m_DeviceContext.Get());
+	m_Object3DLinePickingRay = make_unique<CObject3DLine>(m_Device.Get(), m_DeviceContext.Get());
 
 	vector<SVertexLine> Vertices{};
 	Vertices.emplace_back(XMVectorSet(0, 0, 0, 1), XMVectorSet(1, 0, 0, 1));
 	Vertices.emplace_back(XMVectorSet(10.0f, 10.0f, 0, 1), XMVectorSet(0, 1, 0, 1));
 
-	m_ObjectLinePickingRay->Create(Vertices);
+	m_Object3DLinePickingRay->Create(Vertices);
 }
 
 void CGame::CreateBoundingSphere()
@@ -358,22 +456,22 @@ void CGame::CreatePickedTriangle()
 
 void CGame::PickBoundingSphere()
 {
-	m_PtrPickedGameObject = nullptr;
+	m_PtrPickedGameObject3D = nullptr;
 
 	XMVECTOR T{ KVectorGreatest };
-	for (auto& i : m_vGameObjects)
+	for (auto& i : m_vGameObject3Ds)
 	{
-		auto* GO{ i.get() };
-		if (GO->ComponentPhysics.bIsPickable)
+		auto* GO3D{ i.get() };
+		if (GO3D->ComponentPhysics.bIsPickable)
 		{
 			XMVECTOR NewT{ KVectorGreatest };
 			if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-				GO->ComponentPhysics.BoundingSphere.Radius, GO->ComponentTransform.Translation + GO->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
+				GO3D->ComponentPhysics.BoundingSphere.Radius, GO3D->ComponentTransform.Translation + GO3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
 			{
 				if (XMVector3Less(NewT, T))
 				{
 					T = NewT;
-					m_PtrPickedGameObject = GO;
+					m_PtrPickedGameObject3D = GO3D;
 				}
 			}
 		}
@@ -383,15 +481,15 @@ void CGame::PickBoundingSphere()
 void CGame::PickTriangle()
 {
 	XMVECTOR T{ KVectorGreatest };
-	if (m_PtrPickedGameObject)
+	if (m_PtrPickedGameObject3D)
 	{
-		assert(m_PtrPickedGameObject->ComponentRender.PtrObject3D);
+		assert(m_PtrPickedGameObject3D->ComponentRender.PtrObject3D);
 
 		// Pick only static models' triangle.
-		if (m_PtrPickedGameObject->ComponentRender.PtrObject3D->m_Model.bIsAnimated) return;
+		if (m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->m_Model.bIsModelAnimated) return;
 
-		const XMMATRIX& World{ m_PtrPickedGameObject->ComponentTransform.MatrixWorld };
-		for (auto& Mesh : m_PtrPickedGameObject->ComponentRender.PtrObject3D->m_Model.vMeshes)
+		const XMMATRIX& World{ m_PtrPickedGameObject3D->ComponentTransform.MatrixWorld };
+		for (auto& Mesh : m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->m_Model.vMeshes)
 		{
 			for (auto& Triangle : Mesh.vTriangles)
 			{
@@ -457,6 +555,18 @@ CObject2D* CGame::GetObject2D(size_t Index)
 	return m_vObject2Ds[Index].get();
 }
 
+CObject3DLine* CGame::AddObject3DLine()
+{
+	m_vObject3DLines.emplace_back(make_unique<CObject3DLine>(m_Device.Get(), m_DeviceContext.Get()));
+	return m_vObject3DLines.back().get();
+}
+
+CObject3DLine* CGame::GetObject3DLine(size_t Index)
+{
+	assert(Index < m_vObject3DLines.size());
+	return m_vObject3DLines[Index].get();
+}
+
 CTexture* CGame::AddTexture()
 {
 	m_vTextures.emplace_back(make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get()));
@@ -469,27 +579,29 @@ CTexture* CGame::GetTexture(size_t Index)
 	return m_vTextures[Index].get();
 }
 
-CGameObject* CGame::AddGameObject(const string& Name)
+CGameObject3D* CGame::AddGameObject3D(const string& Name)
 {
-	assert(m_mapGameObjectNameToIndex.find(Name) == m_mapGameObjectNameToIndex.end());
+	assert(m_mapGameObject3DNameToIndex.find(Name) == m_mapGameObject3DNameToIndex.end());
 
-	m_vGameObjects.emplace_back(make_unique<CGameObject>(Name));
+	m_vGameObject3Ds.emplace_back(make_unique<CGameObject3D>(Name));
+	m_vGameObject3Ds.back()->ComponentRender.PtrVS = VSBase.get();
+	m_vGameObject3Ds.back()->ComponentRender.PtrPS = PSBase.get();
 
-	m_mapGameObjectNameToIndex[Name] = m_vGameObjects.size() - 1;
+	m_mapGameObject3DNameToIndex[Name] = m_vGameObject3Ds.size() - 1;
 
-	return m_vGameObjects.back().get();
+	return m_vGameObject3Ds.back().get();
 }
 
-CGameObject* CGame::GetGameObject(const string& Name)
+CGameObject3D* CGame::GetGameObject3D(const string& Name)
 {
-	assert(m_mapGameObjectNameToIndex.find(Name) != m_mapGameObjectNameToIndex.end());
-	return m_vGameObjects[m_mapGameObjectNameToIndex[Name]].get();
+	assert(m_mapGameObject3DNameToIndex.find(Name) != m_mapGameObject3DNameToIndex.end());
+	return m_vGameObject3Ds[m_mapGameObject3DNameToIndex[Name]].get();
 }
 
-CGameObject* CGame::GetGameObject(size_t Index)
+CGameObject3D* CGame::GetGameObject3D(size_t Index)
 {
-	assert(Index < m_vGameObjects.size());
-	return m_vGameObjects[Index].get();
+	assert(Index < m_vGameObject3Ds.size());
+	return m_vGameObject3Ds[Index].get();
 }
 
 CGameObject2D* CGame::AddGameObject2D(const string& Name)
@@ -515,6 +627,29 @@ CGameObject2D* CGame::GetGameObject2D(size_t Index)
 	return m_vGameObject2Ds[Index].get();
 }
 
+CGameObject3DLine* CGame::AddGameObject3DLine(const string& Name)
+{
+	assert(m_mapGameObject3DLineNameToIndex.find(Name) == m_mapGameObject3DLineNameToIndex.end());
+
+	m_vGameObject3DLines.emplace_back(make_unique<CGameObject3DLine>(Name));
+
+	m_mapGameObject3DLineNameToIndex[Name] = m_vGameObject3DLines.size() - 1;
+
+	return m_vGameObject3DLines.back().get();
+}
+
+CGameObject3DLine* CGame::GetGameObject3DLine(const string& Name)
+{
+	assert(m_mapGameObject3DLineNameToIndex.find(Name) != m_mapGameObject3DLineNameToIndex.end());
+	return m_vGameObject3DLines[m_mapGameObject3DLineNameToIndex[Name]].get();
+}
+
+CGameObject3DLine* CGame::GetGameObject3DLine(size_t Index)
+{
+	assert(Index < m_vGameObject3DLines.size());
+	return m_vGameObject3DLines[Index].get();
+}
+
 void CGame::Pick(int ScreenMousePositionX, int ScreenMousePositionY)
 {
 	float ViewSpaceRayDirectionX{ (ScreenMousePositionX / (m_WindowSize.x / 2.0f) - 1.0f) / XMVectorGetX(m_MatrixProjection.r[0]) };
@@ -535,11 +670,11 @@ void CGame::Pick(int ScreenMousePositionX, int ScreenMousePositionY)
 	PickTriangle();
 }
 
-const char* CGame::GetPickedGameObjectName()
+const char* CGame::GetPickedGameObject3DName()
 {
-	if (m_PtrPickedGameObject)
+	if (m_PtrPickedGameObject3D)
 	{
-		return m_PtrPickedGameObject->m_Name.c_str();
+		return m_PtrPickedGameObject3D->m_Name.c_str();
 	}
 	return nullptr;
 }
@@ -561,15 +696,15 @@ void CGame::BeginRendering(const FLOAT* ClearColor)
 		m_vCameras[m_CurrentCameraIndex].m_CameraData.UpDirection);
 }
 
-void CGame::AnimateGameObjects()
+void CGame::Animate()
 {
-	for (auto& go : m_vGameObjects)
+	for (auto& i : m_vGameObject3Ds)
 	{
-		if (go->ComponentRender.PtrObject3D) go->ComponentRender.PtrObject3D->Animate();
+		if (i->ComponentRender.PtrObject3D) i->ComponentRender.PtrObject3D->Animate();
 	}
 }
 
-void CGame::DrawGameObjects(float DeltaTime)
+void CGame::Draw(float DeltaTime)
 {
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 
@@ -579,6 +714,7 @@ void CGame::DrawGameObjects(float DeltaTime)
 	static float DirectionalLightRoll{};
 	DirectionalLightRoll += XM_2PI * DeltaTime * KSkyTimeFactorAbsolute / 4.0f;
 	if (DirectionalLightRoll >= XM_PIDIV2) DirectionalLightRoll = -XM_PIDIV2;
+
 	XMVECTOR DirectionalLightSourcePosition{ XMVector3TransformCoord(XMVectorSet(0, 1, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, DirectionalLightRoll)) };
 	SetDirectionalLight(DirectionalLightSourcePosition);
 
@@ -591,33 +727,37 @@ void CGame::DrawGameObjects(float DeltaTime)
 		m_eRasterizerState = ERasterizerState::CullCounterClockwise;
 	}
 
-	for (auto& go : m_vGameObjects)
+	for (auto& i : m_vGameObject3Ds)
 	{
-		if (go->ComponentRender.IsTransparent) continue;
+		if (i->ComponentRender.bIsTransparent) continue;
 
-		UpdateGameObject(go.get(), DeltaTime);
-		DrawGameObject(go.get());
-		DrawGameObjectBoundingSphere(go.get());
+		UpdateGameObject3D(i.get());
+		DrawGameObject3D(i.get());
+
+		if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawBoundingSphere))
+		{
+			DrawGameObject3DBoundingSphere(i.get());
+		}
 	}
 
-	for (auto& go : m_vGameObjects)
+	for (auto& i : m_vGameObject3Ds)
 	{
-		if (!go->ComponentRender.IsTransparent) continue;
+		if (!i->ComponentRender.bIsTransparent) continue;
 
-		UpdateGameObject(go.get(), DeltaTime);
-		DrawGameObject(go.get());
-		DrawGameObjectBoundingSphere(go.get());
+		UpdateGameObject3D(i.get());
+		DrawGameObject3D(i.get());
+		
+		if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawBoundingSphere))
+		{
+			DrawGameObject3DBoundingSphere(i.get());
+		}
 	}
 
 	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawNormals))
 	{
-		VSBase->Use();
-		GSNormal->Use();
-		PSVertexColor->Use();
-
-		for (auto& go : m_vGameObjects)
+		for (auto& i : m_vGameObject3Ds)
 		{
-			DrawGameObjectNormals(go.get());
+			DrawGameObject3DNormal(i.get());
 		}
 
 		m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
@@ -634,9 +774,42 @@ void CGame::DrawGameObjects(float DeltaTime)
 
 		DrawPickedTriangle();
 	}
+
+	if (m_SkyData.bIsDataSet)
+	{
+		DrawSky(DeltaTime);
+	}
+
+	DrawGameObject3DLines();
+
+	DrawGameObject2Ds();
 }
 
-void CGame::DrawGameObject2Ds(float DeltaTime)
+void CGame::DrawGameObject3DLines()
+{
+	VSLine->Use();
+	PSLine->Use();
+
+	for (auto& i : m_vGameObject3DLines)
+	{
+		CGameObject3DLine* GOLine{ i.get() };
+
+		if (GOLine->ComponentRender.PtrObject3DLine)
+		{
+			if (!GOLine->bIsVisible) continue;
+
+			GOLine->UpdateWorldMatrix();
+
+			cbVSSpaceData.World = XMMatrixTranspose(GOLine->ComponentTransform.MatrixWorld);
+			cbVSSpaceData.WVP = XMMatrixTranspose(GOLine->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
+			VSLine->UpdateConstantBuffer(0);
+
+			GOLine->ComponentRender.PtrObject3DLine->Draw();
+		}
+	}
+}
+
+void CGame::DrawGameObject2Ds()
 {
 	m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
@@ -650,49 +823,44 @@ void CGame::DrawGameObject2Ds(float DeltaTime)
 	{
 		CGameObject2D* GO2D{ i.get() };
 
-		if (!GO2D->bIsVisible) continue;
-
-		GO2D->UpdateWorldMatrix();
-		cbVS2DSpaceData.World = GO2D->ComponentTransform.MatrixWorld;
-		VSBase2D->UpdateConstantBuffer(0);
-
-		if (GO2D->ComponentRender.PtrTexture)
+		if (GO2D->ComponentRender.PtrObject2D)
 		{
-			GO2D->ComponentRender.PtrTexture->Use();
-			cbPS2DFlagsData.bUseTexture = TRUE;
-			PSBase2D->UpdateConstantBuffer(0);
-		}
-		else
-		{
-			cbPS2DFlagsData.bUseTexture = FALSE;
-			PSBase2D->UpdateConstantBuffer(0);
-		}
+			if (!GO2D->bIsVisible) continue;
 
-		if (GO2D->ComponentRender.PtrObject2D) GO2D->ComponentRender.PtrObject2D->Draw();
+			GO2D->UpdateWorldMatrix();
+			cbVS2DSpaceData.World = GO2D->ComponentTransform.MatrixWorld;
+			VSBase2D->UpdateConstantBuffer(0);
+
+			if (GO2D->ComponentRender.PtrTexture)
+			{
+				GO2D->ComponentRender.PtrTexture->Use();
+				cbPS2DFlagsData.bUseTexture = TRUE;
+				PSBase2D->UpdateConstantBuffer(0);
+			}
+			else
+			{
+				cbPS2DFlagsData.bUseTexture = FALSE;
+				PSBase2D->UpdateConstantBuffer(0);
+			}
+
+			GO2D->ComponentRender.PtrObject2D->Draw();
+		}
 	}
+
+	m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
 }
 
 void CGame::DrawMiniAxes()
 {
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[1]);
 
-	VSBase->Use();
-	PSBase->Use();
-	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
-
-	cbPSBaseFlagsData.bUseTexture = FALSE;
-	cbPSBaseFlagsData.bUseLighting = FALSE;
-	PSBase->UpdateConstantBuffer(0);
-
-	for (auto& i : m_vMiniAxisGameObjects)
+	for (auto& i : m_vGameObject3DMiniAxes)
 	{
-		cbVSSpaceData.World = XMMatrixTranspose(i->ComponentTransform.MatrixWorld);
-		cbVSSpaceData.WVP = XMMatrixTranspose(i->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
-		VSBase->UpdateConstantBuffer(0);
+		UpdateGameObject3D(i.get());
+		DrawGameObject3D(i.get());
 
-		i->ComponentRender.PtrObject3D->Draw();
-
-		i->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + 
+		i->ComponentTransform.Translation = 
+			m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition +
 			m_vCameras[m_CurrentCameraIndex].m_CameraData.Forward;
 
 		i->UpdateWorldMatrix();
@@ -703,28 +871,28 @@ void CGame::DrawMiniAxes()
 
 void CGame::DrawPickingRay()
 {
-	m_DeviceContext->RSSetState(m_CommonStates->CullNone());
-
 	VSLine->Use();
-	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
-	PSLine->Use();
-
 	cbVSSpaceData.World = XMMatrixTranspose(KMatrixIdentity);
 	cbVSSpaceData.WVP = XMMatrixTranspose(KMatrixIdentity * m_MatrixView * m_MatrixProjection);
 	VSLine->UpdateConstantBuffer(0);
 
-	m_ObjectLinePickingRay->Draw();
+	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
+	
+	PSLine->Use();
+
+	m_Object3DLinePickingRay->Draw();
 }
 
 void CGame::DrawPickedTriangle()
 {
 	VSBase->Use();
-	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
-	PSVertexColor->Use();
-
 	cbVSSpaceData.World = XMMatrixTranspose(KMatrixIdentity);
 	cbVSSpaceData.WVP = XMMatrixTranspose(KMatrixIdentity * m_MatrixView * m_MatrixProjection);
 	VSBase->UpdateConstantBuffer(0);
+
+	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
+	
+	PSVertexColor->Use();
 
 	m_Object3DPickedTriangle->m_Model.vMeshes[0].vVertices[0].Position = m_PickedTriangleV0;
 	m_Object3DPickedTriangle->m_Model.vMeshes[0].vVertices[1].Position = m_PickedTriangleV1;
@@ -734,34 +902,9 @@ void CGame::DrawPickedTriangle()
 	m_Object3DPickedTriangle->Draw();
 }
 
-void CGame::UpdateGameObject(CGameObject* PtrGO, float DeltaTime)
+void CGame::DrawSky(float DeltaTime)
 {
-	CShader* VS{ VSBase.get() };
-	CShader* PS{ PSBase.get() };
-
-	cbVSSpaceData.World = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld);
-	cbVSSpaceData.WVP = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
-
-	// Set VS
-	if (PtrGO->ComponentRender.PtrObject3D->m_Model.bIsAnimated)
-	{
-		VS = VSAnimation.get();
-	}
-	else
-	{
-		if (PtrGO == m_PtrSky || PtrGO == m_PtrCloud || PtrGO == m_PtrSun || PtrGO == m_PtrMoon)
-		{
-			VS = VSSky.get();
-		}
-	}
-	
-	// Set PS
-	if (PtrGO == m_PtrSky)
-	{
-		PS = PSSky.get();
-	}
-
-	if (PtrGO == m_PtrSky)
+	// SkySphere
 	{
 		static float SkyTime{ 1.0f };
 		static float SkyTimeFactor{ KSkyTimeFactorAbsolute };
@@ -770,68 +913,82 @@ void CGame::UpdateGameObject(CGameObject* PtrGO, float DeltaTime)
 		if (SkyTime < -1.0f) SkyTimeFactor = -SkyTimeFactor;
 		if (SkyTime > +1.0f) SkyTimeFactor = -SkyTimeFactor;
 
-		PtrGO->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
-		PtrGO->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition;
+		m_GameObject3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
+		m_GameObject3DSkySphere->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition;
 
 		cbPSSkyTimeData.SkyTime = SkyTime;
 	}
 
-	if (PtrGO == m_PtrCloud)
-	{
-		static float Yaw{};
-		Yaw -= XM_2PI * DeltaTime * 0.01f;
-		if (Yaw <= -XM_2PI) Yaw = 0;
-
-		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(0, 0, KSkyDistance, 1), XMMatrixRotationRollPitchYaw(-XM_PIDIV4, Yaw, 0)) };
-		PtrGO->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
-
-		PtrGO->ComponentTransform.RotationQuaternion = XMQuaternionRotationRollPitchYaw(-XM_PIDIV2 - XM_PIDIV4, Yaw, 0);
-	}
-
-	if (PtrGO == m_PtrSun)
+	// Sun
 	{
 		static float SunRoll{};
 		SunRoll += XM_2PI * DeltaTime * KSkyTimeFactorAbsolute / 4.0f;
 		if (SunRoll >= XM_2PI) SunRoll = 0;
 
 		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, XM_PIDIV2 + SunRoll)) };
-		PtrGO->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
-
-		PtrGO->ComponentTransform.RotationQuaternion = XMQuaternionRotationRollPitchYaw(0, 0, XM_PIDIV2 + SunRoll);
+		m_GameObject3DSun->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
+		m_GameObject3DSun->ComponentTransform.RotationQuaternion = XMQuaternionRotationRollPitchYaw(0, 0, XM_PIDIV2 + SunRoll);
 	}
 
-	if (PtrGO == m_PtrMoon)
+	// Moon
 	{
 		static float MoonRoll{};
 		MoonRoll += XM_2PI * DeltaTime * KSkyTimeFactorAbsolute / 4.0f;
 		if (MoonRoll >= XM_2PI) MoonRoll = 0;
 
 		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, -XM_PIDIV2 + MoonRoll)) };
-		PtrGO->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
-
-		PtrGO->ComponentTransform.RotationQuaternion = XMQuaternionRotationRollPitchYaw(0, 0, -XM_PIDIV2 + MoonRoll);
+		m_GameObject3DMoon->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
+		m_GameObject3DMoon->ComponentTransform.RotationQuaternion = XMQuaternionRotationRollPitchYaw(0, 0, -XM_PIDIV2 + MoonRoll);
 	}
 
-	if (EFLAG_HAS(PtrGO->eFlagsGameObjectRendering, EFlagsGameObjectRendering::NoLighting))
+	// Cloud
+	{
+		static float Yaw{};
+		Yaw -= XM_2PI * DeltaTime * 0.01f;
+		if (Yaw <= -XM_2PI) Yaw = 0;
+
+		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, Yaw, XM_PIDIV4)) };
+		m_GameObject3DCloud->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
+		m_GameObject3DCloud->ComponentTransform.RotationQuaternion = XMQuaternionRotationRollPitchYaw(0, Yaw, XM_PIDIV4);
+	}
+
+	UpdateGameObject3D(m_GameObject3DSkySphere.get());
+	DrawGameObject3D(m_GameObject3DSkySphere.get());
+
+	UpdateGameObject3D(m_GameObject3DSun.get());
+	DrawGameObject3D(m_GameObject3DSun.get());
+
+	UpdateGameObject3D(m_GameObject3DMoon.get());
+	DrawGameObject3D(m_GameObject3DMoon.get());
+
+	UpdateGameObject3D(m_GameObject3DCloud.get());
+	DrawGameObject3D(m_GameObject3DCloud.get());
+}
+
+void CGame::UpdateGameObject3D(CGameObject3D* PtrGO)
+{
+	assert(PtrGO->ComponentRender.PtrVS);
+	assert(PtrGO->ComponentRender.PtrPS);
+
+	CShader* VS{ PtrGO->ComponentRender.PtrVS };
+	CShader* PS{ PtrGO->ComponentRender.PtrPS };
+	
+	cbVSSpaceData.World = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld);
+	cbVSSpaceData.WVP = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
+	PtrGO->UpdateWorldMatrix();
+
+	SetUniversalbUseLighiting();
+	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoLighting))
 	{
 		cbPSBaseFlagsData.bUseLighting = FALSE;
 	}
-	else
-	{
-		SetUniversalbUseLighiting();
-	}
 
+	cbPSBaseFlagsData.bUseTexture = FALSE;
 	if (PtrGO->ComponentRender.PtrTexture)
 	{
 		cbPSBaseFlagsData.bUseTexture = TRUE;
 		PtrGO->ComponentRender.PtrTexture->Use();
 	}
-	else
-	{
-		cbPSBaseFlagsData.bUseTexture = FALSE;
-	}
-
-	PtrGO->UpdateWorldMatrix();
 
 	VS->Use();
 	VS->UpdateAllConstantBuffers();
@@ -842,16 +999,16 @@ void CGame::UpdateGameObject(CGameObject* PtrGO, float DeltaTime)
 
 void CGame::UpdatePickingRay()
 {
-	m_ObjectLinePickingRay->vVertices[0].Position = m_PickingRayWorldSpaceOrigin;
-	m_ObjectLinePickingRay->vVertices[1].Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
-	m_ObjectLinePickingRay->Update();
+	m_Object3DLinePickingRay->vVertices[0].Position = m_PickingRayWorldSpaceOrigin;
+	m_Object3DLinePickingRay->vVertices[1].Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
+	m_Object3DLinePickingRay->Update();
 }
 
-void CGame::DrawGameObject(CGameObject* PtrGO)
+void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 {
 	assert(PtrGO->ComponentRender.PtrObject3D);
 
-	if (EFLAG_HAS(PtrGO->eFlagsGameObjectRendering, EFlagsGameObjectRendering::NoCulling))
+	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoCulling))
 	{
 		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
 	}
@@ -860,7 +1017,7 @@ void CGame::DrawGameObject(CGameObject* PtrGO)
 		SetUniversalRasterizerState();
 	}
 
-	if (EFLAG_HAS(PtrGO->eFlagsGameObjectRendering, EFlagsGameObjectRendering::NoDepthComparison))
+	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoDepthComparison))
 	{
 		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 	}
@@ -872,45 +1029,51 @@ void CGame::DrawGameObject(CGameObject* PtrGO)
 	PtrGO->ComponentRender.PtrObject3D->Draw();
 }
 
-void CGame::DrawGameObjectNormals(CGameObject* PtrGO)
+void CGame::DrawGameObject3DNormal(CGameObject3D* PtrGO)
 {
-	if (PtrGO->ComponentRender.PtrObject3D)
-	{
-		if (PtrGO->ComponentRender.PtrObject3D->m_Model.bIsAnimated)
-		{
-			VSAnimation->Use();
-		}
-		else
-		{
-			VSBase->Use();
-		}
+	if (PtrGO->ComponentRender.PtrObject3D == nullptr) return;
 
-		PtrGO->ComponentRender.PtrObject3D->DrawNormals();
-	}
+	assert(PtrGO->ComponentRender.PtrVS);
+	assert(PtrGO->ComponentRender.PtrPS);
+
+	CShader* VS{ PtrGO->ComponentRender.PtrVS };
+	CShader* PS{ PSVertexColor.get() };
+
+	cbVSSpaceData.World = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld);
+	cbVSSpaceData.WVP = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
+	PtrGO->UpdateWorldMatrix();
+
+	cbPSBaseFlagsData.bUseLighting = FALSE;
+	cbPSBaseFlagsData.bUseTexture = FALSE;
+
+	VS->Use();
+	VS->UpdateAllConstantBuffers();
+
+	GSNormal->Use();
+
+	PS->Use();
+	PS->UpdateAllConstantBuffers();
+
+	PtrGO->ComponentRender.PtrObject3D->DrawNormals();
 }
 
-void CGame::DrawGameObjectBoundingSphere(CGameObject* PtrGO)
+void CGame::DrawGameObject3DBoundingSphere(CGameObject3D* PtrGO)
 {
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawBoundingSphere))
-	{
-		if (PtrGO == m_PtrSky || PtrGO == m_PtrCloud || PtrGO == m_PtrSun || PtrGO == m_PtrMoon) return;
+	VSBase->Use();
 
-		VSBase->Use();
+	XMMATRIX Translation{ XMMatrixTranslationFromVector(PtrGO->ComponentTransform.Translation + PtrGO->ComponentPhysics.BoundingSphere.CenterOffset) };
+	XMMATRIX Scaling{ XMMatrixScaling(PtrGO->ComponentPhysics.BoundingSphere.Radius, 
+		PtrGO->ComponentPhysics.BoundingSphere.Radius, PtrGO->ComponentPhysics.BoundingSphere.Radius) };
+	XMMATRIX World{ Scaling * Translation };
+	cbVSSpaceData.World = XMMatrixTranspose(World);
+	cbVSSpaceData.WVP = XMMatrixTranspose(World * m_MatrixView * m_MatrixProjection);
+	VSBase->UpdateConstantBuffer(0);
 
-		XMMATRIX Translation{ XMMatrixTranslationFromVector(PtrGO->ComponentTransform.Translation + PtrGO->ComponentPhysics.BoundingSphere.CenterOffset) };
-		XMMATRIX Scaling{ XMMatrixScaling(PtrGO->ComponentPhysics.BoundingSphere.Radius, 
-			PtrGO->ComponentPhysics.BoundingSphere.Radius, PtrGO->ComponentPhysics.BoundingSphere.Radius) };
-		XMMATRIX World{ Scaling * Translation };
-		cbVSSpaceData.World = XMMatrixTranspose(World);
-		cbVSSpaceData.WVP = XMMatrixTranspose(World * m_MatrixView * m_MatrixProjection);
-		VSBase->UpdateConstantBuffer(0);
+	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
 
-		m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
+	m_Object3DBoundingSphere->Draw();
 
-		m_Object3DBoundingSphere->Draw();
-
-		SetUniversalRasterizerState();
-	}
+	SetUniversalRasterizerState();
 }
 
 void CGame::SetUniversalRasterizerState()

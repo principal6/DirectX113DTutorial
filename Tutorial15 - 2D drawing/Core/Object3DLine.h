@@ -11,15 +11,15 @@ struct SVertexLine
 	XMVECTOR Color{};
 };
 
-class CObjectLine
+class CObject3DLine
 {
 public:
-	CObjectLine(ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext) : m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
+	CObject3DLine(ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext) : m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
 	{
 		assert(m_PtrDevice);
 		assert(m_PtrDeviceContext);
 	}
-	~CObjectLine() {}
+	~CObject3DLine() {}
 
 public:
 	void Create(const vector<SVertexLine>& _vVertices);

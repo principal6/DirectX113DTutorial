@@ -1,6 +1,6 @@
-#include "ObjectLine.h"
+#include "Object3DLine.h"
 
-void CObjectLine::Create(const vector<SVertexLine>& _vVertices)
+void CObject3DLine::Create(const vector<SVertexLine>& _vVertices)
 {
 	vVertices = _vVertices;
 
@@ -18,7 +18,7 @@ void CObjectLine::Create(const vector<SVertexLine>& _vVertices)
 	m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, m_VertexBuffer.GetAddressOf());
 }
 
-void CObjectLine::Update()
+void CObject3DLine::Update()
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_VertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
@@ -29,7 +29,7 @@ void CObjectLine::Update()
 	}
 }
 
-void CObjectLine::Draw() const
+void CObject3DLine::Draw() const
 {
 	//m_PtrDeviceContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
 	m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_VertexBuffer.GetAddressOf(), &m_VertexBufferStride, &m_VertexBufferOffset);

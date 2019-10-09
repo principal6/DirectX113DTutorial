@@ -126,15 +126,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Core\Camera.cpp" />
-    <ClCompile Include="Core\GameObject.cpp" />
+    <ClCompile Include="Core\GameObject3D.cpp" />
     <ClCompile Include="Core\Game.cpp" />
     <ClCompile Include="Core\GameObject2D.cpp" />
+    <ClCompile Include="Core\GameObject3DLine.cpp" />
     <ClCompile Include="Core\Object2D.cpp" />
     <ClCompile Include="Core\Object3D.cpp" />
-    <ClCompile Include="Core\ObjectLine.cpp" />
+    <ClCompile Include="Core\Object3DLine.cpp" />
     <ClCompile Include="Core\Shader.cpp" />
     <ClCompile Include="Core\Texture.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="TinyXml2\tinyxml2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Assimp\aabb.h" />
@@ -212,13 +214,14 @@
     <ClInclude Include="Assimp\ZipArchiveIOSystem.h" />
     <ClInclude Include="Core\AssimpLoader.h" />
     <ClInclude Include="Core\Camera.h" />
-    <ClInclude Include="Core\GameObject.h" />
+    <ClInclude Include="Core\GameObject3D.h" />
     <ClInclude Include="Core\Game.h" />
     <ClInclude Include="Core\GameObject2D.h" />
+    <ClInclude Include="Core\GameObject3DLine.h" />
     <ClInclude Include="Core\Math.h" />
     <ClInclude Include="Core\Object2D.h" />
     <ClInclude Include="Core\Object3D.h" />
-    <ClInclude Include="Core\ObjectLine.h" />
+    <ClInclude Include="Core\Object3DLine.h" />
     <ClInclude Include="Core\PrimitiveGenerator.h" />
     <ClInclude Include="Core\Serialization.h" />
     <ClInclude Include="Core\Shader.h" />
@@ -245,6 +248,7 @@
     <ClInclude Include="DirectXTK\VertexTypes.h" />
     <ClInclude Include="DirectXTK\WICTextureLoader.h" />
     <ClInclude Include="DirectXTK\XboxDDSTextureLoader.h" />
+    <ClInclude Include="TinyXml2\tinyxml2.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="Assimp\assimp-vc142-mtd.lib" />
@@ -336,6 +340,9 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="Asset\Sky.xml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

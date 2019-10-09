@@ -12,8 +12,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	
 	CGame Game{ hInstance, XMFLOAT2(800, 600) };
 	Game.CreateWin32(WndProc, TEXT("Game"), L"Asset\\dotumche_10_korean.spritefont", true);
+
+	Game.SetSky("Asset\\Sky.xml", 12.0f);
 	Game.SetAmbientlLight(XMFLOAT3(1, 1, 1), 0.2f);
 	Game.SetDirectionalLight(XMVectorSet(0, 1, 0, 0), XMVectorSet(1, 1, 1, 1));
+
 	Game.SetGameRenderingFlags(EFlagsGameRendering::UseLighting | EFlagsGameRendering::DrawMiniAxes |
 		EFlagsGameRendering::DrawPickingData | EFlagsGameRendering::DrawBoundingSphere);
 
@@ -22,11 +25,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	CTexture* TextureGround{ Game.AddTexture() };
 	{
 		TextureGround->CreateFromFile(L"Asset\\ground.png");
-	}
-
-	CTexture* TextureSky{ Game.AddTexture() };
-	{
-		TextureSky->CreateFromFile(L"Asset\\sky.png");
 	}
 
 	CObject3D* ObjectFloor{ Game.AddObject3D() };
@@ -56,35 +54,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		ObjectYBot->Create(Model);
 	}
 
-	CObject3D* ObjectSkySphere{ Game.AddObject3D() };
-	{
-		ObjectSkySphere->Create(GenerateSphere(32, XMVectorSet(0.1f, 0.5f, 1.0f, 1), XMVectorSet(1.0f, 1.0f, 1.0f, 1)));
-	}
-
-	CObject3D* ObjectSun{ Game.AddObject3D() };
-	{
-		ObjectSun->Create(GenerateSquareYZPlane(XMVectorSet(1, 1, 1, 1)));
-		ObjectSun->UpdateQuadUV(XMFLOAT2(0.0f, 0.5f), XMFLOAT2(0.5f, 0.25f));
-	}
-
-	CObject3D* ObjectMoon{ Game.AddObject3D() };
-	{
-		ObjectMoon->Create(GenerateSquareYZPlane(XMVectorSet(1, 1, 1, 1)));
-		ObjectMoon->UpdateQuadUV(XMFLOAT2(0.0f, 0.75f), XMFLOAT2(0.5f, 0.25f));
-	}
-
-	CObject3D* ObjectCloud{ Game.AddObject3D() };
-	{
-		ObjectCloud->Create(GenerateSquareXZPlane(XMVectorSet(1, 1, 1, 1)));
-		ObjectCloud->UpdateQuadUV(XMFLOAT2(0.0f, 0.25f), XMFLOAT2(0.5f, 0.25f));
-	}
-
-	CObject2D* Object2DRectangle(Game.AddObject2D());
-	{
-		Object2DRectangle->CreateDynamic(Generate2DRectangle(XMFLOAT2(100, 50)));
-	}
-
-	CGameObject* goFloor{ Game.AddGameObject("Floor") };
+	CGameObject3D* goFloor{ Game.AddGameObject3D("Floor") };
 	{
 		goFloor->ComponentTransform.Translation = XMVectorSet(0.0f, 0.0f, 0.0f, 0);
 		goFloor->ComponentTransform.Scaling = XMVectorSet(30.0f, 1.0f, 30.0f, 0);
@@ -95,7 +65,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		goFloor->ComponentPhysics.BoundingSphere.Radius = 43.0f;
 	}
 
-	CGameObject* goSphere{ Game.AddGameObject("Sphere") };
+	CGameObject3D* goSphere{ Game.AddGameObject3D("Sphere") };
 	{
 		goSphere->ComponentTransform.Translation = XMVectorSet(0.0f, +1.0f, +3.0f, 0);
 		goSphere->ComponentTransform.RotationQuaternion = XMQuaternionRotationAxis(XMVectorSet(0, 1, 0, 0), XM_PIDIV4);
@@ -103,7 +73,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		goSphere->ComponentRender.PtrObject3D = ObjectSphere;
 	}
 
-	CGameObject* goFarmhouse{ Game.AddGameObject("Farmhouse") };
+	CGameObject3D* goFarmhouse{ Game.AddGameObject3D("Farmhouse") };
 	{
 		goFarmhouse->ComponentTransform.Translation = XMVectorSet(-10.0f, 0.0f, 0.0f, 0);
 
@@ -113,73 +83,34 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		goFarmhouse->ComponentPhysics.BoundingSphere.Radius = 11.5f;
 	}
 
-	CGameObject* goYBot{ Game.AddGameObject("YBot") };
+	CGameObject3D* goYBot{ Game.AddGameObject3D("YBot") };
 	{
 		goYBot->ComponentTransform.Translation = XMVectorSet(0.0f, 0.0f, 0.0f, 0);
 		goYBot->ComponentTransform.Scaling = XMVectorSet(0.02f, 0.02f, 0.02f, 0);
 
 		goYBot->ComponentRender.PtrObject3D = ObjectYBot;
+		goYBot->ComponentRender.PtrVS = Game.VSAnimation.get();
 
 		goYBot->ComponentPhysics.BoundingSphere.CenterOffset = XMVectorSet(0, 1.5f, 0, 0);
 		goYBot->ComponentPhysics.BoundingSphere.Radius = 2.0f;
 	}
 
-	CGameObject* goSkySphere{ Game.AddGameObject("SkySphere") };
+	CGameObject3DLine* goLine{ Game.AddGameObject3DLine("Line") };
 	{
-		goSkySphere->ComponentRender.PtrObject3D = ObjectSkySphere;
+		vector<SVertexLine> Vertices{};
+		Vertices.emplace_back(SVertexLine(XMVectorSet(0, 0, 0, 1), XMVectorSet(1, 1, 1, 1)));
+		Vertices.emplace_back(SVertexLine(XMVectorSet(10.0f, 10.0f, 0, 1), XMVectorSet(0, 1, 1, 1)));
 
-		goSkySphere->eFlagsGameObjectRendering = EFlagsGameObjectRendering::NoCulling | EFlagsGameObjectRendering::NoLighting;
-
-		goSkySphere->ComponentPhysics.bIsPickable = false;
+		goLine->ComponentRender.PtrObject3DLine = Game.AddObject3DLine();
+		goLine->ComponentRender.PtrObject3DLine->Create(Vertices);
+		goLine->bIsVisible = false;
 	}
-	Game.SetGameObjectSky(goSkySphere);
-
-	CGameObject* goSun{ Game.AddGameObject("Sun") };
-	{
-		goSun->ComponentTransform.Scaling = XMVectorSet(1.0f, 15.0f, 40.7f, 0);
-
-		goSun->ComponentRender.PtrObject3D = ObjectSun;
-		goSun->ComponentRender.PtrTexture = TextureSky;
-		goSun->ComponentRender.IsTransparent = true;
-
-		goSun->ComponentPhysics.bIsPickable = false;
-
-		goSun->eFlagsGameObjectRendering = EFlagsGameObjectRendering::NoLighting;
-	}
-	Game.SetGameObjectSun(goSun);
-
-	CGameObject* goMoon{ Game.AddGameObject("Moon") };
-	{
-		goMoon->ComponentTransform.Scaling = XMVectorSet(1.0f, 15.0f, 40.7f, 0);
-
-		goMoon->ComponentRender.PtrObject3D = ObjectMoon;
-		goMoon->ComponentRender.PtrTexture = TextureSky;
-		goMoon->ComponentRender.IsTransparent = true;
-
-		goMoon->ComponentPhysics.bIsPickable = false;
-
-		goMoon->eFlagsGameObjectRendering = EFlagsGameObjectRendering::NoLighting;
-	}
-	Game.SetGameObjectMoon(goMoon);
-
-	CGameObject* goCloud{ Game.AddGameObject("Cloud") };
-	{
-		goCloud->ComponentTransform.Scaling = XMVectorSet(40.7f, 1.0f, 15.0f, 0);
-
-		goCloud->ComponentRender.PtrObject3D = ObjectCloud;
-		goCloud->ComponentRender.PtrTexture = TextureSky;
-		goCloud->ComponentRender.IsTransparent = true;
-
-		goCloud->ComponentPhysics.bIsPickable = false;
-
-		goCloud->eFlagsGameObjectRendering = EFlagsGameObjectRendering::NoLighting;
-	}
-	Game.SetGameObjectCloud(goCloud);
 
 	CGameObject2D* go2DRectangle{ Game.AddGameObject2D("2DRectangle") };
 	{
-		go2DRectangle->ComponentRender.PtrObject2D = Object2DRectangle;
-		go2DRectangle->ComponentRender.PtrTexture = TextureSky;
+		go2DRectangle->ComponentRender.PtrObject2D = Game.AddObject2D();
+		go2DRectangle->ComponentRender.PtrObject2D->CreateDynamic(Generate2DRectangle(XMFLOAT2(100, 50)));
+		go2DRectangle->ComponentRender.PtrTexture = TextureGround;
 		go2DRectangle->bIsVisible = false;
 	}
 
@@ -274,18 +205,17 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				MainCamera->ZoomCamera(MouseState.scrollWheelValue, 0.01f);
 			}
 
-			Game.AnimateGameObjects();
-			Game.DrawGameObjects(DeltaTimeF);
-			Game.DrawGameObject2Ds(DeltaTimeF);
+			Game.Animate();
+			Game.Draw(DeltaTimeF);
 
 			static SpriteBatch* PtrSpriteBatch{ Game.GetSpriteBatchPtr() };
 			static SpriteFont* PtrSpriteFont{ Game.GetSpriteFontPtr() };
 			PtrSpriteBatch->Begin();
 			{
 				PtrSpriteFont->DrawString(PtrSpriteBatch, to_string(DeltaTimeF).c_str(), XMVectorSet(0, 0, 0, 0));
-				if (Game.GetPickedGameObjectName())
+				if (Game.GetPickedGameObject3DName())
 				{
-					PtrSpriteFont->DrawString(PtrSpriteBatch, (string("Picked: ") + Game.GetPickedGameObjectName()).c_str(), XMVectorSet(0, 15, 0, 0));
+					PtrSpriteFont->DrawString(PtrSpriteBatch, (string("Picked: ") + Game.GetPickedGameObject3DName()).c_str(), XMVectorSet(0, 15, 0, 0));
 				}
 			}
 			PtrSpriteBatch->End();

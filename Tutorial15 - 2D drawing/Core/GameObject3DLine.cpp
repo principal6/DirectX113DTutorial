@@ -1,6 +1,6 @@
-#include "GameObject.h"
+#include "GameObject3DLine.h"
 
-void CGameObject::UpdateWorldMatrix()
+void CGameObject3DLine::UpdateWorldMatrix()
 {
 	XMMATRIX Translation{ XMMatrixTranslationFromVector(ComponentTransform.Translation) };
 	XMMATRIX Rotation{ XMMatrixRotationQuaternion(ComponentTransform.RotationQuaternion) };

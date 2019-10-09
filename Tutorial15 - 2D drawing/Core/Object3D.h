@@ -122,7 +122,7 @@ struct SModel
 	uint32_t						ModelBoneCount{};
 
 	vector<SModelAnimation>			vAnimations{};
-	bool							bIsAnimated{};
+	bool							bIsModelAnimated{};
 };
 
 class CObject3D

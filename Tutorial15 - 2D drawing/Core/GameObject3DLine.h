@@ -2,25 +2,23 @@
 
 #include "SharedHeader.h"
 
-class CObject2D;
-class CTexture;
+class CObject3DLine;
 
-class CGameObject2D
+class CGameObject3DLine
 {
 	friend class CGame;
 
 	struct SComponentTransform
 	{
-		XMVECTOR	Translation{};
-		XMVECTOR	RotationQuaternion{};
-		XMVECTOR	Scaling{ XMVectorSet(1, 1, 1, 0) };
-		XMMATRIX	MatrixWorld{ XMMatrixIdentity() };
+		XMVECTOR		Translation{};
+		XMVECTOR		RotationQuaternion{};
+		XMVECTOR		Scaling{ XMVectorSet(1, 1, 1, 0) };
+		XMMATRIX		MatrixWorld{ XMMatrixIdentity() };
 	};
 
 	struct SComponentRender
 	{
-		CObject2D*	PtrObject2D{};
-		CTexture*	PtrTexture{};
+		CObject3DLine*	PtrObject3DLine{};
 	};
 
 public:
@@ -35,8 +33,8 @@ public:
 	}
 
 public:
-	CGameObject2D(const string& Name) : m_Name{ Name } {}
-	~CGameObject2D() {}
+	CGameObject3DLine(const string& Name) : m_Name{ Name } {}
+	~CGameObject3DLine() {}
 
 private:
 	void UpdateWorldMatrix();

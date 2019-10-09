@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Object3D.h"
-#include "GameObject.h"
+#include "GameObject3D.h"
 
 #include <Assimp/Importer.hpp>
 #include <Assimp/scene.h>
@@ -239,7 +239,7 @@ static SModel LoadAnimatedModelFromFile(const string& FileName)
 		}
 	}
 
-	AnimatedModel.bIsAnimated = true;
+	AnimatedModel.bIsModelAnimated = true;
 
 	return AnimatedModel;
 }

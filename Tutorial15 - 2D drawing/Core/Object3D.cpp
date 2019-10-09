@@ -23,7 +23,7 @@ void CObject3D::Create(const SModel& Model)
 	m_vMeshBuffers.resize(m_Model.vMeshes.size());
 	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
 	{
-		CreateMeshBuffers(iMesh, m_Model.bIsAnimated);
+		CreateMeshBuffers(iMesh, m_Model.bIsModelAnimated);
 	}
 
 	m_vEmbeddedTextures.reserve(m_Model.vMaterials.size());
@@ -243,7 +243,7 @@ void CObject3D::Draw() const
 		m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_vMeshBuffers[iMesh].VertexBuffer.GetAddressOf(), 
 			&m_vMeshBuffers[iMesh].VertexBufferStride, &m_vMeshBuffers[iMesh].VertexBufferOffset);
 
-		if (m_Model.bIsAnimated)
+		if (m_Model.bIsModelAnimated)
 		{
 			m_PtrDeviceContext->IASetVertexBuffers(1, 1, m_vMeshBuffers[iMesh].VertexBufferAnimation.GetAddressOf(),
 				&m_vMeshBuffers[iMesh].VertexBufferAnimationStride, &m_vMeshBuffers[iMesh].VertexBufferAnimationOffset);
@@ -264,7 +264,7 @@ void CObject3D::DrawNormals() const
 		m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_vMeshBuffers[iMesh].VertexBuffer.GetAddressOf(), 
 			&m_vMeshBuffers[iMesh].VertexBufferStride, &m_vMeshBuffers[iMesh].VertexBufferOffset);
 
-		if (m_Model.bIsAnimated)
+		if (m_Model.bIsModelAnimated)
 		{
 			m_PtrDeviceContext->IASetVertexBuffers(1, 1, m_vMeshBuffers[iMesh].VertexBufferAnimation.GetAddressOf(),
 				&m_vMeshBuffers[iMesh].VertexBufferAnimationStride, &m_vMeshBuffers[iMesh].VertexBufferAnimationOffset);

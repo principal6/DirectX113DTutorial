@@ -6,12 +6,14 @@
 #include "Camera.h"
 #include "Object3D.h"
 #include "Object2D.h"
-#include "ObjectLine.h"
+#include "Object3DLine.h"
 #include "Shader.h"
 #include "PrimitiveGenerator.h"
-#include "GameObject.h"
+#include "GameObject3D.h"
 #include "GameObject2D.h"
+#include "GameObject3DLine.h"
 #include "Math.h"
+#include "TinyXml2/tinyxml2.h"
 
 enum class EFlagsGameRendering
 {
@@ -31,6 +33,22 @@ enum class ERasterizerState
 	CullClockwise,
 	CullCounterClockwise,
 	WireFrame
+};
+
+struct SSkyData
+{
+	struct SSkyObjectData
+	{
+		XMFLOAT2	UVOffset{};
+		XMFLOAT2	UVSize{};
+		float		WidthHeightRatio{};
+	};
+
+	bool			bIsDataSet{ false };
+	string			TextureFileName{};
+	SSkyObjectData	Sun{};
+	SSkyObjectData	Moon{};
+	SSkyObjectData	Cloud{};
 };
 
 struct SCBVS2DSpaceData
@@ -109,13 +127,13 @@ public:
 	void ToggleGameRenderingFlags(EFlagsGameRendering Flags);
 
 public:
+	void SetSky(const string& SkyDataFileName, float ScalingFactor);
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition);
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color);
 	void SetAmbientlLight(const XMFLOAT3& Color, float Intensity);
-	void SetGameObjectSky(CGameObject* GameObject);
-	void SetGameObjectCloud(CGameObject* GameObject);
-	void SetGameObjectSun(CGameObject* GameObject);
-	void SetGameObjectMoon(CGameObject* GameObject);
+
+private:
+	void LoadSkyObjectData(tinyxml2::XMLElement* xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
 
 // Object pool
 public:
@@ -131,26 +149,32 @@ public:
 	CObject2D* AddObject2D();
 	CObject2D* GetObject2D(size_t Index);
 
+	CObject3DLine* AddObject3DLine();
+	CObject3DLine* GetObject3DLine(size_t Index);
+
 	CTexture* AddTexture();
 	CTexture* GetTexture(size_t Index);
 
-	CGameObject* AddGameObject(const string& Name);
-	CGameObject* GetGameObject(const string& Name);
-	CGameObject* GetGameObject(size_t Index);
+	CGameObject3D* AddGameObject3D(const string& Name);
+	CGameObject3D* GetGameObject3D(const string& Name);
+	CGameObject3D* GetGameObject3D(size_t Index);
 
 	CGameObject2D* AddGameObject2D(const string& Name);
 	CGameObject2D* GetGameObject2D(const string& Name);
 	CGameObject2D* GetGameObject2D(size_t Index);
 
+	CGameObject3DLine* AddGameObject3DLine(const string& Name);
+	CGameObject3DLine* GetGameObject3DLine(const string& Name);
+	CGameObject3DLine* GetGameObject3DLine(size_t Index);
+
 public:
 	void Pick(int ScreenMousePositionX, int ScreenMousePositionY);
-	const char* GetPickedGameObjectName();
+	const char* GetPickedGameObject3DName();
 
 public:
 	void BeginRendering(const FLOAT* ClearColor);
-	void AnimateGameObjects();
-	void DrawGameObjects(float DeltaTime);
-	void DrawGameObject2Ds(float DeltaTime);
+	void Animate();
+	void Draw(float DeltaTime);
 	void EndRendering();
 
 public:
@@ -163,16 +187,25 @@ private:
 	void CreateWin32Window(WNDPROC WndProc, LPCTSTR WindowName);
 	void InitializeDirectX(const wstring& FontFileName, bool bWindowed);
 
-	void UpdateGameObject(CGameObject* PtrGO, float DeltaTime);
-	void UpdatePickingRay();
+private:
+	void UpdateGameObject3D(CGameObject3D* PtrGO);
+	void DrawGameObject3D(CGameObject3D* PtrGO);
+	void DrawGameObject3DNormal(CGameObject3D* PtrGO);
+	void DrawGameObject3DBoundingSphere(CGameObject3D* PtrGO);
 
-	void DrawGameObject(CGameObject* PtrGO);
-	void DrawGameObjectNormals(CGameObject* PtrGO);
-	void DrawGameObjectBoundingSphere(CGameObject* PtrGO);
+	void DrawGameObject3DLines();
+
+	void DrawGameObject2Ds();
+
 	void DrawMiniAxes();
+
+	void UpdatePickingRay();
 	void DrawPickingRay();
 	void DrawPickedTriangle();
 
+	void DrawSky(float DeltaTime);
+
+private:
 	void SetUniversalRasterizerState();
 	void SetUniversalbUseLighiting();
 
@@ -198,87 +231,100 @@ private:
 	static constexpr float KSkyDistance{ 30.0f };
 	static constexpr float KSkyTimeFactorAbsolute{ 0.1f };
 	static constexpr float KPickingRayLength{ 1000.0f };
+	static constexpr uint32_t KSkySphereSegmentCount{ 32 };
+	static constexpr XMVECTOR KColorWhite{ 1.0f, 1.0f, 1.0f, 1.0f };
+	static constexpr XMVECTOR KSkySphereColorUp{ 0.1f, 0.5f, 1.0f, 1.0f };
+	static constexpr XMVECTOR KSkySphereColorBottom{ 1.0f, 1.0f, 1.0f, 1.0f };
 
 public:
-	unique_ptr<CShader>				VSBase{};
-	unique_ptr<CShader>				VSAnimation{};
-	unique_ptr<CShader>				VSSky{};
-	unique_ptr<CShader>				VSLine{};
-	unique_ptr<CShader>				VSBase2D{};
+	unique_ptr<CShader>	VSBase{};
+	unique_ptr<CShader>	VSAnimation{};
+	unique_ptr<CShader>	VSSky{};
+	unique_ptr<CShader>	VSLine{};
+	unique_ptr<CShader>	VSBase2D{};
 
-	unique_ptr<CShader>				GSNormal{};
+	unique_ptr<CShader>	GSNormal{};
 
-	unique_ptr<CShader>				PSBase{};
-	unique_ptr<CShader>				PSVertexColor{};
-	unique_ptr<CShader>				PSSky{};
-	unique_ptr<CShader>				PSLine{};
-	unique_ptr<CShader>				PSBase2D{};
+	unique_ptr<CShader>	PSBase{};
+	unique_ptr<CShader>	PSVertexColor{};
+	unique_ptr<CShader>	PSSky{};
+	unique_ptr<CShader>	PSLine{};
+	unique_ptr<CShader>	PSBase2D{};
 
 public:
-	SCBVSSpaceData					cbVSSpaceData{};
-	SCBVSAnimationBonesData			cbVSAnimationBonesData{};
-	SCBVS2DSpaceData				cbVS2DSpaceData{};
+	SCBVSSpaceData				cbVSSpaceData{};
+	SCBVSAnimationBonesData		cbVSAnimationBonesData{};
+	SCBVS2DSpaceData			cbVS2DSpaceData{};
 
-	SCBPSBaseFlagsData				cbPSBaseFlagsData{};
-	SCBPSBaseLightsData				cbPSBaseLightsData{};
-	SCBPSBaseMaterialData			cbPSBaseMaterialData{};
-	SCBPSBaseEyeData				cbPSBaseEyeData{};
-	SCBPSSkyTimeData				cbPSSkyTimeData{};
-	SCBPS2DFlagsData				cbPS2DFlagsData{};
-
-private:
-	vector<unique_ptr<CShader>>			m_vShaders{};
-	vector<unique_ptr<CObject3D>>		m_vObject3Ds{};
-	vector<unique_ptr<CObject2D>>		m_vObject2Ds{};
-	vector<unique_ptr<CTexture>>		m_vTextures{};
-	vector<unique_ptr<CGameObject>>		m_vGameObjects{};
-	vector<unique_ptr<CGameObject2D>>	m_vGameObject2Ds{};
-
-	unique_ptr<CObjectLine>				m_ObjectLinePickingRay{};
-	unique_ptr<CObject3D>				m_Object3DPickedTriangle{};
-
-	unique_ptr<CObject3D>				m_Object3DBoundingSphere{};
-
-	vector<unique_ptr<CObject3D>>		m_vMiniAxisObject3Ds{};
-	vector<unique_ptr<CGameObject>>		m_vMiniAxisGameObjects{};
-
-	CGameObject*						m_PtrSky{};
-	CGameObject*						m_PtrCloud{};
-	CGameObject*						m_PtrSun{};
-	CGameObject*						m_PtrMoon{};
-
-	unordered_map<string, size_t>		m_mapGameObjectNameToIndex{};
-	unordered_map<string, size_t>		m_mapGameObject2DNameToIndex{};
+	SCBPSBaseFlagsData			cbPSBaseFlagsData{};
+	SCBPSBaseLightsData			cbPSBaseLightsData{};
+	SCBPSBaseMaterialData		cbPSBaseMaterialData{};
+	SCBPSBaseEyeData			cbPSBaseEyeData{};
+	SCBPSSkyTimeData			cbPSSkyTimeData{};
+	SCBPS2DFlagsData			cbPS2DFlagsData{};
 
 private:
-	vector<D3D11_VIEWPORT>			m_vViewports{};
+	vector<unique_ptr<CShader>>				m_vShaders{};
+	vector<unique_ptr<CObject3D>>			m_vObject3Ds{};
+	vector<unique_ptr<CObject3DLine>>		m_vObject3DLines{};
+	vector<unique_ptr<CObject2D>>			m_vObject2Ds{};
+	vector<unique_ptr<CTexture>>			m_vTextures{};
+	vector<unique_ptr<CGameObject3D>>		m_vGameObject3Ds{};
+	vector<unique_ptr<CGameObject3DLine>>	m_vGameObject3DLines{};
+	vector<unique_ptr<CGameObject2D>>		m_vGameObject2Ds{};
+
+	unique_ptr<CObject3DLine>				m_Object3DLinePickingRay{};
+	unique_ptr<CObject3D>					m_Object3DPickedTriangle{};
+
+	unique_ptr<CObject3D>					m_Object3DBoundingSphere{};
+
+	vector<unique_ptr<CObject3D>>			m_vObject3DMiniAxes{};
+	vector<unique_ptr<CGameObject3D>>		m_vGameObject3DMiniAxes{};
+
+	SSkyData								m_SkyData{};
+	unique_ptr<CTexture>					m_SkyTexture{};
+	unique_ptr<CObject3D>					m_Object3DSkySphere{};
+	unique_ptr<CObject3D>					m_Object3DSun{};
+	unique_ptr<CObject3D>					m_Object3DMoon{};
+	unique_ptr<CObject3D>					m_Object3DCloud{};
+	unique_ptr<CGameObject3D>				m_GameObject3DSkySphere{};
+	unique_ptr<CGameObject3D>				m_GameObject3DSun{};
+	unique_ptr<CGameObject3D>				m_GameObject3DMoon{};
+	unique_ptr<CGameObject3D>				m_GameObject3DCloud{};
+
+	unordered_map<string, size_t>			m_mapGameObject3DNameToIndex{};
+	unordered_map<string, size_t>			m_mapGameObject3DLineNameToIndex{};
+	unordered_map<string, size_t>			m_mapGameObject2DNameToIndex{};
 
 private:
-	HWND							m_hWnd{};
-	HINSTANCE						m_hInstance{};
-	XMFLOAT2						m_WindowSize{};
+	vector<D3D11_VIEWPORT>	m_vViewports{};
 
 private:
-	XMMATRIX						m_MatrixProjection{};
-	XMMATRIX						m_MatrixProjection2D{};
-	float							m_NearZ{};
-	float							m_FarZ{};
+	HWND		m_hWnd{};
+	HINSTANCE	m_hInstance{};
+	XMFLOAT2	m_WindowSize{};
 
-	XMMATRIX						m_MatrixView{};
-	vector<CCamera>					m_vCameras{};
-	size_t							m_CurrentCameraIndex{};
+private:
+	XMMATRIX		m_MatrixProjection{};
+	XMMATRIX		m_MatrixProjection2D{};
+	float			m_NearZ{};
+	float			m_FarZ{};
+
+	XMMATRIX		m_MatrixView{};
+	vector<CCamera>	m_vCameras{};
+	size_t			m_CurrentCameraIndex{};
 	
 private:
-	XMVECTOR						m_PickingRayWorldSpaceOrigin{};
-	XMVECTOR						m_PickingRayWorldSpaceDirection{};
-	CGameObject*					m_PtrPickedGameObject{};
-	XMVECTOR						m_PickedTriangleV0{};
-	XMVECTOR						m_PickedTriangleV1{};
-	XMVECTOR						m_PickedTriangleV2{};
+	XMVECTOR		m_PickingRayWorldSpaceOrigin{};
+	XMVECTOR		m_PickingRayWorldSpaceDirection{};
+	CGameObject3D*	m_PtrPickedGameObject3D{};
+	XMVECTOR		m_PickedTriangleV0{};
+	XMVECTOR		m_PickedTriangleV1{};
+	XMVECTOR		m_PickedTriangleV2{};
 
 private:
-	ERasterizerState				m_eRasterizerState{ ERasterizerState::CullCounterClockwise };
-	EFlagsGameRendering				m_eFlagsGameRendering{};
+	ERasterizerState	m_eRasterizerState{ ERasterizerState::CullCounterClockwise };
+	EFlagsGameRendering	m_eFlagsGameRendering{};
 
 private:
 	ComPtr<IDXGISwapChain>			m_SwapChain{};
