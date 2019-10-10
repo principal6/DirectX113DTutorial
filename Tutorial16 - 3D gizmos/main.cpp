@@ -13,7 +13,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	CGame Game{ hInstance, XMFLOAT2(800, 600) };
 	Game.CreateWin32(WndProc, TEXT("Game"), L"Asset\\dotumche_10_korean.spritefont", true);
 
-	//Game.SetSky("Asset\\Sky.xml", 12.0f);
+	Game.SetSky("Asset\\Sky.xml", 12.0f);
 	Game.SetAmbientlLight(XMFLOAT3(1, 1, 1), 0.2f);
 	Game.SetDirectionalLight(XMVectorSet(0, 1, 0, 0), XMVectorSet(1, 1, 1, 1));
 
