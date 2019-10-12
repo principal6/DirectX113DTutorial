@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Object3D.h"
+#include "Object3DLine.h"
 #include "Object2D.h"
 #include <unordered_map>
 
@@ -519,24 +520,6 @@ static SMesh MergeStaticMeshes(const SMesh& MeshA, const SMesh& MeshB)
 	return Result;
 }
 
-static SObject2DData Generate2DRectangle(const XMFLOAT2& RectangleSize)
-{
-	SObject2DData Result{};
-
-	float HalfWidth{ RectangleSize.x / 2 };
-	float HalfHeight{ RectangleSize.y / 2 };
-
-	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(-HalfWidth, +HalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(0.0f, 0.0f, 0, 0)));
-	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(+HalfWidth, +HalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(1.0f, 0.0f, 0, 0)));
-	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(-HalfWidth, -HalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(0.0f, 1.0f, 0, 0)));
-	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(+HalfWidth, -HalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(1.0f, 1.0f, 0, 0)));
-
-	Result.vTriangles.emplace_back(STriangle(0, 1, 2));
-	Result.vTriangles.emplace_back(STriangle(1, 3, 2));
-
-	return Result;
-}
-
 static vector<SVertex3DLine> Generate3DLineCircleYZ(const XMVECTOR& Color, uint32_t SegmentCount = 32)
 {
 	vector<SVertex3DLine> Vertices{};
@@ -581,4 +564,57 @@ static void ScaleMesh(SMesh& Mesh, const XMVECTOR& Scaling)
 		Vertex.Position = XMVector3TransformCoord(Vertex.Position, Matrix);
 		Vertex.Normal = XMVector3TransformNormal(Vertex.Normal, Matrix);
 	}
+}
+
+static vector<SVertex3DLine> Generate3DGrid(int GuidelineCount = 10, float Interval = 1.0f)
+{
+	GuidelineCount = max(GuidelineCount, 10);
+	Interval = max(Interval, 0.1f);
+
+	vector<SVertex3DLine> vResult{};
+	static const XMVECTOR KColorWhite{ XMVectorSet(1, 1, 1, 1) };
+	static const XMVECTOR KColorAxisX{ XMVectorSet(1, 0, 0, 1) };
+	static const XMVECTOR KColorAxisY{ XMVectorSet(0, 1, 0, 1) };
+	static const XMVECTOR KColorAxisZ{ XMVectorSet(0, 0, 1, 1) };
+	float EndPosition{ -GuidelineCount * Interval };
+	XMVECTOR Color{};
+	for (int z = 0; z < GuidelineCount * 2 + 1; ++z)
+	{
+		Color = KColorWhite;
+		if (z == GuidelineCount) Color = KColorAxisZ;
+		vResult.emplace_back(SVertex3DLine(XMVectorSet(+EndPosition + Interval * z, 0, +EndPosition, 1), Color));
+		vResult.emplace_back(SVertex3DLine(XMVectorSet(+EndPosition + Interval * z, 0, -EndPosition, 1), Color));
+	}
+
+	for (int x = 0; x < GuidelineCount * 2 + 1; ++x)
+	{
+		Color = KColorWhite;
+		if (x == GuidelineCount) Color = KColorAxisX;
+		vResult.emplace_back(SVertex3DLine(XMVectorSet(+EndPosition, 0, +EndPosition + Interval * x, 1), Color));
+		vResult.emplace_back(SVertex3DLine(XMVectorSet(-EndPosition, 0, +EndPosition + Interval * x, 1), Color));
+	}
+
+	Color = KColorAxisY;
+	vResult.emplace_back(SVertex3DLine(XMVectorSet(0, -EndPosition, 0, 1), Color));
+	vResult.emplace_back(SVertex3DLine(XMVectorSet(0, +EndPosition, 0, 1), Color));
+
+	return vResult;
+}
+
+static SObject2DData Generate2DRectangle(const XMFLOAT2& RectangleSize)
+{
+	SObject2DData Result{};
+
+	float HalfWidth{ RectangleSize.x / 2 };
+	float HalfHeight{ RectangleSize.y / 2 };
+
+	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(-HalfWidth, +HalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(0.0f, 0.0f, 0, 0)));
+	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(+HalfWidth, +HalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(1.0f, 0.0f, 0, 0)));
+	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(-HalfWidth, -HalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(0.0f, 1.0f, 0, 0)));
+	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(+HalfWidth, -HalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(1.0f, 1.0f, 0, 0)));
+
+	Result.vTriangles.emplace_back(STriangle(0, 1, 2));
+	Result.vTriangles.emplace_back(STriangle(1, 3, 2));
+
+	return Result;
 }

@@ -31,11 +31,8 @@ void CObject3DLine::Update()
 
 void CObject3DLine::Draw() const
 {
-	//m_PtrDeviceContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
 	m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_VertexBuffer.GetAddressOf(), &m_VertexBufferStride, &m_VertexBufferOffset);
 	m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-	//m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
 
 	m_PtrDeviceContext->Draw(static_cast<UINT>(vVertices.size()), 0);
-	
 }

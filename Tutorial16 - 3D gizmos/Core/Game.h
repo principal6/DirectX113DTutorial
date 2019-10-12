@@ -3,16 +3,17 @@
 #define NOMINMAX 0
 
 #include <Windows.h>
+#include "Math.h"
 #include "Camera.h"
-#include "Object3D.h"
-#include "Object2D.h"
-#include "Object3DLine.h"
 #include "Shader.h"
+#include "Texture.h"
+#include "Object3D.h"
+#include "Object3DLine.h"
+#include "Object2D.h"
 #include "PrimitiveGenerator.h"
 #include "GameObject3D.h"
-#include "GameObject2D.h"
 #include "GameObject3DLine.h"
-#include "Math.h"
+#include "GameObject2D.h"
 #include "TinyXml2/tinyxml2.h"
 
 enum class EFlagsGameRendering
@@ -24,7 +25,7 @@ enum class EFlagsGameRendering
 	DrawMiniAxes		= 0x08,
 	DrawPickingData		= 0x10,
 	DrawBoundingSphere	= 0x20,
-	Use3DGizmos		= 0x40
+	Use3DGizmos			= 0x40
 };
 ENUM_CLASS_FLAG(EFlagsGameRendering)
 
@@ -141,6 +142,22 @@ public:
 	void CreateWin32(WNDPROC WndProc, LPCTSTR WindowName, const wstring& FontFileName, bool bWindowed);
 	void Destroy();
 
+private:
+	void CreateWin32Window(WNDPROC WndProc, LPCTSTR WindowName);
+	void InitializeDirectX(const wstring& FontFileName, bool bWindowed);
+
+private:
+	void CreateSwapChain(bool bWindowed);
+	void CreateSetViews();
+	void SetViewports();
+	void CreateInputDevices();
+	void CreateShaders();
+	void CreateMiniAxes();
+	void CreatePickingRay();
+	void CreateBoundingSphere();
+	void CreatePickedTriangle();
+	void Create3DGizmos();
+
 // Advanced setting
 public:
 	void SetPerspective(float FOV, float NearZ, float FarZ);
@@ -168,11 +185,11 @@ public:
 	CObject3D* AddObject3D();
 	CObject3D* GetObject3D(size_t Index);
 
-	CObject2D* AddObject2D();
-	CObject2D* GetObject2D(size_t Index);
-
 	CObject3DLine* AddObject3DLine();
 	CObject3DLine* GetObject3DLine(size_t Index);
+
+	CObject2D* AddObject2D();
+	CObject2D* GetObject2D(size_t Index);
 
 	CTexture* AddTexture();
 	CTexture* GetTexture(size_t Index);
@@ -181,18 +198,21 @@ public:
 	CGameObject3D* GetGameObject3D(const string& Name);
 	CGameObject3D* GetGameObject3D(size_t Index);
 
-	CGameObject2D* AddGameObject2D(const string& Name);
-	CGameObject2D* GetGameObject2D(const string& Name);
-	CGameObject2D* GetGameObject2D(size_t Index);
-
 	CGameObject3DLine* AddGameObject3DLine(const string& Name);
 	CGameObject3DLine* GetGameObject3DLine(const string& Name);
 	CGameObject3DLine* GetGameObject3DLine(size_t Index);
 
+	CGameObject2D* AddGameObject2D(const string& Name);
+	CGameObject2D* GetGameObject2D(const string& Name);
+	CGameObject2D* GetGameObject2D(size_t Index);
+
 public:
 	void Pick();
-	const char* GetPickedGameObject3DName();
-	const char* GetCapturedPickedGameObject3DName();
+
+private:
+	void CastPickingRay();
+	void PickBoundingSphere();
+	void PickTriangle();
 
 public:
 	void BeginRendering(const FLOAT* ClearColor);
@@ -205,10 +225,8 @@ public:
 	Mouse::State GetMouseState();
 	SpriteBatch* GetSpriteBatchPtr() { return m_SpriteBatch.get(); }
 	SpriteFont* GetSpriteFontPtr() { return m_SpriteFont.get(); }
-
-private:
-	void CreateWin32Window(WNDPROC WndProc, LPCTSTR WindowName);
-	void InitializeDirectX(const wstring& FontFileName, bool bWindowed);
+	const char* GetPickedGameObject3DName();
+	const char* GetCapturedPickedGameObject3DName();
 
 private:
 	void UpdateGameObject3D(CGameObject3D* PtrGO);
@@ -222,7 +240,6 @@ private:
 
 	void DrawMiniAxes();
 
-	void CastPickingRay();
 	void UpdatePickingRay();
 	void DrawPickingRay();
 	void DrawPickedTriangle();
@@ -240,22 +257,6 @@ private:
 private:
 	void SetUniversalRasterizerState();
 	void SetUniversalbUseLighiting();
-
-private:
-	void CreateSwapChain(bool bWindowed);
-	void CreateSetViews();
-	void SetViewports();
-	void CreateInputDevices();
-	void CreateShaders();
-	void CreateMiniAxes();
-	void CreatePickingRay();
-	void CreateBoundingSphere();
-	void CreatePickedTriangle();
-	void Create3DGizmos();
-
-private:
-	void PickBoundingSphere();
-	void PickTriangle();
 
 private:
 	static constexpr float KDefaultFOV{ 50.0f / 360.0f * XM_2PI };

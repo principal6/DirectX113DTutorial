@@ -265,6 +265,7 @@ void CGame::InitializeDirectX(const wstring& FontFileName, bool bWindowed)
 	m_CommonStates = make_unique<CommonStates>(m_Device.Get());
 }
 
+
 void CGame::CreateSwapChain(bool bWindowed)
 {
 	DXGI_SWAP_CHAIN_DESC SwapChainDesc{};
@@ -354,7 +355,7 @@ void CGame::CreateShaders()
 	VSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	VSBase->Create(EShaderType::VertexShader, L"Shader\\VSBase.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	VSBase->AddConstantBuffer(&cbVSSpaceData, sizeof(SCBVSSpaceData));
-	
+
 	VSAnimation = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	VSAnimation->Create(EShaderType::VertexShader, L"Shader\\VSAnimation.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	VSAnimation->AddConstantBuffer(&cbVSSpaceData, sizeof(SCBVSSpaceData));
@@ -438,8 +439,8 @@ void CGame::CreateMiniAxes()
 	m_vGameObject3DMiniAxes[2]->ComponentTransform.Yaw = -XM_PIDIV2;
 	m_vGameObject3DMiniAxes[2]->ComponentTransform.Roll = -XM_PIDIV2;
 	m_vGameObject3DMiniAxes[2]->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoLighting;
-	
-	m_vGameObject3DMiniAxes[0]->ComponentTransform.Scaling = 
+
+	m_vGameObject3DMiniAxes[0]->ComponentTransform.Scaling =
 		m_vGameObject3DMiniAxes[1]->ComponentTransform.Scaling =
 		m_vGameObject3DMiniAxes[2]->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.8f, 0.1f, 0);
 }
@@ -484,7 +485,7 @@ void CGame::Create3DGizmos()
 		MeshRing = MergeStaticMeshes(MeshRing, MeshAxis);
 		m_Object3D_3DGizmoRotationPitch->Create(MeshRing);
 	}
-	
+
 	m_Object3D_3DGizmoRotationYaw = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
 	{
 		SMesh MeshRing{ GenerateTorus(ColorY, 0.05f) };
@@ -620,6 +621,164 @@ void CGame::Create3DGizmos()
 	m_GameObject3D_3DGizmoScalingZ->ComponentRender.PtrPS = PSGizmo.get();
 }
 
+CShader* CGame::AddShader()
+{
+	m_vShaders.emplace_back(make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get()));
+	return m_vShaders.back().get();
+}
+
+CShader* CGame::GetShader(size_t Index)
+{
+	assert(Index < m_vShaders.size());
+	return m_vShaders[Index].get();
+}
+
+CObject3D* CGame::AddObject3D()
+{
+	m_vObject3Ds.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
+	return m_vObject3Ds.back().get();
+}
+
+CObject3D* CGame::GetObject3D(size_t Index)
+{
+	assert(Index < m_vObject3Ds.size());
+	return m_vObject3Ds[Index].get();
+}
+
+CObject3DLine* CGame::AddObject3DLine()
+{
+	m_vObject3DLines.emplace_back(make_unique<CObject3DLine>(m_Device.Get(), m_DeviceContext.Get()));
+	return m_vObject3DLines.back().get();
+}
+
+CObject3DLine* CGame::GetObject3DLine(size_t Index)
+{
+	assert(Index < m_vObject3DLines.size());
+	return m_vObject3DLines[Index].get();
+}
+
+CObject2D* CGame::AddObject2D()
+{
+	m_vObject2Ds.emplace_back(make_unique<CObject2D>(m_Device.Get(), m_DeviceContext.Get()));
+	return m_vObject2Ds.back().get();
+}
+
+CObject2D* CGame::GetObject2D(size_t Index)
+{
+	assert(Index < m_vObject2Ds.size());
+	return m_vObject2Ds[Index].get();
+}
+
+CTexture* CGame::AddTexture()
+{
+	m_vTextures.emplace_back(make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get()));
+	return m_vTextures.back().get();
+}
+
+CTexture* CGame::GetTexture(size_t Index)
+{
+	assert(Index < m_vTextures.size());
+	return m_vTextures[Index].get();
+}
+
+CGameObject3D* CGame::AddGameObject3D(const string& Name)
+{
+	assert(m_mapGameObject3DNameToIndex.find(Name) == m_mapGameObject3DNameToIndex.end());
+
+	m_vGameObject3Ds.emplace_back(make_unique<CGameObject3D>(Name));
+	m_vGameObject3Ds.back()->ComponentRender.PtrVS = VSBase.get();
+	m_vGameObject3Ds.back()->ComponentRender.PtrPS = PSBase.get();
+
+	m_mapGameObject3DNameToIndex[Name] = m_vGameObject3Ds.size() - 1;
+
+	return m_vGameObject3Ds.back().get();
+}
+
+CGameObject3D* CGame::GetGameObject3D(const string& Name)
+{
+	assert(m_mapGameObject3DNameToIndex.find(Name) != m_mapGameObject3DNameToIndex.end());
+	return m_vGameObject3Ds[m_mapGameObject3DNameToIndex[Name]].get();
+}
+
+CGameObject3D* CGame::GetGameObject3D(size_t Index)
+{
+	assert(Index < m_vGameObject3Ds.size());
+	return m_vGameObject3Ds[Index].get();
+}
+
+CGameObject3DLine* CGame::AddGameObject3DLine(const string& Name)
+{
+	assert(m_mapGameObject3DLineNameToIndex.find(Name) == m_mapGameObject3DLineNameToIndex.end());
+
+	m_vGameObject3DLines.emplace_back(make_unique<CGameObject3DLine>(Name));
+
+	m_mapGameObject3DLineNameToIndex[Name] = m_vGameObject3DLines.size() - 1;
+
+	return m_vGameObject3DLines.back().get();
+}
+
+CGameObject3DLine* CGame::GetGameObject3DLine(const string& Name)
+{
+	assert(m_mapGameObject3DLineNameToIndex.find(Name) != m_mapGameObject3DLineNameToIndex.end());
+	return m_vGameObject3DLines[m_mapGameObject3DLineNameToIndex[Name]].get();
+}
+
+CGameObject3DLine* CGame::GetGameObject3DLine(size_t Index)
+{
+	assert(Index < m_vGameObject3DLines.size());
+	return m_vGameObject3DLines[Index].get();
+}
+
+CGameObject2D* CGame::AddGameObject2D(const string& Name)
+{
+	assert(m_mapGameObject2DNameToIndex.find(Name) == m_mapGameObject2DNameToIndex.end());
+
+	m_vGameObject2Ds.emplace_back(make_unique<CGameObject2D>(Name));
+
+	m_mapGameObject2DNameToIndex[Name] = m_vGameObject2Ds.size() - 1;
+
+	return m_vGameObject2Ds.back().get();
+}
+
+CGameObject2D* CGame::GetGameObject2D(const string& Name)
+{
+	assert(m_mapGameObject2DNameToIndex.find(Name) != m_mapGameObject2DNameToIndex.end());
+	return m_vGameObject2Ds[m_mapGameObject2DNameToIndex[Name]].get();
+}
+
+CGameObject2D* CGame::GetGameObject2D(size_t Index)
+{
+	assert(Index < m_vGameObject2Ds.size());
+	return m_vGameObject2Ds[Index].get();
+}
+
+void CGame::Pick()
+{
+	CastPickingRay();
+
+	UpdatePickingRay();
+
+	PickBoundingSphere();
+
+	PickTriangle();
+}
+
+void CGame::CastPickingRay()
+{
+	const Mouse::State& MouseState{ m_Mouse->GetState() };
+
+	float ViewSpaceRayDirectionX{ (MouseState.x / (m_WindowSize.x / 2.0f) - 1.0f) / XMVectorGetX(m_MatrixProjection.r[0]) };
+	float ViewSpaceRayDirectionY{ (-(MouseState.y / (m_WindowSize.y / 2.0f) - 1.0f)) / XMVectorGetY(m_MatrixProjection.r[1]) };
+	static float ViewSpaceRayDirectionZ{ 1.0f };
+
+	static XMVECTOR ViewSpaceRayOrigin{ XMVectorSet(0, 0, 0, 1) };
+	XMVECTOR ViewSpaceRayDirection{ XMVectorSet(ViewSpaceRayDirectionX, ViewSpaceRayDirectionY, ViewSpaceRayDirectionZ, 0) };
+
+	XMMATRIX MatrixViewInverse{ XMMatrixInverse(nullptr, m_MatrixView) };
+	m_PickingRayWorldSpaceOrigin = XMVector3TransformCoord(ViewSpaceRayOrigin, MatrixViewInverse);
+	m_PickingRayWorldSpaceDirection = XMVector3TransformNormal(ViewSpaceRayDirection, MatrixViewInverse);
+}
+
 void CGame::PickBoundingSphere()
 {
 	m_PtrPickedGameObject3D = nullptr;
@@ -683,166 +842,6 @@ void CGame::PickTriangle()
 			}
 		}
 	}
-}
-
-CShader* CGame::AddShader()
-{
-	m_vShaders.emplace_back(make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get()));
-	return m_vShaders.back().get();
-}
-
-CShader* CGame::GetShader(size_t Index)
-{
-	assert(Index < m_vShaders.size());
-	return m_vShaders[Index].get();
-}
-
-CObject3D* CGame::AddObject3D()
-{
-	m_vObject3Ds.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
-	return m_vObject3Ds.back().get();
-}
-
-CObject3D* CGame::GetObject3D(size_t Index)
-{
-	assert(Index < m_vObject3Ds.size());
-	return m_vObject3Ds[Index].get();
-}
-
-CObject2D* CGame::AddObject2D()
-{
-	m_vObject2Ds.emplace_back(make_unique<CObject2D>(m_Device.Get(), m_DeviceContext.Get()));
-	return m_vObject2Ds.back().get();
-}
-
-CObject2D* CGame::GetObject2D(size_t Index)
-{
-	assert(Index < m_vObject2Ds.size());
-	return m_vObject2Ds[Index].get();
-}
-
-CObject3DLine* CGame::AddObject3DLine()
-{
-	m_vObject3DLines.emplace_back(make_unique<CObject3DLine>(m_Device.Get(), m_DeviceContext.Get()));
-	return m_vObject3DLines.back().get();
-}
-
-CObject3DLine* CGame::GetObject3DLine(size_t Index)
-{
-	assert(Index < m_vObject3DLines.size());
-	return m_vObject3DLines[Index].get();
-}
-
-CTexture* CGame::AddTexture()
-{
-	m_vTextures.emplace_back(make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get()));
-	return m_vTextures.back().get();
-}
-
-CTexture* CGame::GetTexture(size_t Index)
-{
-	assert(Index < m_vTextures.size());
-	return m_vTextures[Index].get();
-}
-
-CGameObject3D* CGame::AddGameObject3D(const string& Name)
-{
-	assert(m_mapGameObject3DNameToIndex.find(Name) == m_mapGameObject3DNameToIndex.end());
-
-	m_vGameObject3Ds.emplace_back(make_unique<CGameObject3D>(Name));
-	m_vGameObject3Ds.back()->ComponentRender.PtrVS = VSBase.get();
-	m_vGameObject3Ds.back()->ComponentRender.PtrPS = PSBase.get();
-
-	m_mapGameObject3DNameToIndex[Name] = m_vGameObject3Ds.size() - 1;
-
-	return m_vGameObject3Ds.back().get();
-}
-
-CGameObject3D* CGame::GetGameObject3D(const string& Name)
-{
-	assert(m_mapGameObject3DNameToIndex.find(Name) != m_mapGameObject3DNameToIndex.end());
-	return m_vGameObject3Ds[m_mapGameObject3DNameToIndex[Name]].get();
-}
-
-CGameObject3D* CGame::GetGameObject3D(size_t Index)
-{
-	assert(Index < m_vGameObject3Ds.size());
-	return m_vGameObject3Ds[Index].get();
-}
-
-CGameObject2D* CGame::AddGameObject2D(const string& Name)
-{
-	assert(m_mapGameObject2DNameToIndex.find(Name) == m_mapGameObject2DNameToIndex.end());
-
-	m_vGameObject2Ds.emplace_back(make_unique<CGameObject2D>(Name));
-
-	m_mapGameObject2DNameToIndex[Name] = m_vGameObject2Ds.size() - 1;
-
-	return m_vGameObject2Ds.back().get();
-}
-
-CGameObject2D* CGame::GetGameObject2D(const string& Name)
-{
-	assert(m_mapGameObject2DNameToIndex.find(Name) != m_mapGameObject2DNameToIndex.end());
-	return m_vGameObject2Ds[m_mapGameObject2DNameToIndex[Name]].get();
-}
-
-CGameObject2D* CGame::GetGameObject2D(size_t Index)
-{
-	assert(Index < m_vGameObject2Ds.size());
-	return m_vGameObject2Ds[Index].get();
-}
-
-CGameObject3DLine* CGame::AddGameObject3DLine(const string& Name)
-{
-	assert(m_mapGameObject3DLineNameToIndex.find(Name) == m_mapGameObject3DLineNameToIndex.end());
-
-	m_vGameObject3DLines.emplace_back(make_unique<CGameObject3DLine>(Name));
-
-	m_mapGameObject3DLineNameToIndex[Name] = m_vGameObject3DLines.size() - 1;
-
-	return m_vGameObject3DLines.back().get();
-}
-
-CGameObject3DLine* CGame::GetGameObject3DLine(const string& Name)
-{
-	assert(m_mapGameObject3DLineNameToIndex.find(Name) != m_mapGameObject3DLineNameToIndex.end());
-	return m_vGameObject3DLines[m_mapGameObject3DLineNameToIndex[Name]].get();
-}
-
-CGameObject3DLine* CGame::GetGameObject3DLine(size_t Index)
-{
-	assert(Index < m_vGameObject3DLines.size());
-	return m_vGameObject3DLines[Index].get();
-}
-
-void CGame::Pick()
-{
-	CastPickingRay();
-
-	UpdatePickingRay();
-
-	PickBoundingSphere();
-
-	PickTriangle();
-}
-
-const char* CGame::GetPickedGameObject3DName()
-{
-	if (m_PtrPickedGameObject3D)
-	{
-		return m_PtrPickedGameObject3D->m_Name.c_str();
-	}
-	return nullptr;
-}
-
-const char* CGame::GetCapturedPickedGameObject3DName()
-{
-	if (m_PtrCapturedPickedGameObject3D)
-	{
-		return m_PtrCapturedPickedGameObject3D->m_Name.c_str();
-	}
-	return nullptr;
 }
 
 void CGame::BeginRendering(const FLOAT* ClearColor)
@@ -956,6 +955,113 @@ void CGame::Draw(float DeltaTime)
 	DrawGameObject2Ds();
 }
 
+void CGame::UpdateGameObject3D(CGameObject3D* PtrGO)
+{
+	assert(PtrGO->ComponentRender.PtrVS);
+	assert(PtrGO->ComponentRender.PtrPS);
+
+	CShader* VS{ PtrGO->ComponentRender.PtrVS };
+	CShader* PS{ PtrGO->ComponentRender.PtrPS };
+
+	cbVSSpaceData.World = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld);
+	cbVSSpaceData.WVP = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
+	PtrGO->UpdateWorldMatrix();
+
+	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::UseRawVertexColor))
+	{
+		PS = PSVertexColor.get();
+	}
+
+	SetUniversalbUseLighiting();
+	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoLighting))
+	{
+		cbPSBaseFlagsData.bUseLighting = FALSE;
+	}
+
+	cbPSBaseFlagsData.bUseTexture = FALSE;
+	if (PtrGO->ComponentRender.PtrTexture)
+	{
+		cbPSBaseFlagsData.bUseTexture = TRUE;
+		PtrGO->ComponentRender.PtrTexture->Use();
+	}
+
+	VS->Use();
+	VS->UpdateAllConstantBuffers();
+
+	PS->Use();
+	PS->UpdateAllConstantBuffers();
+}
+
+void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
+{
+	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoCulling))
+	{
+		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
+	}
+	else
+	{
+		SetUniversalRasterizerState();
+	}
+
+	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoDepthComparison))
+	{
+		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
+	}
+	else
+	{
+		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
+	}
+
+	PtrGO->ComponentRender.PtrObject3D->Draw();
+}
+
+void CGame::DrawGameObject3DNormal(CGameObject3D* PtrGO)
+{
+	if (PtrGO->ComponentRender.PtrObject3D == nullptr) return;
+
+	assert(PtrGO->ComponentRender.PtrVS);
+	assert(PtrGO->ComponentRender.PtrPS);
+
+	CShader* VS{ PtrGO->ComponentRender.PtrVS };
+	CShader* PS{ PSVertexColor.get() };
+
+	cbVSSpaceData.World = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld);
+	cbVSSpaceData.WVP = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
+	PtrGO->UpdateWorldMatrix();
+
+	cbPSBaseFlagsData.bUseLighting = FALSE;
+	cbPSBaseFlagsData.bUseTexture = FALSE;
+
+	VS->Use();
+	VS->UpdateAllConstantBuffers();
+
+	GSNormal->Use();
+
+	PS->Use();
+	PS->UpdateAllConstantBuffers();
+
+	PtrGO->ComponentRender.PtrObject3D->DrawNormals();
+}
+
+void CGame::DrawGameObject3DBoundingSphere(CGameObject3D* PtrGO)
+{
+	VSBase->Use();
+
+	XMMATRIX Translation{ XMMatrixTranslationFromVector(PtrGO->ComponentTransform.Translation + PtrGO->ComponentPhysics.BoundingSphere.CenterOffset) };
+	XMMATRIX Scaling{ XMMatrixScaling(PtrGO->ComponentPhysics.BoundingSphere.Radius,
+		PtrGO->ComponentPhysics.BoundingSphere.Radius, PtrGO->ComponentPhysics.BoundingSphere.Radius) };
+	XMMATRIX World{ Scaling * Translation };
+	cbVSSpaceData.World = XMMatrixTranspose(World);
+	cbVSSpaceData.WVP = XMMatrixTranspose(World * m_MatrixView * m_MatrixProjection);
+	VSBase->UpdateConstantBuffer(0);
+
+	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
+
+	m_Object3DBoundingSphere->Draw();
+
+	SetUniversalRasterizerState();
+}
+
 void CGame::DrawGameObject3DLines()
 {
 	VSLine->Use();
@@ -999,7 +1105,7 @@ void CGame::DrawGameObject2Ds()
 			if (!GO2D->bIsVisible) continue;
 
 			GO2D->UpdateWorldMatrix();
-			cbVS2DSpaceData.World = GO2D->ComponentTransform.MatrixWorld;
+			cbVS2DSpaceData.World = XMMatrixTranspose(GO2D->ComponentTransform.MatrixWorld);
 			VSBase2D->UpdateConstantBuffer(0);
 
 			if (GO2D->ComponentRender.PtrTexture)
@@ -1038,6 +1144,13 @@ void CGame::DrawMiniAxes()
 	}
 
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
+}
+
+void CGame::UpdatePickingRay()
+{
+	m_Object3DLinePickingRay->vVertices[0].Position = m_PickingRayWorldSpaceOrigin;
+	m_Object3DLinePickingRay->vVertices[1].Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
+	m_Object3DLinePickingRay->Update();
 }
 
 void CGame::DrawPickingRay()
@@ -1525,136 +1638,6 @@ void CGame::Draw3DGizmo(CGameObject3D* Gizmo, bool bShouldHighlight)
 	Gizmo->ComponentRender.PtrObject3D->Draw();
 }
 
-void CGame::CastPickingRay()
-{
-	const Mouse::State& MouseState{ m_Mouse->GetState() };
-
-	float ViewSpaceRayDirectionX{ (MouseState.x / (m_WindowSize.x / 2.0f) - 1.0f) / XMVectorGetX(m_MatrixProjection.r[0]) };
-	float ViewSpaceRayDirectionY{ (-(MouseState.y / (m_WindowSize.y / 2.0f) - 1.0f)) / XMVectorGetY(m_MatrixProjection.r[1]) };
-	static float ViewSpaceRayDirectionZ{ 1.0f };
-
-	static XMVECTOR ViewSpaceRayOrigin{ XMVectorSet(0, 0, 0, 1) };
-	XMVECTOR ViewSpaceRayDirection{ XMVectorSet(ViewSpaceRayDirectionX, ViewSpaceRayDirectionY, ViewSpaceRayDirectionZ, 0) };
-
-	XMMATRIX MatrixViewInverse{ XMMatrixInverse(nullptr, m_MatrixView) };
-	m_PickingRayWorldSpaceOrigin = XMVector3TransformCoord(ViewSpaceRayOrigin, MatrixViewInverse);
-	m_PickingRayWorldSpaceDirection = XMVector3TransformNormal(ViewSpaceRayDirection, MatrixViewInverse);
-}
-
-void CGame::UpdatePickingRay()
-{
-	m_Object3DLinePickingRay->vVertices[0].Position = m_PickingRayWorldSpaceOrigin;
-	m_Object3DLinePickingRay->vVertices[1].Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
-	m_Object3DLinePickingRay->Update();
-}
-
-void CGame::UpdateGameObject3D(CGameObject3D* PtrGO)
-{
-	assert(PtrGO->ComponentRender.PtrVS);
-	assert(PtrGO->ComponentRender.PtrPS);
-
-	CShader* VS{ PtrGO->ComponentRender.PtrVS };
-	CShader* PS{ PtrGO->ComponentRender.PtrPS };
-
-	cbVSSpaceData.World = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld);
-	cbVSSpaceData.WVP = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
-	PtrGO->UpdateWorldMatrix();
-
-	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::UseRawVertexColor))
-	{
-		PS = PSVertexColor.get();
-	}
-
-	SetUniversalbUseLighiting();
-	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoLighting))
-	{
-		cbPSBaseFlagsData.bUseLighting = FALSE;
-	}
-
-	cbPSBaseFlagsData.bUseTexture = FALSE;
-	if (PtrGO->ComponentRender.PtrTexture)
-	{
-		cbPSBaseFlagsData.bUseTexture = TRUE;
-		PtrGO->ComponentRender.PtrTexture->Use();
-	}
-
-	VS->Use();
-	VS->UpdateAllConstantBuffers();
-
-	PS->Use();
-	PS->UpdateAllConstantBuffers();
-}
-
-void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
-{
-	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoCulling))
-	{
-		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
-	}
-	else
-	{
-		SetUniversalRasterizerState();
-	}
-
-	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoDepthComparison))
-	{
-		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
-	}
-	else
-	{
-		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
-	}
-
-	PtrGO->ComponentRender.PtrObject3D->Draw();
-}
-
-void CGame::DrawGameObject3DNormal(CGameObject3D* PtrGO)
-{
-	if (PtrGO->ComponentRender.PtrObject3D == nullptr) return;
-
-	assert(PtrGO->ComponentRender.PtrVS);
-	assert(PtrGO->ComponentRender.PtrPS);
-
-	CShader* VS{ PtrGO->ComponentRender.PtrVS };
-	CShader* PS{ PSVertexColor.get() };
-
-	cbVSSpaceData.World = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld);
-	cbVSSpaceData.WVP = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
-	PtrGO->UpdateWorldMatrix();
-
-	cbPSBaseFlagsData.bUseLighting = FALSE;
-	cbPSBaseFlagsData.bUseTexture = FALSE;
-
-	VS->Use();
-	VS->UpdateAllConstantBuffers();
-
-	GSNormal->Use();
-
-	PS->Use();
-	PS->UpdateAllConstantBuffers();
-
-	PtrGO->ComponentRender.PtrObject3D->DrawNormals();
-}
-
-void CGame::DrawGameObject3DBoundingSphere(CGameObject3D* PtrGO)
-{
-	VSBase->Use();
-
-	XMMATRIX Translation{ XMMatrixTranslationFromVector(PtrGO->ComponentTransform.Translation + PtrGO->ComponentPhysics.BoundingSphere.CenterOffset) };
-	XMMATRIX Scaling{ XMMatrixScaling(PtrGO->ComponentPhysics.BoundingSphere.Radius, 
-		PtrGO->ComponentPhysics.BoundingSphere.Radius, PtrGO->ComponentPhysics.BoundingSphere.Radius) };
-	XMMATRIX World{ Scaling * Translation };
-	cbVSSpaceData.World = XMMatrixTranspose(World);
-	cbVSSpaceData.WVP = XMMatrixTranspose(World * m_MatrixView * m_MatrixProjection);
-	VSBase->UpdateConstantBuffer(0);
-
-	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
-
-	m_Object3DBoundingSphere->Draw();
-
-	SetUniversalRasterizerState();
-}
-
 void CGame::SetUniversalRasterizerState()
 {
 	switch (m_eRasterizerState)
@@ -1701,4 +1684,23 @@ Mouse::State CGame::GetMouseState()
 	m_Mouse->ResetScrollWheelValue();
 
 	return ResultState;
+}
+
+
+const char* CGame::GetPickedGameObject3DName()
+{
+	if (m_PtrPickedGameObject3D)
+	{
+		return m_PtrPickedGameObject3D->m_Name.c_str();
+	}
+	return nullptr;
+}
+
+const char* CGame::GetCapturedPickedGameObject3DName()
+{
+	if (m_PtrCapturedPickedGameObject3D)
+	{
+		return m_PtrCapturedPickedGameObject3D->m_Name.c_str();
+	}
+	return nullptr;
 }

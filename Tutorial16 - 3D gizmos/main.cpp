@@ -93,6 +93,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		goYBot->ComponentPhysics.BoundingSphere.Radius = 2.0f;
 	}
 
+	CGameObject3DLine* goGrid{ Game.AddGameObject3DLine("Grid") };
+	{
+		goGrid->ComponentTransform.Translation = XMVectorSet(0.0f, 0.0f, 0.0f, 0);
+
+		goGrid->ComponentRender.PtrObject3DLine = Game.AddObject3DLine();
+		goGrid->ComponentRender.PtrObject3DLine->Create(Generate3DGrid(20));
+	}
+
 	CGameObject2D* go2DRectangle{ Game.AddGameObject2D("2DRectangle") };
 	{
 		go2DRectangle->ComponentRender.PtrObject2D = Game.AddObject2D();

@@ -383,9 +383,6 @@
     <ClInclude Include="Core\Object2D.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\Serialization.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Core\GameObject2D.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -399,6 +396,9 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\GameObject3DLine.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Serializator.h">
       <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
