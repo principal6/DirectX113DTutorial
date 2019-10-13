@@ -19,6 +19,7 @@ using namespace DirectX;
 using std::string;
 using std::wstring;
 using std::to_string;
+using std::to_wstring;
 using std::stof;
 using std::vector;
 using std::unique_ptr;

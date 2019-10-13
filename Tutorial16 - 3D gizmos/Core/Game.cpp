@@ -875,14 +875,6 @@ void CGame::Draw(float DeltaTime)
 
 	cbPSBaseEyeData.EyePosition = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition;
 
-	// Update directional light source position
-	static float DirectionalLightRoll{};
-	DirectionalLightRoll += XM_2PI * DeltaTime * KSkyTimeFactorAbsolute / 4.0f;
-	if (DirectionalLightRoll >= XM_PIDIV2) DirectionalLightRoll = -XM_PIDIV2;
-
-	XMVECTOR DirectionalLightSourcePosition{ XMVector3TransformCoord(XMVectorSet(0, 1, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, DirectionalLightRoll)) };
-	SetDirectionalLight(DirectionalLightSourcePosition);
-
 	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawWireFrame))
 	{
 		m_eRasterizerState = ERasterizerState::WireFrame;
@@ -1188,52 +1180,55 @@ void CGame::DrawPickedTriangle()
 
 void CGame::DrawSky(float DeltaTime)
 {
+	// Elapse SkyTime
+	cbPSSkyTimeData.SkyTime += KSkyTimeFactorAbsolute * DeltaTime;
+	if (cbPSSkyTimeData.SkyTime > 1.0f) cbPSSkyTimeData.SkyTime = 0.0f;
+
+	// Update directional light source position
+	static float DirectionalLightRoll{};
+	if (cbPSSkyTimeData.SkyTime <= 0.25f)
+	{
+		DirectionalLightRoll = XM_2PI * (cbPSSkyTimeData.SkyTime + 0.25f);
+	}
+	else if (cbPSSkyTimeData.SkyTime > 0.25f && cbPSSkyTimeData.SkyTime <= 0.75f)
+	{
+		DirectionalLightRoll = XM_2PI * (cbPSSkyTimeData.SkyTime - 0.25f);
+	}
+	else
+	{
+		DirectionalLightRoll = XM_2PI * (cbPSSkyTimeData.SkyTime - 0.75f);
+	}
+	XMVECTOR DirectionalLightSourcePosition{ XMVector3TransformCoord(XMVectorSet(1, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, DirectionalLightRoll)) };
+	SetDirectionalLight(DirectionalLightSourcePosition);
+
 	// SkySphere
 	{
-		static float SkyTime{ 1.0f };
-		static float SkyTimeFactor{ KSkyTimeFactorAbsolute };
-
-		SkyTime -= DeltaTime * SkyTimeFactor;
-		if (SkyTime < -1.0f) SkyTimeFactor = -SkyTimeFactor;
-		if (SkyTime > +1.0f) SkyTimeFactor = -SkyTimeFactor;
-
 		m_GameObject3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
 		m_GameObject3DSkySphere->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition;
-
-		cbPSSkyTimeData.SkyTime = SkyTime;
 	}
 
 	// Sun
 	{
-		static float SunRoll{};
-		SunRoll += XM_2PI * DeltaTime * KSkyTimeFactorAbsolute / 4.0f;
-		if (SunRoll >= XM_2PI) SunRoll = 0;
-
-		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, XM_PIDIV2 + SunRoll)) };
+		float SunRoll{ XM_2PI * cbPSSkyTimeData.SkyTime - XM_PIDIV2 };
+		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, SunRoll)) };
 		m_GameObject3DSun->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
-		m_GameObject3DSun->ComponentTransform.Roll = XM_PIDIV2 + SunRoll;
+		m_GameObject3DSun->ComponentTransform.Roll = SunRoll;
 	}
 
 	// Moon
 	{
-		static float MoonRoll{};
-		MoonRoll += XM_2PI * DeltaTime * KSkyTimeFactorAbsolute / 4.0f;
-		if (MoonRoll >= XM_2PI) MoonRoll = 0;
-
-		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, -XM_PIDIV2 + MoonRoll)) };
+		float MoonRoll{ XM_2PI * cbPSSkyTimeData.SkyTime + XM_PIDIV2 };
+		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, MoonRoll)) };
 		m_GameObject3DMoon->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
-		m_GameObject3DMoon->ComponentTransform.Roll = -XM_PIDIV2 + MoonRoll;
+		m_GameObject3DMoon->ComponentTransform.Roll = (MoonRoll > XM_2PI) ? (MoonRoll - XM_2PI) : MoonRoll;
 	}
 
 	// Cloud
 	{
-		static float Yaw{};
-		Yaw -= XM_2PI * DeltaTime * 0.01f;
-		if (Yaw <= -XM_2PI) Yaw = 0;
-
-		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, Yaw, XM_PIDIV4)) };
+		float CloudYaw{ XM_2PI * cbPSSkyTimeData.SkyTime };
+		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, CloudYaw, XM_PIDIV4)) };
 		m_GameObject3DCloud->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
-		m_GameObject3DCloud->ComponentTransform.Yaw = Yaw;
+		m_GameObject3DCloud->ComponentTransform.Yaw = CloudYaw;
 		m_GameObject3DCloud->ComponentTransform.Roll = XM_PIDIV4;
 	}
 
@@ -1703,4 +1698,9 @@ const char* CGame::GetCapturedPickedGameObject3DName()
 		return m_PtrCapturedPickedGameObject3D->m_Name.c_str();
 	}
 	return nullptr;
+}
+
+float CGame::GetSkyTime()
+{
+	return cbPSSkyTimeData.SkyTime;
 }

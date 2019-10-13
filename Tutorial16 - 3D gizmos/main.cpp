@@ -230,6 +230,12 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					PtrSpriteFont->DrawString(PtrSpriteBatch, (string("Captured: ") + Game.GetCapturedPickedGameObject3DName()).c_str(),
 						XMVectorSet(0, 30, 0, 0));
 				}
+
+				PtrSpriteFont->DrawString(PtrSpriteBatch, (string("Sky time: ") + to_string(Game.GetSkyTime())).c_str(),
+					XMVectorSet(0, 45, 0, 0));
+
+				PtrSpriteFont->DrawString(PtrSpriteBatch, (wstring(L"Sky time: ") + to_wstring((int)(Game.GetSkyTime() * 24)) + L" ½Ã").c_str(),
+					XMVectorSet(0, 60, 0, 0));
 			}
 			PtrSpriteBatch->End();
 

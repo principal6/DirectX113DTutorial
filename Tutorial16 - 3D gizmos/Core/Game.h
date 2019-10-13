@@ -227,6 +227,7 @@ public:
 	SpriteFont* GetSpriteFontPtr() { return m_SpriteFont.get(); }
 	const char* GetPickedGameObject3DName();
 	const char* GetCapturedPickedGameObject3DName();
+	float GetSkyTime();
 
 private:
 	void UpdateGameObject3D(CGameObject3D* PtrGO);
@@ -263,7 +264,7 @@ private:
 	static constexpr float KDefaultNearZ{ 0.1f };
 	static constexpr float KDefaultFarZ{ 1000.0f };
 	static constexpr float KSkyDistance{ 30.0f };
-	static constexpr float KSkyTimeFactorAbsolute{ 0.1f };
+	static constexpr float KSkyTimeFactorAbsolute{ 0.04f };
 	static constexpr float KPickingRayLength{ 1000.0f };
 	static constexpr uint32_t KSkySphereSegmentCount{ 32 };
 	static constexpr XMVECTOR KColorWhite{ 1.0f, 1.0f, 1.0f, 1.0f };
