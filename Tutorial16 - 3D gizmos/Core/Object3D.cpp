@@ -128,8 +128,7 @@ void CObject3D::Animate()
 
 	CalculateAnimatedBoneMatrices(m_Model.vNodes[0], XMMatrixIdentity());
 
-	memcpy(m_PtrGame->cbVSAnimationBonesData.BoneMatrices, m_AnimatedBoneMatrices, sizeof(SCBVSAnimationBonesData));
-	m_PtrGame->VSAnimation->UpdateConstantBuffer(1);
+	m_PtrGame->UpdateVSAnimationBoneMatrices(m_AnimatedBoneMatrices);
 }
 
 void CObject3D::CalculateAnimatedBoneMatrices(const SModelNode& Node, XMMATRIX ParentTransform)
@@ -223,17 +222,11 @@ void CObject3D::Draw() const
 		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };
 		const SMaterial& Material{ m_Model.vMaterials[Mesh.MaterialID] };
 
-		m_PtrGame->cbPSBaseMaterialData.MaterialAmbient = Material.MaterialAmbient;
-		m_PtrGame->cbPSBaseMaterialData.MaterialDiffuse = Material.MaterialDiffuse;
-		m_PtrGame->cbPSBaseMaterialData.MaterialSpecular = Material.MaterialSpecular;
-		m_PtrGame->cbPSBaseMaterialData.SpecularExponent = Material.SpecularExponent;
-		m_PtrGame->cbPSBaseMaterialData.SpecularIntensity = Material.SpecularIntensity;
-		m_PtrGame->PSBase->UpdateConstantBuffer(2);
-
+		m_PtrGame->UpdateVSBaseMaterial(Material);
+		
 		if (Material.bHasTexture && Material.bHasEmbeddedTexture)
 		{
-			m_PtrGame->cbPSBaseFlagsData.bUseTexture = TRUE;
-			m_PtrGame->PSBase->UpdateConstantBuffer(0);
+			m_PtrGame->UpdatePSBaseFlagOn(EFlagPSBase::UseTexture);
 
 			m_vEmbeddedTextures[Mesh.MaterialID]->Use();
 		}

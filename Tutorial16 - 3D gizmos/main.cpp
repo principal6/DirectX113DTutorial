@@ -87,7 +87,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		goYBot->ComponentTransform.Scaling = XMVectorSet(0.02f, 0.02f, 0.02f, 0);
 
 		goYBot->ComponentRender.PtrObject3D = ObjectYBot;
-		goYBot->ComponentRender.PtrVS = Game.VSAnimation.get();
+		goYBot->ComponentRender.PtrVS = Game.GetBaseShader(EBaseShader::VSAnimation);
 
 		goYBot->ComponentPhysics.BoundingSphere.CenterOffset = XMVectorSet(0, 1.5f, 0, 0);
 		goYBot->ComponentPhysics.BoundingSphere.Radius = 2.0f;

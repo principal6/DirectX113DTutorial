@@ -29,6 +29,24 @@ enum class EFlagsGameRendering
 };
 ENUM_CLASS_FLAG(EFlagsGameRendering)
 
+enum class EBaseShader
+{
+	VSAnimation,
+	VSSky,
+	VSLine,
+	VSGizmo,
+	VSBase2D,
+
+	GSNormal,
+
+	PSBase,
+	PSVertexColor,
+	PSSky,
+	PSLine,
+	PSGizmo,
+	PSBase2D,
+};
+
 enum class ERasterizerState
 {
 	CullNone,
@@ -91,6 +109,12 @@ struct SCBVSAnimationBonesData
 	XMMATRIX	BoneMatrices[KMaxBoneMatrixCount]{};
 };
 
+enum class EFlagPSBase
+{
+	UseTexture,
+	UseLighting
+};
+
 struct SCBPSBaseFlagsData
 {
 	BOOL		bUseTexture{};
@@ -151,19 +175,26 @@ private:
 	void CreateSetViews();
 	void SetViewports();
 	void CreateInputDevices();
-	void CreateShaders();
+	void CreateBaseShaders();
 	void CreateMiniAxes();
 	void CreatePickingRay();
 	void CreateBoundingSphere();
 	void CreatePickedTriangle();
 	void Create3DGizmos();
 
-// Advanced setting
+// Advanced settings
 public:
 	void SetPerspective(float FOV, float NearZ, float FarZ);
 	void SetGameRenderingFlags(EFlagsGameRendering Flags);
 	void ToggleGameRenderingFlags(EFlagsGameRendering Flags);
 	void Set3DGizmoMode(E3DGizmoMode Mode);
+
+// Shader-related settings
+public:
+	void UpdatePSBaseFlagOn(EFlagPSBase Flag);
+	void UpdatePSBaseFlagOff(EFlagPSBase Flag);
+	void UpdateVSBaseMaterial(const SMaterial& Material);
+	void UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices);
 
 public:
 	void SetSky(const string& SkyDataFileName, float ScalingFactor);
@@ -181,6 +212,7 @@ public:
 
 	CShader* AddShader();
 	CShader* GetShader(size_t Index);
+	CShader* GetBaseShader(EBaseShader eShader);
 
 	CObject3D* AddObject3D();
 	CObject3D* GetObject3D(size_t Index);
@@ -275,35 +307,35 @@ private:
 	static constexpr float K3DGizmoSelectionHighBoundary{ 1.2f };
 	static constexpr float K3DGizmoMovementFactor{ 0.01f };
 
-public:
-	unique_ptr<CShader>	VSBase{};
-	unique_ptr<CShader>	VSAnimation{};
-	unique_ptr<CShader>	VSSky{};
-	unique_ptr<CShader>	VSLine{};
-	unique_ptr<CShader>	VSGizmo{};
-	unique_ptr<CShader>	VSBase2D{};
+private:
+	unique_ptr<CShader>	m_VSBase{};
+	unique_ptr<CShader>	m_VSAnimation{};
+	unique_ptr<CShader>	m_VSSky{};
+	unique_ptr<CShader>	m_VSLine{};
+	unique_ptr<CShader>	m_VSGizmo{};
+	unique_ptr<CShader>	m_VSBase2D{};
 
-	unique_ptr<CShader>	GSNormal{};
+	unique_ptr<CShader>	m_GSNormal{};
 
-	unique_ptr<CShader>	PSBase{};
-	unique_ptr<CShader>	PSVertexColor{};
-	unique_ptr<CShader>	PSSky{};
-	unique_ptr<CShader>	PSLine{};
-	unique_ptr<CShader>	PSGizmo{};
-	unique_ptr<CShader>	PSBase2D{};
+	unique_ptr<CShader>	m_PSBase{};
+	unique_ptr<CShader>	m_PSVertexColor{};
+	unique_ptr<CShader>	m_PSSky{};
+	unique_ptr<CShader>	m_PSLine{};
+	unique_ptr<CShader>	m_PSGizmo{};
+	unique_ptr<CShader>	m_PSBase2D{};
 
-public:
-	SCBVSSpaceData				cbVSSpaceData{};
-	SCBVSAnimationBonesData		cbVSAnimationBonesData{};
-	SCBVS2DSpaceData			cbVS2DSpaceData{};
+private:
+	SCBVSSpaceData				m_cbVSSpaceData{};
+	SCBVSAnimationBonesData		m_cbVSAnimationBonesData{};
+	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
 
-	SCBPSBaseFlagsData			cbPSBaseFlagsData{};
-	SCBPSBaseLightsData			cbPSBaseLightsData{};
-	SCBPSBaseMaterialData		cbPSBaseMaterialData{};
-	SCBPSBaseEyeData			cbPSBaseEyeData{};
-	SCBPSGizmoColorFactorData	cbPSGizmoColorFactorData{};
-	SCBPSSkyTimeData			cbPSSkyTimeData{};
-	SCBPS2DFlagsData			cbPS2DFlagsData{};
+	SCBPSBaseFlagsData			m_cbPSBaseFlagsData{};
+	SCBPSBaseLightsData			m_cbPSBaseLightsData{};
+	SCBPSBaseMaterialData		m_cbPSBaseMaterialData{};
+	SCBPSBaseEyeData			m_cbPSBaseEyeData{};
+	SCBPSGizmoColorFactorData	m_cbPSGizmoColorFactorData{};
+	SCBPSSkyTimeData			m_cbPSSkyTimeData{};
+	SCBPS2DFlagsData			m_cbPS2DFlagsData{};
 
 private:
 	vector<unique_ptr<CShader>>				m_vShaders{};
