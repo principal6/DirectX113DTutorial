@@ -16,8 +16,12 @@ public:
 	}
 	~CTexture() {}
 
+public:
 	void CreateFromFile(const wstring& TextureFileName);
 	void CreateWICFromMemory(const vector<uint8_t>& RawData);
+
+public:
+	ID3D11ShaderResourceView* GetShaderResourceViewPtr() { return m_ShaderResourceView.Get(); }
 
 private:
 	void Use() const;

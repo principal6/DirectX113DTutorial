@@ -1369,7 +1369,7 @@ bool CGame::ShouldSelectRotationGizmo(CGameObject3D* Gizmo, E3DGizmoAxis Axis)
 	}
 
 	if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-		K3DGizmoSelectionRadius, Gizmo->ComponentTransform.Translation, nullptr))
+		K3DGizmoSelectionRadius * m_3DGizmoDistanceScalar, Gizmo->ComponentTransform.Translation, nullptr))
 	{
 		XMVECTOR PlaneT{};
 		if (IntersectRayPlane(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, Gizmo->ComponentTransform.Translation, PlaneNormal, &PlaneT))
@@ -1377,7 +1377,7 @@ bool CGame::ShouldSelectRotationGizmo(CGameObject3D* Gizmo, E3DGizmoAxis Axis)
 			XMVECTOR PointOnPlane{ m_PickingRayWorldSpaceOrigin + PlaneT * m_PickingRayWorldSpaceDirection };
 
 			float Dist{ XMVectorGetX(XMVector3Length(PointOnPlane - Gizmo->ComponentTransform.Translation)) };
-			if (Dist >= K3DGizmoSelectionLowBoundary && Dist <= K3DGizmoSelectionHighBoundary) return true;
+			if (Dist >= K3DGizmoSelectionLowBoundary * m_3DGizmoDistanceScalar && Dist <= K3DGizmoSelectionHighBoundary * m_3DGizmoDistanceScalar) return true;
 		}
 	}
 	return false;
@@ -1392,19 +1392,19 @@ bool CGame::ShouldSelectTranslationScalingGizmo(CGameObject3D* Gizmo, E3DGizmoAx
 		return false;
 		break;
 	case E3DGizmoAxis::AxisX:
-		Center = Gizmo->ComponentTransform.Translation + XMVectorSet(0.5f, 0, 0, 1);
+		Center = Gizmo->ComponentTransform.Translation + XMVectorSet(0.5f * m_3DGizmoDistanceScalar, 0, 0, 1);
 		break;
 	case E3DGizmoAxis::AxisY:
-		Center = Gizmo->ComponentTransform.Translation + XMVectorSet(0, 0.5f, 0, 1);
+		Center = Gizmo->ComponentTransform.Translation + XMVectorSet(0, 0.5f * m_3DGizmoDistanceScalar, 0, 1);
 		break;
 	case E3DGizmoAxis::AxisZ:
-		Center = Gizmo->ComponentTransform.Translation + XMVectorSet(0, 0, 0.5f, 1);
+		Center = Gizmo->ComponentTransform.Translation + XMVectorSet(0, 0, 0.5f * m_3DGizmoDistanceScalar, 1);
 		break;
 	default:
 		break;
 	}
 
-	if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, 0.5f, Center, nullptr)) return true;
+	if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, 0.5f * m_3DGizmoDistanceScalar, Center, nullptr)) return true;
 
 	return false;
 }
@@ -1427,6 +1427,11 @@ void CGame::Draw3DGizmos()
 
 	if (m_PtrCapturedPickedGameObject3D)
 	{
+		m_3DGizmoDistanceScalar =
+			XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition - 
+				m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation)) * 0.1f;
+		m_3DGizmoDistanceScalar = pow(m_3DGizmoDistanceScalar, 0.7f);
+
 		if (m_bIsGizmoSelected)
 		{
 			if (MouseState.leftButton)
@@ -1715,6 +1720,10 @@ void CGame::Draw3DGizmo(CGameObject3D* Gizmo, bool bShouldHighlight)
 	CShader* VS{ Gizmo->ComponentRender.PtrVS };
 	CShader* PS{ Gizmo->ComponentRender.PtrPS };
 
+	float Scalar{ XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition - Gizmo->ComponentTransform.Translation)) * 0.1f };
+	Scalar = pow(Scalar, 0.7f);
+
+	Gizmo->ComponentTransform.Scaling = XMVectorSet(Scalar, Scalar, Scalar, 0.0f);
 	Gizmo->UpdateWorldMatrix();
 	m_cbVSSpaceData.World = XMMatrixTranspose(Gizmo->ComponentTransform.MatrixWorld);
 	m_cbVSSpaceData.WVP = XMMatrixTranspose(Gizmo->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
@@ -1723,11 +1732,11 @@ void CGame::Draw3DGizmo(CGameObject3D* Gizmo, bool bShouldHighlight)
 
 	if (bShouldHighlight)
 	{
-		m_cbPSGizmoColorFactorData.ColorFactor = XMVectorSet(1.0f, 1.0f, 1.0f, 1);
+		m_cbPSGizmoColorFactorData.ColorFactor = XMVectorSet(1.0f, 1.0f, 1.0f, 0.95f);
 	}
 	else
 	{
-		m_cbPSGizmoColorFactorData.ColorFactor = XMVectorSet(0.4f, 0.4f, 0.4f, 1);
+		m_cbPSGizmoColorFactorData.ColorFactor = XMVectorSet(0.75f, 0.75f, 0.75f, 0.75f);
 	}
 	PS->UpdateConstantBuffer(0);
 	PS->Use();

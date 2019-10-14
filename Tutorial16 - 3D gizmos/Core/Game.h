@@ -410,6 +410,7 @@ private:
 	bool						m_bIsGizmoSelected{ false };
 	E3DGizmoAxis				m_e3DGizmoSelectedAxis{};
 	E3DGizmoMode				m_e3DGizmoMode{};
+	float						m_3DGizmoDistanceScalar{};
 
 private:
 	vector<D3D11_VIEWPORT>	m_vViewports{};
