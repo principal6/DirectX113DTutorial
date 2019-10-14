@@ -1,22 +1,24 @@
 #include "Texture.h"
 
-void CTexture::CreateFromFile(const wstring& TextureFileName)
+void CTexture::CreateFromFile(const string& TextureFileName)
 {
 	size_t found{ TextureFileName.find_last_of(L'.') };
-	wstring Ext{ TextureFileName.substr(found) };
+	string Ext{ TextureFileName.substr(found) };
+
+	wstring wFileName{ TextureFileName.begin(), TextureFileName.end() };
 
 	for (auto& c : Ext)
 	{
 		c = toupper(c);
 	}
-	if (Ext == L".DDS")
+	if (Ext == ".DDS")
 	{
-		assert(SUCCEEDED(CreateDDSTextureFromFile(m_PtrDevice, TextureFileName.c_str(),
+		assert(SUCCEEDED(CreateDDSTextureFromFile(m_PtrDevice, wFileName.c_str(),
 			(ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
 	}
 	else
 	{
-		assert(SUCCEEDED(CreateWICTextureFromFile(m_PtrDevice, TextureFileName.c_str(), 
+		assert(SUCCEEDED(CreateWICTextureFromFile(m_PtrDevice, wFileName.c_str(),
 			(ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
 	}
 }

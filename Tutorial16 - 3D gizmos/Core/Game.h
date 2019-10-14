@@ -223,8 +223,8 @@ public:
 	CObject2D* AddObject2D();
 	CObject2D* GetObject2D(size_t Index);
 
-	CTexture* AddTexture();
-	CTexture* GetTexture(size_t Index);
+	CTexture* AddTexture(const string& Name);
+	CTexture* GetTexture(const string& Name);
 
 	CGameObject3D* AddGameObject3D(const string& Name);
 	CGameObject3D* GetGameObject3D(const string& Name);
@@ -381,9 +381,10 @@ private:
 	unique_ptr<CGameObject3D>				m_GameObject3DMoon{};
 	unique_ptr<CGameObject3D>				m_GameObject3DCloud{};
 
-	unordered_map<string, size_t>			m_mapGameObject3DNameToIndex{};
-	unordered_map<string, size_t>			m_mapGameObject3DLineNameToIndex{};
-	unordered_map<string, size_t>			m_mapGameObject2DNameToIndex{};
+	map<string, size_t>						m_mapTextureNameToIndex{};
+	unordered_map<string, size_t>			m_umapGameObject3DNameToIndex{};
+	unordered_map<string, size_t>			m_umapGameObject3DLineNameToIndex{};
+	unordered_map<string, size_t>			m_umapGameObject2DNameToIndex{};
 
 private:
 	unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationPitch{};

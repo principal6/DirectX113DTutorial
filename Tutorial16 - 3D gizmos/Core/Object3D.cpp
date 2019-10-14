@@ -31,7 +31,7 @@ void CObject3D::Create(const SModel& Model)
 	{
 		if (Material.bHasTexture && Material.vEmbeddedTextureRawData.size())
 		{
-			m_vEmbeddedTextures.emplace_back(make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext));
+			m_vEmbeddedTextures.emplace_back(make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext, "Embedded"));
 
 			m_vEmbeddedTextures.back()->CreateWICFromMemory(Material.vEmbeddedTextureRawData);
 

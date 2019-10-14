@@ -7,6 +7,7 @@
 #include <wrl.h>
 #include <memory>
 #include <algorithm>
+#include <map>
 #include <unordered_map>
 #include "../DirectXTK/DirectXTK.h"
 
@@ -26,6 +27,7 @@ using std::unique_ptr;
 using std::make_unique;
 using std::min;
 using std::max;
+using std::map;
 using std::unordered_map;
 
 enum class EShaderType

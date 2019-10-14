@@ -22,9 +22,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 	CCamera* MainCamera{ Game.AddCamera(SCameraData(ECameraType::FreeLook, XMVectorSet(0, +2.0f, 0, 0), XMVectorSet(0, +2.0f, +1.0f, 0))) };
 	
-	CTexture* TextureGround{ Game.AddTexture() };
+	CTexture* TextureGround{ Game.AddTexture("ground.png") };
 	{
-		TextureGround->CreateFromFile(L"Asset\\ground.png");
+		TextureGround->CreateFromFile("Asset\\ground.png");
 	}
 
 	CObject3D* ObjectFloor{ Game.AddObject3D() };

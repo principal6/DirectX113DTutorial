@@ -141,8 +141,8 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 		LoadSkyObjectData(xmlCloud, m_SkyData.Cloud);
 	}
 
-	m_SkyTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
-	m_SkyTexture->CreateFromFile(wstring(m_SkyData.TextureFileName.begin(), m_SkyData.TextureFileName.end()));
+	m_SkyTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get(), "SkyTexture");
+	m_SkyTexture->CreateFromFile(m_SkyData.TextureFileName);
 
 	m_Object3DSkySphere = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
@@ -516,7 +516,7 @@ void CGame::CreatePickedTriangle()
 	m_Object3DPickedTriangle = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
 
 	m_Object3DPickedTriangle->Create(GenerateTriangle(XMVectorSet(0, 0, 1.5f, 1), XMVectorSet(+1.0f, 0, 0, 1), XMVectorSet(-1.0f, 0, 0, 1),
-		XMVectorSet(1.0f, 1.0f, 0.0f, 1.0f)));
+		XMVectorSet(1.0f, 0.2f, 0.2f, 0.5f)));
 }
 
 void CGame::Create3DGizmos()
@@ -766,35 +766,40 @@ CObject2D* CGame::GetObject2D(size_t Index)
 	return m_vObject2Ds[Index].get();
 }
 
-CTexture* CGame::AddTexture()
+CTexture* CGame::AddTexture(const string& Name)
 {
-	m_vTextures.emplace_back(make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get()));
+	if (m_mapTextureNameToIndex.find(Name) != m_mapTextureNameToIndex.end()) return nullptr;
+
+	m_vTextures.emplace_back(make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get(), Name));
+
+	m_mapTextureNameToIndex[Name] = m_vTextures.size() - 1;
+
 	return m_vTextures.back().get();
 }
 
-CTexture* CGame::GetTexture(size_t Index)
+CTexture* CGame::GetTexture(const string& Name)
 {
-	assert(Index < m_vTextures.size());
-	return m_vTextures[Index].get();
+	assert(m_mapTextureNameToIndex.find(Name) != m_mapTextureNameToIndex.end());
+	return m_vTextures[m_mapTextureNameToIndex[Name]].get();
 }
 
 CGameObject3D* CGame::AddGameObject3D(const string& Name)
 {
-	assert(m_mapGameObject3DNameToIndex.find(Name) == m_mapGameObject3DNameToIndex.end());
+	assert(m_umapGameObject3DNameToIndex.find(Name) == m_umapGameObject3DNameToIndex.end());
 
 	m_vGameObject3Ds.emplace_back(make_unique<CGameObject3D>(Name));
 	m_vGameObject3Ds.back()->ComponentRender.PtrVS = m_VSBase.get();
 	m_vGameObject3Ds.back()->ComponentRender.PtrPS = m_PSBase.get();
 
-	m_mapGameObject3DNameToIndex[Name] = m_vGameObject3Ds.size() - 1;
+	m_umapGameObject3DNameToIndex[Name] = m_vGameObject3Ds.size() - 1;
 
 	return m_vGameObject3Ds.back().get();
 }
 
 CGameObject3D* CGame::GetGameObject3D(const string& Name)
 {
-	assert(m_mapGameObject3DNameToIndex.find(Name) != m_mapGameObject3DNameToIndex.end());
-	return m_vGameObject3Ds[m_mapGameObject3DNameToIndex[Name]].get();
+	assert(m_umapGameObject3DNameToIndex.find(Name) != m_umapGameObject3DNameToIndex.end());
+	return m_vGameObject3Ds[m_umapGameObject3DNameToIndex[Name]].get();
 }
 
 CGameObject3D* CGame::GetGameObject3D(size_t Index)
@@ -805,19 +810,19 @@ CGameObject3D* CGame::GetGameObject3D(size_t Index)
 
 CGameObject3DLine* CGame::AddGameObject3DLine(const string& Name)
 {
-	assert(m_mapGameObject3DLineNameToIndex.find(Name) == m_mapGameObject3DLineNameToIndex.end());
+	assert(m_umapGameObject3DLineNameToIndex.find(Name) == m_umapGameObject3DLineNameToIndex.end());
 
 	m_vGameObject3DLines.emplace_back(make_unique<CGameObject3DLine>(Name));
 
-	m_mapGameObject3DLineNameToIndex[Name] = m_vGameObject3DLines.size() - 1;
+	m_umapGameObject3DLineNameToIndex[Name] = m_vGameObject3DLines.size() - 1;
 
 	return m_vGameObject3DLines.back().get();
 }
 
 CGameObject3DLine* CGame::GetGameObject3DLine(const string& Name)
 {
-	assert(m_mapGameObject3DLineNameToIndex.find(Name) != m_mapGameObject3DLineNameToIndex.end());
-	return m_vGameObject3DLines[m_mapGameObject3DLineNameToIndex[Name]].get();
+	assert(m_umapGameObject3DLineNameToIndex.find(Name) != m_umapGameObject3DLineNameToIndex.end());
+	return m_vGameObject3DLines[m_umapGameObject3DLineNameToIndex[Name]].get();
 }
 
 CGameObject3DLine* CGame::GetGameObject3DLine(size_t Index)
@@ -828,19 +833,19 @@ CGameObject3DLine* CGame::GetGameObject3DLine(size_t Index)
 
 CGameObject2D* CGame::AddGameObject2D(const string& Name)
 {
-	assert(m_mapGameObject2DNameToIndex.find(Name) == m_mapGameObject2DNameToIndex.end());
+	assert(m_umapGameObject2DNameToIndex.find(Name) == m_umapGameObject2DNameToIndex.end());
 
 	m_vGameObject2Ds.emplace_back(make_unique<CGameObject2D>(Name));
 
-	m_mapGameObject2DNameToIndex[Name] = m_vGameObject2Ds.size() - 1;
+	m_umapGameObject2DNameToIndex[Name] = m_vGameObject2Ds.size() - 1;
 
 	return m_vGameObject2Ds.back().get();
 }
 
 CGameObject2D* CGame::GetGameObject2D(const string& Name)
 {
-	assert(m_mapGameObject2DNameToIndex.find(Name) != m_mapGameObject2DNameToIndex.end());
-	return m_vGameObject2Ds[m_mapGameObject2DNameToIndex[Name]].get();
+	assert(m_umapGameObject2DNameToIndex.find(Name) != m_umapGameObject2DNameToIndex.end());
+	return m_vGameObject2Ds[m_umapGameObject2DNameToIndex[Name]].get();
 }
 
 CGameObject2D* CGame::GetGameObject2D(size_t Index)
