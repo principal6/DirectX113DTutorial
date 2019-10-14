@@ -912,7 +912,7 @@ bool CGame::PickTriangle()
 	XMVECTOR T{ KVectorGreatest };
 	if (m_PtrPickedGameObject3D)
 	{
-		assert(m_PtrPickedGameObject3D->ComponentRender.PtrObject3D);
+		if (!m_PtrPickedGameObject3D->ComponentRender.PtrObject3D) return false;
 
 		// Pick only static models' triangle.
 		if (m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->m_Model.bIsModelAnimated) return false;
@@ -1093,6 +1093,8 @@ void CGame::UpdateGameObject3D(CGameObject3D* PtrGO)
 
 void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 {
+	if (!PtrGO->ComponentRender.PtrObject3D) return;
+
 	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoCulling))
 	{
 		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
