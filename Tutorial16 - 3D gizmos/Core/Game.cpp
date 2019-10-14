@@ -1056,6 +1056,8 @@ void CGame::Draw(float DeltaTime)
 
 void CGame::UpdateGameObject3D(CGameObject3D* PtrGO)
 {
+	if (!PtrGO) return;
+
 	assert(PtrGO->ComponentRender.PtrVS);
 	assert(PtrGO->ComponentRender.PtrPS);
 
@@ -1093,6 +1095,7 @@ void CGame::UpdateGameObject3D(CGameObject3D* PtrGO)
 
 void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 {
+	if (!PtrGO) return;
 	if (!PtrGO->ComponentRender.PtrObject3D) return;
 
 	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoCulling))

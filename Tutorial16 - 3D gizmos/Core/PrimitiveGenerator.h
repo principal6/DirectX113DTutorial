@@ -616,35 +616,43 @@ static vector<SVertex3DLine> Generate3DLineCircleYZ(const XMVECTOR& Color, uint3
 
 static vector<SVertex3DLine> Generate3DGrid(int GuidelineCount, float Interval)
 {
+	static constexpr float KAxisHalfLength{ 1000.0f };
 	static const XMVECTOR KColorAxisX{ XMVectorSet(1, 0, 0, 1) };
 	static const XMVECTOR KColorAxisY{ XMVectorSet(0, 1, 0, 1) };
 	static const XMVECTOR KColorAxisZ{ XMVectorSet(0, 0, 1, 1) };
 
-	GuidelineCount = max(GuidelineCount, 10);
+	GuidelineCount = max(GuidelineCount, 0);
 	Interval = max(Interval, 0.1f);
 	float EndPosition{ -GuidelineCount * Interval };
 
 	vector<SVertex3DLine> vVertices{};
-	XMVECTOR Color{};
+
 	for (int z = 0; z < GuidelineCount * 2 + 1; ++z)
 	{
-		Color = KColorWhite;
-		if (z == GuidelineCount) Color = KColorAxisZ;
-		vVertices.emplace_back(SVertex3DLine(XMVectorSet(+EndPosition + Interval * z, 0, +EndPosition, 1), Color));
-		vVertices.emplace_back(SVertex3DLine(XMVectorSet(+EndPosition + Interval * z, 0, -EndPosition, 1), Color));
+		if (z == GuidelineCount)
+		{
+			vVertices.emplace_back(SVertex3DLine(XMVectorSet(0, 0, +KAxisHalfLength, 1), KColorAxisZ));
+			vVertices.emplace_back(SVertex3DLine(XMVectorSet(0, 0, -KAxisHalfLength, 1), KColorAxisZ));
+			continue;
+		}
+		vVertices.emplace_back(SVertex3DLine(XMVectorSet(+EndPosition + Interval * z, 0, +EndPosition, 1), KColorWhite));
+		vVertices.emplace_back(SVertex3DLine(XMVectorSet(+EndPosition + Interval * z, 0, -EndPosition, 1), KColorWhite));
 	}
 
 	for (int x = 0; x < GuidelineCount * 2 + 1; ++x)
 	{
-		Color = KColorWhite;
-		if (x == GuidelineCount) Color = KColorAxisX;
-		vVertices.emplace_back(SVertex3DLine(XMVectorSet(+EndPosition, 0, +EndPosition + Interval * x, 1), Color));
-		vVertices.emplace_back(SVertex3DLine(XMVectorSet(-EndPosition, 0, +EndPosition + Interval * x, 1), Color));
+		if (x == GuidelineCount)
+		{
+			vVertices.emplace_back(SVertex3DLine(XMVectorSet(0, +KAxisHalfLength, 0, 1), KColorAxisY));
+			vVertices.emplace_back(SVertex3DLine(XMVectorSet(0, -KAxisHalfLength, 0, 1), KColorAxisY));
+			continue;
+		}
+		vVertices.emplace_back(SVertex3DLine(XMVectorSet(+EndPosition, 0, +EndPosition + Interval * x, 1), KColorWhite));
+		vVertices.emplace_back(SVertex3DLine(XMVectorSet(-EndPosition, 0, +EndPosition + Interval * x, 1), KColorWhite));
 	}
 
-	Color = KColorAxisY;
-	vVertices.emplace_back(SVertex3DLine(XMVectorSet(0, -EndPosition, 0, 1), Color));
-	vVertices.emplace_back(SVertex3DLine(XMVectorSet(0, +EndPosition, 0, 1), Color));
+	vVertices.emplace_back(SVertex3DLine(XMVectorSet(+KAxisHalfLength, 0, 0, 1), KColorAxisX));
+	vVertices.emplace_back(SVertex3DLine(XMVectorSet(-KAxisHalfLength, 0, 0, 1), KColorAxisX));
 
 	return vVertices;
 }
