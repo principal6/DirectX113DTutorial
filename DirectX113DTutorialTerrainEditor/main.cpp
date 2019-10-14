@@ -1,0 +1,493 @@
+#include <chrono>
+#include "Core/Game.h"
+#include "Core/AssimpLoader.h"
+#include "ImGui/imgui.h"
+#include "ImGui/imgui_impl_win32.h"
+#include "ImGui/imgui_impl_dx11.h"
+
+using std::chrono::steady_clock;
+
+static ImVec2 operator+(const ImVec2& a, const ImVec2& b)
+{
+	return ImVec2(a.x + b.x, a.y + b.y);
+}
+
+IMGUI_IMPL_API LRESULT  ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_ LPARAM lParam);
+
+int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
+{
+	constexpr float KClearColor[4]{ 0.2f, 0.6f, 0.9f, 1.0f };
+
+	CGame Game{ hInstance, XMFLOAT2(800, 600) };
+	Game.CreateWin32(WndProc, TEXT("Game"), L"Asset\\dotumche_10_korean.spritefont", true);
+	
+	Game.SetAmbientlLight(XMFLOAT3(1, 1, 1), 0.2f);
+	Game.SetDirectionalLight(XMVectorSet(0, 1, 0, 0), XMVectorSet(1, 1, 1, 1));
+
+	Game.SetGameRenderingFlags(EFlagsGameRendering::UseLighting | EFlagsGameRendering::DrawMiniAxes | EFlagsGameRendering::UseTerrainSelector);
+
+	CCamera* MainCamera{ Game.AddCamera(SCameraData(ECameraType::FreeLook, XMVectorSet(0, +2.0f, 0, 0), XMVectorSet(0, +2.0f, +1.0f, 0))) };
+
+	CTexture* TextureGround{ Game.AddTexture("ground.png") };
+	{
+		TextureGround->CreateFromFile("Asset\\ground.png");
+	}
+
+	CObject3D* ObjectTerrain{ Game.AddObject3D() };
+	{
+		ObjectTerrain->Create(GenerateTerrainBase(XMFLOAT2(4, 4)));
+	}
+
+	CGameObject3D* goTerrain{ Game.AddGameObject3D("Terrain") };
+	{
+		goTerrain->ComponentRender.PtrObject3D = nullptr;
+		goTerrain->ComponentRender.PtrTexture = TextureGround;
+
+		goTerrain->ComponentPhysics.bIgnoreBoundingSphere = true;
+	}
+
+	CGameObject3DLine* goGrid{ Game.AddGameObject3DLine("Grid") };
+	{
+		goGrid->ComponentTransform.Translation = XMVectorSet(0.0f, 0.0f, 0.0f, 0);
+
+		goGrid->ComponentRender.PtrObject3DLine = Game.AddObject3DLine();
+		goGrid->ComponentRender.PtrObject3DLine->Create(Generate3DGrid(0));
+	}
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+	ImGui_ImplWin32_Init(Game.GethWnd());
+	ImGui_ImplDX11_Init(Game.GetDevicePtr(), Game.GetDeviceContextPtr());
+
+	ImGuiIO& igIO{ ImGui::GetIO() };
+	igIO.Fonts->AddFontDefault();
+	ImFont* igFont{ igIO.Fonts->AddFontFromFileTTF("Asset/D2Coding.ttf", 16.0f, nullptr, igIO.Fonts->GetGlyphRangesKorean()) };
+	
+	while (true)
+	{
+		static MSG Msg{};
+		static char KeyDown{};
+		static bool LeftButton{ false };
+		static bool RightButton{ false };
+
+		if (PeekMessage(&Msg, nullptr, 0, 0, PM_REMOVE))
+		{
+			if (Msg.message == WM_LBUTTONDOWN) LeftButton = true;
+			if (Msg.message == WM_RBUTTONDOWN) RightButton = true;
+			if (Msg.message == WM_MOUSEMOVE)
+			{
+				if (Msg.wParam == MK_LBUTTON) LeftButton = true;
+				if (Msg.wParam == MK_RBUTTON) RightButton = true;
+			}
+			if (Msg.message == WM_KEYDOWN) KeyDown = (char)Msg.wParam;
+			if (Msg.message == WM_QUIT) break;
+
+			TranslateMessage(&Msg);
+			DispatchMessage(&Msg);
+		}
+		else
+		{
+			static steady_clock Clock{};
+			long long TimeNow{ Clock.now().time_since_epoch().count() };
+			static long long TimePrev{ TimeNow };
+			float DeltaTimeF{ (TimeNow - TimePrev) * 0.000'000'001f };
+
+			Game.BeginRendering(Colors::CornflowerBlue);
+
+			const Keyboard::State& KeyState{ Game.GetKeyState() };
+			if (KeyState.LeftAlt && KeyState.Q)
+			{
+				Game.Destroy();
+			}
+			if (KeyState.Escape)
+			{
+				Game.ReleasePickedGameObject();
+			}
+			if (KeyState.W)
+			{
+				MainCamera->MoveCamera(ECameraMovementDirection::Forward, 0.01f);
+			}
+			if (KeyState.S)
+			{
+				MainCamera->MoveCamera(ECameraMovementDirection::Backward, 0.01f);
+			}
+			if (KeyState.A)
+			{
+				MainCamera->MoveCamera(ECameraMovementDirection::Leftward, 0.01f);
+			}
+			if (KeyState.D)
+			{
+				MainCamera->MoveCamera(ECameraMovementDirection::Rightward, 0.01f);
+			}
+			if (KeyState.D1)
+			{
+				Game.Set3DGizmoMode(E3DGizmoMode::Translation);
+			}
+			if (KeyState.D2)
+			{
+				Game.Set3DGizmoMode(E3DGizmoMode::Rotation);
+			}
+			if (KeyState.D3)
+			{
+				Game.Set3DGizmoMode(E3DGizmoMode::Scaling);
+			}
+
+			if (KeyDown == VK_F1)
+			{
+				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawWireFrame);
+			}
+			if (KeyDown == VK_F2)
+			{
+				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawNormals);
+			}
+			if (KeyDown == VK_F3)
+			{
+				Game.ToggleGameRenderingFlags(EFlagsGameRendering::UseLighting);
+			}
+			if (KeyDown == VK_F4)
+			{
+				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawMiniAxes);
+			}
+			if (KeyDown == VK_F5)
+			{
+				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawBoundingSphere);
+			}
+			if (KeyDown == VK_F6)
+			{
+				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawPickingData);
+			}
+
+			const Mouse::State& MouseState{ Game.GetMouseState() };
+			static int PrevMouseX{ MouseState.x };
+			static int PrevMouseY{ MouseState.y };
+
+			Game.SelectTerrain(LeftButton || RightButton, LeftButton);
+
+			if (MouseState.leftButton)
+			{
+				Game.Pick();
+			}
+			if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
+			{
+				Game.SelectTerrain(false, false);
+
+				if (MouseState.middleButton)
+				{
+					MainCamera->RotateCamera(MouseState.x - PrevMouseX, MouseState.y - PrevMouseY, 0.01f);
+				}
+
+				PrevMouseX = MouseState.x;
+				PrevMouseY = MouseState.y;
+			}
+			if (MouseState.scrollWheelValue)
+			{
+				MainCamera->ZoomCamera(MouseState.scrollWheelValue, 0.01f);
+			}
+
+			Game.Animate();
+			Game.Draw(DeltaTimeF);
+
+			ImGui_ImplDX11_NewFrame();
+			ImGui_ImplWin32_NewFrame();
+			ImGui::NewFrame();
+
+			ImGui::PushFont(igFont);
+
+			{
+				static bool bShowGameObjectEditor{ true };
+				static bool bShowTextureListWindow{ true };
+				static bool bShowTerrainGenerator{ false };
+
+				if (KeyState.LeftControl && KeyState.N)
+				{
+					bShowTerrainGenerator = true;
+				}
+
+				if (ImGui::BeginMainMenuBar())
+				{
+					if (ImGui::BeginMenu(u8"지형"))
+					{
+						if (ImGui::MenuItem(u8"생성", "Ctrl+N", nullptr)) bShowTerrainGenerator = true;
+						ImGui::EndMenu();
+					}
+
+					if (ImGui::BeginMenu(u8"창"))
+					{
+						ImGui::MenuItem(u8"지형 편집기", nullptr, &bShowGameObjectEditor);
+						ImGui::MenuItem(u8"텍스쳐 목록", nullptr, &bShowTextureListWindow);
+						ImGui::EndMenu();
+					}
+
+					if (ImGui::MenuItem(u8"종료", "Alt+Q"))
+					{
+						Game.Destroy();
+					}
+
+					ImGui::EndMainMenuBar();
+				}
+
+				ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiCond_Always);
+				if (bShowTerrainGenerator) ImGui::OpenPopup(u8"지형 생성기");
+				if (ImGui::BeginPopupModal(u8"지형 생성기", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+				{
+					static int SizeX{ CGame::KTerrainMinSize };
+					static int SizeZ{ CGame::KTerrainMinSize };
+					
+					ImGui::PushID(0);
+					ImGui::Text(u8"가로:");
+					ImGui::SameLine();
+					ImGui::DragInt("", &SizeX, 2.0f, 2, 1000);
+					ImGui::PopID();
+					if (SizeX % 2) ++SizeX;
+
+					ImGui::PushID(1);
+					ImGui::Text(u8"세로:");
+					ImGui::SameLine();
+					ImGui::DragInt("", &SizeZ, 2.0f, 2, 1000);
+					ImGui::PopID();
+					if (SizeZ % 2) ++SizeZ;
+
+					if (ImGui::Button(u8"결정"))
+					{
+						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
+
+						if (!goTerrain->ComponentRender.PtrObject3D) goTerrain->ComponentRender.PtrObject3D = Game.AddObject3D();
+						goTerrain->ComponentRender.PtrObject3D->Create(GenerateTerrainBase(TerrainSize));
+						Game.SetTerrain(goTerrain, TerrainSize);
+
+						SizeX = CGame::KTerrainMinSize;
+						SizeZ = CGame::KTerrainMinSize;
+
+						bShowTerrainGenerator = false;
+						ImGui::CloseCurrentPopup();
+					}
+
+					ImGui::SameLine();
+
+					if (ImGui::Button(u8"닫기"))
+					{
+						SizeX = CGame::KTerrainMinSize;
+						SizeZ = CGame::KTerrainMinSize;
+
+						bShowTerrainGenerator = false;
+						ImGui::CloseCurrentPopup();
+					}
+
+					ImGui::EndPopup();
+				}
+
+				if (bShowGameObjectEditor)
+				{
+					ImGui::SetNextWindowPos(ImVec2(460, 20), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSize(ImVec2(340, 180), ImGuiCond_Appearing);
+
+					if (ImGui::Begin(u8"지형 편집기", &bShowGameObjectEditor))
+					{
+						if (goTerrain)
+						{
+							static float TerrainHeightSetValue{};
+							static float TerrainSelectionSize{};
+							const char* Lists[]{ u8"높이 지정", u8"높이 변경" };
+							static int iSelectedItem{};
+
+							for (int iListItem = 0; iListItem < 2; ++iListItem)
+							{
+								if (ImGui::Selectable(Lists[iListItem], (iListItem == iSelectedItem) ? true : false))
+								{
+									iSelectedItem = iListItem;
+
+									switch (iSelectedItem)
+									{
+									case 0:
+										Game.SetTerrainEditMode(ETerrainEditMode::SetHeight, TerrainHeightSetValue);
+										break;
+									case 1:
+										Game.SetTerrainEditMode(ETerrainEditMode::DeltaHeight, CGame::KTerrainHeightUnit);
+										break;
+									default:
+										break;
+									}
+								}
+							}
+
+							if (iSelectedItem == 0)
+							{
+								if (ImGui::DragFloat(u8"지정 높이", &TerrainHeightSetValue, CGame::KTerrainHeightUnit,
+									CGame::KTerrainMinHeight, CGame::KTerrainMaxHeight, "%.1f"))
+								{
+									Game.SetTerrainEditMode(ETerrainEditMode::SetHeight, TerrainHeightSetValue);
+								}
+							}
+
+							if (ImGui::DragFloat(u8"지형 선택 크기", &TerrainSelectionSize, 1.0f, 1.0f, 8.0f, "%.0f"))
+							{
+								Game.SetTerrainSelectionSize(TerrainSelectionSize);
+							}
+							
+							ImGui::Separator();
+
+							if (ImGui::Button(u8"텍스쳐 변경")) ImGui::OpenPopup(u8"텍스쳐 선택");
+							if (goTerrain->ComponentRender.PtrTexture)
+							{
+								ImGui::Text(u8"텍스쳐: %s", goTerrain->ComponentRender.PtrTexture->GetName().c_str());
+							}
+							else
+							{
+								ImGui::Text(u8"텍스쳐: 없음");
+							}
+
+							if (ImGui::BeginPopup(u8"텍스쳐 선택", ImGuiWindowFlags_AlwaysAutoResize))
+							{
+								static int ListIndex{};
+								static const string* SelectedTextureName{};
+								const auto& TextureListMap{ Game.GetTextureListMap() };
+
+								if (ImGui::ListBoxHeader("", (int)TextureListMap.size()))
+								{
+									int iListItem{};
+									for (const auto& Texture : TextureListMap)
+									{
+										if (ImGui::Selectable(Texture.first.c_str(), (iListItem == ListIndex) ? true : false))
+										{
+											ListIndex = iListItem;
+											SelectedTextureName = &Texture.first;
+										}
+										++iListItem;
+									}
+									ImGui::ListBoxFooter();
+								}
+
+								if (ImGui::Button(u8"결정"))
+								{
+									if (SelectedTextureName) goTerrain->ComponentRender.PtrTexture = Game.GetTexture(*SelectedTextureName);
+
+									ImGui::CloseCurrentPopup();
+								}
+
+								ImGui::EndPopup();
+							}
+							
+						}
+						else
+						{
+							ImGui::Text(u8"<먼저 GameObject를 선택해 주세요.>");
+						}
+					}
+
+					ImGui::End();
+				}
+				
+				if (bShowTextureListWindow)
+				{
+					ImGui::SetNextWindowPos(ImVec2(460, 200), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSize(ImVec2(340, 120), ImGuiCond_Appearing);
+
+					if (ImGui::Begin(u8"텍스쳐 목록", &bShowTextureListWindow, ImGuiWindowFlags_AlwaysAutoResize))
+					{
+						static int ListIndex{};
+						static const string* SelectedTextureName{};
+						const auto& TextureListMap{ Game.GetTextureListMap() };
+
+						ImGui::PushID(0);
+						if (ImGui::Button(u8"추가"))
+						{
+							char FileName[MAX_PATH]{};
+							OPENFILENAME ofn{};
+							ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+							ofn.lpstrFilter = "PNG Files\0*.png\0Any File\0*.*\0";
+							ofn.lpstrFile = FileName;
+							ofn.lpstrTitle = "이미지 불러오기";
+							ofn.lStructSize = sizeof(OPENFILENAME);
+							ofn.nMaxFile = MAX_PATH;
+							if (GetOpenFileName(&ofn))
+							{
+								string TextureName{ FileName };
+								size_t FoundPos{ TextureName.find_last_of('\\') };
+								CTexture* Texture{ Game.AddTexture(TextureName.substr(FoundPos + 1)) };
+								if (Texture) Texture->CreateFromFile(FileName);
+							}
+						}
+						ImGui::PopID();
+
+						if (ImGui::ListBoxHeader("", (int)TextureListMap.size()))
+						{
+							int iListItem{};
+							for (const auto& Texture : TextureListMap)
+							{
+								if (ImGui::Selectable(Texture.first.c_str(), (iListItem == ListIndex) ? true : false))
+								{
+									ListIndex = iListItem;
+									SelectedTextureName = &Texture.first;
+								}
+								++iListItem;
+							}
+							ImGui::ListBoxFooter();
+						}
+					}
+
+					ImGui::End();
+				}
+
+			}
+
+			ImGui::PopFont();
+
+			ImGui::Render();
+			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+			Game.EndRendering();
+
+			KeyDown = 0;
+			LeftButton = false;
+			RightButton = false;
+			TimePrev = TimeNow;
+		}
+	}
+
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+
+	return 0;
+}
+
+LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+{
+	if (ImGui_ImplWin32_WndProcHandler(hWnd, Msg, wParam, lParam))
+		return true;
+
+	switch (Msg)
+	{
+	case WM_ACTIVATEAPP:
+		Keyboard::ProcessMessage(Msg, wParam, lParam);
+		break;
+	case WM_INPUT:
+	case WM_MOUSEMOVE:
+	case WM_LBUTTONDOWN:
+	case WM_LBUTTONUP:
+	case WM_RBUTTONDOWN:
+	case WM_RBUTTONUP:
+	case WM_MBUTTONDOWN:
+	case WM_MBUTTONUP:
+	case WM_MOUSEWHEEL:
+	case WM_XBUTTONDOWN:
+	case WM_XBUTTONUP:
+	case WM_MOUSEHOVER:
+		Mouse::ProcessMessage(Msg, wParam, lParam);
+		break;
+	case WM_KEYDOWN:
+	case WM_SYSKEYDOWN:
+	case WM_KEYUP:
+	case WM_SYSKEYUP:
+		Keyboard::ProcessMessage(Msg, wParam, lParam);
+		break;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	default:
+		return DefWindowProc(hWnd, Msg, wParam, lParam);
+	}
+	return 0;
+}
