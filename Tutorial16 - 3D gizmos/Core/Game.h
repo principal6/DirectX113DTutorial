@@ -294,6 +294,7 @@ private:
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
 	static constexpr float KTranslationMaxLimit{ +1000.0f };
+	static constexpr float KTranslationUnit{ +0.1f };
 	static constexpr float KRotationMaxLimit{ +XM_2PI };
 	static constexpr float KRotationMinLimit{ -XM_2PI };
 	static constexpr float KRotation360MaxLimit{ +360.0f };
@@ -303,6 +304,7 @@ public:
 	static constexpr float KRotation2PITo360{ 1.0f / XM_2PI * 360.0f };
 	static constexpr float KScalingMaxLimit{ +100.0f };
 	static constexpr float KScalingMinLimit{ +0.01f };
+	static constexpr float KScalingUnit{ +0.1f };
 
 private:
 	static constexpr float KDefaultFOV{ 50.0f / 360.0f * XM_2PI };

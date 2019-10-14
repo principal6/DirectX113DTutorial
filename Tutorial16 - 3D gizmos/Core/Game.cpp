@@ -1451,15 +1451,15 @@ void CGame::Draw3DGizmos()
 					{
 					case E3DGizmoAxis::AxisX:
 						m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation =
-							XMVectorSetX(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation, TranslationX - DeltaSum * K3DGizmoMovementFactor);
+							XMVectorSetX(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation, TranslationX - DeltaSum * CGame::KTranslationUnit);
 						break;
 					case E3DGizmoAxis::AxisY:
 						m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation =
-							XMVectorSetY(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation, TranslationY - DeltaSum * K3DGizmoMovementFactor);
+							XMVectorSetY(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation, TranslationY - DeltaSum * CGame::KTranslationUnit);
 						break;
 					case E3DGizmoAxis::AxisZ:
 						m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation =
-							XMVectorSetZ(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation, TranslationZ - DeltaSum * K3DGizmoMovementFactor);
+							XMVectorSetZ(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation, TranslationZ - DeltaSum * CGame::KTranslationUnit);
 						break;
 					default:
 						break;
@@ -1472,13 +1472,13 @@ void CGame::Draw3DGizmos()
 					switch (m_e3DGizmoSelectedAxis)
 					{
 					case E3DGizmoAxis::AxisX:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Pitch -= DeltaSum * K3DGizmoMovementFactor;
+						m_PtrCapturedPickedGameObject3D->ComponentTransform.Pitch -= DeltaSum * CGame::KRotation360To2PI;
 						break;
 					case E3DGizmoAxis::AxisY:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Yaw -= DeltaSum * K3DGizmoMovementFactor;
+						m_PtrCapturedPickedGameObject3D->ComponentTransform.Yaw -= DeltaSum * CGame::KRotation360To2PI;
 						break;
 					case E3DGizmoAxis::AxisZ:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Roll -= DeltaSum * K3DGizmoMovementFactor;
+						m_PtrCapturedPickedGameObject3D->ComponentTransform.Roll -= DeltaSum * CGame::KRotation360To2PI;
 						break;
 					default:
 						break;
@@ -1491,15 +1491,15 @@ void CGame::Draw3DGizmos()
 					{
 					case E3DGizmoAxis::AxisX:
 						m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling =
-							XMVectorSetX(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling, ScalingX - DeltaSum * K3DGizmoMovementFactor);
+							XMVectorSetX(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling, ScalingX - DeltaSum * CGame::KScalingUnit);
 						break;
 					case E3DGizmoAxis::AxisY:
 						m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling =
-							XMVectorSetY(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling, ScalingY - DeltaSum * K3DGizmoMovementFactor);
+							XMVectorSetY(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling, ScalingY - DeltaSum * CGame::KScalingUnit);
 						break;
 					case E3DGizmoAxis::AxisZ:
 						m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling =
-							XMVectorSetZ(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling, ScalingZ - DeltaSum * K3DGizmoMovementFactor);
+							XMVectorSetZ(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling, ScalingZ - DeltaSum * CGame::KScalingUnit);
 						break;
 					default:
 						break;
@@ -1509,7 +1509,7 @@ void CGame::Draw3DGizmos()
 					ScalingY = XMVectorGetY(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling);
 					ScalingZ = XMVectorGetZ(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling);
 
-					m_PtrCapturedPickedGameObject3D->ComponentPhysics.BoundingSphere.Radius = 
+					m_PtrCapturedPickedGameObject3D->ComponentPhysics.BoundingSphere.Radius =
 						max(max(ScalingX, ScalingY), ScalingZ);
 
 					Draw3DGizmoScalings(m_e3DGizmoSelectedAxis);
