@@ -876,7 +876,7 @@ void CGame::CastPickingRay()
 	m_PickingRayWorldSpaceDirection = XMVector3TransformNormal(ViewSpaceRayDirection, MatrixViewInverse);
 }
 
-void CGame::PickBoundingSphere()
+bool CGame::PickBoundingSphere()
 {
 	m_PtrPickedGameObject3D = nullptr;
 
@@ -898,9 +898,11 @@ void CGame::PickBoundingSphere()
 			}
 		}
 	}
+
+	return (m_PtrPickedGameObject3D) ? true : false;
 }
 
-void CGame::PickTriangle()
+bool CGame::PickTriangle()
 {
 	XMVECTOR T{ KVectorGreatest };
 	if (m_PtrPickedGameObject3D)
@@ -908,7 +910,7 @@ void CGame::PickTriangle()
 		assert(m_PtrPickedGameObject3D->ComponentRender.PtrObject3D);
 
 		// Pick only static models' triangle.
-		if (m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->m_Model.bIsModelAnimated) return;
+		if (m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->m_Model.bIsModelAnimated) return false;
 
 		const XMMATRIX& World{ m_PtrPickedGameObject3D->ComponentTransform.MatrixWorld };
 		for (auto& Mesh : m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->m_Model.vMeshes)
@@ -934,11 +936,14 @@ void CGame::PickTriangle()
 						m_PickedTriangleV0 = V0 + N * 0.01f;
 						m_PickedTriangleV1 = V1 + N * 0.01f;
 						m_PickedTriangleV2 = V2 + N * 0.01f;
+
+						return true;
 					}
 				}
 			}
 		}
 	}
+	return false;
 }
 
 void CGame::BeginRendering(const FLOAT* ClearColor)

@@ -243,8 +243,8 @@ public:
 
 private:
 	void CastPickingRay();
-	void PickBoundingSphere();
-	void PickTriangle();
+	bool PickBoundingSphere();
+	bool PickTriangle();
 
 public:
 	void BeginRendering(const FLOAT* ClearColor);
@@ -290,6 +290,19 @@ private:
 private:
 	void SetUniversalRasterizerState();
 	void SetUniversalbUseLighiting();
+
+public:
+	static constexpr float KTranslationMinLimit{ -1000.0f };
+	static constexpr float KTranslationMaxLimit{ +1000.0f };
+	static constexpr float KRotationMaxLimit{ +XM_2PI };
+	static constexpr float KRotationMinLimit{ -XM_2PI };
+	static constexpr float KRotation360MaxLimit{ +360.0f };
+	static constexpr float KRotation360MinLimit{ -360.0f };
+	static constexpr float KRotation360Unit{ 1.0f };
+	static constexpr float KRotation360To2PI{ 1.0f / 360.0f * XM_2PI };
+	static constexpr float KRotation2PITo360{ 1.0f / XM_2PI * 360.0f };
+	static constexpr float KScalingMaxLimit{ +100.0f };
+	static constexpr float KScalingMinLimit{ +0.01f };
 
 private:
 	static constexpr float KDefaultFOV{ 50.0f / 360.0f * XM_2PI };

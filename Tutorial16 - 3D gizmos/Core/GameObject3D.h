@@ -6,7 +6,6 @@ class CObject3D;
 class CTexture;
 class CShader;
 
-static constexpr float KScalingMin{ 0.001f };
 static constexpr float KBoundingSphereRadiusDefault{ 1.0f };
 
 enum class EFlagsGameObject3DRendering
