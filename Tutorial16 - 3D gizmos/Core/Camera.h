@@ -24,7 +24,7 @@ struct SCameraData
 		float _Distance = KDefaultDistance, float _MinDistance = KDefaultMinDistance, float _MaxDistance = KDefaultMaxDistance) :
 		CameraType{ _CameraType }, EyePosition{ _EyePosition }, FocusPosition{ _FocusPosition },
 		UpDirection{ _UpDirection }, BaseUpDirection{ _UpDirection }, BaseForwardDirection{ XMVector3Normalize(_FocusPosition - _EyePosition) },
-		ZoomDistance{ _Distance }, MinZoomDistance{ _MinDistance }, MaxZoomDistance{ _MaxDistance } {}
+		Forward{ BaseForwardDirection }, ZoomDistance{ _Distance }, MinZoomDistance{ _MinDistance }, MaxZoomDistance{ _MaxDistance } {}
 
 	static constexpr float KDefaultDistance{ 10.0f };
 	static constexpr float KDefaultMinDistance{ 1.0f };
