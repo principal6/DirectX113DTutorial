@@ -91,6 +91,44 @@ void CGame::UpdatePSBaseFlagOff(EFlagPSBase Flag)
 	m_PSBase->UpdateConstantBuffer(0);
 }
 
+void CGame::UpdatePSBase2DFlagOn(EFlagPSBase2D Flag)
+{
+	switch (Flag)
+	{
+	case EFlagPSBase2D::UseTexture:
+		m_cbPS2DFlagsData.bUseTexture = TRUE;
+		break;
+	default:
+		break;
+	}
+	m_PSBase2D->UpdateConstantBuffer(0);
+}
+
+void CGame::UpdatePSBase2DFlagOff(EFlagPSBase2D Flag)
+{
+	switch (Flag)
+	{
+	case EFlagPSBase2D::UseTexture:
+		m_cbPS2DFlagsData.bUseTexture = FALSE;
+		break;
+	default:
+		break;
+	}
+	m_PSBase2D->UpdateConstantBuffer(0);
+}
+
+void CGame::UpdateVSSpace(const XMMATRIX& World)
+{
+	m_cbVSSpaceData.World = XMMatrixTranspose(World);
+	m_cbVSSpaceData.WVP = XMMatrixTranspose(World * m_MatrixView * m_MatrixProjection);
+}
+
+void CGame::UpdateVS2DSpace(const XMMATRIX& World)
+{
+	m_cbVS2DSpaceData.World = XMMatrixTranspose(World);
+	m_cbVS2DSpaceData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
+}
+
 void CGame::UpdateVSBaseMaterial(const SMaterial& Material)
 {
 	m_cbPSBaseMaterialData.MaterialAmbient = Material.MaterialAmbient;
@@ -105,6 +143,12 @@ void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices)
 {
 	memcpy(m_cbVSAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBVSAnimationBonesData));
 	m_VSAnimation->UpdateConstantBuffer(1);
+}
+
+void CGame::UpdatePSTerrainEditSpace(const XMMATRIX& Matrix)
+{
+	m_cbPSTerrainEditSpaceData.Matrix = XMMatrixTranspose(Matrix);
+	m_PSTerrainEdit->UpdateConstantBuffer(0);
 }
 
 void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
@@ -240,23 +284,51 @@ void CGame::SetAmbientlLight(const XMFLOAT3& Color, float Intensity)
 	m_PSBase->UpdateConstantBuffer(1);
 }
 
-void CGame::SetTerrain(CGameObject3D* Terrain, const XMFLOAT2& TerrainSize)
+void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const string& TextureFileName)
 {
-	m_PtrGameObject3DTerrain = Terrain;
-	m_TerrainSize = TerrainSize;
-
-	assert(m_PtrGameObject3DTerrain);
-
-	m_PtrGameObject3DTerrain->ComponentRender.PtrVS = m_VSBase.get();
-	m_PtrGameObject3DTerrain->ComponentRender.PtrPS = m_PSTerrainEdit.get();
+	m_Terrain.release();
+	m_Terrain.reset();
+	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Terrain->Create(TerrainSize, TextureFileName);
 }
 
-const SModel* CGame::GetTerrainModelPtr() const
+void CGame::LoadTerrain(const string& TerrainFileName)
 {
-	if (!m_PtrGameObject3DTerrain) return nullptr;
-	if (!m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D) return nullptr;
+	m_Terrain.release();
+	m_Terrain.reset();
+	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Terrain->Load(TerrainFileName);
+}
 
-	return &m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->m_Model;
+void CGame::SaveTerrain(const string& TerrainFileName)
+{
+	if (!m_Terrain) return;
+
+	m_Terrain->Save(TerrainFileName);
+}
+
+void CGame::SetTerrainTexture(int TextureID, const string& TextureFileName)
+{
+	if (!m_Terrain) return;
+
+	m_Terrain->SetTexture(TextureID, TextureFileName);
+}
+
+void CGame::AddTerrainTexture(const string& TextureFileName)
+{
+	if (!m_Terrain) return;
+
+	m_Terrain->AddTexture(TextureFileName);
+}
+
+void CGame::SetTerrainSelectionSize(float& Size)
+{
+	m_Terrain->SetSelectionSize(Size);
+}
+
+void CGame::RecalculateTerrainNormals()
+{
+	m_Terrain->UpdateVertexNormals();
 }
 
 CCamera* CGame::AddCamera(const SCameraData& CameraData)
@@ -407,6 +479,18 @@ void CGame::SetViewports()
 		Viewport.MinDepth = 0.0f;
 		Viewport.MaxDepth = 1.0f;
 	}
+
+	{
+		m_vViewports.emplace_back();
+
+		D3D11_VIEWPORT& Viewport{ m_vViewports.back() };
+		Viewport.TopLeftX = 0.0f;
+		Viewport.TopLeftY = m_WindowSize.y * 7.0f / 8.0f;
+		Viewport.Width = m_WindowSize.x / 8.0f;
+		Viewport.Height = m_WindowSize.y / 8.0f;
+		Viewport.MinDepth = 0.0f;
+		Viewport.MaxDepth = 1.0f;
+	}
 }
 
 void CGame::CreateInputDevices()
@@ -471,10 +555,14 @@ void CGame::CreateBaseShaders()
 
 	m_PSTerrainEdit = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSTerrainEdit->Create(EShaderType::PixelShader, L"Shader\\PSTerrainEdit.hlsl", "main");
+	m_PSTerrainEdit->AddConstantBuffer(&m_cbPSTerrainEditSpaceData, sizeof(SCBPSTerrainEditSpaceData));
 
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
 	m_PSBase2D->AddConstantBuffer(&m_cbPS2DFlagsData, sizeof(SCBPS2DFlagsData));
+
+	m_PSMasking2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSMasking2D->Create(EShaderType::PixelShader, L"Shader\\PSMasking2D.hlsl", "main");
 }
 
 void CGame::CreateMiniAxes()
@@ -709,6 +797,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader)
 	CShader* Result{};
 	switch (eShader)
 	{
+	case EBaseShader::VSBase:
+		Result = m_VSBase.get();
+		break;
 	case EBaseShader::VSAnimation:
 		Result = m_VSAnimation.get();
 		break;
@@ -747,6 +838,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader)
 		break;
 	case EBaseShader::PSBase2D:
 		Result = m_PSBase2D.get();
+		break;
+	case EBaseShader::PSMasking2D:
+		Result = m_PSMasking2D.get();
 		break;
 	default:
 		assert(Result);
@@ -1003,215 +1097,34 @@ bool CGame::PickTriangle()
 
 void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
 {
+	if (!m_Terrain) return;
+
 	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::UseTerrainSelector))
 	{
 		CastPickingRay();
 
-		UpdateTerrainSelection();
-
-		if (bShouldEdit) UpdateTerrainHeight(bIsLeftButton);
+		m_Terrain->SelectTerrain(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, bShouldEdit, bIsLeftButton);
 	}
 }
 
 void CGame::SetTerrainEditMode(ETerrainEditMode Mode, float Value)
 {
-	m_eTerrainEditMode = Mode;
-	m_TerrainEditValue = Value;
+	m_Terrain->SetEditMode(Mode, Value);
 }
 
-void CGame::SetTerrainSelectionSize(float& Size)
+void CGame::SetTerrainMaskingLayer(EMaskingLayer eLayer)
 {
-	Size = min(Size, KTerrainSelectionMaxSize);
-	Size = max(Size, KTerrainSelectionMinSize);
-	
-	m_TerrainSelectionHalfSize = Size / 2.0f;
+	m_Terrain->SetMaskingLayer(eLayer);
 }
 
-bool CGame::ShouldUpdateTerrainVertexNormals()
+void CGame::SetTerrainMaskingAttenuation(float Attenuation)
 {
-	return m_bShouldUpdateTerrainVertexNormals;
+	m_Terrain->SetMaskingAttenuation(Attenuation);
 }
 
-void CGame::UpdateTerrainVertexNormals()
+void CGame::SetTerrainMaskingSize(float Size)
 {
-	if (!m_PtrGameObject3DTerrain) return;
-	if (!m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D) return;
-
-	CalculateFaceNormals(m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->m_Model.vMeshes[0]);
-	CalculateVertexNormalsFromFaceNormals(m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->m_Model.vMeshes[0]);
-
-	m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->UpdateMeshBuffer();
-
-	m_bShouldUpdateTerrainVertexNormals = false;
-}
-
-void CGame::UpdateTerrainSelection()
-{
-	if (!m_PtrGameObject3DTerrain) return;
-	if (!m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D) return;
-
-	// Do not consider World transformation!!
-	// Terrain uses single mesh
-	SMesh& Mesh{ m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->m_Model.vMeshes[0] };
-	
-	XMVECTOR T{ KVectorGreatest };
-	XMVECTOR PlaneT{};
-	XMVECTOR PointOnPlane{};
-	if (IntersectRayPlane(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, XMVectorSet(0, 0, 0, 1), XMVectorSet(0, 1, 0, 0), &PlaneT))
-	{
-		PointOnPlane = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * PlaneT;
-
-		m_TerrainSelectionPosition.x = XMVectorGetX(PointOnPlane);
-		m_TerrainSelectionPosition.x = static_cast<float>(int(m_TerrainSelectionPosition.x + 0.5f));
-		m_TerrainSelectionPosition.y = XMVectorGetZ(PointOnPlane);
-		m_TerrainSelectionPosition.y = static_cast<float>(int(m_TerrainSelectionPosition.y + 0.5f));
-
-		for (auto& Triangle : Mesh.vTriangles)
-		{
-			SVertex3D& V0{ Mesh.vVertices[Triangle.I0] };
-			SVertex3D& V1{ Mesh.vVertices[Triangle.I1] };
-			SVertex3D& V2{ Mesh.vVertices[Triangle.I2] };
-			XMVECTOR& V0WorldPosition{ V0.Position };
-			XMVECTOR& V1WorldPosition{ V1.Position };
-			XMVECTOR& V2WorldPosition{ V2.Position };
-
-			float MaxX{ max(max(XMVectorGetX(V0WorldPosition), XMVectorGetX(V1WorldPosition)), XMVectorGetX(V2WorldPosition)) };
-			float MinX{ min(min(XMVectorGetX(V0WorldPosition), XMVectorGetX(V1WorldPosition)), XMVectorGetX(V2WorldPosition)) };
-			float MaxZ{ max(max(XMVectorGetZ(V0WorldPosition), XMVectorGetZ(V1WorldPosition)), XMVectorGetZ(V2WorldPosition)) };
-			float MinZ{ min(min(XMVectorGetZ(V0WorldPosition), XMVectorGetZ(V1WorldPosition)), XMVectorGetZ(V2WorldPosition)) };
-
-			if (MaxX >= m_TerrainSelectionPosition.x - m_TerrainSelectionHalfSize &&
-				m_TerrainSelectionPosition.x + m_TerrainSelectionHalfSize >= MinX &&
-				MaxZ >= m_TerrainSelectionPosition.y - m_TerrainSelectionHalfSize &&
-				m_TerrainSelectionPosition.y + m_TerrainSelectionHalfSize >= MinZ)
-			{
-				float V0Length{ XMVectorGetX(XMVector3Length(V0.Position - 
-					XMVectorSet(m_TerrainSelectionPosition.x, XMVectorGetY(V0.Position), m_TerrainSelectionPosition.y, 0.0f))) };
-				float V1Length{ XMVectorGetX(XMVector3Length(V1.Position - 
-					XMVectorSet(m_TerrainSelectionPosition.x, XMVectorGetY(V1.Position), m_TerrainSelectionPosition.y, 0.0f))) };
-				float V2Length{ XMVectorGetX(XMVector3Length(V2.Position - 
-					XMVectorSet(m_TerrainSelectionPosition.x, XMVectorGetY(V2.Position), m_TerrainSelectionPosition.y, 0.0f))) };
-
-				V0.TexCoord = XMVectorSetZ(V0.TexCoord, V0Length);
-				V1.TexCoord = XMVectorSetZ(V1.TexCoord, V1Length);
-				V2.TexCoord = XMVectorSetZ(V2.TexCoord, V2Length);
-			}
-			else
-			{
-				V0.TexCoord = XMVectorSetZ(V0.TexCoord, 0.0f);
-				V1.TexCoord = XMVectorSetZ(V1.TexCoord, 0.0f);
-				V2.TexCoord = XMVectorSetZ(V2.TexCoord, 0.0f);
-			}
-		}
-
-		m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->UpdateMeshBuffer();
-	}
-}
-
-void CGame::UpdateTerrainHeight(bool bIsLeftButton)
-{
-	if (!m_PtrGameObject3DTerrain) return;
-	if (!m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D) return;
-
-	SMesh& Mesh{ m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->m_Model.vMeshes[0] };
-
-	int VertexCount{ static_cast<int>(m_TerrainSize.x * m_TerrainSize.y * 4) };
-	const int ZMax{ (int)m_TerrainSize.y + 1 };
-	const int XMax{ (int)m_TerrainSize.x + 1 };
-	for (int iZ = 0; iZ < ZMax; ++iZ)
-	{
-		for (int iX = 0; iX < XMax; ++iX)
-		{
-			int iVertex0{ iX * 4 + iZ * XMax * 4 };
-			int iVertex1{ iVertex0 + 1 };
-			int iVertex2{ iVertex0 + 2 };
-			int iVertex3{ iVertex0 + 3 };
-
-			if (iVertex0 >= 0 && iVertex0 < VertexCount)
-			{
-				const XMVECTOR& Position{ Mesh.vVertices[iVertex0].Position };
-				float PositionX{ XMVectorGetX(Position) };
-				float PositionZ{ XMVectorGetZ(Position) };
-				if (PositionX >= m_TerrainSelectionPosition.x - m_TerrainSelectionHalfSize &&
-					PositionX <= m_TerrainSelectionPosition.x + m_TerrainSelectionHalfSize &&
-					PositionZ >= m_TerrainSelectionPosition.y - m_TerrainSelectionHalfSize &&
-					PositionZ <= m_TerrainSelectionPosition.y + m_TerrainSelectionHalfSize)
-				{
-					UpdateTerrainVertex(Mesh.vVertices[iVertex0], bIsLeftButton);
-				}
-			}
-			if (iVertex1 >= 0 && iVertex1 < VertexCount)
-			{
-				const XMVECTOR& Position{ Mesh.vVertices[iVertex1].Position };
-				float PositionX{ XMVectorGetX(Position) };
-				float PositionZ{ XMVectorGetZ(Position) };
-				if (PositionX >= m_TerrainSelectionPosition.x - m_TerrainSelectionHalfSize &&
-					PositionX <= m_TerrainSelectionPosition.x + m_TerrainSelectionHalfSize &&
-					PositionZ >= m_TerrainSelectionPosition.y - m_TerrainSelectionHalfSize &&
-					PositionZ <= m_TerrainSelectionPosition.y + m_TerrainSelectionHalfSize)
-				{
-					UpdateTerrainVertex(Mesh.vVertices[iVertex1], bIsLeftButton);
-				}
-			}
-			if (iVertex2 >= 0 && iVertex2 < VertexCount)
-			{
-				const XMVECTOR& Position{ Mesh.vVertices[iVertex2].Position };
-				float PositionX{ XMVectorGetX(Position) };
-				float PositionZ{ XMVectorGetZ(Position) };
-				if (PositionX >= m_TerrainSelectionPosition.x - m_TerrainSelectionHalfSize &&
-					PositionX <= m_TerrainSelectionPosition.x + m_TerrainSelectionHalfSize &&
-					PositionZ >= m_TerrainSelectionPosition.y - m_TerrainSelectionHalfSize &&
-					PositionZ <= m_TerrainSelectionPosition.y + m_TerrainSelectionHalfSize)
-				{
-					UpdateTerrainVertex(Mesh.vVertices[iVertex2], bIsLeftButton);
-				}
-			}
-			if (iVertex3 >= 0 && iVertex3 < VertexCount)
-			{
-				const XMVECTOR& Position{ Mesh.vVertices[iVertex3].Position };
-				float PositionX{ XMVectorGetX(Position) };
-				float PositionZ{ XMVectorGetZ(Position) };
-				if (PositionX >= m_TerrainSelectionPosition.x - m_TerrainSelectionHalfSize &&
-					PositionX <= m_TerrainSelectionPosition.x + m_TerrainSelectionHalfSize &&
-					PositionZ >= m_TerrainSelectionPosition.y - m_TerrainSelectionHalfSize &&
-					PositionZ <= m_TerrainSelectionPosition.y + m_TerrainSelectionHalfSize)
-				{
-					UpdateTerrainVertex(Mesh.vVertices[iVertex3], bIsLeftButton);
-				}
-			}
-		}
-	}
-
-	m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->UpdateMeshBuffer();
-}
-
-void CGame::UpdateTerrainVertex(SVertex3D& Vertex, bool bIsLeftButton)
-{
-	float Y{ XMVectorGetY(Vertex.Position) };
-	
-	switch (m_eTerrainEditMode)
-	{
-	case ETerrainEditMode::SetHeight:
-		Vertex.Position = XMVectorSetY(Vertex.Position, m_TerrainEditValue);
-		break;
-	case ETerrainEditMode::DeltaHeight:
-		if (bIsLeftButton)
-		{
-			Vertex.Position = XMVectorSetY(Vertex.Position, Y + m_TerrainEditValue);
-		}
-		else
-		{
-			Vertex.Position = XMVectorSetY(Vertex.Position, Y - m_TerrainEditValue);
-		}
-		break;
-	default:
-		break;
-	}
-
-	// To let you know that this vertex's normal should be recalculated.
-	Vertex.Normal = XMVectorSetW(Vertex.Normal, 1.0f);
-
-	m_bShouldUpdateTerrainVertexNormals = true;
+	m_Terrain->SetMaskingRadius(Size);
 }
 
 void CGame::BeginRendering(const FLOAT* ClearColor)
@@ -1312,25 +1225,7 @@ void CGame::Draw(float DeltaTime)
 		Draw3DGizmos();
 	}
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::UseTerrainSelector))
-	{
-		if (m_PtrGameObject3DTerrain)
-		{
-			m_cbVSSpaceData.World = XMMatrixTranspose(m_PtrGameObject3DTerrain->ComponentTransform.MatrixWorld);
-			m_cbVSSpaceData.WVP = XMMatrixTranspose(m_PtrGameObject3DTerrain->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
-			m_PtrGameObject3DTerrain->UpdateWorldMatrix();
-
-			m_PtrGameObject3DTerrain->ComponentRender.PtrVS->Use();
-			m_PtrGameObject3DTerrain->ComponentRender.PtrVS->UpdateAllConstantBuffers();
-
-			m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
-			m_DeviceContext->PSSetShaderResources(0, 0, nullptr);
-
-			m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->Draw(true);
-
-			SetUniversalRasterizerState();
-		}
-	}
+	DrawTerrain();
 
 	DrawGameObject3DLines();
 
@@ -1478,7 +1373,7 @@ void CGame::DrawGameObject2Ds()
 	m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
 	
-	m_cbVS2DSpaceData.Projection = m_MatrixProjection2D;
+	m_cbVS2DSpaceData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
 
 	m_VSBase2D->Use();
 	m_PSBase2D->Use();
@@ -1638,6 +1533,24 @@ void CGame::DrawSky(float DeltaTime)
 
 	UpdateGameObject3D(m_GameObject3DCloud.get());
 	DrawGameObject3D(m_GameObject3DCloud.get());
+}
+
+void CGame::DrawTerrain()
+{
+	if (!m_Terrain) return;
+
+	m_Terrain->Draw(
+		EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::UseTerrainSelector),
+		EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawNormals)
+	);
+
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawTerrainMaskingTexture))
+	{
+		m_DeviceContext->RSSetViewports(1, &m_vViewports[2]);
+		m_Terrain->DrawMaskingTexture();
+
+		m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
+	}
 }
 
 bool CGame::ShouldSelectRotationGizmo(CGameObject3D* Gizmo, E3DGizmoAxis Axis)
@@ -2102,6 +2015,12 @@ const char* CGame::GetCapturedPickedGameObject3DName()
 		return m_PtrCapturedPickedGameObject3D->m_Name.c_str();
 	}
 	return nullptr;
+}
+
+const XMFLOAT2& CGame::GetTerrainSelectionRoundUpPosition()
+{
+	assert(m_Terrain);
+	return m_Terrain->GetSelectionRoundUpPosition();
 }
 
 float CGame::GetSkyTime()

@@ -29,26 +29,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	Game.SetAmbientlLight(XMFLOAT3(1, 1, 1), 0.2f);
 	Game.SetDirectionalLight(XMVectorSet(0, 1, 0, 0), XMVectorSet(1, 1, 1, 1));
 
-	Game.SetGameRenderingFlags(EFlagsGameRendering::UseLighting | EFlagsGameRendering::DrawMiniAxes | EFlagsGameRendering::UseTerrainSelector);
+	Game.SetGameRenderingFlags(EFlagsGameRendering::UseLighting | EFlagsGameRendering::DrawMiniAxes | 
+		EFlagsGameRendering::UseTerrainSelector | EFlagsGameRendering::DrawTerrainMaskingTexture);
 
 	CCamera* MainCamera{ Game.AddCamera(SCameraData(ECameraType::FreeLook, XMVectorSet(0, +2.0f, 0, 0), XMVectorSet(0, +2.0f, +1.0f, 0))) };
 
 	CTexture* TextureGround{ Game.AddTexture("ground.png") };
 	{
 		TextureGround->CreateFromFile("Asset\\ground.png");
-	}
-
-	CObject3D* ObjectTerrain{ Game.AddObject3D() };
-	{
-		ObjectTerrain->Create(GenerateTerrainBase(XMFLOAT2(4, 4)));
-	}
-
-	CGameObject3D* goTerrain{ Game.AddGameObject3D("Terrain") };
-	{
-		goTerrain->ComponentRender.PtrObject3D = nullptr;
-		goTerrain->ComponentRender.PtrTexture = TextureGround;
-
-		goTerrain->ComponentPhysics.bIgnoreBoundingSphere = true;
 	}
 
 	CGameObject3DLine* goGrid{ Game.AddGameObject3DLine("Grid") };
@@ -196,12 +184,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			ImGui::PushFont(igFont);
 
 			{
-				static bool bShowGameObjectEditor{ true };
+				static bool bShowTerrainEditor{ true };
 				static bool bShowTextureListWindow{ true };
 				static bool bShowTerrainGenerator{ false };
 				static bool bShowOpenFileDialog{ false };
 				static bool bShowSaveFileDialog{ false };
 
+				// ### 메뉴 바 ###
 				if (ImGui::BeginMainMenuBar())
 				{
 					if (KeyState.LeftControl && KeyState.N) bShowTerrainGenerator = true;
@@ -230,15 +219,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						if (GetOpenFileName(&ofn))
 						{
 							SetCurrentDirectoryA(WorkingDirectory);
-
-							if (!goTerrain->ComponentRender.PtrObject3D) goTerrain->ComponentRender.PtrObject3D = Game.AddObject3D();
-
-							SModel TerrainModel{};
-							XMFLOAT2 TerrainSize{};
-							ImportTerrain(FileName, TerrainModel, TerrainSize);
-							goTerrain->ComponentRender.PtrObject3D->Create(TerrainModel);
-
-							Game.SetTerrain(goTerrain, TerrainSize);
+							Game.LoadTerrain(FileName);
 						}
 
 						bShowOpenFileDialog = false;
@@ -246,7 +227,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (bShowSaveFileDialog)
 					{
-						if (Game.GetTerrainModelPtr())
+						if (Game.GetTerrain())
 						{
 							char FileName[MAX_PATH]{};
 							OPENFILENAME ofn{};
@@ -260,10 +241,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							if (GetSaveFileName(&ofn))
 							{
 								SetCurrentDirectoryA(WorkingDirectory);
-
-								ExportTerrain(*Game.GetTerrainModelPtr(), Game.GetTerrainSize(), FileName);
+								Game.SaveTerrain(FileName);
 							}
-							SetCurrentDirectoryA(WorkingDirectory);
 						}
 
 						bShowSaveFileDialog = false;
@@ -271,7 +250,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (ImGui::BeginMenu(u8"창"))
 					{
-						ImGui::MenuItem(u8"지형 편집기", nullptr, &bShowGameObjectEditor);
+						ImGui::MenuItem(u8"지형 편집기", nullptr, &bShowTerrainEditor);
 						ImGui::MenuItem(u8"텍스쳐 목록", nullptr, &bShowTextureListWindow);
 						
 						ImGui::EndMenu();
@@ -285,12 +264,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::EndMainMenuBar();
 				}
 
+
+				// ### 지형 생성기 윈도우 ###
 				ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiCond_Always);
 				if (bShowTerrainGenerator) ImGui::OpenPopup(u8"지형 생성기");
 				if (ImGui::BeginPopupModal(u8"지형 생성기", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
 				{
-					static int SizeX{ CGame::KTerrainMinSize };
-					static int SizeZ{ CGame::KTerrainMinSize };
+					static int SizeX{ CTerrain::KMinSize };
+					static int SizeZ{ CTerrain::KMinSize };
 					
 					ImGui::PushID(0);
 					ImGui::Text(u8"가로:");
@@ -309,19 +290,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					if (ImGui::Button(u8"결정") || ImGui::IsKeyDown(VK_RETURN))
 					{
 						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
+						Game.CreateTerrain(TerrainSize, TextureGround->GetFileName());
 
-						if (!goTerrain->ComponentRender.PtrObject3D) goTerrain->ComponentRender.PtrObject3D = Game.AddObject3D();
-
-						SMaterial Material{};
-						Material.bHasTexture = true;
-						Material.TextureFileName = TextureGround->GetFileName();
-
-						goTerrain->ComponentRender.PtrObject3D->Create(GenerateTerrainBase(TerrainSize), Material);
-						
-						Game.SetTerrain(goTerrain, TerrainSize);
-
-						SizeX = CGame::KTerrainMinSize;
-						SizeZ = CGame::KTerrainMinSize;
+						SizeX = CTerrain::KMinSize;
+						SizeZ = CTerrain::KMinSize;
 
 						bShowTerrainGenerator = false;
 						ImGui::CloseCurrentPopup();
@@ -331,8 +303,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (ImGui::Button(u8"닫기") || ImGui::IsKeyDown(VK_ESCAPE))
 					{
-						SizeX = CGame::KTerrainMinSize;
-						SizeZ = CGame::KTerrainMinSize;
+						SizeX = CTerrain::KMinSize;
+						SizeZ = CTerrain::KMinSize;
 
 						bShowTerrainGenerator = false;
 						ImGui::CloseCurrentPopup();
@@ -341,22 +313,28 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::EndPopup();
 				}
 
-				if (bShowGameObjectEditor)
+
+				// ### 지형 편집기 윈도우 ###
+				if (bShowTerrainEditor)
 				{
 					ImGui::SetNextWindowPos(ImVec2(460, 20), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSize(ImVec2(340, 230), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSize(ImVec2(340, 260), ImGuiCond_Appearing);
 
-					if (ImGui::Begin(u8"지형 편집기", &bShowGameObjectEditor))
+					if (ImGui::Begin(u8"지형 편집기", &bShowTerrainEditor))
 					{
-						if (goTerrain)
+						if (Game.GetTerrain())
 						{
 							static bool bShouldRecalculateTerrainVertexNormals{ false };
 							static float TerrainHeightSetValue{};
-							static float TerrainSelectionSize{ CGame::KTerrainSelectionMinSize };
-							const char* Lists[]{ u8"<높이 지정 모드>", u8"<높이 변경 모드>" };
+							static float TerrainSelectionSize{ CTerrain::KSelectionMinSize };
+							static int TerrainMaskingLayer{};
+							static float TerrainMaskingRadius{ CTerrain::KMaskingDefaultRadius };
+							static float TerrainMaskingRatio{};
+							static float TerrainMaskingAttenuation{ CTerrain::KMaskingAttenuationMax };
+							const char* Lists[]{ u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<마스킹 모드>" };
 							static int iSelectedItem{};
 
-							for (int iListItem = 0; iListItem < 2; ++iListItem)
+							for (int iListItem = 0; iListItem < ARRAYSIZE(Lists); ++iListItem)
 							{
 								if (ImGui::Selectable(Lists[iListItem], (iListItem == iSelectedItem) ? true : false))
 								{
@@ -368,7 +346,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										Game.SetTerrainEditMode(ETerrainEditMode::SetHeight, TerrainHeightSetValue);
 										break;
 									case 1:
-										Game.SetTerrainEditMode(ETerrainEditMode::DeltaHeight, CGame::KTerrainHeightUnit);
+										Game.SetTerrainEditMode(ETerrainEditMode::DeltaHeight, CTerrain::KHeightUnit);
+										break;
+									case 2:
+										Game.SetTerrainEditMode(ETerrainEditMode::Masking, TerrainMaskingRatio);
 										break;
 									default:
 										break;
@@ -379,49 +360,133 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							if (iSelectedItem == 0)
 							{
 								ImGui::PushItemWidth(100);
-								if (ImGui::DragFloat(u8"지정할 높이", &TerrainHeightSetValue, CGame::KTerrainHeightUnit,
-									CGame::KTerrainMinHeight, CGame::KTerrainMaxHeight, "%.1f"))
+								if (ImGui::DragFloat(u8"지정할 높이", &TerrainHeightSetValue, CTerrain::KHeightUnit,
+									CTerrain::KMinHeight, CTerrain::KMaxHeight, "%.1f"))
 								{
 									Game.SetTerrainEditMode(ETerrainEditMode::SetHeight, TerrainHeightSetValue);
 								}
 								ImGui::PopItemWidth();
 							}
 
-							ImGui::PushItemWidth(100);
-							if (ImGui::DragFloat(u8"지형 선택 크기", &TerrainSelectionSize, CGame::KTerrainSelectionSizeUnit, 
-								CGame::KTerrainSelectionMinSize, CGame::KTerrainSelectionMaxSize, "%.0f"))
+							if (iSelectedItem == 2)
 							{
-								Game.SetTerrainSelectionSize(TerrainSelectionSize);
+								ImGui::PushItemWidth(100);
+								if (ImGui::DragInt(u8"마스킹 레이어", &TerrainMaskingLayer, 1.0f, 0, CTerrain::KTextureMaxCount - 2, "%.0f"))
+								{
+									switch (TerrainMaskingLayer)
+									{
+									case 0:
+										Game.SetTerrainMaskingLayer(EMaskingLayer::LayerR);
+										break;
+									case 1:
+										Game.SetTerrainMaskingLayer(EMaskingLayer::LayerG);
+										break;
+									case 2:
+										Game.SetTerrainMaskingLayer(EMaskingLayer::LayerB);
+										break;
+									case 3:
+										Game.SetTerrainMaskingLayer(EMaskingLayer::LayerA);
+										break;
+									default:
+										break;
+									}
+								}
+								ImGui::PopItemWidth();
+
+								ImGui::PushItemWidth(100);
+								if (ImGui::DragFloat(u8"마스킹 배합 비율", &TerrainMaskingRatio, CTerrain::KMaskingRatioUnit, 
+									0.0f, 1.0f, "%.3f"))
+								{
+									Game.SetTerrainEditMode(ETerrainEditMode::Masking, TerrainMaskingRatio);
+								}
+								ImGui::PopItemWidth();
+
+								ImGui::PushItemWidth(100);
+								if (ImGui::DragFloat(u8"마스킹 감쇠", &TerrainMaskingAttenuation, CTerrain::KMaskingAttenuationUnit,
+									CTerrain::KMaskingAttenuationMin, CTerrain::KMaskingAttenuationMax, "%.3f"))
+								{
+									Game.SetTerrainMaskingAttenuation(TerrainMaskingAttenuation);
+								}
+								ImGui::PopItemWidth();
 							}
-							if (MouseState.scrollWheelValue)
+
+							if (iSelectedItem == 2)
 							{
-								if (MouseState.scrollWheelValue > 0) TerrainSelectionSize += CGame::KTerrainSelectionSizeUnit;
-								if (MouseState.scrollWheelValue < 0) TerrainSelectionSize -= CGame::KTerrainSelectionSizeUnit;
-								Game.SetTerrainSelectionSize(TerrainSelectionSize);
+								ImGui::PushItemWidth(100);
+								if (ImGui::DragFloat(u8"마스킹 반지름", &TerrainMaskingRadius, CTerrain::KMaskingRadiusUnit,
+									CTerrain::KMaskingMinRadius, CTerrain::KMaskingMaxRadius, "%.1f"))
+								{
+									Game.SetTerrainMaskingSize(TerrainMaskingRadius);
+								}
+								if (MouseState.scrollWheelValue)
+								{
+									if (MouseState.scrollWheelValue > 0) TerrainMaskingRadius += CTerrain::KMaskingRadiusUnit;
+									if (MouseState.scrollWheelValue < 0) TerrainMaskingRadius -= CTerrain::KMaskingRadiusUnit;
+									Game.SetTerrainMaskingSize(TerrainMaskingRadius);
+								}
+								ImGui::PopItemWidth();
 							}
-							ImGui::PopItemWidth();
+							else
+							{
+								ImGui::PushItemWidth(100);
+								if (ImGui::DragFloat(u8"지형 선택 크기", &TerrainSelectionSize, CTerrain::KSelectionSizeUnit,
+									CTerrain::KSelectionMinSize, CTerrain::KSelectionMaxSize, "%.0f"))
+								{
+									Game.SetTerrainSelectionSize(TerrainSelectionSize);
+								}
+								if (MouseState.scrollWheelValue)
+								{
+									if (MouseState.scrollWheelValue > 0) TerrainSelectionSize += CTerrain::KSelectionSizeUnit;
+									if (MouseState.scrollWheelValue < 0) TerrainSelectionSize -= CTerrain::KSelectionSizeUnit;
+									Game.SetTerrainSelectionSize(TerrainSelectionSize);
+								}
+								ImGui::PopItemWidth();
+							}
 
 							ImGui::Separator();
 
-							ImGui::Text(u8"현재 선택 위치: (%.0f, %.0f)", Game.GetTerrainSelectionPosition().x, Game.GetTerrainSelectionPosition().y);
+							ImGui::Text(u8"현재 선택 위치: (%.0f, %.0f)", Game.GetTerrainSelectionRoundUpPosition().x, Game.GetTerrainSelectionRoundUpPosition().y);
 
 							if (ImGui::Button(u8"전체 법선 재계산"))
 							{
-								Game.UpdateTerrainVertexNormals();
+								Game.RecalculateTerrainNormals();
 							}
 
 							ImGui::Separator();
 
-							if (ImGui::Button(u8"텍스쳐 변경")) ImGui::OpenPopup(u8"텍스쳐 선택");
-							if (goTerrain->ComponentRender.PtrTexture)
+							static bool bShowTextureSelection{ false };
+							static int iSelectedTextureID{};
+							if (Game.GetTerrain())
 							{
-								ImGui::Text(u8"텍스쳐: %s", goTerrain->ComponentRender.PtrTexture->GetName().c_str());
+								if (ImGui::Button(u8"텍스쳐 추가"))
+								{
+									iSelectedTextureID = -1;
+									ImGui::OpenPopup(u8"텍스쳐 선택");
+								}
+
+								for (int iTexture = 0; iTexture < Game.GetTerrain()->GetTextureCount(); ++iTexture)
+								{
+									ImGui::PushItemWidth(100);
+									ImGui::PushID(iTexture);
+									if (ImGui::Button(u8"변경"))
+									{
+										iSelectedTextureID = iTexture;
+										bShowTextureSelection = true;
+									}
+									ImGui::PopID();
+									ImGui::PopItemWidth();
+
+									ImGui::SameLine();
+
+									ImGui::Text(u8"텍스쳐[%d]: %s", iTexture, Game.GetTerrain()->GetTextureFileName(iTexture).c_str());
+								}
 							}
 							else
 							{
 								ImGui::Text(u8"텍스쳐: 없음");
 							}
 
+							if (bShowTextureSelection) ImGui::OpenPopup(u8"텍스쳐 선택");
 							if (ImGui::BeginPopup(u8"텍스쳐 선택", ImGuiWindowFlags_AlwaysAutoResize))
 							{
 								static int ListIndex{};
@@ -445,10 +510,22 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 								if (ImGui::Button(u8"결정"))
 								{
-									if (SelectedTextureName) goTerrain->ComponentRender.PtrTexture = Game.GetTexture(*SelectedTextureName);
+									if (SelectedTextureName)
+									{
+										if (iSelectedTextureID == -1)
+										{
+											Game.AddTerrainTexture(Game.GetTexture(*SelectedTextureName)->GetFileName());
+										}
+										else
+										{
+											Game.SetTerrainTexture(iSelectedTextureID, Game.GetTexture(*SelectedTextureName)->GetFileName());
+										}
+									}
 
 									ImGui::CloseCurrentPopup();
 								}
+
+								bShowTextureSelection = false;
 
 								ImGui::EndPopup();
 							}
@@ -456,16 +533,17 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						}
 						else
 						{
-							ImGui::Text(u8"<먼저 GameObject를 선택해 주세요.>");
+							ImGui::Text(u8"<먼저 지형을 만들거나 불러오세요.>");
 						}
 					}
 
 					ImGui::End();
 				}
-				
+
+				// ### 텍스쳐 목록 윈도우 ###
 				if (bShowTextureListWindow)
 				{
-					ImGui::SetNextWindowPos(ImVec2(460, 250), ImGuiCond_Appearing);
+					ImGui::SetNextWindowPos(ImVec2(460, 290), ImGuiCond_Appearing);
 					ImGui::SetNextWindowSize(ImVec2(340, 120), ImGuiCond_Appearing);
 
 					if (ImGui::Begin(u8"텍스쳐 목록", &bShowTextureListWindow, ImGuiWindowFlags_AlwaysAutoResize))

@@ -15,23 +15,26 @@
 #include "GameObject3DLine.h"
 #include "GameObject2D.h"
 #include "TinyXml2/tinyxml2.h"
+#include "Terrain.h"
 
 enum class EFlagsGameRendering
 {
-	None				= 0x00,
-	DrawWireFrame		= 0x01,
-	DrawNormals			= 0x02,
-	UseLighting			= 0x04,
-	DrawMiniAxes		= 0x08,
-	DrawPickingData		= 0x10,
-	DrawBoundingSphere	= 0x20,
-	Use3DGizmos			= 0x40,
-	UseTerrainSelector	= 0x80
+	None						= 0x000,
+	DrawWireFrame				= 0x001,
+	DrawNormals					= 0x002,
+	UseLighting					= 0x004,
+	DrawMiniAxes				= 0x008,
+	DrawPickingData				= 0x010,
+	DrawBoundingSphere			= 0x020,
+	Use3DGizmos					= 0x040,
+	UseTerrainSelector			= 0x080,
+	DrawTerrainMaskingTexture	= 0x100
 };
 ENUM_CLASS_FLAG(EFlagsGameRendering)
 
 enum class EBaseShader
 {
+	VSBase,
 	VSAnimation,
 	VSSky,
 	VSLine,
@@ -47,6 +50,7 @@ enum class EBaseShader
 	PSGizmo,
 	PSTerrainEdit,
 	PSBase2D,
+	PSMasking2D
 };
 
 enum class ERasterizerState
@@ -70,12 +74,6 @@ enum class E3DGizmoAxis
 	AxisX,
 	AxisY,
 	AxisZ
-};
-
-enum class ETerrainEditMode
-{
-	SetHeight,
-	DeltaHeight,
 };
 
 struct SSkyData
@@ -123,6 +121,11 @@ enum class EFlagPSBase
 	UseLighting
 };
 
+enum class EFlagPSBase2D
+{
+	UseTexture
+};
+
 struct SCBPSBaseFlagsData
 {
 	BOOL		bUseTexture{};
@@ -164,6 +167,11 @@ struct SCBPSGizmoColorFactorData
 	XMVECTOR	ColorFactor{};
 };
 
+struct SCBPSTerrainEditSpaceData
+{
+	XMMATRIX	Matrix{};
+};
+
 class CGame
 {
 public:
@@ -197,22 +205,35 @@ public:
 	void ToggleGameRenderingFlags(EFlagsGameRendering Flags);
 	void Set3DGizmoMode(E3DGizmoMode Mode);
 	E3DGizmoMode Get3DGizmoMode() { return m_e3DGizmoMode; }
+	CommonStates* GetCommonStates() { return m_CommonStates.get(); }
 
 // Shader-related settings
 public:
 	void UpdatePSBaseFlagOn(EFlagPSBase Flag);
 	void UpdatePSBaseFlagOff(EFlagPSBase Flag);
+	void UpdatePSBase2DFlagOn(EFlagPSBase2D Flag);
+	void UpdatePSBase2DFlagOff(EFlagPSBase2D Flag);
+	void UpdateVSSpace(const XMMATRIX& World);
+	void UpdateVS2DSpace(const XMMATRIX& World);
 	void UpdateVSBaseMaterial(const SMaterial& Material);
 	void UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices);
+	void UpdatePSTerrainEditSpace(const XMMATRIX& Matrix);
 
 public:
 	void SetSky(const string& SkyDataFileName, float ScalingFactor);
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition);
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color);
 	void SetAmbientlLight(const XMFLOAT3& Color, float Intensity);
-	void SetTerrain(CGameObject3D* Terrain, const XMFLOAT2& TerrainSize);
-	const SModel* GetTerrainModelPtr() const;
-	const XMFLOAT2& GetTerrainSize() { return m_TerrainSize; }
+
+public:
+	void CreateTerrain(const XMFLOAT2& TerrainSize, const string& TextureFileName);
+	void LoadTerrain(const string& TerrainFileName);
+	void SaveTerrain(const string& TerrainFileName);
+	void SetTerrainTexture(int TextureID, const string& TextureFileName);
+	void AddTerrainTexture(const string& TextureFileName);
+	CTerrain* GetTerrain() { return m_Terrain.get(); }
+	void SetTerrainSelectionSize(float& Size);
+	void RecalculateTerrainNormals();
 
 private:
 	void LoadSkyObjectData(tinyxml2::XMLElement* xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
@@ -263,14 +284,9 @@ private:
 public:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
 	void SetTerrainEditMode(ETerrainEditMode Mode, float Value);
-	void SetTerrainSelectionSize(float& Size);
-	bool ShouldUpdateTerrainVertexNormals();
-	void UpdateTerrainVertexNormals();
-
-private:
-	void UpdateTerrainSelection();
-	void UpdateTerrainHeight(bool bIsLeftButton);
-	void UpdateTerrainVertex(SVertex3D& Vertex, bool bIsLeftButton);
+	void SetTerrainMaskingLayer(EMaskingLayer eLayer);
+	void SetTerrainMaskingAttenuation(float Attenuation);
+	void SetTerrainMaskingSize(float Size);
 
 public:
 	void BeginRendering(const FLOAT* ClearColor);
@@ -288,7 +304,7 @@ public:
 	SpriteFont* GetSpriteFontPtr() { return m_SpriteFont.get(); }
 	const char* GetPickedGameObject3DName();
 	const char* GetCapturedPickedGameObject3DName();
-	const XMFLOAT2& GetTerrainSelectionPosition() { return m_TerrainSelectionPosition; }
+	const XMFLOAT2& GetTerrainSelectionRoundUpPosition();
 	float GetSkyTime();
 
 private:
@@ -308,6 +324,7 @@ private:
 	void DrawPickedTriangle();
 
 	void DrawSky(float DeltaTime);
+	void DrawTerrain();
 
 	bool ShouldSelectRotationGizmo(CGameObject3D* Gizmo, E3DGizmoAxis Axis);
 	bool ShouldSelectTranslationScalingGizmo(CGameObject3D* Gizmo, E3DGizmoAxis Axis);
@@ -335,13 +352,6 @@ public:
 	static constexpr float KScalingMaxLimit{ +100.0f };
 	static constexpr float KScalingMinLimit{ +0.01f };
 	static constexpr float KScalingUnit{ +0.1f };
-	static constexpr float KTerrainMaxHeight{ +10.0f };
-	static constexpr float KTerrainMinHeight{ -10.0f };
-	static constexpr float KTerrainHeightUnit{ 0.1f };
-	static constexpr float KTerrainSelectionMinSize{ 1.0f };
-	static constexpr float KTerrainSelectionMaxSize{ 10.0f };
-	static constexpr float KTerrainSelectionSizeUnit{ 1.0f };
-	static constexpr int KTerrainMinSize{ 2 };
 	
 private:
 	static constexpr float KDefaultFOV{ 50.0f / 360.0f * XM_2PI };
@@ -376,6 +386,7 @@ private:
 	unique_ptr<CShader>	m_PSGizmo{};
 	unique_ptr<CShader>	m_PSTerrainEdit{};
 	unique_ptr<CShader>	m_PSBase2D{};
+	unique_ptr<CShader>	m_PSMasking2D{};
 
 private:
 	SCBVSSpaceData				m_cbVSSpaceData{};
@@ -389,6 +400,7 @@ private:
 	SCBPSGizmoColorFactorData	m_cbPSGizmoColorFactorData{};
 	SCBPSSkyTimeData			m_cbPSSkyTimeData{};
 	SCBPS2DFlagsData			m_cbPS2DFlagsData{};
+	SCBPSTerrainEditSpaceData	m_cbPSTerrainEditSpaceData{};
 
 private:
 	vector<unique_ptr<CShader>>				m_vShaders{};
@@ -479,13 +491,7 @@ private:
 	XMVECTOR		m_PickedTriangleV2{};
 
 private:
-	CGameObject3D*		m_PtrGameObject3DTerrain{};
-	XMFLOAT2			m_TerrainSize{};
-	ETerrainEditMode	m_eTerrainEditMode{};
-	float				m_TerrainEditValue{};
-	float				m_TerrainSelectionHalfSize{ 0.5f };
-	XMFLOAT2			m_TerrainSelectionPosition{};
-	bool				m_bShouldUpdateTerrainVertexNormals{ false };
+	unique_ptr<CTerrain>	m_Terrain{};
 
 private:
 	ERasterizerState	m_eRasterizerState{ ERasterizerState::CullCounterClockwise };

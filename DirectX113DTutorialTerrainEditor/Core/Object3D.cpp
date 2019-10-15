@@ -240,7 +240,17 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 		{
 			m_PtrGame->UpdatePSBaseFlagOn(EFlagPSBase::UseTexture);
 
-			m_vOwnTextures[Material.TextureID]->Use();
+			if (m_Model.bUseMultipleTexturesInSingleMesh)
+			{
+				for (auto& Mat : m_Model.vMaterials)
+				{
+					m_vOwnTextures[Mat.TextureID]->Use();
+				}
+			}
+			else
+			{
+				m_vOwnTextures[Material.TextureID]->Use();
+			}
 		}
 
 		m_PtrDeviceContext->IASetIndexBuffer(m_vMeshBuffers[iMesh].IndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);

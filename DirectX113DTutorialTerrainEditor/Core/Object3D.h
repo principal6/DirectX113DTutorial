@@ -126,6 +126,7 @@ struct SModel
 
 	vector<SModelAnimation>			vAnimations{};
 	bool							bIsModelAnimated{};
+	bool							bUseMultipleTexturesInSingleMesh{ false };
 };
 
 class CObject3D

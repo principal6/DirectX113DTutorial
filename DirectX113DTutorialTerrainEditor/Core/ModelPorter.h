@@ -36,6 +36,11 @@
 // # 4B (uint32_t) vid 2
 // ###########################
 
+
+
+     // TODO: SAVE AND LOAD MASKING DATA !!
+
+
 // ###########################
 // << TERR FILE STRUCTURE >> : << SMOD FILE STRUCTURE >>
 // 8B TERR Signature

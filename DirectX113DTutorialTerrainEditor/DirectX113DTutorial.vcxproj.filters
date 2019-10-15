@@ -90,6 +90,9 @@
     <ClCompile Include="ImGui\imgui_widgets.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Terrain.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTK\Audio.h">
@@ -449,6 +452,9 @@
     <ClInclude Include="Core\ModelPorter.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Terrain.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Library Include="DirectXTK\DirectXTK.lib">
@@ -540,6 +546,9 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\PSTerrainEdit.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PSMasking2D.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>
