@@ -108,7 +108,9 @@ struct SMaterial
 
 	bool				bHasTexture{ false };
 	string				TextureFileName{};
-	bool				bHasEmbeddedTexture{ false };
+	size_t				TextureID{};
+
+	// This will be cleared after loading the texture into CObject3D
 	vector<uint8_t>		vEmbeddedTextureRawData{};
 };
 
@@ -155,7 +157,7 @@ private:
 
 	void CalculateAnimatedBoneMatrices(const SModelNode& Node, XMMATRIX ParentTransform);
 
-	void Draw() const;
+	void Draw(bool bIgnoreOwnTexture = false) const;
 
 	void DrawNormals() const;
 
@@ -167,7 +169,7 @@ private:
 private:
 	SModel							m_Model{};
 	vector<SMeshBuffers>			m_vMeshBuffers{};
-	vector<unique_ptr<CTexture>>	m_vEmbeddedTextures{};
+	vector<unique_ptr<CTexture>>	m_vOwnTextures{};
 
 	XMMATRIX						m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
 	size_t							m_CurrentAnimationIndex{};

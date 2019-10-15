@@ -78,7 +78,6 @@ static vector<SMaterial> LoadMaterialsFromFile(const aiScene* Scene)
 				unsigned int TexelCount{ aiTexture->mWidth / 4 };
 				if (aiTexture->mHeight) TexelCount *= aiTexture->mHeight;
 
-				CurrentMaterial.bHasEmbeddedTexture = true;
 				CurrentMaterial.vEmbeddedTextureRawData.reserve(aiTexture->mWidth);
 				for (unsigned int iTexel = 0; iTexel < TexelCount; ++iTexel)
 				{

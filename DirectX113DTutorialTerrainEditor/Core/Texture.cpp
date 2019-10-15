@@ -21,8 +21,6 @@ void CTexture::CreateFromFile(const string& TextureFileName)
 		assert(SUCCEEDED(CreateWICTextureFromFile(m_PtrDevice, wFileName.c_str(),
 			(ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
 	}
-
-	m_TextureFileName = TextureFileName;
 }
 
 void CTexture::CreateWICFromMemory(const vector<uint8_t>& RawData)
