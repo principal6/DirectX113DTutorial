@@ -27,17 +27,27 @@ void CObject3D::Create(const SModel& Model)
 		CreateMeshBuffers(iMesh, m_Model.bIsModelAnimated);
 	}
 
-	m_vEmbeddedTextures.clear();
-	m_vEmbeddedTextures.reserve(m_Model.vMaterials.size());
+	m_vOwnTextures.clear();
+	m_vOwnTextures.reserve(m_Model.vMaterials.size());
 	for (SMaterial& Material : m_Model.vMaterials)
 	{
-		if (Material.bHasTexture && Material.vEmbeddedTextureRawData.size())
+		if (Material.bHasTexture)
 		{
-			m_vEmbeddedTextures.emplace_back(make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext, "Embedded"));
+			if (Material.vEmbeddedTextureRawData.size())
+			{
+				m_vOwnTextures.emplace_back(make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext, "Embedded"));
+				m_vOwnTextures.back()->CreateWICFromMemory(Material.vEmbeddedTextureRawData);
 
-			m_vEmbeddedTextures.back()->CreateWICFromMemory(Material.vEmbeddedTextureRawData);
+				Material.TextureID = m_vOwnTextures.size() - 1;
+				Material.vEmbeddedTextureRawData.clear();
+			}
+			else
+			{
+				m_vOwnTextures.emplace_back(make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext, "Own"));
+				m_vOwnTextures.back()->CreateFromFile(Material.TextureFileName);
 
-			Material.vEmbeddedTextureRawData.clear();
+				Material.TextureID = m_vOwnTextures.size() - 1;
+			}
 		}
 	}
 }
@@ -217,7 +227,7 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModelNode& Node, XMMATRIX P
 	}
 }
 
-void CObject3D::Draw() const
+void CObject3D::Draw(bool bIgnoreOwnTexture) const
 {
 	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
 	{
@@ -226,11 +236,11 @@ void CObject3D::Draw() const
 
 		m_PtrGame->UpdateVSBaseMaterial(Material);
 		
-		if (Material.bHasTexture && Material.bHasEmbeddedTexture)
+		if (Material.bHasTexture && !bIgnoreOwnTexture)
 		{
 			m_PtrGame->UpdatePSBaseFlagOn(EFlagPSBase::UseTexture);
 
-			m_vEmbeddedTextures[Mesh.MaterialID]->Use();
+			m_vOwnTextures[Material.TextureID]->Use();
 		}
 
 		m_PtrDeviceContext->IASetIndexBuffer(m_vMeshBuffers[iMesh].IndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);

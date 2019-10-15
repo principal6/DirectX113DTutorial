@@ -7,9 +7,8 @@
 // << SMOD FILE STRUCTURE >>
 // 8B SMOD Signature
 // ##### MATERIAL #####
-// 1B (uint8_t) Material count (559B == Each material)
+// 1B (uint8_t) Material count (558B == Each material)
 // # 1B (uint8_t) Material index
-// # 1B (bool) Has embedded texture (FALSE)
 // # 1B (bool) has texture
 // # 12B (XMFLOAT3) ambient
 // # 12B (XMFLOAT3) diffuse
@@ -160,10 +159,6 @@ static void _ReadStaticModelFile(std::ifstream& ifs, SModel& Model)
 		// # 1B (uint8_t) Material index
 		READ(1);
 
-		// # 1B (bool) Has embedded texture (FALSE)
-		READ(1);
-		Material.bHasEmbeddedTexture = GET_BOOL;
-
 		// # 1B (bool) has texture
 		READ(1);
 		Material.bHasTexture = GET_BOOL;
@@ -310,10 +305,6 @@ static void _WriteStaticModelFile(std::ofstream& ofs, const SModel& Model)
 	{
 		// 1B (uint8_t) Material index
 		ofs.put(iMaterial);
-
-		// 1B (bool) Has embedded texture
-		// Material.bHasEmbeddedTexture; // Always FALSE
-		ofs.put(false);
 
 		// 1B (bool) has texture
 		ofs.put(Material.bHasTexture);

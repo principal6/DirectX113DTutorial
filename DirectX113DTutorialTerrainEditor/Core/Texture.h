@@ -22,6 +22,7 @@ public:
 
 public:
 	const string& GetName() { return m_Name; }
+	const string& GetFileName() { return m_TextureFileName; }
 
 public:
 	ID3D11ShaderResourceView* GetShaderResourceViewPtr() { return m_ShaderResourceView.Get(); }
@@ -35,6 +36,7 @@ private:
 
 private:
 	string								m_Name{};
+	string								m_TextureFileName{};
 
 private:
 	ComPtr<ID3D11Texture2D>				m_Texture2D{};

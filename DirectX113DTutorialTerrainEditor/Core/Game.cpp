@@ -1326,7 +1326,7 @@ void CGame::Draw(float DeltaTime)
 			m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
 			m_DeviceContext->PSSetShaderResources(0, 0, nullptr);
 
-			m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->Draw();
+			m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->Draw(true);
 
 			SetUniversalRasterizerState();
 		}

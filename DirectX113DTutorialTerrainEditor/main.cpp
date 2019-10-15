@@ -20,6 +20,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 {
 	constexpr float KClearColor[4]{ 0.2f, 0.6f, 0.9f, 1.0f };
 
+	char WorkingDirectory[MAX_PATH]{};
+	GetCurrentDirectoryA(MAX_PATH, WorkingDirectory);
+	
 	CGame Game{ hInstance, XMFLOAT2(800, 600) };
 	Game.CreateWin32(WndProc, TEXT("Game"), L"Asset\\dotumche_10_korean.spritefont", true);
 	
@@ -70,17 +73,17 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	{
 		static MSG Msg{};
 		static char KeyDown{};
-		static bool LeftButton{ false };
-		static bool RightButton{ false };
+		static bool bLeftButton{ false };
+		static bool bRightButton{ false };
 
 		if (PeekMessage(&Msg, nullptr, 0, 0, PM_REMOVE))
 		{
-			if (Msg.message == WM_LBUTTONDOWN) LeftButton = true;
-			if (Msg.message == WM_RBUTTONDOWN) RightButton = true;
+			if (Msg.message == WM_LBUTTONDOWN) bLeftButton = true;
+			if (Msg.message == WM_RBUTTONDOWN) bRightButton = true;
 			if (Msg.message == WM_MOUSEMOVE)
 			{
-				if (Msg.wParam == MK_LBUTTON) LeftButton = true;
-				if (Msg.wParam == MK_RBUTTON) RightButton = true;
+				if (Msg.wParam == MK_LBUTTON) bLeftButton = true;
+				if (Msg.wParam == MK_RBUTTON) bRightButton = true;
 			}
 			if (Msg.message == WM_KEYDOWN) KeyDown = (char)Msg.wParam;
 			if (Msg.message == WM_QUIT) break;
@@ -156,9 +159,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			static int PrevMouseY{ MouseState.y };
 			if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
 			{
-				if (LeftButton || RightButton)
+				if (bLeftButton || bRightButton)
 				{
-					if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) Game.SelectTerrain(true, LeftButton);
+					if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) Game.SelectTerrain(true, bLeftButton);
 				}
 				else
 				{
@@ -207,7 +210,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (ImGui::BeginMenu(u8"지형"))
 					{
-						if (ImGui::MenuItem(u8"생성", "Ctrl+N", nullptr)) bShowTerrainGenerator = true;
+						if (ImGui::MenuItem(u8"만들기", "Ctrl+N", nullptr)) bShowTerrainGenerator = true;
 						if (ImGui::MenuItem(u8"불러오기", "Ctrl+O", nullptr)) bShowOpenFileDialog = true;
 						if (ImGui::MenuItem(u8"내보내기", "Ctrl+S", nullptr)) bShowSaveFileDialog = true;
 
@@ -226,6 +229,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						ofn.nMaxFile = MAX_PATH;
 						if (GetOpenFileName(&ofn))
 						{
+							SetCurrentDirectoryA(WorkingDirectory);
+
 							if (!goTerrain->ComponentRender.PtrObject3D) goTerrain->ComponentRender.PtrObject3D = Game.AddObject3D();
 
 							SModel TerrainModel{};
@@ -254,8 +259,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							ofn.nMaxFile = MAX_PATH;
 							if (GetSaveFileName(&ofn))
 							{
+								SetCurrentDirectoryA(WorkingDirectory);
+
 								ExportTerrain(*Game.GetTerrainModelPtr(), Game.GetTerrainSize(), FileName);
 							}
+							SetCurrentDirectoryA(WorkingDirectory);
 						}
 
 						bShowSaveFileDialog = false;
@@ -303,7 +311,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
 
 						if (!goTerrain->ComponentRender.PtrObject3D) goTerrain->ComponentRender.PtrObject3D = Game.AddObject3D();
-						goTerrain->ComponentRender.PtrObject3D->Create(GenerateTerrainBase(TerrainSize));
+
+						SMaterial Material{};
+						Material.bHasTexture = true;
+						Material.TextureFileName = TextureGround->GetFileName();
+
+						goTerrain->ComponentRender.PtrObject3D->Create(GenerateTerrainBase(TerrainSize), Material);
+						
 						Game.SetTerrain(goTerrain, TerrainSize);
 
 						SizeX = CGame::KTerrainMinSize;
@@ -473,6 +487,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							ofn.nMaxFile = MAX_PATH;
 							if (GetOpenFileName(&ofn))
 							{
+								SetCurrentDirectoryA(WorkingDirectory);
+
 								string TextureName{ FileName };
 								size_t FoundPos{ TextureName.find_last_of('\\') };
 								CTexture* Texture{ Game.AddTexture(TextureName.substr(FoundPos + 1)) };
@@ -510,8 +526,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			Game.EndRendering();
 
 			KeyDown = 0;
-			LeftButton = false;
-			RightButton = false;
+			bLeftButton = false;
+			bRightButton = false;
 			TimePrev = TimeNow;
 		}
 	}

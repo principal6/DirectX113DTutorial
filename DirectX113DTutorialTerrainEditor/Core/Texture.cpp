@@ -2,11 +2,11 @@
 
 void CTexture::CreateFromFile(const string& TextureFileName)
 {
-	size_t found{ TextureFileName.find_last_of(L'.') };
-	string Ext{ TextureFileName.substr(found) };
+	m_TextureFileName = TextureFileName;
 
-	wstring wFileName{ TextureFileName.begin(), TextureFileName.end() };
-
+	size_t found{ m_TextureFileName.find_last_of(L'.') };
+	string Ext{ m_TextureFileName.substr(found) };
+	wstring wFileName{ m_TextureFileName.begin(), m_TextureFileName.end() };
 	for (auto& c : Ext)
 	{
 		c = toupper(c);
@@ -21,6 +21,8 @@ void CTexture::CreateFromFile(const string& TextureFileName)
 		assert(SUCCEEDED(CreateWICTextureFromFile(m_PtrDevice, wFileName.c_str(),
 			(ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
 	}
+
+	m_TextureFileName = TextureFileName;
 }
 
 void CTexture::CreateWICFromMemory(const vector<uint8_t>& RawData)
