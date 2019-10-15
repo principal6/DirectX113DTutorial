@@ -13,5 +13,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 		Result.xyz *= Factors.xyz;
 	}
 
+	Result.xyz *= dot(input.WorldNormal, normalize(float4(1, 1, 0, 1)));
+
 	return Result;
 }

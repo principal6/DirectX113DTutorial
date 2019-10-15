@@ -198,10 +198,10 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size)
 	{
 		for (int x = 0; x < SizeX; ++x)
 		{
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(z + 1), 1), KColorWhite, XMVectorSet(0, 0, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(z + 1), 1), KColorWhite, XMVectorSet(1, 0, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(z + 0), 1), KColorWhite, XMVectorSet(0, 1, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(z + 0), 1), KColorWhite, XMVectorSet(1, 1, 0, 0));
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z + 0), 1), KColorWhite, XMVectorSet(0, 0, 0, 0));
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(-z + 0), 1), KColorWhite, XMVectorSet(1, 0, 0, 0));
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z - 1), 1), KColorWhite, XMVectorSet(0, 1, 0, 0));
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(-z - 1), 1), KColorWhite, XMVectorSet(1, 1, 0, 0));
 		}
 	}
 
@@ -211,7 +211,7 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size)
 
 	CalculateVertexNormalsFromFaceNormals(Mesh);
 
-	TranslateMesh(Mesh, XMVectorSet(static_cast<float>(-SizeX / 2), 0, static_cast<float>(-SizeZ / 2), 1));
+	TranslateMesh(Mesh, XMVectorSet(static_cast<float>(-SizeX / 2), 0, static_cast<float>(SizeZ / 2), 1));
 
 	return Mesh;
 }

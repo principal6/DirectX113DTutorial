@@ -1016,6 +1016,24 @@ void CGame::SetTerrainSelectionSize(float Size)
 	m_TerrainSelectionHalfSize = Size / 2.0f;
 }
 
+bool CGame::ShouldUpdateTerrainVertexNormals()
+{
+	return m_bShouldUpdateTerrainVertexNormals;
+}
+
+void CGame::UpdateTerrainVertexNormals()
+{
+	if (!m_PtrGameObject3DTerrain) return;
+	if (!m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D) return;
+
+	CalculateFaceNormals(m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->m_Model.vMeshes[0]);
+	CalculateVertexNormalsFromFaceNormals(m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->m_Model.vMeshes[0]);
+
+	m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->UpdateMeshBuffer();
+
+	m_bShouldUpdateTerrainVertexNormals = false;
+}
+
 void CGame::UpdateTerrainSelection()
 {
 	if (!m_PtrGameObject3DTerrain) return;
@@ -1033,7 +1051,9 @@ void CGame::UpdateTerrainSelection()
 		PointOnPlane = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * PlaneT;
 
 		m_TerrainSelectionPosition.x = XMVectorGetX(PointOnPlane);
+		m_TerrainSelectionPosition.x = static_cast<float>(int(m_TerrainSelectionPosition.x + 0.5f));
 		m_TerrainSelectionPosition.y = XMVectorGetZ(PointOnPlane);
+		m_TerrainSelectionPosition.y = static_cast<float>(int(m_TerrainSelectionPosition.y + 0.5f));
 
 		for (auto& Triangle : Mesh.vTriangles)
 		{
@@ -1073,7 +1093,6 @@ void CGame::UpdateTerrainSelection()
 			}
 		}
 
-		
 		m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->UpdateMeshBuffer();
 	}
 }
@@ -1099,7 +1118,7 @@ void CGame::UpdateTerrainHeight(bool bIsLeftButton)
 
 			if (iVertex0 >= 0 && iVertex0 < VertexCount)
 			{
-				XMVECTOR& Position{ Mesh.vVertices[iVertex0].Position };
+				const XMVECTOR& Position{ Mesh.vVertices[iVertex0].Position };
 				float PositionX{ XMVectorGetX(Position) };
 				float PositionZ{ XMVectorGetZ(Position) };
 				if (PositionX >= m_TerrainSelectionPosition.x - m_TerrainSelectionHalfSize &&
@@ -1107,12 +1126,12 @@ void CGame::UpdateTerrainHeight(bool bIsLeftButton)
 					PositionZ >= m_TerrainSelectionPosition.y - m_TerrainSelectionHalfSize &&
 					PositionZ <= m_TerrainSelectionPosition.y + m_TerrainSelectionHalfSize)
 				{
-					UpdateTerrainVertexPosition(Position, bIsLeftButton);
+					UpdateTerrainVertex(Mesh.vVertices[iVertex0], bIsLeftButton);
 				}
 			}
 			if (iVertex1 >= 0 && iVertex1 < VertexCount)
 			{
-				XMVECTOR& Position{ Mesh.vVertices[iVertex1].Position };
+				const XMVECTOR& Position{ Mesh.vVertices[iVertex1].Position };
 				float PositionX{ XMVectorGetX(Position) };
 				float PositionZ{ XMVectorGetZ(Position) };
 				if (PositionX >= m_TerrainSelectionPosition.x - m_TerrainSelectionHalfSize &&
@@ -1120,12 +1139,12 @@ void CGame::UpdateTerrainHeight(bool bIsLeftButton)
 					PositionZ >= m_TerrainSelectionPosition.y - m_TerrainSelectionHalfSize &&
 					PositionZ <= m_TerrainSelectionPosition.y + m_TerrainSelectionHalfSize)
 				{
-					UpdateTerrainVertexPosition(Position, bIsLeftButton);
+					UpdateTerrainVertex(Mesh.vVertices[iVertex1], bIsLeftButton);
 				}
 			}
 			if (iVertex2 >= 0 && iVertex2 < VertexCount)
 			{
-				XMVECTOR& Position{ Mesh.vVertices[iVertex2].Position };
+				const XMVECTOR& Position{ Mesh.vVertices[iVertex2].Position };
 				float PositionX{ XMVectorGetX(Position) };
 				float PositionZ{ XMVectorGetZ(Position) };
 				if (PositionX >= m_TerrainSelectionPosition.x - m_TerrainSelectionHalfSize &&
@@ -1133,12 +1152,12 @@ void CGame::UpdateTerrainHeight(bool bIsLeftButton)
 					PositionZ >= m_TerrainSelectionPosition.y - m_TerrainSelectionHalfSize &&
 					PositionZ <= m_TerrainSelectionPosition.y + m_TerrainSelectionHalfSize)
 				{
-					UpdateTerrainVertexPosition(Position, bIsLeftButton);
+					UpdateTerrainVertex(Mesh.vVertices[iVertex2], bIsLeftButton);
 				}
 			}
 			if (iVertex3 >= 0 && iVertex3 < VertexCount)
 			{
-				XMVECTOR& Position{ Mesh.vVertices[iVertex3].Position };
+				const XMVECTOR& Position{ Mesh.vVertices[iVertex3].Position };
 				float PositionX{ XMVectorGetX(Position) };
 				float PositionZ{ XMVectorGetZ(Position) };
 				if (PositionX >= m_TerrainSelectionPosition.x - m_TerrainSelectionHalfSize &&
@@ -1146,7 +1165,7 @@ void CGame::UpdateTerrainHeight(bool bIsLeftButton)
 					PositionZ >= m_TerrainSelectionPosition.y - m_TerrainSelectionHalfSize &&
 					PositionZ <= m_TerrainSelectionPosition.y + m_TerrainSelectionHalfSize)
 				{
-					UpdateTerrainVertexPosition(Position, bIsLeftButton);
+					UpdateTerrainVertex(Mesh.vVertices[iVertex3], bIsLeftButton);
 				}
 			}
 		}
@@ -1155,28 +1174,33 @@ void CGame::UpdateTerrainHeight(bool bIsLeftButton)
 	m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->UpdateMeshBuffer();
 }
 
-void CGame::UpdateTerrainVertexPosition(XMVECTOR& Position, bool bIsLeftButton)
+void CGame::UpdateTerrainVertex(SVertex3D& Vertex, bool bIsLeftButton)
 {
-	float Y{ XMVectorGetY(Position) };
+	float Y{ XMVectorGetY(Vertex.Position) };
 	
 	switch (m_eTerrainEditMode)
 	{
 	case ETerrainEditMode::SetHeight:
-		Position = XMVectorSetY(Position, m_TerrainEditValue);
+		Vertex.Position = XMVectorSetY(Vertex.Position, m_TerrainEditValue);
 		break;
 	case ETerrainEditMode::DeltaHeight:
 		if (bIsLeftButton)
 		{
-			Position = XMVectorSetY(Position, Y + m_TerrainEditValue);
+			Vertex.Position = XMVectorSetY(Vertex.Position, Y + m_TerrainEditValue);
 		}
 		else
 		{
-			Position = XMVectorSetY(Position, Y - m_TerrainEditValue);
+			Vertex.Position = XMVectorSetY(Vertex.Position, Y - m_TerrainEditValue);
 		}
 		break;
 	default:
 		break;
 	}
+
+	// To let you know that this vertex's normal should be recalculated.
+	Vertex.Normal = XMVectorSetW(Vertex.Normal, 1.0f);
+
+	m_bShouldUpdateTerrainVertexNormals = true;
 }
 
 void CGame::BeginRendering(const FLOAT* ClearColor)

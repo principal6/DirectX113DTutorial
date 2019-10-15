@@ -262,11 +262,13 @@ public:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
 	void SetTerrainEditMode(ETerrainEditMode Mode, float Value);
 	void SetTerrainSelectionSize(float Size);
+	bool ShouldUpdateTerrainVertexNormals();
+	void UpdateTerrainVertexNormals();
 
 private:
 	void UpdateTerrainSelection();
 	void UpdateTerrainHeight(bool bIsLeftButton);
-	void UpdateTerrainVertexPosition(XMVECTOR& Position, bool bIsLeftButton);
+	void UpdateTerrainVertex(SVertex3D& Vertex, bool bIsLeftButton);
 
 public:
 	void BeginRendering(const FLOAT* ClearColor);
@@ -284,6 +286,7 @@ public:
 	SpriteFont* GetSpriteFontPtr() { return m_SpriteFont.get(); }
 	const char* GetPickedGameObject3DName();
 	const char* GetCapturedPickedGameObject3DName();
+	const XMFLOAT2& GetTerrainSelectionPosition() { return m_TerrainSelectionPosition; }
 	float GetSkyTime();
 
 private:
@@ -477,6 +480,7 @@ private:
 	float				m_TerrainEditValue{};
 	float				m_TerrainSelectionHalfSize{ 0.5f };
 	XMFLOAT2			m_TerrainSelectionPosition{};
+	bool				m_bShouldUpdateTerrainVertexNormals{ false };
 
 private:
 	ERasterizerState	m_eRasterizerState{ ERasterizerState::CullCounterClockwise };

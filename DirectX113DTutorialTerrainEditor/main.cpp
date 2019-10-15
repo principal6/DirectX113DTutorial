@@ -155,8 +155,15 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			static int PrevMouseY{ MouseState.y };
 			if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
 			{
-				Game.SelectTerrain(LeftButton || RightButton, LeftButton);
-
+				if (LeftButton || RightButton)
+				{
+					if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) Game.SelectTerrain(true, LeftButton);
+				}
+				else
+				{
+					Game.SelectTerrain(false, false);
+				}
+				
 				if (MouseState.leftButton)
 				{
 					Game.Pick();
@@ -270,12 +277,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				if (bShowGameObjectEditor)
 				{
 					ImGui::SetNextWindowPos(ImVec2(460, 20), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSize(ImVec2(340, 180), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSize(ImVec2(340, 220), ImGuiCond_Appearing);
 
 					if (ImGui::Begin(u8"지형 편집기", &bShowGameObjectEditor))
 					{
 						if (goTerrain)
 						{
+							static bool bShouldRecalculateTerrainVertexNormals{ false };
 							static float TerrainHeightSetValue{};
 							static float TerrainSelectionSize{};
 							const char* Lists[]{ u8"높이 지정", u8"높이 변경" };
@@ -303,18 +311,31 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 							if (iSelectedItem == 0)
 							{
+								ImGui::PushItemWidth(100);
 								if (ImGui::DragFloat(u8"지정 높이", &TerrainHeightSetValue, CGame::KTerrainHeightUnit,
 									CGame::KTerrainMinHeight, CGame::KTerrainMaxHeight, "%.1f"))
 								{
 									Game.SetTerrainEditMode(ETerrainEditMode::SetHeight, TerrainHeightSetValue);
 								}
+								ImGui::PopItemWidth();
 							}
 
+							ImGui::PushItemWidth(100);
 							if (ImGui::DragFloat(u8"지형 선택 크기", &TerrainSelectionSize, 1.0f, 1.0f, 8.0f, "%.0f"))
 							{
 								Game.SetTerrainSelectionSize(TerrainSelectionSize);
 							}
-							
+							ImGui::PopItemWidth();
+
+							ImGui::Separator();
+
+							ImGui::Text(u8"지형 선택 위치: (%.0f, %.0f)", Game.GetTerrainSelectionPosition().x, Game.GetTerrainSelectionPosition().y);
+
+							if (ImGui::Button(u8"전체 법선 재계산"))
+							{
+								Game.UpdateTerrainVertexNormals();
+							}
+
 							ImGui::Separator();
 
 							if (ImGui::Button(u8"텍스쳐 변경")) ImGui::OpenPopup(u8"텍스쳐 선택");
@@ -370,7 +391,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				
 				if (bShowTextureListWindow)
 				{
-					ImGui::SetNextWindowPos(ImVec2(460, 200), ImGuiCond_Appearing);
+					ImGui::SetNextWindowPos(ImVec2(460, 240), ImGuiCond_Appearing);
 					ImGui::SetNextWindowSize(ImVec2(340, 120), ImGuiCond_Appearing);
 
 					if (ImGui::Begin(u8"텍스쳐 목록", &bShowTextureListWindow, ImGuiWindowFlags_AlwaysAutoResize))
