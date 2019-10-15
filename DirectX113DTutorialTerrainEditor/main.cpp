@@ -219,7 +219,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						char FileName[MAX_PATH]{};
 						OPENFILENAME ofn{};
 						ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
-						ofn.lpstrFilter = "Terrain File\0*.terr\0";
+						ofn.lpstrFilter = "지형 파일(*.terr)\0*.terr\0";
 						ofn.lpstrFile = FileName;
 						ofn.lpstrTitle = "지형 모델 불러오기";
 						ofn.lStructSize = sizeof(OPENFILENAME);
@@ -247,7 +247,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							OPENFILENAME ofn{};
 							ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
 							ofn.lpstrDefExt = ".terr";
-							ofn.lpstrFilter = "Terrain File\0*.terr\0";
+							ofn.lpstrFilter = "지형 파일(*.terr)\0*.terr\0";
 							ofn.lpstrFile = FileName;
 							ofn.lpstrTitle = "지형 모델 내보내기";
 							ofn.lStructSize = sizeof(OPENFILENAME);
@@ -466,9 +466,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							char FileName[MAX_PATH]{};
 							OPENFILENAME ofn{};
 							ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
-							ofn.lpstrFilter = "PNG Files\0*.png\0Any File\0*.*\0";
+							ofn.lpstrFilter = "PNG 파일\0*.png\0JPG 파일\0*.jpg\0모든 파일\0*.*\0";
 							ofn.lpstrFile = FileName;
-							ofn.lpstrTitle = "이미지 불러오기";
+							ofn.lpstrTitle = "텍스쳐 불러오기";
 							ofn.lStructSize = sizeof(OPENFILENAME);
 							ofn.nMaxFile = MAX_PATH;
 							if (GetOpenFileName(&ofn))
