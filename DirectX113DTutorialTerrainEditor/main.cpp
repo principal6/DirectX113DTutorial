@@ -96,6 +96,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 			Game.BeginRendering(Colors::CornflowerBlue);
 
+			// Keyboard input
 			const Keyboard::State& KeyState{ Game.GetKeyState() };
 			if (KeyState.LeftAlt && KeyState.Q)
 			{
@@ -144,46 +145,34 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			}
 			if (KeyDown == VK_F3)
 			{
-				Game.ToggleGameRenderingFlags(EFlagsGameRendering::UseLighting);
-			}
-			if (KeyDown == VK_F4)
-			{
 				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawMiniAxes);
 			}
-			if (KeyDown == VK_F5)
-			{
-				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawBoundingSphere);
-			}
-			if (KeyDown == VK_F6)
-			{
-				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawPickingData);
-			}
 
+
+			// Mouse input
 			const Mouse::State& MouseState{ Game.GetMouseState() };
 			static int PrevMouseX{ MouseState.x };
 			static int PrevMouseY{ MouseState.y };
-
-			Game.SelectTerrain(LeftButton || RightButton, LeftButton);
-
-			if (MouseState.leftButton)
+			if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
 			{
-				Game.Pick();
-			}
-			if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
-			{
-				Game.SelectTerrain(false, false);
+				Game.SelectTerrain(LeftButton || RightButton, LeftButton);
 
-				if (MouseState.middleButton)
+				if (MouseState.leftButton)
 				{
-					MainCamera->RotateCamera(MouseState.x - PrevMouseX, MouseState.y - PrevMouseY, 0.01f);
+					Game.Pick();
 				}
+				if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
+				{
+					Game.SelectTerrain(false, false);
 
-				PrevMouseX = MouseState.x;
-				PrevMouseY = MouseState.y;
-			}
-			if (MouseState.scrollWheelValue)
-			{
-				MainCamera->ZoomCamera(MouseState.scrollWheelValue, 0.01f);
+					if (MouseState.middleButton)
+					{
+						MainCamera->RotateCamera(MouseState.x - PrevMouseX, MouseState.y - PrevMouseY, 0.01f);
+					}
+
+					PrevMouseX = MouseState.x;
+					PrevMouseY = MouseState.y;
+				}
 			}
 
 			Game.Animate();
@@ -456,7 +445,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
 	if (ImGui_ImplWin32_WndProcHandler(hWnd, Msg, wParam, lParam))
-		return true;
+		return 0;
 
 	switch (Msg)
 	{
