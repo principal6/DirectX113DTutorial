@@ -211,6 +211,8 @@ public:
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color);
 	void SetAmbientlLight(const XMFLOAT3& Color, float Intensity);
 	void SetTerrain(CGameObject3D* Terrain, const XMFLOAT2& TerrainSize);
+	const SModel* GetTerrainModelPtr() const;
+	const XMFLOAT2& GetTerrainSize() { return m_TerrainSize; }
 
 private:
 	void LoadSkyObjectData(tinyxml2::XMLElement* xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
@@ -261,7 +263,7 @@ private:
 public:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
 	void SetTerrainEditMode(ETerrainEditMode Mode, float Value);
-	void SetTerrainSelectionSize(float Size);
+	void SetTerrainSelectionSize(float& Size);
 	bool ShouldUpdateTerrainVertexNormals();
 	void UpdateTerrainVertexNormals();
 
@@ -336,6 +338,9 @@ public:
 	static constexpr float KTerrainMaxHeight{ +10.0f };
 	static constexpr float KTerrainMinHeight{ -10.0f };
 	static constexpr float KTerrainHeightUnit{ 0.1f };
+	static constexpr float KTerrainSelectionMinSize{ 1.0f };
+	static constexpr float KTerrainSelectionMaxSize{ 10.0f };
+	static constexpr float KTerrainSelectionSizeUnit{ 1.0f };
 	static constexpr int KTerrainMinSize{ 2 };
 	
 private:

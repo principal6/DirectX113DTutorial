@@ -225,6 +225,7 @@
     <ClInclude Include="Core\GameObject2D.h" />
     <ClInclude Include="Core\GameObject3DLine.h" />
     <ClInclude Include="Core\Math.h" />
+    <ClInclude Include="Core\ModelPorter.h" />
     <ClInclude Include="Core\Object2D.h" />
     <ClInclude Include="Core\Object3D.h" />
     <ClInclude Include="Core\Object3DLine.h" />

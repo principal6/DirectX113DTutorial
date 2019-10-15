@@ -1,6 +1,7 @@
 #include <chrono>
 #include "Core/Game.h"
 #include "Core/AssimpLoader.h"
+#include "Core/ModelPorter.h"
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_win32.h"
 #include "ImGui/imgui_impl_dx11.h"
@@ -195,24 +196,76 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				static bool bShowGameObjectEditor{ true };
 				static bool bShowTextureListWindow{ true };
 				static bool bShowTerrainGenerator{ false };
-
-				if (KeyState.LeftControl && KeyState.N)
-				{
-					bShowTerrainGenerator = true;
-				}
+				static bool bShowOpenFileDialog{ false };
+				static bool bShowSaveFileDialog{ false };
 
 				if (ImGui::BeginMainMenuBar())
 				{
+					if (KeyState.LeftControl && KeyState.N) bShowTerrainGenerator = true;
+					if (KeyState.LeftControl && KeyState.O) bShowOpenFileDialog = true;
+					if (KeyState.LeftControl && KeyState.S) bShowSaveFileDialog = true;
+
 					if (ImGui::BeginMenu(u8"지형"))
 					{
 						if (ImGui::MenuItem(u8"생성", "Ctrl+N", nullptr)) bShowTerrainGenerator = true;
+						if (ImGui::MenuItem(u8"불러오기", "Ctrl+O", nullptr)) bShowOpenFileDialog = true;
+						if (ImGui::MenuItem(u8"내보내기", "Ctrl+S", nullptr)) bShowSaveFileDialog = true;
+
 						ImGui::EndMenu();
+					}
+
+					if (bShowOpenFileDialog)
+					{
+						char FileName[MAX_PATH]{};
+						OPENFILENAME ofn{};
+						ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+						ofn.lpstrFilter = "Terrain File\0*.terr\0";
+						ofn.lpstrFile = FileName;
+						ofn.lpstrTitle = "지형 모델 불러오기";
+						ofn.lStructSize = sizeof(OPENFILENAME);
+						ofn.nMaxFile = MAX_PATH;
+						if (GetOpenFileName(&ofn))
+						{
+							if (!goTerrain->ComponentRender.PtrObject3D) goTerrain->ComponentRender.PtrObject3D = Game.AddObject3D();
+
+							SModel TerrainModel{};
+							XMFLOAT2 TerrainSize{};
+							ImportTerrain(FileName, TerrainModel, TerrainSize);
+							goTerrain->ComponentRender.PtrObject3D->Create(TerrainModel);
+
+							Game.SetTerrain(goTerrain, TerrainSize);
+						}
+
+						bShowOpenFileDialog = false;
+					}
+
+					if (bShowSaveFileDialog)
+					{
+						if (Game.GetTerrainModelPtr())
+						{
+							char FileName[MAX_PATH]{};
+							OPENFILENAME ofn{};
+							ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+							ofn.lpstrDefExt = ".terr";
+							ofn.lpstrFilter = "Terrain File\0*.terr\0";
+							ofn.lpstrFile = FileName;
+							ofn.lpstrTitle = "지형 모델 내보내기";
+							ofn.lStructSize = sizeof(OPENFILENAME);
+							ofn.nMaxFile = MAX_PATH;
+							if (GetSaveFileName(&ofn))
+							{
+								ExportTerrain(*Game.GetTerrainModelPtr(), Game.GetTerrainSize(), FileName);
+							}
+						}
+
+						bShowSaveFileDialog = false;
 					}
 
 					if (ImGui::BeginMenu(u8"창"))
 					{
 						ImGui::MenuItem(u8"지형 편집기", nullptr, &bShowGameObjectEditor);
 						ImGui::MenuItem(u8"텍스쳐 목록", nullptr, &bShowTextureListWindow);
+						
 						ImGui::EndMenu();
 					}
 
@@ -245,7 +298,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::PopID();
 					if (SizeZ % 2) ++SizeZ;
 
-					if (ImGui::Button(u8"결정"))
+					if (ImGui::Button(u8"결정") || ImGui::IsKeyDown(VK_RETURN))
 					{
 						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
 
@@ -262,7 +315,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					ImGui::SameLine();
 
-					if (ImGui::Button(u8"닫기"))
+					if (ImGui::Button(u8"닫기") || ImGui::IsKeyDown(VK_ESCAPE))
 					{
 						SizeX = CGame::KTerrainMinSize;
 						SizeZ = CGame::KTerrainMinSize;
@@ -277,7 +330,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				if (bShowGameObjectEditor)
 				{
 					ImGui::SetNextWindowPos(ImVec2(460, 20), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSize(ImVec2(340, 220), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSize(ImVec2(340, 230), ImGuiCond_Appearing);
 
 					if (ImGui::Begin(u8"지형 편집기", &bShowGameObjectEditor))
 					{
@@ -285,8 +338,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						{
 							static bool bShouldRecalculateTerrainVertexNormals{ false };
 							static float TerrainHeightSetValue{};
-							static float TerrainSelectionSize{};
-							const char* Lists[]{ u8"높이 지정", u8"높이 변경" };
+							static float TerrainSelectionSize{ CGame::KTerrainSelectionMinSize };
+							const char* Lists[]{ u8"<높이 지정 모드>", u8"<높이 변경 모드>" };
 							static int iSelectedItem{};
 
 							for (int iListItem = 0; iListItem < 2; ++iListItem)
@@ -312,7 +365,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							if (iSelectedItem == 0)
 							{
 								ImGui::PushItemWidth(100);
-								if (ImGui::DragFloat(u8"지정 높이", &TerrainHeightSetValue, CGame::KTerrainHeightUnit,
+								if (ImGui::DragFloat(u8"지정할 높이", &TerrainHeightSetValue, CGame::KTerrainHeightUnit,
 									CGame::KTerrainMinHeight, CGame::KTerrainMaxHeight, "%.1f"))
 								{
 									Game.SetTerrainEditMode(ETerrainEditMode::SetHeight, TerrainHeightSetValue);
@@ -321,15 +374,22 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							}
 
 							ImGui::PushItemWidth(100);
-							if (ImGui::DragFloat(u8"지형 선택 크기", &TerrainSelectionSize, 1.0f, 1.0f, 8.0f, "%.0f"))
+							if (ImGui::DragFloat(u8"지형 선택 크기", &TerrainSelectionSize, CGame::KTerrainSelectionSizeUnit, 
+								CGame::KTerrainSelectionMinSize, CGame::KTerrainSelectionMaxSize, "%.0f"))
 							{
+								Game.SetTerrainSelectionSize(TerrainSelectionSize);
+							}
+							if (MouseState.scrollWheelValue)
+							{
+								if (MouseState.scrollWheelValue > 0) TerrainSelectionSize += CGame::KTerrainSelectionSizeUnit;
+								if (MouseState.scrollWheelValue < 0) TerrainSelectionSize -= CGame::KTerrainSelectionSizeUnit;
 								Game.SetTerrainSelectionSize(TerrainSelectionSize);
 							}
 							ImGui::PopItemWidth();
 
 							ImGui::Separator();
 
-							ImGui::Text(u8"지형 선택 위치: (%.0f, %.0f)", Game.GetTerrainSelectionPosition().x, Game.GetTerrainSelectionPosition().y);
+							ImGui::Text(u8"현재 선택 위치: (%.0f, %.0f)", Game.GetTerrainSelectionPosition().x, Game.GetTerrainSelectionPosition().y);
 
 							if (ImGui::Button(u8"전체 법선 재계산"))
 							{
@@ -391,7 +451,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				
 				if (bShowTextureListWindow)
 				{
-					ImGui::SetNextWindowPos(ImVec2(460, 240), ImGuiCond_Appearing);
+					ImGui::SetNextWindowPos(ImVec2(460, 250), ImGuiCond_Appearing);
 					ImGui::SetNextWindowSize(ImVec2(340, 120), ImGuiCond_Appearing);
 
 					if (ImGui::Begin(u8"텍스쳐 목록", &bShowTextureListWindow, ImGuiWindowFlags_AlwaysAutoResize))

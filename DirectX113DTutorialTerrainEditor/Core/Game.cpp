@@ -251,6 +251,14 @@ void CGame::SetTerrain(CGameObject3D* Terrain, const XMFLOAT2& TerrainSize)
 	m_PtrGameObject3DTerrain->ComponentRender.PtrPS = m_PSTerrainEdit.get();
 }
 
+const SModel* CGame::GetTerrainModelPtr() const
+{
+	if (!m_PtrGameObject3DTerrain) return nullptr;
+	if (!m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D) return nullptr;
+
+	return &m_PtrGameObject3DTerrain->ComponentRender.PtrObject3D->m_Model;
+}
+
 CCamera* CGame::AddCamera(const SCameraData& CameraData)
 {
 	m_vCameras.emplace_back(CameraData);
@@ -1011,8 +1019,11 @@ void CGame::SetTerrainEditMode(ETerrainEditMode Mode, float Value)
 	m_TerrainEditValue = Value;
 }
 
-void CGame::SetTerrainSelectionSize(float Size)
+void CGame::SetTerrainSelectionSize(float& Size)
 {
+	Size = min(Size, KTerrainSelectionMaxSize);
+	Size = max(Size, KTerrainSelectionMinSize);
+	
 	m_TerrainSelectionHalfSize = Size / 2.0f;
 }
 
