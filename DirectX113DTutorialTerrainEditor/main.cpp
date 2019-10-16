@@ -270,8 +270,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				if (bShowTerrainGenerator) ImGui::OpenPopup(u8"지형 생성기");
 				if (ImGui::BeginPopupModal(u8"지형 생성기", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
 				{
-					static int SizeX{ CTerrain::KMinSize };
-					static int SizeZ{ CTerrain::KMinSize };
+					static int SizeX{ CTerrain::KDefaultSize };
+					static int SizeZ{ CTerrain::KDefaultSize };
 					static float MaskingDetail{ CTerrain::KMaskingDefaultDetail };
 					
 					ImGui::PushID(0);
@@ -292,7 +292,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::Text(u8"마스킹 디테일:");
 					ImGui::SameLine();
 					ImGui::PushItemWidth(62);
-					ImGui::DragFloat("", &MaskingDetail, 1.0f, CTerrain::KMaskingMinDetail, CTerrain::KMaskingMaxDetail);
+					ImGui::DragFloat("", &MaskingDetail, 1.0f, CTerrain::KMaskingMinDetail, CTerrain::KMaskingMaxDetail, "%.0f");
 					ImGui::PopItemWidth();
 					ImGui::PopID();
 
@@ -300,11 +300,16 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (ImGui::Button(u8"결정") || ImGui::IsKeyDown(VK_RETURN))
 					{
+						ETerrainEditMode eEditMode{};
+						if (Game.GetTerrain()) eEditMode = Game.GetTerrain()->GetEditMode();
+
 						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
 						Game.CreateTerrain(TerrainSize, TextureGround->GetFileName(), MaskingDetail);
 
-						SizeX = CTerrain::KMinSize;
-						SizeZ = CTerrain::KMinSize;
+						SizeX = CTerrain::KDefaultSize;
+						SizeZ = CTerrain::KDefaultSize;
+
+						Game.SetTerrainEditMode(eEditMode);
 
 						bShowTerrainGenerator = false;
 						ImGui::CloseCurrentPopup();
@@ -314,8 +319,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (ImGui::Button(u8"닫기") || ImGui::IsKeyDown(VK_ESCAPE))
 					{
-						SizeX = CTerrain::KMinSize;
-						SizeZ = CTerrain::KMinSize;
+						SizeX = CTerrain::KDefaultSize;
+						SizeZ = CTerrain::KDefaultSize;
 
 						bShowTerrainGenerator = false;
 						ImGui::CloseCurrentPopup();
@@ -335,12 +340,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						if (Game.GetTerrain())
 						{
 							static bool bShouldRecalculateTerrainVertexNormals{ false };
-							static float TerrainHeightSetValue{};
 							static float TerrainSelectionSize{ CTerrain::KSelectionMinSize };
+							static float TerrainSetHeightValue{};
+							static float TerrainDeltaHeightValue{ CTerrain::KHeightUnit };
 							static int TerrainMaskingLayer{};
 							static float TerrainMaskingRadius{ CTerrain::KMaskingDefaultRadius };
-							static float TerrainMaskingRatio{ CTerrain::KMaskingMaxRatio };
-							static float TerrainMaskingAttenuation{ CTerrain::KMaskingAttenuationMin };
+							static float TerrainMaskingRatio{ CTerrain::KMaskingDefaultRatio };
+							static float TerrainMaskingAttenuation{ CTerrain::KMaskingDefaultAttenuation };
 							const char* Lists[]{ u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<마스킹 모드>" };
 							static int iSelectedItem{};
 
@@ -359,13 +365,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									switch (iSelectedItem)
 									{
 									case 0:
-										Game.SetTerrainEditMode(ETerrainEditMode::SetHeight, TerrainHeightSetValue);
+										Game.SetTerrainEditMode(ETerrainEditMode::SetHeight);
 										break;
 									case 1:
-										Game.SetTerrainEditMode(ETerrainEditMode::DeltaHeight, CTerrain::KHeightUnit);
+										Game.SetTerrainEditMode(ETerrainEditMode::DeltaHeight);
 										break;
 									case 2:
-										Game.SetTerrainEditMode(ETerrainEditMode::Masking, TerrainMaskingRatio);
+										Game.SetTerrainEditMode(ETerrainEditMode::Masking);
 										break;
 									default:
 										break;
@@ -376,15 +382,26 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							if (iSelectedItem == 0)
 							{
 								ImGui::PushItemWidth(100);
-								if (ImGui::DragFloat(u8"지정할 높이", &TerrainHeightSetValue, CTerrain::KHeightUnit,
+								if (ImGui::DragFloat(u8"지정할 높이", &TerrainSetHeightValue, CTerrain::KHeightUnit,
 									CTerrain::KMinHeight, CTerrain::KMaxHeight, "%.1f"))
 								{
-									Game.SetTerrainEditMode(ETerrainEditMode::SetHeight, TerrainHeightSetValue);
+									Game.GetTerrain()->SetSetHeightValue(TerrainSetHeightValue);
 								}
 								ImGui::PopItemWidth();
 							}
-
-							if (iSelectedItem == 2)
+							else if (iSelectedItem == 1)
+							{
+								/*
+								ImGui::PushItemWidth(100);
+								if (ImGui::DragFloat(u8"증감할 높이", &TerrainDeltaHeightValue, CTerrain::KHeightUnit,
+									CTerrain::KMinHeight, CTerrain::KMaxHeight, "%.1f"))
+								{
+									Game.GetTerrain()->SetDeltaHeightValue(TerrainDeltaHeightValue);
+								}
+								ImGui::PopItemWidth();
+								*/
+							}
+							else if (iSelectedItem == 2)
 							{
 								ImGui::PushItemWidth(100);
 								if (ImGui::DragInt(u8"마스킹 레이어", &TerrainMaskingLayer, 1.0f, 0, CTerrain::KTextureMaxCount - 2, "%.0f"))
@@ -413,13 +430,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								if (ImGui::DragFloat(u8"마스킹 배합 비율", &TerrainMaskingRatio, CTerrain::KMaskingRatioUnit, 
 									CTerrain::KMaskingMinRatio, CTerrain::KMaskingMaxRatio, "%.3f"))
 								{
-									Game.SetTerrainEditMode(ETerrainEditMode::Masking, TerrainMaskingRatio);
+									Game.GetTerrain()->SetMaskingValue(TerrainMaskingRatio);
 								}
 								ImGui::PopItemWidth();
 
 								ImGui::PushItemWidth(100);
 								if (ImGui::DragFloat(u8"마스킹 감쇠", &TerrainMaskingAttenuation, CTerrain::KMaskingAttenuationUnit,
-									CTerrain::KMaskingAttenuationMin, CTerrain::KMaskingAttenuationMax, "%.3f"))
+									CTerrain::KMaskingMinAttenuation, CTerrain::KMaskingMaxAttenuation, "%.3f"))
 								{
 									Game.SetTerrainMaskingAttenuation(TerrainMaskingAttenuation);
 								}
@@ -568,7 +585,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				// ### 텍스쳐 목록 윈도우 ###
 				if (bShowTextureListWindow)
 				{
-					ImGui::SetNextWindowPos(ImVec2(500, 290), ImGuiCond_Appearing);
+					ImGui::SetNextWindowPos(ImVec2(500, 400), ImGuiCond_Appearing);
 					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(300, 400));
 					if (ImGui::Begin(u8"텍스쳐 목록", &bShowTextureListWindow, ImGuiWindowFlags_AlwaysAutoResize))
 					{

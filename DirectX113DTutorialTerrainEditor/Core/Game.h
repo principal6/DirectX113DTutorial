@@ -283,7 +283,7 @@ private:
 
 public:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
-	void SetTerrainEditMode(ETerrainEditMode Mode, float Value);
+	void SetTerrainEditMode(ETerrainEditMode Mode);
 	void SetTerrainMaskingLayer(EMaskingLayer eLayer);
 	void SetTerrainMaskingAttenuation(float Attenuation);
 	void SetTerrainMaskingSize(float Size);

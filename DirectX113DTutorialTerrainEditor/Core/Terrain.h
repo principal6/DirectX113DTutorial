@@ -70,7 +70,11 @@ public:
 	void SetMaskingLayer(EMaskingLayer eLayer);
 	void SetMaskingAttenuation(float Attenuation);
 	void SetMaskingRadius(float Radius);
-	void SetEditMode(ETerrainEditMode Mode, float Value);
+	void SetEditMode(ETerrainEditMode Mode);
+	ETerrainEditMode GetEditMode();
+	void SetSetHeightValue(float Value);
+	void SetDeltaHeightValue(float Value);
+	void SetMaskingValue(float Value);
 
 public:
 	void Draw(bool bUseTerrainSelector, bool bDrawNormals);
@@ -82,27 +86,32 @@ private:
 public:
 	static constexpr int KTextureMaxCount{ 5 }; // It includes 1 main texture + 4 layer textures
 
-	static constexpr float KHeightUnit{ 0.1f };
-	static constexpr float KMaxHeight{ +10.0f };
-	static constexpr float KMinHeight{ -10.0f };
-	
+	static constexpr float KHeightUnit{ 0.01f };
+	static constexpr float KMaxHeight{ +5.0f };
+	static constexpr float KMinHeight{ -5.0f };
+
 	static constexpr float KSelectionSizeUnit{ 1.0f };
 	static constexpr float KSelectionMinSize{ 1.0f };
 	static constexpr float KSelectionMaxSize{ 10.0f };
 	
 	static constexpr int KMinSize{ 2 };
+	static constexpr int KDefaultSize{ 10 };
+
 	static constexpr float KMaskingRatioUnit{ 0.01f };
 	static constexpr float KMaskingMinRatio{ 0.0f };
 	static constexpr float KMaskingMaxRatio{ 1.0f };
+	static constexpr float KMaskingDefaultRatio{ KMaskingMaxRatio };
 
 	static constexpr float KMaskingAttenuationUnit{ 0.01f };
-	static constexpr float KMaskingAttenuationMin{ 0.0f };
-	static constexpr float KMaskingAttenuationMax{ 1.0f };
+	static constexpr float KMaskingMinAttenuation{ 0.0f };
+	static constexpr float KMaskingMaxAttenuation{ 1.0f };
+	static constexpr float KMaskingDefaultAttenuation{ KMaskingMinAttenuation };
 
 	static constexpr float KMaskingRadiusUnit{ 0.1f };
 	static constexpr float KMaskingMinRadius{ 0.1f };
 	static constexpr float KMaskingMaxRadius{ 8.0f };
 	static constexpr float KMaskingDefaultRadius{ 1.0f };
+
 	static constexpr float KMaskingMinDetail{ 1.0f };
 	static constexpr float KMaskingMaxDetail{ 32.0f };
 	static constexpr float KMaskingDefaultDetail{ 16.0f };
@@ -126,11 +135,13 @@ private:
 	XMFLOAT2				m_SelectionRoundUpPosition{};
 
 	ETerrainEditMode		m_eEditMode{};
-	float					m_EditValue{};
+	float					m_SetHeightValue{};
+	float					m_DeltaHeightValue{ KHeightUnit };
+	float					m_MaskingRatio{ KMaskingDefaultRatio };
 
 	XMFLOAT2				m_HoverPosition{};
 	EMaskingLayer			m_eMaskingLayer{};
 	float					m_MaskingRadius{ KMaskingDefaultRadius };
-	float					m_MaskingAttenuation{ KMaskingAttenuationMin };
+	float					m_MaskingAttenuation{ KMaskingMinAttenuation };
 	float					m_MaskingTextureDetail{ KMaskingDefaultDetail };
 };

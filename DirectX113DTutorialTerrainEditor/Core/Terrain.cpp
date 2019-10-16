@@ -420,7 +420,7 @@ void CTerrain::SelectTerrain(const XMVECTOR& PickingRayOrigin, const XMVECTOR& P
 		{
 			if (bIsLeftButton)
 			{
-				UpdateMasking(m_eMaskingLayer, m_HoverPosition, m_EditValue, m_MaskingRadius);
+				UpdateMasking(m_eMaskingLayer, m_HoverPosition, m_MaskingRatio, m_MaskingRadius);
 			}
 			else
 			{
@@ -456,12 +456,31 @@ void CTerrain::SetMaskingRadius(float Radius)
 	m_MaskingRadius = Radius;
 }
 
-void CTerrain::SetEditMode(ETerrainEditMode Mode, float Value)
+void CTerrain::SetEditMode(ETerrainEditMode Mode)
 {
 	m_eEditMode = Mode;
-	m_EditValue = Value;
 
 	if (m_eEditMode == ETerrainEditMode::Masking) ReleaseSelection();
+}
+
+ETerrainEditMode CTerrain::GetEditMode()
+{
+	return m_eEditMode;
+}
+
+void CTerrain::SetSetHeightValue(float Value)
+{
+	m_SetHeightValue = Value;
+}
+
+void CTerrain::SetDeltaHeightValue(float Value)
+{
+	m_DeltaHeightValue = Value;
+}
+
+void CTerrain::SetMaskingValue(float Value)
+{
+	m_MaskingRatio = Value;
 }
 
 void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
@@ -601,16 +620,28 @@ void CTerrain::UpdateVertex(SVertex3D& Vertex, bool bIsLeftButton)
 	switch (m_eEditMode)
 	{
 	case ETerrainEditMode::SetHeight:
-		Vertex.Position = XMVectorSetY(Vertex.Position, m_EditValue);
-		break;
+	{
+		float NewY{ m_SetHeightValue };
+		NewY = min(NewY, KMaxHeight);
+		NewY = max(NewY, KMinHeight);
+		Vertex.Position = XMVectorSetY(Vertex.Position, NewY);
+	} break;
 	case ETerrainEditMode::DeltaHeight:
 		if (bIsLeftButton)
 		{
-			Vertex.Position = XMVectorSetY(Vertex.Position, Y + m_EditValue);
+			float NewY{ Y + m_DeltaHeightValue };
+			NewY = min(NewY, KMaxHeight);
+			NewY = max(NewY, KMinHeight);
+
+			Vertex.Position = XMVectorSetY(Vertex.Position, NewY);
 		}
 		else
 		{
-			Vertex.Position = XMVectorSetY(Vertex.Position, Y - m_EditValue);
+			float NewY{ Y - m_DeltaHeightValue };
+			NewY = min(NewY, KMaxHeight);
+			NewY = max(NewY, KMinHeight);
+
+			Vertex.Position = XMVectorSetY(Vertex.Position, NewY);
 		}
 		break;
 	default:

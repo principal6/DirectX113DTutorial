@@ -1105,9 +1105,9 @@ void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
 	}
 }
 
-void CGame::SetTerrainEditMode(ETerrainEditMode Mode, float Value)
+void CGame::SetTerrainEditMode(ETerrainEditMode Mode)
 {
-	m_Terrain->SetEditMode(Mode, Value);
+	m_Terrain->SetEditMode(Mode);
 }
 
 void CGame::SetTerrainMaskingLayer(EMaskingLayer eLayer)
