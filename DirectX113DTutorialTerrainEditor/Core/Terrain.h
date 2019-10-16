@@ -113,8 +113,8 @@ public:
 	static constexpr float KMaskingDefaultRadius{ 1.0f };
 
 	static constexpr float KMaskingMinDetail{ 1.0f };
-	static constexpr float KMaskingMaxDetail{ 32.0f };
-	static constexpr float KMaskingDefaultDetail{ 16.0f };
+	static constexpr float KMaskingMaxDetail{ 16.0f };
+	static constexpr float KMaskingDefaultDetail{ 8.0f };
 
 private:
 	ID3D11Device*			m_PtrDevice{};
