@@ -47,6 +47,7 @@ public:
 	int GetTextureCount() const;
 	const string& GetTextureFileName(int TextureID) const;
 	const XMFLOAT2& GetSelectionRoundUpPosition() const;
+	float GetMaskingTextureDetail() const;
 
 public:
 	void SetTexture(int TextureID, const string& TextureFileName);
@@ -91,9 +92,11 @@ public:
 	
 	static constexpr int KMinSize{ 2 };
 	static constexpr float KMaskingRatioUnit{ 0.01f };
+	static constexpr float KMaskingMinRatio{ 0.0f };
+	static constexpr float KMaskingMaxRatio{ 1.0f };
 
-	static constexpr float KMaskingAttenuationUnit{ 0.001f };
-	static constexpr float KMaskingAttenuationMin{ 0.8f };
+	static constexpr float KMaskingAttenuationUnit{ 0.01f };
+	static constexpr float KMaskingAttenuationMin{ 0.0f };
 	static constexpr float KMaskingAttenuationMax{ 1.0f };
 
 	static constexpr float KMaskingRadiusUnit{ 0.1f };
@@ -102,6 +105,7 @@ public:
 	static constexpr float KMaskingDefaultRadius{ 1.0f };
 	static constexpr float KMaskingMinDetail{ 1.0f };
 	static constexpr float KMaskingMaxDetail{ 32.0f };
+	static constexpr float KMaskingDefaultDetail{ 16.0f };
 
 private:
 	ID3D11Device*			m_PtrDevice{};
@@ -127,6 +131,6 @@ private:
 	XMFLOAT2				m_HoverPosition{};
 	EMaskingLayer			m_eMaskingLayer{};
 	float					m_MaskingRadius{ KMaskingDefaultRadius };
-	float					m_MaskingAttenuation{ KMaskingAttenuationMax };
-	float					m_MaskingTextureDetail{ 32.0f };
+	float					m_MaskingAttenuation{ KMaskingAttenuationMin };
+	float					m_MaskingTextureDetail{ KMaskingDefaultDetail };
 };

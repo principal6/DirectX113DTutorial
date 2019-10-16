@@ -45,7 +45,7 @@ void CObject3D::Create(const SModel& Model)
 			{
 				m_vOwnTextures.emplace_back(make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext, "Own"));
 				m_vOwnTextures.back()->CreateFromFile(Material.TextureFileName);
-				m_vOwnTextures.back()->SetSlot(m_vOwnTextures.size() - 1);
+				m_vOwnTextures.back()->SetSlot(static_cast<UINT>(m_vOwnTextures.size() - 1));
 
 				Material.TextureID = m_vOwnTextures.size() - 1;
 			}

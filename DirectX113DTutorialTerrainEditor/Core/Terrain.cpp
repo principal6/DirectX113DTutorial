@@ -190,6 +190,11 @@ const XMFLOAT2& CTerrain::GetSelectionRoundUpPosition() const
 	return m_SelectionRoundUpPosition;
 }
 
+float CTerrain::GetMaskingTextureDetail() const
+{
+	return m_MaskingTextureDetail;
+}
+
 void CTerrain::SetTexture(int TextureID, const string& TextureFileName)
 {
 	assert(m_Object3D);
@@ -222,7 +227,8 @@ void CTerrain::AddTexture(const string& TextureFileName)
 
 void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, float Value, float Radius, bool bForceSet)
 {
-	float RadiusSquare{ Radius * Radius * m_MaskingTextureDetail * m_MaskingTextureDetail };
+	float DetailSquare{ m_MaskingTextureDetail * m_MaskingTextureDetail };
+	float RadiusSquare{ Radius * Radius * DetailSquare };
 	int CenterU{ static_cast<int>((+m_Size.x / 2.0f + Position.x) * m_MaskingTextureDetail) };
 	int CenterV{ static_cast<int>(-(-m_Size.y / 2.0f + Position.y) * m_MaskingTextureDetail) };
 
@@ -236,7 +242,9 @@ void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, flo
 		float DistanceSquare{ dU * dU + dV * dV };
 		if (DistanceSquare <= RadiusSquare)
 		{
-			float Factor{ pow(m_MaskingAttenuation, sqrt(DistanceSquare) / m_MaskingRadius) };
+			float Factor{ 1.0f -
+				(sqrt(DistanceSquare / DetailSquare) / m_MaskingRadius) * m_MaskingAttenuation - // Distance attenuation
+				((DistanceSquare / DetailSquare) / m_MaskingRadius) * m_MaskingAttenuation }; // Distance square attenuation
 			Factor = max(Factor, 0.0f);
 			Factor = min(Factor, 1.0f);
 

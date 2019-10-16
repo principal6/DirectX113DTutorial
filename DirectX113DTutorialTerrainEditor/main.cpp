@@ -272,7 +272,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				{
 					static int SizeX{ CTerrain::KMinSize };
 					static int SizeZ{ CTerrain::KMinSize };
-					static float MaskingDetail{ CTerrain::KMaskingMaxDetail };
+					static float MaskingDetail{ CTerrain::KMaskingDefaultDetail };
 					
 					ImGui::PushID(0);
 					ImGui::Text(u8"가로:");
@@ -339,10 +339,16 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							static float TerrainSelectionSize{ CTerrain::KSelectionMinSize };
 							static int TerrainMaskingLayer{};
 							static float TerrainMaskingRadius{ CTerrain::KMaskingDefaultRadius };
-							static float TerrainMaskingRatio{};
-							static float TerrainMaskingAttenuation{ CTerrain::KMaskingAttenuationMax };
+							static float TerrainMaskingRatio{ CTerrain::KMaskingMaxRatio };
+							static float TerrainMaskingAttenuation{ CTerrain::KMaskingAttenuationMin };
 							const char* Lists[]{ u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<마스킹 모드>" };
 							static int iSelectedItem{};
+
+							const XMFLOAT2& TerrainSize{ Game.GetTerrain()->GetSize() };
+							ImGui::Text(u8"가로 x 세로: %d x %d", (int)TerrainSize.x, (int)TerrainSize.y);
+							ImGui::Text(u8"마스킹 디테일: %d", (int)Game.GetTerrain()->GetMaskingTextureDetail());
+
+							ImGui::Separator();
 
 							for (int iListItem = 0; iListItem < ARRAYSIZE(Lists); ++iListItem)
 							{
@@ -405,7 +411,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 								ImGui::PushItemWidth(100);
 								if (ImGui::DragFloat(u8"마스킹 배합 비율", &TerrainMaskingRatio, CTerrain::KMaskingRatioUnit, 
-									0.0f, 1.0f, "%.3f"))
+									CTerrain::KMaskingMinRatio, CTerrain::KMaskingMaxRatio, "%.3f"))
 								{
 									Game.SetTerrainEditMode(ETerrainEditMode::Masking, TerrainMaskingRatio);
 								}
