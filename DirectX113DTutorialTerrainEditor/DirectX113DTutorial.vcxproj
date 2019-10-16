@@ -387,9 +387,6 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="Asset\Sky.xml" />
-  </ItemGroup>
-  <ItemGroup>
     <Natvis Include="ImGui\imgui.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

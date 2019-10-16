@@ -25,9 +25,6 @@
     <Filter Include="Assimp">
       <UniqueIdentifier>{b891ad76-8e31-4859-a6df-49e85822dbbe}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Asset">
-      <UniqueIdentifier>{f1b0f6da-c27d-445e-82b8-c2f2f69284b0}</UniqueIdentifier>
-    </Filter>
     <Filter Include="TinyXml2">
       <UniqueIdentifier>{fff3cf0d-0073-4b99-a250-3f6d9ace4d91}</UniqueIdentifier>
     </Filter>
@@ -551,11 +548,6 @@
     <FxCompile Include="Shader\PSMasking2D.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Xml Include="Asset\Sky.xml">
-      <Filter>Asset</Filter>
-    </Xml>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="ImGui\imgui.natvis">
