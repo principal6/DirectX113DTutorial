@@ -93,7 +93,7 @@ public:
 	static constexpr float KMaskingRatioUnit{ 0.01f };
 
 	static constexpr float KMaskingAttenuationUnit{ 0.001f };
-	static constexpr float KMaskingAttenuationMin{ 0.9f };
+	static constexpr float KMaskingAttenuationMin{ 0.8f };
 	static constexpr float KMaskingAttenuationMax{ 1.0f };
 
 	static constexpr float KMaskingRadiusUnit{ 0.1f };

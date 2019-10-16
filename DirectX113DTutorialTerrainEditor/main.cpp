@@ -100,19 +100,19 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			}
 			if (KeyState.W)
 			{
-				MainCamera->MoveCamera(ECameraMovementDirection::Forward, 0.01f);
+				MainCamera->MoveCamera(ECameraMovementDirection::Forward, DeltaTimeF * 4.0f);
 			}
 			if (KeyState.S)
 			{
-				MainCamera->MoveCamera(ECameraMovementDirection::Backward, 0.01f);
+				MainCamera->MoveCamera(ECameraMovementDirection::Backward, DeltaTimeF * 4.0f);
 			}
 			if (KeyState.A)
 			{
-				MainCamera->MoveCamera(ECameraMovementDirection::Leftward, 0.01f);
+				MainCamera->MoveCamera(ECameraMovementDirection::Leftward, DeltaTimeF * 4.0f);
 			}
 			if (KeyState.D)
 			{
-				MainCamera->MoveCamera(ECameraMovementDirection::Rightward, 0.01f);
+				MainCamera->MoveCamera(ECameraMovementDirection::Rightward, DeltaTimeF * 4.0f);
 			}
 			if (KeyState.D1)
 			{
@@ -266,12 +266,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 
 				// ### 지형 생성기 윈도우 ###
-				ImGui::SetNextWindowSize(ImVec2(200, 120), ImGuiCond_Always);
+				ImGui::SetNextWindowSize(ImVec2(200, 150), ImGuiCond_Always);
 				if (bShowTerrainGenerator) ImGui::OpenPopup(u8"지형 생성기");
 				if (ImGui::BeginPopupModal(u8"지형 생성기", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
 				{
 					static int SizeX{ CTerrain::KMinSize };
 					static int SizeZ{ CTerrain::KMinSize };
+					static float MaskingDetail{ CTerrain::KMaskingMaxDetail };
 					
 					ImGui::PushID(0);
 					ImGui::Text(u8"가로:");
@@ -287,10 +288,20 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::PopID();
 					if (SizeZ % 2) ++SizeZ;
 
+					ImGui::PushID(2);
+					ImGui::Text(u8"마스킹 디테일:");
+					ImGui::SameLine();
+					ImGui::PushItemWidth(62);
+					ImGui::DragFloat("", &MaskingDetail, 1.0f, CTerrain::KMaskingMinDetail, CTerrain::KMaskingMaxDetail);
+					ImGui::PopItemWidth();
+					ImGui::PopID();
+
+					ImGui::Separator();
+
 					if (ImGui::Button(u8"결정") || ImGui::IsKeyDown(VK_RETURN))
 					{
 						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
-						Game.CreateTerrain(TerrainSize, TextureGround->GetFileName(), CTerrain::KMaskingMaxDetail);
+						Game.CreateTerrain(TerrainSize, TextureGround->GetFileName(), MaskingDetail);
 
 						SizeX = CTerrain::KMinSize;
 						SizeZ = CTerrain::KMinSize;
@@ -317,10 +328,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				// ### 지형 편집기 윈도우 ###
 				if (bShowTerrainEditor)
 				{
-					ImGui::SetNextWindowPos(ImVec2(460, 20), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSize(ImVec2(340, 260), ImGuiCond_Appearing);
-
-					if (ImGui::Begin(u8"지형 편집기", &bShowTerrainEditor))
+					ImGui::SetNextWindowPos(ImVec2(500, 22), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(300, 400));
+					if (ImGui::Begin(u8"지형 편집기", &bShowTerrainEditor, ImGuiWindowFlags_AlwaysAutoResize))
 					{
 						if (Game.GetTerrain())
 						{
@@ -478,7 +488,16 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 									ImGui::SameLine();
 
-									ImGui::Text(u8"텍스쳐[%d]: %s", iTexture, Game.GetTerrain()->GetTextureFileName(iTexture).c_str());
+									const string& TextureFileName{ Game.GetTerrain()->GetTextureFileName(iTexture) };
+									size_t LastDir{ TextureFileName.find_last_of('\\') };
+									if (LastDir == string::npos)
+									{
+										ImGui::Text(u8"텍스쳐[%d]: %s", iTexture, TextureFileName.c_str());
+									}
+									else
+									{
+										ImGui::Text(u8"텍스쳐[%d]: %s", iTexture, TextureFileName.substr(LastDir).c_str());
+									}
 								}
 							}
 							else
@@ -543,9 +562,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				// ### 텍스쳐 목록 윈도우 ###
 				if (bShowTextureListWindow)
 				{
-					ImGui::SetNextWindowPos(ImVec2(460, 290), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSize(ImVec2(340, 120), ImGuiCond_Appearing);
-
+					ImGui::SetNextWindowPos(ImVec2(500, 290), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(300, 400));
 					if (ImGui::Begin(u8"텍스쳐 목록", &bShowTextureListWindow, ImGuiWindowFlags_AlwaysAutoResize))
 					{
 						static int ListIndex{};
