@@ -290,7 +290,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					if (ImGui::Button(u8"°áÁ¤") || ImGui::IsKeyDown(VK_RETURN))
 					{
 						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
-						Game.CreateTerrain(TerrainSize, TextureGround->GetFileName());
+						Game.CreateTerrain(TerrainSize, TextureGround->GetFileName(), CTerrain::KMaskingMaxDetail);
 
 						SizeX = CTerrain::KMinSize;
 						SizeZ = CTerrain::KMinSize;

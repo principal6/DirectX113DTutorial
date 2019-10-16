@@ -36,37 +36,20 @@
 // # 4B (uint32_t) vid 2
 // ###########################
 
+#define READ_BYTES(ByteCount) memset(ReadBytes, 0, sizeof(ReadBytes)); ifs.read(ReadBytes, ByteCount);
+#define READ_BYTES_TO_BOOL GetBoolFromBtyes(ReadBytes)
+#define READ_BYTES_TO_UINT8 GetUint8FromBtyes(ReadBytes)
+#define READ_BYTES_TO_UINT32 GetUint32FromBtyes(ReadBytes)
+#define READ_BYTES_TO_FLOAT GetFloatFromBtyes(ReadBytes)
+#define READ_BYTES_TO_XMFLOAT3 GetXMFLOAT3FromBtyes(ReadBytes)
+#define READ_BYTES_TO_XMFLOAT4 GetXMFLOAT4FromBtyes(ReadBytes)
+#define READ_BYTES_TO_XMVECTOR GetXMVECTORFromBtyes(ReadBytes)
 
-
-     // TODO: SAVE AND LOAD MASKING DATA !!
-
-
-// ###########################
-// << TERR FILE STRUCTURE >> : << SMOD FILE STRUCTURE >>
-// 8B TERR Signature
-// 4B Terrain X Size
-// 4B Terrain Z Size
-// << SMOD FILE STRUCTURE>>
-// ...
-// ###########################
-
-#define READ(ByteCount) memset(ReadBytes, 0, sizeof(ReadBytes)); ifs.read(ReadBytes, ByteCount);
-#define GET_BOOL GetBoolFromBtyes(ReadBytes)
-#define GET_UINT8 GetUint8FromBtyes(ReadBytes)
-#define GET_UINT32 GetUint32FromBtyes(ReadBytes)
-#define GET_FLOAT GetFloatFromBtyes(ReadBytes)
-#define GET_XMFLOAT3 GetXMFLOAT3FromBtyes(ReadBytes)
-#define GET_XMVECTOR GetXMVECTORFromBtyes(ReadBytes)
-
-#define WRITE_UINT32 ofs.write(Uint32Bytes, sizeof(Uint32Bytes))
-#define WRITE_FLOAT ofs.write(FloatBytes, sizeof(FloatBytes))
-#define WRITE_XMFLOAT3 ofs.write(XMFLOAT3Bytes, sizeof(XMFLOAT3Bytes))
-#define WRITE_XMVECTOR ofs.write(XMVECTORBytes, sizeof(XMVECTORBytes))
-
-#define GET_WRITE_UINT32(Value) GetBytesFromUint32((uint32_t)Value, Uint32Bytes); WRITE_UINT32
-#define GET_WRITE_FLOAT(Value) GetBytesFromFloat((float)Value, FloatBytes); WRITE_FLOAT
-#define GET_WRITE_XMFLOAT3(Value) GetBytesFromXMFLOAT3(Value, XMFLOAT3Bytes); WRITE_XMFLOAT3
-#define GET_WRITE_XMVECTOR(Value) GeBytesFromtXMVECTOR(Value, XMVECTORBytes); WRITE_XMVECTOR
+#define WRITE_UINT32_TO_BYTES(Value) GetBytesFromUint32((uint32_t)Value, Uint32Bytes); ofs.write(Uint32Bytes, sizeof(Uint32Bytes))
+#define WRITE_FLOAT_TO_BYTES(Value) GetBytesFromFloat((float)Value, FloatBytes); ofs.write(FloatBytes, sizeof(FloatBytes))
+#define WRITE_XMFLOAT3_TO_BYTES(Value) GetBytesFromXMFLOAT3(Value, XMFLOAT3Bytes); ofs.write(XMFLOAT3Bytes, sizeof(XMFLOAT3Bytes))
+#define WRITE_XMFLOAT4_TO_BYTES(Value) GetBytesFromXMFLOAT4(Value, XMFLOAT4Bytes); ofs.write(XMFLOAT4Bytes, sizeof(XMFLOAT4Bytes))
+#define WRITE_XMVECTOR_TO_BYTES(Value) GeBytesFromtXMVECTOR(Value, XMVECTORBytes); ofs.write(XMVECTORBytes, sizeof(XMVECTORBytes))
 
 static void GetBytesFromUint32(uint32_t Value, char(&Bytes)[4])
 {
@@ -85,6 +68,13 @@ static void GetBytesFromFloat(float Value, char (&Bytes)[4])
 static void GetBytesFromXMFLOAT3(const XMFLOAT3& Value, char(&Bytes)[12])
 {
 	constexpr size_t KSize{ sizeof(char) * 12 };
+	memset(&Bytes[0], 0, KSize);
+	memcpy(&Bytes[0], &Value.x, KSize);
+}
+
+static void GetBytesFromXMFLOAT4(const XMFLOAT4& Value, char(&Bytes)[16])
+{
+	constexpr size_t KSize{ sizeof(char) * 16 };
 	memset(&Bytes[0], 0, KSize);
 	memcpy(&Bytes[0], &Value.x, KSize);
 }
@@ -136,6 +126,13 @@ static XMFLOAT3 GetXMFLOAT3FromBtyes(char(&Bytes)[512])
 	return Result;
 }
 
+static XMFLOAT4 GetXMFLOAT4FromBtyes(char(&Bytes)[512])
+{
+	XMFLOAT4 Result{};
+	memcpy(&Result, &Bytes[0], sizeof(XMFLOAT4));
+	return Result;
+}
+
 static XMVECTOR GetXMVECTORFromBtyes(char(&Bytes)[512])
 {
 	float X{}, Y{}, Z{}, W{};
@@ -152,106 +149,103 @@ static void _ReadStaticModelFile(std::ifstream& ifs, SModel& Model)
 {
 	char ReadBytes[512]{};
 
-	// 8B Signature
-	READ(8);
-
 	// ##### MATERIAL #####
 	// 1B (uint8_t) Material count
-	READ(1);
-	Model.vMaterials.resize(GET_UINT32);
+	READ_BYTES(1);
+	Model.vMaterials.resize(READ_BYTES_TO_UINT32);
 	for (SMaterial& Material : Model.vMaterials)
 	{
 		// # 1B (uint8_t) Material index
-		READ(1);
+		READ_BYTES(1);
 
 		// # 1B (bool) has texture
-		READ(1);
-		Material.bHasTexture = GET_BOOL;
+		READ_BYTES(1);
+		Material.bHasTexture = READ_BYTES_TO_BOOL;
 
 		// # 12B (XMFLOAT3) ambient
-		READ(12);
-		Material.MaterialAmbient = GET_XMFLOAT3;
+		READ_BYTES(12);
+		Material.MaterialAmbient = READ_BYTES_TO_XMFLOAT3;
 
 		// # 12B (XMFLOAT3) diffuse
-		READ(12);
-		Material.MaterialDiffuse = GET_XMFLOAT3;
+		READ_BYTES(12);
+		Material.MaterialDiffuse = READ_BYTES_TO_XMFLOAT3;
 
 		// # 12B (XMFLOAT3) specular
-		READ(12);
-		Material.MaterialSpecular = GET_XMFLOAT3;
+		READ_BYTES(12);
+		Material.MaterialSpecular = READ_BYTES_TO_XMFLOAT3;
 
 		// # 4B (float) specular exponent
-		READ(4);
-		Material.SpecularExponent = GET_FLOAT;
+		READ_BYTES(4);
+		Material.SpecularExponent = READ_BYTES_TO_FLOAT;
 
 		// # 4B (float) specular intensity
-		READ(4);
-		Material.SpecularIntensity = GET_FLOAT;
+		READ_BYTES(4);
+		Material.SpecularIntensity = READ_BYTES_TO_FLOAT;
 
 		// # 512B (string, MAX) texture file name
-		READ(512);
+		READ_BYTES(512);
 		Material.TextureFileName = ReadBytes;
 	}
 
 	// ##### MESH #####
 	// 1B (uint8_t) Mesh count
-	READ(1);
-	Model.vMeshes.resize(GET_UINT8);
+	READ_BYTES(1);
+	Model.vMeshes.resize(READ_BYTES_TO_UINT8);
 	for (SMesh& Mesh : Model.vMeshes)
 	{
 		// # 1B (uint8_t) Mesh index
-		READ(1);
+		READ_BYTES(1);
 
 		// # 1B (uint8_t) Material id
-		READ(1);
-		Mesh.MaterialID = GET_UINT8;
+		READ_BYTES(1);
+		Mesh.MaterialID = READ_BYTES_TO_UINT8;
 
 		// # ### VERTEX ###
 		// 4B (uint32_t) Vertex count
-		READ(4);
-		Mesh.vVertices.resize(GET_UINT32);
+		READ_BYTES(4);
+		Mesh.vVertices.resize(READ_BYTES_TO_UINT32);
 		for (SVertex3D& Vertex : Mesh.vVertices)
 		{
 			// # 4B (uint32_t) Vertex index
-			READ(4);
+			READ_BYTES(4);
 
 			// # 16B (XMVECTOR) position
-			READ(16);
-			Vertex.Position = GET_XMVECTOR;
+			READ_BYTES(16);
+			Vertex.Position = READ_BYTES_TO_XMVECTOR;
 
 			// # 16B (XMVECTOR) color
-			READ(16);
-			Vertex.Color = GET_XMVECTOR;
+			READ_BYTES(16);
+			Vertex.Color = READ_BYTES_TO_XMVECTOR;
 
 			// # 16B (XMVECTOR) texcoord
-			READ(16);
-			Vertex.TexCoord = GET_XMVECTOR;
+			READ_BYTES(16);
+			Vertex.TexCoord = READ_BYTES_TO_XMVECTOR;
 
 			// # 16B (XMVECTOR) normal
-			READ(16);
-			Vertex.Normal = GET_XMVECTOR;
+			READ_BYTES(16);
+			Vertex.Normal = READ_BYTES_TO_XMVECTOR;
 		}
 
 		// # ### TRIANGLE ###
 		// 4B (uint32_t) Triangle count
-		READ(4);
-		Mesh.vTriangles.resize(GET_UINT32);
+		READ_BYTES(4);
+		Mesh.vTriangles.resize(READ_BYTES_TO_UINT32);
 		for (STriangle& Triangle : Mesh.vTriangles)
 		{
 			// # 4B (uint32_t) Triangle index
-			READ(4);
+			READ_BYTES(4);
 
 			// # 4B (uint32_t) vid 0
-			READ(4);
-			Triangle.I0 = GET_UINT32;
+			READ_BYTES(4);
+			Triangle.I0 = READ_BYTES_TO_UINT32;
 
 			// # 4B (uint32_t) vid 1
-			READ(4);
-			Triangle.I1 = GET_UINT32;
+			READ_BYTES(4);
+			Triangle.I1 = READ_BYTES_TO_UINT32;
 
 			// # 4B (uint32_t) vid 2
-			READ(4);
-			Triangle.I2 = GET_UINT32;
+			READ_BYTES(4);
+			Triangle.I2 = READ_BYTES_TO_UINT32;
 		}
 	}
 }
@@ -262,39 +256,19 @@ static SModel ImportStaticModel(const string& FileName)
 	ifs.open(FileName, std::ofstream::binary);
 	assert(ifs.is_open());
 
+	char ReadBytes[512]{};
+
+	// 8B Signature
+	READ_BYTES(8);
+
 	SModel Model{};
 	_ReadStaticModelFile(ifs, Model);
 
 	return Model;
 }
 
-static void ImportTerrain(const string& FileName, SModel& Model, XMFLOAT2& TerrainSize)
-{
-	std::ifstream ifs{};
-	ifs.open(FileName, std::ofstream::binary);
-	assert(ifs.is_open());
-
-	char ReadBytes[512]{};
-
-	// 8B Signature
-	READ(8);
-
-	// 4B Terrain X Size
-	READ(4);
-	TerrainSize.x = GET_FLOAT;
-	
-	// 4B Terrain Z Size
-	READ(4);
-	TerrainSize.y = GET_FLOAT;
-
-	_ReadStaticModelFile(ifs, Model);
-}
-
 static void _WriteStaticModelFile(std::ofstream& ofs, const SModel& Model)
 {
-	// 8B Signature
-	ofs.write("SMOD_KJW", 8);
-
 	char TextureFileNameBytes[512]{};
 	char Uint32Bytes[4]{};
 	char FloatBytes[4]{};
@@ -315,19 +289,19 @@ static void _WriteStaticModelFile(std::ofstream& ofs, const SModel& Model)
 		ofs.put(Material.bHasTexture);
 
 		// 12B (XMFLOAT3) ambient
-		GET_WRITE_XMFLOAT3(Material.MaterialAmbient);
+		WRITE_XMFLOAT3_TO_BYTES(Material.MaterialAmbient);
 
 		// 12B (XMFLOAT3) diffuse
-		GET_WRITE_XMFLOAT3(Material.MaterialDiffuse);
+		WRITE_XMFLOAT3_TO_BYTES(Material.MaterialDiffuse);
 
 		// 12B (XMFLOAT3) specular
-		GET_WRITE_XMFLOAT3(Material.MaterialSpecular);
+		WRITE_XMFLOAT3_TO_BYTES(Material.MaterialSpecular);
 
 		// 4B (float) specular exponent
-		GET_WRITE_FLOAT(Material.SpecularExponent);
+		WRITE_FLOAT_TO_BYTES(Material.SpecularExponent);
 
 		// 4B (float) specular intensity
-		GET_WRITE_FLOAT(Material.SpecularIntensity);
+		WRITE_FLOAT_TO_BYTES(Material.SpecularIntensity);
 
 		// 512B (string, MAX) texture file name
 		memset(TextureFileNameBytes, 0, 512);
@@ -351,45 +325,45 @@ static void _WriteStaticModelFile(std::ofstream& ofs, const SModel& Model)
 		ofs.put((uint8_t)Mesh.MaterialID);
 
 		// 4B (uint32_t) Vertex count
-		GET_WRITE_UINT32(Mesh.vVertices.size());
+		WRITE_UINT32_TO_BYTES(Mesh.vVertices.size());
 
 		for (uint32_t iVertex = 0; iVertex < (uint32_t)Mesh.vVertices.size(); ++iVertex)
 		{
 			// 4B (uint32_t) Vertex index
-			GET_WRITE_UINT32(iVertex);
+			WRITE_UINT32_TO_BYTES(iVertex);
 
 			const SVertex3D& Vertex{ Mesh.vVertices[iVertex] };
 
 			// 16B (XMVECTOR) position
-			GET_WRITE_XMVECTOR(Vertex.Position);
+			WRITE_XMVECTOR_TO_BYTES(Vertex.Position);
 
 			// 16B (XMVECTOR) color
-			GET_WRITE_XMVECTOR(Vertex.Color);
+			WRITE_XMVECTOR_TO_BYTES(Vertex.Color);
 
 			// 16B (XMVECTOR) texcoord
-			GET_WRITE_XMVECTOR(Vertex.TexCoord);
+			WRITE_XMVECTOR_TO_BYTES(Vertex.TexCoord);
 
 			// 16B (XMVECTOR) normal
-			GET_WRITE_XMVECTOR(Vertex.Normal);
+			WRITE_XMVECTOR_TO_BYTES(Vertex.Normal);
 		}
 
 		// 4B (uint32_t) Triangle count
-		GET_WRITE_UINT32(Mesh.vTriangles.size());
+		WRITE_UINT32_TO_BYTES(Mesh.vTriangles.size());
 		for (uint32_t iTriangle = 0; iTriangle < (uint32_t)Mesh.vTriangles.size(); ++iTriangle)
 		{
 			// 4B (uint32_t) Triangle index
-			GET_WRITE_UINT32(iTriangle);
+			WRITE_UINT32_TO_BYTES(iTriangle);
 
 			const STriangle& Triangle{ Mesh.vTriangles[iTriangle] };
 
 			// 4B (uint32_t) vid 0
-			GET_WRITE_UINT32(Triangle.I0);
+			WRITE_UINT32_TO_BYTES(Triangle.I0);
 
 			// 4B (uint32_t) vid 1
-			GET_WRITE_UINT32(Triangle.I1);
+			WRITE_UINT32_TO_BYTES(Triangle.I1);
 
 			// 4B (uint32_t) vid 2
-			GET_WRITE_UINT32(Triangle.I2);
+			WRITE_UINT32_TO_BYTES(Triangle.I2);
 		}
 	}
 }
@@ -400,28 +374,9 @@ static void ExportStaticModel(const SModel& Model, const string& FileName)
 	ofs.open(FileName, std::ofstream::binary);
 	assert(ofs.is_open());
 
-	_WriteStaticModelFile(ofs, Model);
-
-	ofs.close();
-}
-
-static void ExportTerrain(const SModel& Model, const XMFLOAT2& TerrainSize, const string& FileName)
-{
-	std::ofstream ofs{};
-	ofs.open(FileName, std::ofstream::binary);
-	assert(ofs.is_open());
-
-	char FloatBytes[4]{};
-
 	// 8B Signature
-	ofs.write("TERR_KJW", 8);
+	ofs.write("SMOD_KJW", 8);
 
-	// 4B Terrain X Size
-	GET_WRITE_FLOAT(TerrainSize.x);
-	
-	// 4B Terrain Z Size
-	GET_WRITE_FLOAT(TerrainSize.y);
-	
 	_WriteStaticModelFile(ofs, Model);
 
 	ofs.close();

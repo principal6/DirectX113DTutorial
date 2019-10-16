@@ -226,7 +226,7 @@ public:
 	void SetAmbientlLight(const XMFLOAT3& Color, float Intensity);
 
 public:
-	void CreateTerrain(const XMFLOAT2& TerrainSize, const string& TextureFileName);
+	void CreateTerrain(const XMFLOAT2& TerrainSize, const string& TextureFileName, float MaskingDetail);
 	void LoadTerrain(const string& TerrainFileName);
 	void SaveTerrain(const string& TerrainFileName);
 	void SetTerrainTexture(int TextureID, const string& TextureFileName);

@@ -35,17 +35,18 @@ public:
 	~CTerrain() {}
 
 public:
-	void Create(const XMFLOAT2& TerrainSize, const string& TextureFileName);
+	void Create(const XMFLOAT2& TerrainSize, const string& TextureFileName, float MaskingDetail);
 	void Load(const string& FileName);
 	void Save(const string& FileName);
 
 private:
-	void SetMaskingTexture();
+	void CreateMaskingTexture(bool bShouldClear);
 
 public:
-	int GetTextureCount();
-	const string& GetTextureFileName(int TextureID);
-	const XMFLOAT2& GetSelectionRoundUpPosition();
+	const XMFLOAT2& GetSize() const;
+	int GetTextureCount() const;
+	const string& GetTextureFileName(int TextureID) const;
+	const XMFLOAT2& GetSelectionRoundUpPosition() const;
 
 public:
 	void SetTexture(int TextureID, const string& TextureFileName);
@@ -99,9 +100,8 @@ public:
 	static constexpr float KMaskingMinRadius{ 0.1f };
 	static constexpr float KMaskingMaxRadius{ 8.0f };
 	static constexpr float KMaskingDefaultRadius{ 1.0f };
-
-private:
-	static constexpr float KMaskingTextureDetail{ 32.0f };
+	static constexpr float KMaskingMinDetail{ 1.0f };
+	static constexpr float KMaskingMaxDetail{ 32.0f };
 
 private:
 	ID3D11Device*			m_PtrDevice{};
@@ -128,4 +128,5 @@ private:
 	EMaskingLayer			m_eMaskingLayer{};
 	float					m_MaskingRadius{ KMaskingDefaultRadius };
 	float					m_MaskingAttenuation{ KMaskingAttenuationMax };
+	float					m_MaskingTextureDetail{ 32.0f };
 };

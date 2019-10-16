@@ -284,18 +284,16 @@ void CGame::SetAmbientlLight(const XMFLOAT3& Color, float Intensity)
 	m_PSBase->UpdateConstantBuffer(1);
 }
 
-void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const string& TextureFileName)
+void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const string& TextureFileName, float MaskingDetail)
 {
 	m_Terrain.release();
-	m_Terrain.reset();
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Terrain->Create(TerrainSize, TextureFileName);
+	m_Terrain->Create(TerrainSize, TextureFileName, MaskingDetail);
 }
 
 void CGame::LoadTerrain(const string& TerrainFileName)
 {
 	m_Terrain.release();
-	m_Terrain.reset();
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Load(TerrainFileName);
 }

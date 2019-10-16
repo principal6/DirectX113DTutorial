@@ -4,7 +4,21 @@
 #include "Math.h"
 #include "Game.h"
 
-void CTerrain::Create(const XMFLOAT2& TerrainSize, const string& TextureFileName)
+// ###########################
+// << TERR FILE STRUCTURE >> : << SMOD FILE STRUCTURE >>
+// 8B TERR Signature
+// 4B (float) Terrain X Size
+// 4B (float) Terrain Z Size
+// 4B (float) Masking detail
+// 4B (uint32_t) Masking texture raw data size
+// ### Masking texture Raw data ###
+// 16B (XMFLAOT4) RGBA  ( multiplied by Masking texture raw data size )
+// ...
+// << SMOD FILE STRUCTURE>>
+// ...
+// ###########################
+
+void CTerrain::Create(const XMFLOAT2& TerrainSize, const string& TextureFileName, float MaskingDetail)
 {
 	SModel Model{};
 	Model.vMeshes.emplace_back(GenerateTerrainBase(TerrainSize));
@@ -15,46 +29,136 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const string& TextureFileName
 	Model.vMaterials.emplace_back(Material);
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
 
+	m_Size = TerrainSize;
+
+	m_MaskingTextureDetail = MaskingDetail;
+	m_MaskingTextureDetail = max(m_MaskingTextureDetail, KMaskingMinDetail);
+	m_MaskingTextureDetail = min(m_MaskingTextureDetail, KMaskingMaxDetail);
+
+	m_Object3D.release();
 	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3D->Create(Model);
 
+	m_Object2DMaskingTexture.release();
 	m_Object2DMaskingTexture = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
 	m_Object2DMaskingTexture->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
 
-	m_Size = TerrainSize;
-
-	SetMaskingTexture();
+	CreateMaskingTexture(true);
 }
 
 void CTerrain::Load(const string& FileName)
 {
 	SModel Model{};
-	ImportTerrain(FileName, Model, m_Size);
+	
+	std::ifstream ifs{};
+	ifs.open(FileName, std::ofstream::binary);
+	assert(ifs.is_open());
+
+	char ReadBytes[512]{};
+
+	// 8B Signature
+	READ_BYTES(8);
+
+	// 4B (float) Terrain X Size
+	READ_BYTES(4);
+	m_Size.x = READ_BYTES_TO_FLOAT;
+
+	// 4B (float) Terrain Z Size
+	READ_BYTES(4);
+	m_Size.y = READ_BYTES_TO_FLOAT;
+
+	// 4B (float) Masking detail
+	READ_BYTES(4);
+	m_MaskingTextureDetail = READ_BYTES_TO_FLOAT;
+
+	// 4B (uint32_t) Masking texture raw data size
+	READ_BYTES(4);
+	m_MaskingTextureRawData.resize(READ_BYTES_TO_UINT32);
+
+	// Raw data
+	for (XMFLOAT4& Pixel : m_MaskingTextureRawData)
+	{
+		// 16B (XMFLAOT4) RGBA
+		READ_BYTES(16);
+		Pixel = READ_BYTES_TO_XMFLOAT4;
+	}
+
+	// Model data
+	_ReadStaticModelFile(ifs, Model);
+
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
 
+	m_Object3D.release();
 	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3D->Create(Model);
 
-	SetMaskingTexture();
+	m_Object2DMaskingTexture.release();
+	m_Object2DMaskingTexture = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
+	m_Object2DMaskingTexture->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
+
+	CreateMaskingTexture(false);
 }
 
 void CTerrain::Save(const string& FileName)
 {
-	ExportTerrain(m_Object3D->m_Model, m_Size, FileName);
+	if (!m_Object3D) return;
+
+	std::ofstream ofs{};
+	ofs.open(FileName, std::ofstream::binary);
+	assert(ofs.is_open());
+
+	char FloatBytes[4]{};
+	char Uint32Bytes[4]{};
+	char XMFLOAT4Bytes[16]{};
+
+	// 8B Signature
+	ofs.write("TERR_KJW", 8);
+
+	// 4B (float) Terrain X Size
+	WRITE_FLOAT_TO_BYTES(m_Size.x);
+
+	// 4B (float) Terrain Z Size
+	WRITE_FLOAT_TO_BYTES(m_Size.y);
+
+	// 4B (float) Masking detail
+	WRITE_FLOAT_TO_BYTES(m_MaskingTextureDetail);
+
+	// 4B (uint32_t) Masking texture raw data size
+	WRITE_UINT32_TO_BYTES(m_MaskingTextureRawData.size());
+
+	// Raw data
+	for (const XMFLOAT4& Pixel : m_MaskingTextureRawData)
+	{
+		// 16B (XMFLAOT4) RGBA
+		WRITE_XMFLOAT4_TO_BYTES(Pixel);
+	}
+
+	// Model data
+	_WriteStaticModelFile(ofs, m_Object3D->m_Model);
+
+	ofs.close();
 }
 
-void CTerrain::SetMaskingTexture()
+void CTerrain::CreateMaskingTexture(bool bShouldClear)
 {
-	m_MaskingTextureSize.x = m_Size.x * KMaskingTextureDetail;
-	m_MaskingTextureSize.y = m_Size.y * KMaskingTextureDetail;
+	m_MaskingTextureSize.x = m_Size.x * m_MaskingTextureDetail;
+	m_MaskingTextureSize.y = m_Size.y * m_MaskingTextureDetail;
 
+	m_MaskingTexture.release();
 	m_MaskingTexture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext, "MaskingTexture");
 	m_MaskingTexture->CreateBlankTexture(DXGI_FORMAT_R32G32B32A32_FLOAT, m_MaskingTextureSize);
 	m_MaskingTexture->SetSlot(5);
 	m_MaskingTexture->Use();
 
-	m_MaskingTextureRawData.clear();
-	m_MaskingTextureRawData.resize(static_cast<size_t>(m_MaskingTextureSize.x) * static_cast<size_t>(m_MaskingTextureSize.y));
+	if (bShouldClear)
+	{
+		m_MaskingTextureRawData.clear();
+		m_MaskingTextureRawData.resize(static_cast<size_t>(m_MaskingTextureSize.x)* static_cast<size_t>(m_MaskingTextureSize.y));
+	}
+	else
+	{
+		UpdateMaskingTexture();
+	}
 
 	XMMATRIX Translation{ XMMatrixTranslation(m_Size.x / 2.0f, 0, m_Size.y / 2.0f) };
 	XMMATRIX Scaling{ XMMatrixScaling(1 / m_Size.x, 1.0f, 1 / m_Size.y) };
@@ -62,13 +166,18 @@ void CTerrain::SetMaskingTexture()
 	m_PtrGame->UpdatePSTerrainEditSpace(m_MatrixMaskingSpace);
 }
 
-int CTerrain::GetTextureCount()
+const XMFLOAT2& CTerrain::GetSize() const
+{
+	return m_Size;
+}
+
+int CTerrain::GetTextureCount() const
 {
 	assert(m_Object3D);
 	return (int)m_Object3D->m_Model.vMaterials.size();
 }
 
-const string& CTerrain::GetTextureFileName(int TextureID)
+const string& CTerrain::GetTextureFileName(int TextureID) const
 {
 	assert(m_Object3D);
 	assert(TextureID >= 0 && TextureID < KTextureMaxCount);
@@ -76,7 +185,7 @@ const string& CTerrain::GetTextureFileName(int TextureID)
 	return m_Object3D->m_Model.vMaterials[TextureID].TextureFileName;
 }
 
-const XMFLOAT2& CTerrain::GetSelectionRoundUpPosition()
+const XMFLOAT2& CTerrain::GetSelectionRoundUpPosition() const
 {
 	return m_SelectionRoundUpPosition;
 }
@@ -90,7 +199,6 @@ void CTerrain::SetTexture(int TextureID, const string& TextureFileName)
 	m_Object3D->m_Model.vMaterials[TextureID].TextureFileName = TextureFileName;
 	
 	m_Object3D->m_vOwnTextures[TextureID].release();
-	m_Object3D->m_vOwnTextures[TextureID].reset();
 	m_Object3D->m_vOwnTextures[TextureID] = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext, "Own");
 	m_Object3D->m_vOwnTextures[TextureID]->CreateFromFile(TextureFileName);
 	m_Object3D->m_vOwnTextures[TextureID]->SetSlot(TextureID);
@@ -114,9 +222,9 @@ void CTerrain::AddTexture(const string& TextureFileName)
 
 void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, float Value, float Radius, bool bForceSet)
 {
-	float RadiusSquare{ Radius * Radius * KMaskingTextureDetail * KMaskingTextureDetail };
-	int CenterU{ static_cast<int>((+m_Size.x / 2.0f + Position.x) * KMaskingTextureDetail) };
-	int CenterV{ static_cast<int>(-(-m_Size.y / 2.0f + Position.y) * KMaskingTextureDetail) };
+	float RadiusSquare{ Radius * Radius * m_MaskingTextureDetail * m_MaskingTextureDetail };
+	int CenterU{ static_cast<int>((+m_Size.x / 2.0f + Position.x) * m_MaskingTextureDetail) };
+	int CenterV{ static_cast<int>(-(-m_Size.y / 2.0f + Position.y) * m_MaskingTextureDetail) };
 
 	for (int iPixel = 0; iPixel < (int)m_MaskingTextureRawData.size(); ++iPixel)
 	{
