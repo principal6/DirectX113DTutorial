@@ -100,19 +100,19 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			}
 			if (KeyState.W)
 			{
-				MainCamera->MoveCamera(ECameraMovementDirection::Forward, DeltaTimeF * 4.0f);
+				MainCamera->MoveCamera(ECameraMovementDirection::Forward, DeltaTimeF * 10.0f);
 			}
 			if (KeyState.S)
 			{
-				MainCamera->MoveCamera(ECameraMovementDirection::Backward, DeltaTimeF * 4.0f);
+				MainCamera->MoveCamera(ECameraMovementDirection::Backward, DeltaTimeF * 10.0f);
 			}
 			if (KeyState.A)
 			{
-				MainCamera->MoveCamera(ECameraMovementDirection::Leftward, DeltaTimeF * 4.0f);
+				MainCamera->MoveCamera(ECameraMovementDirection::Leftward, DeltaTimeF * 10.0f);
 			}
 			if (KeyState.D)
 			{
-				MainCamera->MoveCamera(ECameraMovementDirection::Rightward, DeltaTimeF * 4.0f);
+				MainCamera->MoveCamera(ECameraMovementDirection::Rightward, DeltaTimeF * 10.0f);
 			}
 			if (KeyState.D1)
 			{
@@ -147,13 +147,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			static int PrevMouseY{ MouseState.y };
 			if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
 			{
-				if (bLeftButton || bRightButton)
+				if ((bLeftButton || bRightButton) && !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
 				{
-					if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) Game.SelectTerrain(true, bLeftButton);
+					Game.SelectTerrain(true, bLeftButton, DeltaTimeF * 200.0f);
 				}
 				else
 				{
-					Game.SelectTerrain(false, false);
+					Game.SelectTerrain(false, false, DeltaTimeF * 200.0f);
 				}
 				
 				if (MouseState.leftButton)
@@ -162,7 +162,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				}
 				if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
 				{
-					Game.SelectTerrain(false, false);
+					Game.SelectTerrain(false, false, DeltaTimeF * 200.0f);
 
 					if (MouseState.middleButton)
 					{

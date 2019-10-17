@@ -421,7 +421,7 @@ void CTerrain::UpdateHoverPosition(const XMVECTOR& PickingRayOrigin, const XMVEC
 	}
 }
 
-void CTerrain::SelectTerrain(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton)
+void CTerrain::SelectTerrain(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor)
 {
 	if (m_eEditMode == ETerrainEditMode::Masking)
 	{
@@ -443,7 +443,7 @@ void CTerrain::SelectTerrain(const XMVECTOR& PickingRayOrigin, const XMVECTOR& P
 	{
 		UpdateSelection(PickingRayOrigin, PickingRayDirection);
 
-		if (bShouldEdit) UpdateHeight(bIsLeftButton);
+		if (bShouldEdit) UpdateHeight(bIsLeftButton, DeltaHeightFactor);
 	}
 }
 
@@ -548,7 +548,7 @@ void CTerrain::DrawMaskingTexture()
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }
 
-void CTerrain::UpdateHeight(bool bIsLeftButton)
+void CTerrain::UpdateHeight(bool bIsLeftButton, float DeltaHeightFactor)
 {
 	if (!m_Object3D) return;
 
@@ -576,7 +576,7 @@ void CTerrain::UpdateHeight(bool bIsLeftButton)
 					PositionZ >= m_SelectionRoundUpPosition.y - m_SelectionHalfSize &&
 					PositionZ <= m_SelectionRoundUpPosition.y + m_SelectionHalfSize)
 				{
-					UpdateVertex(Mesh.vVertices[iVertex0], bIsLeftButton);
+					UpdateVertex(Mesh.vVertices[iVertex0], bIsLeftButton, DeltaHeightFactor);
 				}
 			}
 			if (iVertex1 >= 0 && iVertex1 < VertexCount)
@@ -589,7 +589,7 @@ void CTerrain::UpdateHeight(bool bIsLeftButton)
 					PositionZ >= m_SelectionRoundUpPosition.y - m_SelectionHalfSize &&
 					PositionZ <= m_SelectionRoundUpPosition.y + m_SelectionHalfSize)
 				{
-					UpdateVertex(Mesh.vVertices[iVertex1], bIsLeftButton);
+					UpdateVertex(Mesh.vVertices[iVertex1], bIsLeftButton, DeltaHeightFactor);
 				}
 			}
 			if (iVertex2 >= 0 && iVertex2 < VertexCount)
@@ -602,7 +602,7 @@ void CTerrain::UpdateHeight(bool bIsLeftButton)
 					PositionZ >= m_SelectionRoundUpPosition.y - m_SelectionHalfSize &&
 					PositionZ <= m_SelectionRoundUpPosition.y + m_SelectionHalfSize)
 				{
-					UpdateVertex(Mesh.vVertices[iVertex2], bIsLeftButton);
+					UpdateVertex(Mesh.vVertices[iVertex2], bIsLeftButton, DeltaHeightFactor);
 				}
 			}
 			if (iVertex3 >= 0 && iVertex3 < VertexCount)
@@ -615,7 +615,7 @@ void CTerrain::UpdateHeight(bool bIsLeftButton)
 					PositionZ >= m_SelectionRoundUpPosition.y - m_SelectionHalfSize &&
 					PositionZ <= m_SelectionRoundUpPosition.y + m_SelectionHalfSize)
 				{
-					UpdateVertex(Mesh.vVertices[iVertex3], bIsLeftButton);
+					UpdateVertex(Mesh.vVertices[iVertex3], bIsLeftButton, DeltaHeightFactor);
 				}
 			}
 		}
@@ -624,7 +624,7 @@ void CTerrain::UpdateHeight(bool bIsLeftButton)
 	m_Object3D->UpdateMeshBuffer();
 }
 
-void CTerrain::UpdateVertex(SVertex3D& Vertex, bool bIsLeftButton)
+void CTerrain::UpdateVertex(SVertex3D& Vertex, bool bIsLeftButton, float DeltaHeightFactor)
 {
 	float Y{ XMVectorGetY(Vertex.Position) };
 
@@ -640,7 +640,7 @@ void CTerrain::UpdateVertex(SVertex3D& Vertex, bool bIsLeftButton)
 	case ETerrainEditMode::DeltaHeight:
 		if (bIsLeftButton)
 		{
-			float NewY{ Y + m_DeltaHeightValue };
+			float NewY{ Y + m_DeltaHeightValue * DeltaHeightFactor };
 			NewY = min(NewY, KMaxHeight);
 			NewY = max(NewY, KMinHeight);
 
@@ -648,7 +648,7 @@ void CTerrain::UpdateVertex(SVertex3D& Vertex, bool bIsLeftButton)
 		}
 		else
 		{
-			float NewY{ Y - m_DeltaHeightValue };
+			float NewY{ Y - m_DeltaHeightValue * DeltaHeightFactor };
 			NewY = min(NewY, KMaxHeight);
 			NewY = max(NewY, KMinHeight);
 

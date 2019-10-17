@@ -54,9 +54,8 @@ public:
 	void AddTexture(const string& TextureFileName);
 	
 	void UpdateVertexNormals();
-	void UpdateHeight(bool bIsLeftButton);
 
-	void SelectTerrain(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton);
+	void SelectTerrain(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor);
 	void UpdateMaskingTexture();
 
 private:
@@ -81,7 +80,8 @@ public:
 	void DrawMaskingTexture();
 
 private:
-	void UpdateVertex(SVertex3D& Vertex, bool bIsLeftButton);
+	void UpdateHeight(bool bIsLeftButton, float DeltaHeightFactor);
+	void UpdateVertex(SVertex3D& Vertex, bool bIsLeftButton, float DeltaHeightFactor);
 
 public:
 	static constexpr int KTextureMaxCount{ 5 }; // It includes 1 main texture + 4 layer textures

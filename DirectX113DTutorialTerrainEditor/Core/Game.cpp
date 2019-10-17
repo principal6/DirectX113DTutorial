@@ -1093,7 +1093,7 @@ bool CGame::PickTriangle()
 	return false;
 }
 
-void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
+void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor)
 {
 	if (!m_Terrain) return;
 
@@ -1101,7 +1101,7 @@ void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
 	{
 		CastPickingRay();
 
-		m_Terrain->SelectTerrain(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, bShouldEdit, bIsLeftButton);
+		m_Terrain->SelectTerrain(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, bShouldEdit, bIsLeftButton, DeltaHeightFactor);
 	}
 }
 

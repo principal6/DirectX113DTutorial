@@ -282,7 +282,7 @@ private:
 	bool PickTriangle();
 
 public:
-	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
+	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor);
 	void SetTerrainEditMode(ETerrainEditMode Mode);
 	void SetTerrainMaskingLayer(EMaskingLayer eLayer);
 	void SetTerrainMaskingAttenuation(float Attenuation);
