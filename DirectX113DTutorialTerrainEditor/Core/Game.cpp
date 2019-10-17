@@ -186,7 +186,7 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	}
 
 	m_SkyTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get(), "SkyTexture");
-	m_SkyTexture->CreateFromFile(m_SkyData.TextureFileName);
+	m_SkyTexture->CreateNonMipMappedTextureFromFile(m_SkyData.TextureFileName);
 
 	m_Object3DSkySphere = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));

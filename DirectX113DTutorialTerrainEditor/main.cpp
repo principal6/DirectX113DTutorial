@@ -34,17 +34,17 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 	CCamera* MainCamera{ Game.AddCamera(SCameraData(ECameraType::FreeLook, XMVectorSet(0, +2.0f, 0, 0), XMVectorSet(0, +2.0f, +1.0f, 0))) };
 
-	CTexture* TextureGround{ Game.AddTexture("ground.png") };
-	{
-		TextureGround->CreateFromFile("Asset\\ground.png");
-	}
-
 	CGameObject3DLine* goGrid{ Game.AddGameObject3DLine("Grid") };
 	{
 		goGrid->ComponentTransform.Translation = XMVectorSet(0.0f, 0.0f, 0.0f, 0);
 
 		goGrid->ComponentRender.PtrObject3DLine = Game.AddObject3DLine();
 		goGrid->ComponentRender.PtrObject3DLine->Create(Generate3DGrid(0));
+	}
+
+	CTexture* TextureGround{ Game.AddTexture("Asset\\ground.png") };
+	{
+		TextureGround->CreateNonMipMappedTextureFromFile("Asset\\ground.png");
 	}
 
 	IMGUI_CHECKVERSION();
@@ -304,7 +304,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						if (Game.GetTerrain()) eEditMode = Game.GetTerrain()->GetEditMode();
 
 						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
-						Game.CreateTerrain(TerrainSize, TextureGround->GetFileName(), MaskingDetail);
+						Game.CreateTerrain(TerrainSize, "Asset\\ground.png", MaskingDetail);
 
 						SizeX = CTerrain::KDefaultSize;
 						SizeZ = CTerrain::KDefaultSize;
@@ -611,11 +611,12 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								string TextureName{ FileName };
 								size_t FoundPos{ TextureName.find_last_of('\\') };
 								CTexture* Texture{ Game.AddTexture(TextureName.substr(FoundPos + 1)) };
-								if (Texture) Texture->CreateFromFile(FileName);
+								if (Texture) Texture->CreateNonMipMappedTextureFromFile(FileName);
 							}
 						}
 						ImGui::PopID();
 
+						ImGui::SetNextItemWidth(170);
 						if (ImGui::ListBoxHeader("", (int)TextureListMap.size()))
 						{
 							int iListItem{};
@@ -629,6 +630,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								++iListItem;
 							}
 							ImGui::ListBoxFooter();
+						}
+
+						if (SelectedTextureName)
+						{
+							ImGui::SameLine();
+
+							ImGui::Image(Game.GetTexture(*SelectedTextureName)->GetShaderResourceViewPtr(), ImVec2(100, 100));
 						}
 					}
 

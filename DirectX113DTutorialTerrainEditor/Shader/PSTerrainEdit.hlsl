@@ -17,12 +17,6 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 {
 	float4 Result = MainTexture.Sample(CurrentSampler, input.UV.xy);
 
-	if (input.UV.z > 0.0f)
-	{
-		float4 Factors = float4(0.2f, 0.4f, 0.6f, 0);
-		Result.xyz *= Factors.xyz;
-	}
-
 	float4 MaskingSpacePosition = mul(float4(input.WorldPosition.x, 0, -input.WorldPosition.z, 1), Matrix);
 	float4 Masking = MaskingTexture.Sample(CurrentSampler, MaskingSpacePosition.xz);
 
@@ -36,6 +30,14 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	Result.xyz = Layer2.xyz * Masking.b + Result.xyz * (1.0f - Masking.b);
 	Result.xyz = Layer3.xyz * Masking.a + Result.xyz * (1.0f - Masking.a);
 	
+	// Selection highlight
+	if (input.UV.z > 0.0f)
+	{
+		float4 Factors = float4(0.2f, 0.4f, 0.6f, 0);
+		Result.xyz *= Factors.xyz;
+	}
+
+	// Fixed directional light
 	Result.xyz *= dot(input.WorldNormal, normalize(float4(1, 1, 0, 1)));
 
 	return Result;
