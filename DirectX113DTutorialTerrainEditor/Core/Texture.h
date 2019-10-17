@@ -35,7 +35,7 @@ private:
 	void SetTextureSize();
 
 public:
-	void UpdateTextureRawData(const void* PtrData);
+	void UpdateTextureRawData(const SPixelUNorm* PtrData);
 	void SetSlot(UINT Slot);
 
 public:
@@ -56,7 +56,6 @@ private:
 	string								m_Name{};
 	string								m_TextureFileName{};
 	XMFLOAT2							m_TextureSize{};
-	size_t								m_PixelByteSize{};
 	UINT								m_Slot{};
 
 private:

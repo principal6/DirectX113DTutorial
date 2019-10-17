@@ -122,12 +122,12 @@ private:
 	CGame*					m_PtrGame{};
 
 private:
-	unique_ptr<CObject2D>	m_Object2DMaskingTexture{};
+	unique_ptr<CObject2D>	m_Object2DMaskingTextureRepresentation{};
 	unique_ptr<CObject3D>	m_Object3D{};
 	XMFLOAT2				m_Size{};
 	unique_ptr<CTexture>	m_MaskingTexture{};
 	XMFLOAT2				m_MaskingTextureSize{};
-	vector<XMFLOAT4>		m_MaskingTextureRawData{};
+	vector<SPixelUNorm>		m_MaskingTextureRawData{};
 	XMMATRIX				m_MatrixMaskingSpace{};
 
 private:

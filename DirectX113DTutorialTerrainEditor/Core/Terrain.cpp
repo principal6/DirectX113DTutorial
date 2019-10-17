@@ -27,6 +27,7 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const string& TextureFileName
 	Material.bHasTexture = true;
 	Material.TextureFileName = TextureFileName;
 	Model.vMaterials.emplace_back(Material);
+
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
 	Model.bAutoGenerateMipMaps = true; // @important
 
@@ -40,9 +41,9 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const string& TextureFileName
 	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3D->Create(Model);
 
-	m_Object2DMaskingTexture.release();
-	m_Object2DMaskingTexture = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
-	m_Object2DMaskingTexture->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
+	m_Object2DMaskingTextureRepresentation.release();
+	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
+	m_Object2DMaskingTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
 
 	CreateMaskingTexture(true);
 }
@@ -77,25 +78,30 @@ void CTerrain::Load(const string& FileName)
 	m_MaskingTextureRawData.resize(READ_BYTES_TO_UINT32);
 
 	// Raw data
-	for (XMFLOAT4& Pixel : m_MaskingTextureRawData)
+	for (SPixelUNorm& Pixel : m_MaskingTextureRawData)
 	{
-		// 16B (XMFLAOT4) RGBA
-		READ_BYTES(16);
-		Pixel = READ_BYTES_TO_XMFLOAT4;
+		// 4B (uint8_t * 4) RGBA (UNORM)
+		READ_BYTES(4);
+
+		Pixel.R = ReadBytes[0];
+		Pixel.G = ReadBytes[1];
+		Pixel.B = ReadBytes[2];
+		Pixel.A = ReadBytes[3];
 	}
 
 	// Model data
 	_ReadStaticModelFile(ifs, Model);
 
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
+	Model.bAutoGenerateMipMaps = true; // @important
 
 	m_Object3D.release();
 	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3D->Create(Model);
 
-	m_Object2DMaskingTexture.release();
-	m_Object2DMaskingTexture = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
-	m_Object2DMaskingTexture->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
+	m_Object2DMaskingTextureRepresentation.release();
+	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
+	m_Object2DMaskingTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
 
 	CreateMaskingTexture(false);
 }
@@ -128,10 +134,13 @@ void CTerrain::Save(const string& FileName)
 	WRITE_UINT32_TO_BYTES(m_MaskingTextureRawData.size());
 
 	// Raw data
-	for (const XMFLOAT4& Pixel : m_MaskingTextureRawData)
+	for (const SPixelUNorm& Pixel : m_MaskingTextureRawData)
 	{
-		// 16B (XMFLAOT4) RGBA
-		WRITE_XMFLOAT4_TO_BYTES(Pixel);
+		// 4B (uint8_t * 4) RGBA (UNORM)
+		ofs.write((const char*)&Pixel.R, 1);
+		ofs.write((const char*)&Pixel.G, 1);
+		ofs.write((const char*)&Pixel.B, 1);
+		ofs.write((const char*)&Pixel.A, 1);
 	}
 
 	// Model data
@@ -147,7 +156,8 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 
 	m_MaskingTexture.release();
 	m_MaskingTexture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext, "MaskingTexture");
-	m_MaskingTexture->CreateBlankTexture(DXGI_FORMAT_R32G32B32A32_FLOAT, m_MaskingTextureSize);
+	//m_MaskingTexture->CreateBlankTexture(DXGI_FORMAT_R32G32B32A32_FLOAT, m_MaskingTextureSize);
+	m_MaskingTexture->CreateBlankTexture(DXGI_FORMAT_R8G8B8A8_UNORM, m_MaskingTextureSize);
 	m_MaskingTexture->SetSlot(5);
 	m_MaskingTexture->Use();
 
@@ -254,16 +264,16 @@ void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, flo
 				switch (eLayer)
 				{
 				case EMaskingLayer::LayerR:
-					m_MaskingTextureRawData[iPixel].x = Value * Factor;
+					m_MaskingTextureRawData[iPixel].R = static_cast<uint8_t>(Value * Factor * 255.0f);
 					break;
 				case EMaskingLayer::LayerG:
-					m_MaskingTextureRawData[iPixel].y = Value * Factor;
+					m_MaskingTextureRawData[iPixel].G = static_cast<uint8_t>(Value * Factor * 255.0f);
 					break;
 				case EMaskingLayer::LayerB:
-					m_MaskingTextureRawData[iPixel].z = Value * Factor;
+					m_MaskingTextureRawData[iPixel].B = static_cast<uint8_t>(Value * Factor * 255.0f);
 					break;
 				case EMaskingLayer::LayerA:
-					m_MaskingTextureRawData[iPixel].w = Value * Factor;
+					m_MaskingTextureRawData[iPixel].A = static_cast<uint8_t>(Value * Factor * 255.0f);
 					break;
 				default:
 					break;
@@ -274,16 +284,16 @@ void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, flo
 				switch (eLayer)
 				{
 				case EMaskingLayer::LayerR:
-					m_MaskingTextureRawData[iPixel].x = max(m_MaskingTextureRawData[iPixel].x, Value * Factor);
+					m_MaskingTextureRawData[iPixel].R = max(m_MaskingTextureRawData[iPixel].R, static_cast<uint8_t>(Value * Factor * 255.0f));
 					break;
 				case EMaskingLayer::LayerG:
-					m_MaskingTextureRawData[iPixel].y = max(m_MaskingTextureRawData[iPixel].y, Value * Factor);
+					m_MaskingTextureRawData[iPixel].G = max(m_MaskingTextureRawData[iPixel].G, static_cast<uint8_t>(Value * Factor * 255.0f));
 					break;
 				case EMaskingLayer::LayerB:
-					m_MaskingTextureRawData[iPixel].z = max(m_MaskingTextureRawData[iPixel].z, Value * Factor);
+					m_MaskingTextureRawData[iPixel].B = max(m_MaskingTextureRawData[iPixel].B, static_cast<uint8_t>(Value * Factor * 255.0f));
 					break;
 				case EMaskingLayer::LayerA:
-					m_MaskingTextureRawData[iPixel].w = max(m_MaskingTextureRawData[iPixel].w, Value * Factor);
+					m_MaskingTextureRawData[iPixel].A = max(m_MaskingTextureRawData[iPixel].A, static_cast<uint8_t>(Value * Factor * 255.0f));
 					break;
 				default:
 					break;
@@ -521,7 +531,7 @@ void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
 
 void CTerrain::DrawMaskingTexture()
 {
-	if (!m_Object2DMaskingTexture) return;
+	if (!m_Object2DMaskingTextureRepresentation) return;
 
 	m_MaskingTexture->Use(0);
 
@@ -533,7 +543,7 @@ void CTerrain::DrawMaskingTexture()
 	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->UpdateConstantBuffer(0);
 	m_PtrGame->GetBaseShader(EBaseShader::PSMasking2D)->Use();
 	
-	m_Object2DMaskingTexture->Draw();
+	m_Object2DMaskingTextureRepresentation->Draw();
 
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }

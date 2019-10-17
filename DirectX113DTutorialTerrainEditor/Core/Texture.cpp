@@ -76,28 +76,6 @@ void CTexture::CreateBlankTexture(DXGI_FORMAT Format, const XMFLOAT2& TextureSiz
 	Texture2DDesc.Usage = D3D11_USAGE_DYNAMIC;
 	Texture2DDesc.Width = static_cast<UINT>(m_TextureSize.x);
 
-	switch (Format)
-	{
-	case DXGI_FORMAT_R32G32B32A32_FLOAT:
-		m_PixelByteSize = sizeof(float) * 4;
-		break;
-	case DXGI_FORMAT_R32G32B32_FLOAT:
-		m_PixelByteSize = sizeof(float) * 3;
-		break;
-	case DXGI_FORMAT_R32G32_FLOAT:
-		m_PixelByteSize = sizeof(float) * 2;
-		break;
-	case DXGI_FORMAT_R32_FLOAT:
-		m_PixelByteSize = sizeof(float) * 1;
-		break;
-	case DXGI_FORMAT_R8G8B8A8_UINT:
-		m_PixelByteSize = sizeof(uint8_t) * 4;
-		break;
-	default:
-		assert(true);
-		break;
-	}
-
 	m_PtrDevice->CreateTexture2D(&Texture2DDesc, nullptr, m_Texture2D.GetAddressOf());
 	m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
 }
@@ -111,13 +89,19 @@ void CTexture::SetTextureSize()
 	m_TextureSize.x = static_cast<float>(Texture2DDesc.Height);
 }
 
-void CTexture::UpdateTextureRawData(const void* PtrData)
+void CTexture::UpdateTextureRawData(const SPixelUNorm* PtrData)
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
 	{
-		MappedSubresource.RowPitch = static_cast<UINT>(m_TextureSize.x * m_PixelByteSize);
-		memcpy(MappedSubresource.pData, PtrData, static_cast<size_t>(MappedSubresource.RowPitch) * (int)m_TextureSize.y);
+		size_t SrcRowPixelCount{ (size_t)m_TextureSize.x };
+		uint8_t* PtrDest{ (uint8_t*)MappedSubresource.pData };
+
+		UINT RowCount{ MappedSubresource.DepthPitch / MappedSubresource.RowPitch };
+		for (UINT iRow = 0; iRow < RowCount; ++iRow)
+		{
+			memcpy(PtrDest + (iRow * MappedSubresource.RowPitch), PtrData + (iRow * SrcRowPixelCount), SrcRowPixelCount * sizeof(SPixelUNorm));
+		}
 
 		m_PtrDeviceContext->Unmap(m_Texture2D.Get(), 0);
 	}
