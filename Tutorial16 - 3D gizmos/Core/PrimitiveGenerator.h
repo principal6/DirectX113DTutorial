@@ -12,6 +12,7 @@ static string ConvertXMVECTORToString(const XMVECTOR& Vector);
 static void CalculateVertexNormalsFromFaceNormals(SMesh& Object3DData);
 static void CalculateFaceNormals(SMesh& Object3DData);
 static vector<STriangle> GenerateContinuousQuads(int QuadCount);
+static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVECTOR& V2, const XMVECTOR& Color0, const XMVECTOR& Color1, const XMVECTOR& Color2);
 static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVECTOR& V2, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSquareXZPlane(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSquareYZPlane(const XMVECTOR& Color = KColorWhite);
@@ -127,14 +128,14 @@ static vector<STriangle> GenerateContinuousQuads(int QuadCount)
 	return vTriangles;
 }
 
-static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVECTOR& V2, const XMVECTOR& Color)
+static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVECTOR& V2, const XMVECTOR& Color0, const XMVECTOR& Color1, const XMVECTOR& Color2)
 {
 	SMesh Mesh{};
 
-	Mesh.vVertices.emplace_back(V0, Color);
-	Mesh.vVertices.emplace_back(V1, Color);
-	Mesh.vVertices.emplace_back(V2, Color);
-	
+	Mesh.vVertices.emplace_back(V0, Color0);
+	Mesh.vVertices.emplace_back(V1, Color1);
+	Mesh.vVertices.emplace_back(V2, Color2);
+
 	Mesh.vTriangles.emplace_back(0, 1, 2);
 
 	CalculateFaceNormals(Mesh);
@@ -142,6 +143,11 @@ static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVE
 	CalculateVertexNormalsFromFaceNormals(Mesh);
 
 	return Mesh;
+}
+
+static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVECTOR& V2, const XMVECTOR& Color)
+{
+	return GenerateTriangle(V0, V1, V2, Color, Color, Color);
 }
 
 static SMesh GenerateSquareXZPlane(const XMVECTOR& Color)
@@ -198,10 +204,10 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size)
 	{
 		for (int x = 0; x < SizeX; ++x)
 		{
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(z + 1), 1), KColorWhite, XMVectorSet(0, 0, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(z + 1), 1), KColorWhite, XMVectorSet(1, 0, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(z + 0), 1), KColorWhite, XMVectorSet(0, 1, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(z + 0), 1), KColorWhite, XMVectorSet(1, 1, 0, 0));
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z + 0), 1), KColorWhite, XMVectorSet(0, 0, 0, 0));
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(-z + 0), 1), KColorWhite, XMVectorSet(1, 0, 0, 0));
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z - 1), 1), KColorWhite, XMVectorSet(0, 1, 0, 0));
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(-z - 1), 1), KColorWhite, XMVectorSet(1, 1, 0, 0));
 		}
 	}
 
@@ -211,7 +217,7 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size)
 
 	CalculateVertexNormalsFromFaceNormals(Mesh);
 
-	TranslateMesh(Mesh, XMVectorSet(static_cast<float>(-SizeX / 2), 0, static_cast<float>(-SizeZ / 2), 1));
+	TranslateMesh(Mesh, XMVectorSet(static_cast<float>(-SizeX / 2), 0, static_cast<float>(SizeZ / 2), 1));
 
 	return Mesh;
 }
@@ -624,7 +630,7 @@ static vector<SVertex3DLine> Generate3DGrid(int GuidelineCount, float Interval)
 	GuidelineCount = max(GuidelineCount, 0);
 	Interval = max(Interval, 0.1f);
 	float EndPosition{ -GuidelineCount * Interval };
-
+	
 	vector<SVertex3DLine> vVertices{};
 
 	for (int z = 0; z < GuidelineCount * 2 + 1; ++z)
