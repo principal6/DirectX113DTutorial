@@ -163,8 +163,6 @@ private:
 
 	void Draw(bool bIgnoreOwnTexture = false) const;
 
-	void DrawNormals() const;
-
 private:
 	ID3D11Device*					m_PtrDevice{};
 	ID3D11DeviceContext*			m_PtrDeviceContext{};

@@ -285,24 +285,3 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 		m_PtrDeviceContext->DrawIndexed(static_cast<UINT>(Mesh.vTriangles.size() * 3), 0, 0);
 	}
 }
-
-void CObject3D::DrawNormals() const
-{
-	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
-	{
-		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };
-
-		m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_vMeshBuffers[iMesh].VertexBuffer.GetAddressOf(), 
-			&m_vMeshBuffers[iMesh].VertexBufferStride, &m_vMeshBuffers[iMesh].VertexBufferOffset);
-
-		if (m_Model.bIsModelAnimated)
-		{
-			m_PtrDeviceContext->IASetVertexBuffers(1, 1, m_vMeshBuffers[iMesh].VertexBufferAnimation.GetAddressOf(),
-				&m_vMeshBuffers[iMesh].VertexBufferAnimationStride, &m_vMeshBuffers[iMesh].VertexBufferAnimationOffset);
-		}
-
-		m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
-
-		m_PtrDeviceContext->Draw(static_cast<UINT>(Mesh.vVertices.size() * 2), 0);
-	}
-}

@@ -1,17 +1,26 @@
 #include "Header.hlsli"
 
-[maxvertexcount(2)]
-void main(point VS_OUTPUT input[1], inout LineStream<VS_OUTPUT> output)
+[maxvertexcount(12)]
+void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 {
-	VS_OUTPUT element;
+	Output.Append(Input[0]);
+	Output.Append(Input[1]);
+	Output.Append(Input[2]);
+	Output.RestartStrip();
 
-	element = input[0];
-	element.Color = float4(1, 1, 0, 1);
-	output.Append(element);
+	VS_OUTPUT Vertex;
+	for (int i = 0; i < 3; ++i)
+	{
+		Vertex = Input[i];
+		Vertex.Color = float4(1, 1, 0, 1);
+		Output.Append(Vertex);
 
-	element.Position += input[0].WVPNormal;
-	element.Color = float4(1, 0.6f, 0, 1);
-	output.Append(element);
+		Vertex.Position += Input[i].WVPNormal;
+		Vertex.Color = float4(1, 0.6f, 0, 1);
+		Output.Append(Vertex);
 
-	output.RestartStrip();
+		Output.Append(Vertex);
+
+		Output.RestartStrip();
+	}
 }

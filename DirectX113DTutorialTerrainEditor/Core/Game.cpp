@@ -1198,16 +1198,6 @@ void CGame::Draw(float DeltaTime)
 		}
 	}
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawNormals))
-	{
-		for (auto& i : m_vGameObject3Ds)
-		{
-			DrawGameObject3DNormal(i.get());
-		}
-
-		m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
-	}
-
 	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawMiniAxes))
 	{
 		DrawMiniAxes();
@@ -1299,35 +1289,18 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
 	}
 
-	PtrGO->ComponentRender.PtrObject3D->Draw();
-}
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawNormals))
+	{
+		m_GSNormal->Use();
 
-void CGame::DrawGameObject3DNormal(CGameObject3D* PtrGO)
-{
-	if (PtrGO->ComponentRender.PtrObject3D == nullptr) return;
+		PtrGO->ComponentRender.PtrObject3D->Draw();
 
-	assert(PtrGO->ComponentRender.PtrVS);
-	assert(PtrGO->ComponentRender.PtrPS);
-
-	CShader* VS{ PtrGO->ComponentRender.PtrVS };
-	CShader* PS{ m_PSVertexColor.get() };
-
-	m_cbVSSpaceData.World = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld);
-	m_cbVSSpaceData.WVP = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
-	PtrGO->UpdateWorldMatrix();
-
-	m_cbPSBaseFlagsData.bUseLighting = FALSE;
-	m_cbPSBaseFlagsData.bUseTexture = FALSE;
-
-	VS->Use();
-	VS->UpdateAllConstantBuffers();
-
-	m_GSNormal->Use();
-
-	PS->Use();
-	PS->UpdateAllConstantBuffers();
-
-	PtrGO->ComponentRender.PtrObject3D->DrawNormals();
+		m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
+	}
+	else
+	{
+		PtrGO->ComponentRender.PtrObject3D->Draw();
+	}
 }
 
 void CGame::DrawGameObject3DBoundingSphere(CGameObject3D* PtrGO)
