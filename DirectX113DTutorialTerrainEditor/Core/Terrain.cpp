@@ -40,6 +40,7 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const string& TextureFileName
 	m_Object3D.release();
 	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3D->Create(Model);
+	m_Object3D->m_bTesselate = true; // @important
 
 	m_Object2DMaskingTextureRepresentation.release();
 	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
@@ -98,6 +99,7 @@ void CTerrain::Load(const string& FileName)
 	m_Object3D.release();
 	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3D->Create(Model);
+	m_Object3D->m_bTesselate = true; // @important
 
 	m_Object2DMaskingTextureRepresentation.release();
 	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
@@ -452,6 +454,14 @@ void CTerrain::UpdateMaskingTexture()
 	m_MaskingTexture->UpdateTextureRawData(&m_MaskingTextureRawData[0]);
 }
 
+void CTerrain::ShouldTessellate(bool Value)
+{
+	if (m_Object3D)
+	{
+		m_Object3D->m_bTesselate = Value;
+	}
+}
+
 void CTerrain::SetMaskingLayer(EMaskingLayer eLayer)
 {
 	m_eMaskingLayer = eLayer;
@@ -509,7 +519,7 @@ void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
 
 	m_MaskingTexture->Use();
 	m_Object3D->Draw();
-
+	
 	if (bUseTerrainSelector)
 	{
 		m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->Wireframe());

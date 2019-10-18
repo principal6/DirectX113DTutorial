@@ -28,7 +28,8 @@ enum class EFlagsGameRendering
 	DrawBoundingSphere			= 0x020,
 	Use3DGizmos					= 0x040,
 	UseTerrainSelector			= 0x080,
-	DrawTerrainMaskingTexture	= 0x100
+	DrawTerrainMaskingTexture	= 0x100,
+	TessellateTerrain			= 0x200
 };
 ENUM_CLASS_FLAG(EFlagsGameRendering)
 
@@ -40,6 +41,9 @@ enum class EBaseShader
 	VSLine,
 	VSGizmo,
 	VSBase2D,
+
+	HSBezier,
+	DSBezier,
 
 	GSNormal,
 
@@ -113,6 +117,11 @@ struct SCBVSSpaceData
 struct SCBVSAnimationBonesData
 {
 	XMMATRIX	BoneMatrices[KMaxBoneMatrixCount]{};
+};
+
+struct SCBDSSpaceData
+{
+	XMMATRIX	VP{};
 };
 
 enum class EFlagPSBase
@@ -377,6 +386,9 @@ private:
 	unique_ptr<CShader>	m_VSGizmo{};
 	unique_ptr<CShader>	m_VSBase2D{};
 
+	unique_ptr<CShader>	m_HSBezier{};
+	unique_ptr<CShader>	m_DSBezier{};
+
 	unique_ptr<CShader>	m_GSNormal{};
 
 	unique_ptr<CShader>	m_PSBase{};
@@ -392,6 +404,8 @@ private:
 	SCBVSSpaceData				m_cbVSSpaceData{};
 	SCBVSAnimationBonesData		m_cbVSAnimationBonesData{};
 	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
+
+	SCBDSSpaceData				m_cbDSSpaceData{};
 
 	SCBPSBaseFlagsData			m_cbPSBaseFlagsData{};
 	SCBPSBaseLightsData			m_cbPSBaseLightsData{};

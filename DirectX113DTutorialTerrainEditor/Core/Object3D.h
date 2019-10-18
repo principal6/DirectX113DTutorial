@@ -178,4 +178,5 @@ private:
 	XMMATRIX						m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
 	size_t							m_CurrentAnimationIndex{};
 	float							m_CurrentAnimationTick{};
+	bool							m_bTesselate{ false };
 };

@@ -58,6 +58,8 @@ public:
 	void SelectTerrain(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor);
 	void UpdateMaskingTexture();
 
+	void ShouldTessellate(bool Value);
+
 private:
 	void UpdateSelection(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection);
 	void ReleaseSelection();

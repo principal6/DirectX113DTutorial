@@ -527,6 +527,13 @@ void CGame::CreateBaseShaders()
 	m_VSBase2D->Create(EShaderType::VertexShader, L"Shader\\VSBase2D.hlsl", "main", KVS2DBaseInputLayout, ARRAYSIZE(KVS2DBaseInputLayout));
 	m_VSBase2D->AddConstantBuffer(&m_cbVS2DSpaceData, sizeof(SCBVS2DSpaceData));
 
+	m_HSBezier = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_HSBezier->Create(EShaderType::HullShader, L"Shader\\HSBezier.hlsl", "main");
+
+	m_DSBezier = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_DSBezier->Create(EShaderType::DomainShader, L"Shader\\DSBezier.hlsl", "main");
+	m_DSBezier->AddConstantBuffer(&m_cbDSSpaceData, sizeof(SCBDSSpaceData));
+
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSNormal->Create(EShaderType::GeometryShader, L"Shader\\GSNormal.hlsl", "main");
 
@@ -1537,10 +1544,30 @@ void CGame::DrawTerrain()
 {
 	if (!m_Terrain) return;
 
-	m_Terrain->Draw(
-		EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::UseTerrainSelector),
-		EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawNormals)
-	);
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::TessellateTerrain))
+	{
+		m_HSBezier->Use();
+		m_DSBezier->Use();
+
+		m_cbDSSpaceData.VP = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
+		m_DSBezier->UpdateConstantBuffer(0);
+
+		m_Terrain->Draw(
+			EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::UseTerrainSelector),
+			EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawNormals)
+		);
+
+		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
+		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
+	}
+	else
+	{
+		m_Terrain->Draw(
+			EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::UseTerrainSelector),
+			EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawNormals)
+		);
+	}
+	
 
 	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawTerrainMaskingTexture))
 	{
