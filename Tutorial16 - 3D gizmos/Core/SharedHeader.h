@@ -33,8 +33,10 @@ using std::unordered_map;
 enum class EShaderType
 {
 	VertexShader,
-	PixelShader,
+	HullShader,
+	DomainShader,
 	GeometryShader,
+	PixelShader
 };
 
 struct STriangle
@@ -81,3 +83,4 @@ static enum_type operator~(enum_type a)\
 }
 
 #define EFLAG_HAS(Object, eFlag) (Object & eFlag) == eFlag
+#define EFLAG_HAS_NO(Object, eFlag) (Object & eFlag) != eFlag

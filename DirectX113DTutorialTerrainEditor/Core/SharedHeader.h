@@ -33,8 +33,10 @@ using std::unordered_map;
 enum class EShaderType
 {
 	VertexShader,
-	PixelShader,
+	HullShader,
+	DomainShader,
 	GeometryShader,
+	PixelShader
 };
 
 struct STriangle

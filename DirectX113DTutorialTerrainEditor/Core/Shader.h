@@ -24,15 +24,15 @@ class CShader final
 		void Use(UINT Slot) const;
 
 	private:
-		ID3D11Device* m_PtrDevice{};
-		ID3D11DeviceContext* m_PtrDeviceContext{};
+		ID3D11Device*			m_PtrDevice{};
+		ID3D11DeviceContext*	m_PtrDeviceContext{};
 
 	private:
 		ComPtr<ID3D11Buffer>	m_ConstantBuffer{};
 
 		EShaderType				m_eShaderType{};
 		size_t					m_DataByteWidth{};
-		const void* m_PtrData{};
+		const void*				m_PtrData{};
 	};
 
 public:
@@ -59,9 +59,13 @@ private:
 
 private:
 	ComPtr<ID3DBlob>					m_Blob{};
+
 	ComPtr<ID3D11VertexShader>			m_VertexShader{};
-	ComPtr<ID3D11PixelShader>			m_PixelShader{};
+	ComPtr<ID3D11HullShader>			m_HullShader{};
+	ComPtr<ID3D11DomainShader>			m_DomainShader{};
 	ComPtr<ID3D11GeometryShader>		m_GeometryShader{};
+	ComPtr<ID3D11PixelShader>			m_PixelShader{};
+
 	ComPtr<ID3D11InputLayout>			m_InputLayout{};
 
 	EShaderType							m_ShaderType{};
