@@ -10,6 +10,15 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(InputPatch<VS_OUTPUT, 3> Patch, uin
 
 	Output.InsideTessFactor = 3.0f;
 
+	if (all(Patch[0].WorldNormal == Patch[1].WorldNormal) && all(Patch[0].WorldNormal == Patch[2].WorldNormal))
+	{
+		Output.EdgeTessFactor[0] = 1.0f;
+		Output.EdgeTessFactor[1] = 1.0f;
+		Output.EdgeTessFactor[2] = 1.0f;
+
+		Output.InsideTessFactor = 1.0f;
+	}
+	
 	return Output;
 }
 

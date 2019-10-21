@@ -64,14 +64,25 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 	float4 N2 = normalize(Patch[1].WorldNormal);
 	float4 N3 = normalize(Patch[2].WorldNormal);
 
+	Output.bUseVertexColor = Patch[0].bUseVertexColor + Patch[1].bUseVertexColor + Patch[2].bUseVertexColor;
+
 	Output.Position = Output.WorldPosition = GetBezier(P1, P2, P3, N1, N2, N3, Domain);
-	Output.Position = mul(float4(Output.Position.xyz, 1), VP);
+
+	if (Output.bUseVertexColor == 0)
+	{
+		Output.Position = mul(float4(Output.Position.xyz, 1), VP);
+	}
 
 	Output.Color = Patch[0].Color * Domain.x + Patch[1].Color * Domain.y + Patch[2].Color * Domain.z;
 	Output.UV = Patch[0].UV * Domain.x + Patch[1].UV * Domain.y + Patch[2].UV * Domain.z;
 	
 	Output.WorldNormal = Patch[0].WorldNormal * Domain.x + Patch[1].WorldNormal * Domain.y + Patch[2].WorldNormal * Domain.z;
-	Output.WVPNormal = Patch[0].WVPNormal * Domain.x + Patch[1].WVPNormal * Domain.y + Patch[2].WVPNormal * Domain.z;
+	
+	Output.WorldTangent = Patch[0].WorldTangent * Domain.x + Patch[0].WorldTangent * Domain.y + Patch[0].WorldTangent * Domain.z;
+	Output.WorldBitangent = Patch[0].WorldBitangent * Domain.x + Patch[0].WorldBitangent * Domain.y + Patch[0].WorldBitangent * Domain.z;
+
+	//Output.WorldTangent = Patch[0].WorldTangent * Domain.x + Patch[1].WorldTangent * Domain.y + Patch[2].WorldTangent * Domain.z;
+	//Output.WorldBitangent = Patch[0].WorldBitangent * Domain.x + Patch[1].WorldBitangent * Domain.y + Patch[2].WorldBitangent * Domain.z;
 
 	return Output;
 }

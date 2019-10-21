@@ -3,7 +3,7 @@
 #include "SharedHeader.h"
 
 class CObject2D;
-class CTexture;
+class CMaterial;
 
 class CGameObject2D
 {
@@ -20,7 +20,7 @@ class CGameObject2D
 	struct SComponentRender
 	{
 		CObject2D*	PtrObject2D{};
-		CTexture*	PtrTexture{};
+		CMaterial*	PtrMaterial{};
 	};
 
 public:

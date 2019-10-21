@@ -25,7 +25,7 @@ cbuffer cbMaterial : register(b2)
 	float3	MaterialDiffuse;
 	float	SpecularIntensity;
 	float3	MaterialSpecular;
-	float	Pad;
+	bool	bHasTexture;
 }
 
 cbuffer cbEye : register(b3)
@@ -63,7 +63,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	float4 DiffuseColor = float4(MaterialDiffuse, 1);
 	float4 SpecularColor = float4(MaterialSpecular, 1);
 	
-	if (UseTexture == true)
+	if (UseTexture == true && bHasTexture == true)
 	{
 		AmbientColor = DiffuseColor = SpecularColor = CurrentTexture2D.Sample(CurrentSampler, input.UV.xy);
 	}
@@ -74,6 +74,11 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	{
 		Result = CalculateAmbient(AmbientColor);
 		Result += CalculateDirectional(DiffuseColor, SpecularColor, normalize(EyePosition - input.WorldPosition), normalize(input.WorldNormal));
+	}
+
+	if (input.bUseVertexColor != 0)
+	{
+		return input.Color;
 	}
 
 	return Result;

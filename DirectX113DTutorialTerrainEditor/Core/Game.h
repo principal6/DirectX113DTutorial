@@ -6,7 +6,7 @@
 #include "Math.h"
 #include "Camera.h"
 #include "Shader.h"
-#include "Texture.h"
+#include "Material.h"
 #include "Object3D.h"
 #include "Object3DLine.h"
 #include "Object2D.h"
@@ -124,6 +124,11 @@ struct SCBDSSpaceData
 	XMMATRIX	VP{};
 };
 
+struct SCBGSSpaceData
+{
+	XMMATRIX	VP{};
+};
+
 enum class EFlagPSBase
 {
 	UseTexture,
@@ -157,7 +162,7 @@ struct SCBPSBaseMaterialData
 	XMFLOAT3	MaterialDiffuse{};
 	float		SpecularIntensity{ 0 };
 	XMFLOAT3	MaterialSpecular{};
-	float		Pad{};
+	BOOL		bHasTexture{};
 };
 
 struct SCBPSSkyTimeData
@@ -218,14 +223,15 @@ public:
 
 // Shader-related settings
 public:
-	void UpdatePSBaseFlagOn(EFlagPSBase Flag);
-	void UpdatePSBaseFlagOff(EFlagPSBase Flag);
-	void UpdatePSBase2DFlagOn(EFlagPSBase2D Flag);
-	void UpdatePSBase2DFlagOff(EFlagPSBase2D Flag);
 	void UpdateVSSpace(const XMMATRIX& World);
 	void UpdateVS2DSpace(const XMMATRIX& World);
-	void UpdateVSBaseMaterial(const SMaterial& Material);
+	void UpdateVSBaseMaterial(const CMaterial& Material);
 	void UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices);
+
+	void UpdateGSSpace();
+
+	void UpdatePSBase2DFlagOn(EFlagPSBase2D Flag);
+	void UpdatePSBase2DFlagOff(EFlagPSBase2D Flag);
 	void UpdatePSTerrainEditSpace(const XMMATRIX& Matrix);
 
 public:
@@ -238,8 +244,8 @@ public:
 	void CreateTerrain(const XMFLOAT2& TerrainSize, const string& TextureFileName, float MaskingDetail);
 	void LoadTerrain(const string& TerrainFileName);
 	void SaveTerrain(const string& TerrainFileName);
-	void SetTerrainTexture(int TextureID, const string& TextureFileName);
 	void AddTerrainTexture(const string& TextureFileName);
+	void SetTerrainTexture(int TextureID, const string& TextureFileName);
 	CTerrain* GetTerrain() { return m_Terrain.get(); }
 	void SetTerrainSelectionSize(float& Size);
 	void RecalculateTerrainNormals();
@@ -265,9 +271,9 @@ public:
 	CObject2D* AddObject2D();
 	CObject2D* GetObject2D(size_t Index);
 
-	CTexture* AddTexture(const string& Name);
-	CTexture* GetTexture(const string& Name);
-	const map<string, size_t>& GetTextureListMap() { return m_mapTextureNameToIndex; }
+	CMaterialTexture* AddMaterialTexture(const string& Name);
+	CMaterialTexture* GetMaterialTexture(const string& Name);
+	const map<string, size_t>& GetMaterialListMap() { return m_mapMaterialTextureNameToIndex; }
 
 	CGameObject3D* AddGameObject3D(const string& Name);
 	CGameObject3D* GetGameObject3D(const string& Name);
@@ -315,11 +321,11 @@ public:
 	const char* GetCapturedPickedGameObject3DName();
 	const XMFLOAT2& GetTerrainSelectionRoundUpPosition();
 	float GetSkyTime();
+	XMMATRIX GetTransposedVPMatrix();
 
 private:
 	void UpdateGameObject3D(CGameObject3D* PtrGO);
 	void DrawGameObject3D(CGameObject3D* PtrGO);
-	void DrawGameObject3DNormal(CGameObject3D* PtrGO);
 	void DrawGameObject3DBoundingSphere(CGameObject3D* PtrGO);
 
 	void DrawGameObject3DLines();
@@ -345,7 +351,7 @@ private:
 
 private:
 	void SetUniversalRasterizerState();
-	void SetUniversalbUseLighiting();
+	void SetUniversalbUseLighiting();	
 
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
@@ -407,6 +413,8 @@ private:
 
 	SCBDSSpaceData				m_cbDSSpaceData{};
 
+	SCBGSSpaceData				m_cbGSSpaceData{};
+
 	SCBPSBaseFlagsData			m_cbPSBaseFlagsData{};
 	SCBPSBaseLightsData			m_cbPSBaseLightsData{};
 	SCBPSBaseMaterialData		m_cbPSBaseMaterialData{};
@@ -421,7 +429,7 @@ private:
 	vector<unique_ptr<CObject3D>>			m_vObject3Ds{};
 	vector<unique_ptr<CObject3DLine>>		m_vObject3DLines{};
 	vector<unique_ptr<CObject2D>>			m_vObject2Ds{};
-	vector<unique_ptr<CTexture>>			m_vTextures{};
+	vector<unique_ptr<CMaterialTexture>>	m_vMaterialTextures{};
 	vector<unique_ptr<CGameObject3D>>		m_vGameObject3Ds{};
 	vector<unique_ptr<CGameObject3DLine>>	m_vGameObject3DLines{};
 	vector<unique_ptr<CGameObject2D>>		m_vGameObject2Ds{};
@@ -435,7 +443,7 @@ private:
 	vector<unique_ptr<CGameObject3D>>		m_vGameObject3DMiniAxes{};
 
 	SSkyData								m_SkyData{};
-	unique_ptr<CTexture>					m_SkyTexture{};
+	CMaterial								m_SkyMaterial{};
 	unique_ptr<CObject3D>					m_Object3DSkySphere{};
 	unique_ptr<CObject3D>					m_Object3DSun{};
 	unique_ptr<CObject3D>					m_Object3DMoon{};
@@ -445,7 +453,7 @@ private:
 	unique_ptr<CGameObject3D>				m_GameObject3DMoon{};
 	unique_ptr<CGameObject3D>				m_GameObject3DCloud{};
 
-	map<string, size_t>						m_mapTextureNameToIndex{};
+	map<string, size_t>						m_mapMaterialTextureNameToIndex{};
 	unordered_map<string, size_t>			m_umapGameObject3DNameToIndex{};
 	unordered_map<string, size_t>			m_umapGameObject3DLineNameToIndex{};
 	unordered_map<string, size_t>			m_umapGameObject2DNameToIndex{};

@@ -42,9 +42,6 @@
     <ClCompile Include="Core\Object3D.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Core\Texture.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="Core\Game.cpp">
       <Filter>Core</Filter>
     </ClCompile>
@@ -88,6 +85,12 @@
       <Filter>ImGui</Filter>
     </ClCompile>
     <ClCompile Include="Core\Terrain.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Material.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\AssimpLoader.cpp">
       <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
@@ -165,9 +168,6 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\PrimitiveGenerator.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\Texture.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Assimp\aabb.h">
@@ -450,6 +450,9 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\Terrain.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Material.h">
       <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,5 +1,7 @@
 #pragma once
 
+#define NOMINMAX 0
+
 #include <string>
 #include <vector>
 #include <cassert>

@@ -3,7 +3,6 @@
 #include "SharedHeader.h"
 
 class CObject3D;
-class CTexture;
 class CShader;
 
 static constexpr float KBoundingSphereRadiusDefault{ 1.0f };
@@ -13,8 +12,9 @@ enum class EFlagsGameObject3DRendering
 	None				= 0x00,
 	NoCulling			= 0x01,
 	NoLighting			= 0x02,
-	NoDepthComparison	= 0x04,
-	UseRawVertexColor	= 0x08
+	NoTexture			= 0x04,
+	NoDepthComparison	= 0x08,
+	UseRawVertexColor	= 0x10
 };
 ENUM_CLASS_FLAG(EFlagsGameObject3DRendering)
 
@@ -36,7 +36,6 @@ class CGameObject3D
 	struct SComponentRender
 	{
 		CObject3D*	PtrObject3D{};
-		CTexture*	PtrTexture{};
 		CShader*	PtrVS{};
 		CShader*	PtrPS{};
 		bool		bIsTransparent{ false };

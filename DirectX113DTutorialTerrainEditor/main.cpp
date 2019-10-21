@@ -1,6 +1,5 @@
 #include <chrono>
 #include "Core/Game.h"
-#include "Core/AssimpLoader.h"
 #include "Core/ModelPorter.h"
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_win32.h"
@@ -42,9 +41,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		goGrid->ComponentRender.PtrObject3DLine->Create(Generate3DGrid(0));
 	}
 
-	CTexture* TextureGround{ Game.AddTexture("Asset\\ground.png") };
+	CMaterialTexture* mtGround{ Game.AddMaterialTexture("Asset\\ground.png") };
 	{
-		TextureGround->CreateNonMipMappedTextureFromFile("Asset\\ground.png");
+		mtGround->CreateTextureFromFile("Asset\\ground.png", false);
 	}
 
 	IMGUI_CHECKVERSION();
@@ -139,7 +138,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			{
 				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawMiniAxes);
 			}
-
 
 			// Mouse input
 			const Mouse::State& MouseState{ Game.GetMouseState() };
@@ -389,22 +387,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								}
 								ImGui::PopItemWidth();
 							}
-							else if (iSelectedItem == 1)
-							{
-								/*
-								ImGui::PushItemWidth(100);
-								if (ImGui::DragFloat(u8"증감할 높이", &TerrainDeltaHeightValue, CTerrain::KHeightUnit,
-									CTerrain::KMinHeight, CTerrain::KMaxHeight, "%.1f"))
-								{
-									Game.GetTerrain()->SetDeltaHeightValue(TerrainDeltaHeightValue);
-								}
-								ImGui::PopItemWidth();
-								*/
-							}
 							else if (iSelectedItem == 2)
 							{
 								ImGui::PushItemWidth(100);
-								if (ImGui::DragInt(u8"마스킹 레이어", &TerrainMaskingLayer, 1.0f, 0, CTerrain::KTextureMaxCount - 2, "%.0f"))
+								if (ImGui::DragInt(u8"마스킹 레이어", &TerrainMaskingLayer, 1.0f, 0, CTerrain::KMaterialMaxCount - 2, "%.0f"))
 								{
 									switch (TerrainMaskingLayer)
 									{
@@ -487,39 +473,40 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 							ImGui::Separator();
 
-							static bool bShowTextureSelection{ false };
-							static int iSelectedTextureID{};
+							static bool bShowMaterialSelection{ false };
+							static int iSelectedMaterialID{};
 							if (Game.GetTerrain())
 							{
-								if (ImGui::Button(u8"텍스쳐 추가"))
+								if (ImGui::Button(u8"재질 추가"))
 								{
-									iSelectedTextureID = -1;
-									ImGui::OpenPopup(u8"텍스쳐 선택");
+									iSelectedMaterialID = -1;
+									ImGui::OpenPopup(u8"재질 선택");
 								}
 
-								for (int iTexture = 0; iTexture < Game.GetTerrain()->GetTextureCount(); ++iTexture)
+								for (int iMaterial = 0; iMaterial < Game.GetTerrain()->GetMaterialCount(); ++iMaterial)
 								{
 									ImGui::PushItemWidth(100);
-									ImGui::PushID(iTexture);
+									ImGui::PushID(iMaterial);
 									if (ImGui::Button(u8"변경"))
 									{
-										iSelectedTextureID = iTexture;
-										bShowTextureSelection = true;
+										iSelectedMaterialID = iMaterial;
+										bShowMaterialSelection = true;
 									}
 									ImGui::PopID();
 									ImGui::PopItemWidth();
 
 									ImGui::SameLine();
-
-									const string& TextureFileName{ Game.GetTerrain()->GetTextureFileName(iTexture) };
-									size_t LastDir{ TextureFileName.find_last_of('\\') };
-									if (LastDir == string::npos)
+									
+									const CMaterial& Material{ Game.GetTerrain()->GetMaterial(iMaterial) };
+									const string& TextureFileName{ Material.GetTextureFileName() };
+									size_t LastTokenPosition{ Material.GetTextureFileName().find_last_of('\\') };
+									if (LastTokenPosition == string::npos)
 									{
-										ImGui::Text(u8"텍스쳐[%d]: %s", iTexture, TextureFileName.c_str());
+										ImGui::Text(u8"재질[%d] 텍스쳐 %s", iMaterial, TextureFileName.c_str());
 									}
 									else
 									{
-										ImGui::Text(u8"텍스쳐[%d]: %s", iTexture, TextureFileName.substr(LastDir).c_str());
+										ImGui::Text(u8"재질[%d] 텍스쳐 %s", iMaterial, TextureFileName.substr(LastTokenPosition).c_str());
 									}
 								}
 							}
@@ -528,12 +515,12 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								ImGui::Text(u8"텍스쳐: 없음");
 							}
 
-							if (bShowTextureSelection) ImGui::OpenPopup(u8"텍스쳐 선택");
-							if (ImGui::BeginPopup(u8"텍스쳐 선택", ImGuiWindowFlags_AlwaysAutoResize))
+							if (bShowMaterialSelection) ImGui::OpenPopup(u8"재질 선택");
+							if (ImGui::BeginPopup(u8"재질 선택", ImGuiWindowFlags_AlwaysAutoResize))
 							{
 								static int ListIndex{};
-								static const string* SelectedTextureName{};
-								const auto& TextureListMap{ Game.GetTextureListMap() };
+								static const string* SelectedMaterialTextureName{};
+								const auto& TextureListMap{ Game.GetMaterialListMap() };
 
 								if (ImGui::ListBoxHeader("", (int)TextureListMap.size()))
 								{
@@ -543,7 +530,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										if (ImGui::Selectable(Texture.first.c_str(), (iListItem == ListIndex) ? true : false))
 										{
 											ListIndex = iListItem;
-											SelectedTextureName = &Texture.first;
+											SelectedMaterialTextureName = &Texture.first;
 										}
 										++iListItem;
 									}
@@ -552,22 +539,22 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 								if (ImGui::Button(u8"결정"))
 								{
-									if (SelectedTextureName)
+									if (SelectedMaterialTextureName)
 									{
-										if (iSelectedTextureID == -1)
+										if (iSelectedMaterialID == -1)
 										{
-											Game.AddTerrainTexture(Game.GetTexture(*SelectedTextureName)->GetFileName());
+											Game.AddTerrainTexture(Game.GetMaterialTexture(*SelectedMaterialTextureName)->GetFileName());
 										}
 										else
 										{
-											Game.SetTerrainTexture(iSelectedTextureID, Game.GetTexture(*SelectedTextureName)->GetFileName());
+											Game.SetTerrainTexture(iSelectedMaterialID, Game.GetMaterialTexture(*SelectedMaterialTextureName)->GetFileName());
 										}
 									}
 
 									ImGui::CloseCurrentPopup();
 								}
 
-								bShowTextureSelection = false;
+								bShowMaterialSelection = false;
 
 								ImGui::EndPopup();
 							}
@@ -590,7 +577,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					{
 						static int ListIndex{};
 						static const string* SelectedTextureName{};
-						const auto& TextureListMap{ Game.GetTextureListMap() };
+						const auto& TextureListMap{ Game.GetMaterialListMap() };
 
 						ImGui::PushID(0);
 						if (ImGui::Button(u8"추가"))
@@ -609,8 +596,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 								string TextureName{ FileName };
 								size_t FoundPos{ TextureName.find_last_of('\\') };
-								CTexture* Texture{ Game.AddTexture(TextureName.substr(FoundPos + 1)) };
-								if (Texture) Texture->CreateNonMipMappedTextureFromFile(FileName);
+								CMaterialTexture* Material{ Game.AddMaterialTexture(TextureName.substr(FoundPos + 1)) };
+								if (Material) Material->CreateTextureFromFile(FileName, false);
 							}
 						}
 						ImGui::PopID();
@@ -635,7 +622,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						{
 							ImGui::SameLine();
 
-							ImGui::Image(Game.GetTexture(*SelectedTextureName)->GetShaderResourceViewPtr(), ImVec2(100, 100));
+							ImGui::Image(Game.GetMaterialTexture(*SelectedTextureName)->GetShaderResourceViewPtr(), ImVec2(100, 100));
 						}
 					}
 

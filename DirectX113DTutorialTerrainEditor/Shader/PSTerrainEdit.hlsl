@@ -1,6 +1,7 @@
 #include "Header.hlsli"
 
 SamplerState CurrentSampler : register(s0);
+
 Texture2D MainTexture : register(t0);
 Texture2D Layer0Texture : register(t1);
 Texture2D Layer1Texture : register(t2);
@@ -39,6 +40,11 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
 	// Fixed directional light
 	Result.xyz *= dot(input.WorldNormal, normalize(float4(1, 1, 0, 1)));
+
+	if (input.bUseVertexColor != 0)
+	{
+		return input.Color;
+	}
 
 	return Result;
 }

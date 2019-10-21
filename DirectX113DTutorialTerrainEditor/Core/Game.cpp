@@ -6,6 +6,8 @@ static constexpr D3D11_INPUT_ELEMENT_DESC KBaseInputElementDescs[]
 	{ "COLOR"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	{ "TEXCOORD"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	{ "NORMAL"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "TANGENT"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 64, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "BITANGENT"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 80, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 
 	{ "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT	, 1,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	{ "BLENDWEIGHT"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 1, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -59,38 +61,6 @@ void CGame::Set3DGizmoMode(E3DGizmoMode Mode)
 	m_e3DGizmoMode = Mode;
 }
 
-void CGame::UpdatePSBaseFlagOn(EFlagPSBase Flag)
-{
-	switch (Flag)
-	{
-	case EFlagPSBase::UseTexture:
-		m_cbPSBaseFlagsData.bUseTexture = TRUE;
-		break;
-	case EFlagPSBase::UseLighting:
-		m_cbPSBaseFlagsData.bUseLighting = TRUE;
-		break;
-	default:
-		break;
-	}
-	m_PSBase->UpdateConstantBuffer(0);
-}
-
-void CGame::UpdatePSBaseFlagOff(EFlagPSBase Flag)
-{
-	switch (Flag)
-	{
-	case EFlagPSBase::UseTexture:
-		m_cbPSBaseFlagsData.bUseTexture = FALSE;
-		break;
-	case EFlagPSBase::UseLighting:
-		m_cbPSBaseFlagsData.bUseLighting = FALSE;
-		break;
-	default:
-		break;
-	}
-	m_PSBase->UpdateConstantBuffer(0);
-}
-
 void CGame::UpdatePSBase2DFlagOn(EFlagPSBase2D Flag)
 {
 	switch (Flag)
@@ -129,13 +99,15 @@ void CGame::UpdateVS2DSpace(const XMMATRIX& World)
 	m_cbVS2DSpaceData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
 }
 
-void CGame::UpdateVSBaseMaterial(const SMaterial& Material)
+void CGame::UpdateVSBaseMaterial(const CMaterial& Material)
 {
-	m_cbPSBaseMaterialData.MaterialAmbient = Material.MaterialAmbient;
-	m_cbPSBaseMaterialData.MaterialDiffuse = Material.MaterialDiffuse;
-	m_cbPSBaseMaterialData.MaterialSpecular = Material.MaterialSpecular;
-	m_cbPSBaseMaterialData.SpecularExponent = Material.SpecularExponent;
-	m_cbPSBaseMaterialData.SpecularIntensity = Material.SpecularIntensity;
+	m_cbPSBaseMaterialData.MaterialAmbient = Material.GetAmbient();
+	m_cbPSBaseMaterialData.MaterialDiffuse = Material.GetDiffuse();
+	m_cbPSBaseMaterialData.MaterialSpecular = Material.GetSpecular();
+	m_cbPSBaseMaterialData.SpecularExponent = Material.GetSpecularExponent();
+	m_cbPSBaseMaterialData.SpecularIntensity = Material.GetSpecularIntensity();
+	m_cbPSBaseMaterialData.bHasTexture = Material.HasTexture();
+
 	m_PSBase->UpdateConstantBuffer(2);
 }
 
@@ -143,6 +115,12 @@ void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices)
 {
 	memcpy(m_cbVSAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBVSAnimationBonesData));
 	m_VSAnimation->UpdateConstantBuffer(1);
+}
+
+void CGame::UpdateGSSpace()
+{
+	m_cbGSSpaceData.VP = GetTransposedVPMatrix();
+	m_GSNormal->UpdateConstantBuffer(0);
 }
 
 void CGame::UpdatePSTerrainEditSpace(const XMMATRIX& Matrix)
@@ -185,22 +163,21 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 		LoadSkyObjectData(xmlCloud, m_SkyData.Cloud);
 	}
 
-	m_SkyTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get(), "SkyTexture");
-	m_SkyTexture->CreateNonMipMappedTextureFromFile(m_SkyData.TextureFileName);
+	m_SkyMaterial.SetTextureFileName(m_SkyData.TextureFileName, false);
 
 	m_Object3DSkySphere = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
+	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterial);
 
 	m_Object3DSun = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DSun->Create(GenerateSquareYZPlane(KColorWhite));
+	m_Object3DSun->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
 	m_Object3DSun->UpdateQuadUV(m_SkyData.Sun.UVOffset, m_SkyData.Sun.UVSize);
-
+	
 	m_Object3DMoon = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DMoon->Create(GenerateSquareYZPlane(KColorWhite));
+	m_Object3DMoon->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
 	m_Object3DMoon->UpdateQuadUV(m_SkyData.Moon.UVOffset, m_SkyData.Moon.UVSize);
 
 	m_Object3DCloud = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DCloud->Create(GenerateSquareYZPlane(KColorWhite));
+	m_Object3DCloud->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
 	m_Object3DCloud->UpdateQuadUV(m_SkyData.Cloud.UVOffset, m_SkyData.Cloud.UVSize);
 
 	m_GameObject3DSkySphere = make_unique<CGameObject3D>("SkySphere");
@@ -215,7 +192,6 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	m_GameObject3DSun->ComponentRender.PtrObject3D = m_Object3DSun.get();
 	m_GameObject3DSun->ComponentRender.PtrVS = m_VSSky.get();
 	m_GameObject3DSun->ComponentRender.PtrPS = m_PSBase.get();
-	m_GameObject3DSun->ComponentRender.PtrTexture = m_SkyTexture.get();
 	m_GameObject3DSun->ComponentRender.bIsTransparent = true;
 	m_GameObject3DSun->ComponentPhysics.bIsPickable = false;
 	m_GameObject3DSun->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoCulling | EFlagsGameObject3DRendering::NoLighting;
@@ -225,7 +201,6 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	m_GameObject3DMoon->ComponentRender.PtrObject3D = m_Object3DMoon.get();
 	m_GameObject3DMoon->ComponentRender.PtrVS = m_VSSky.get();
 	m_GameObject3DMoon->ComponentRender.PtrPS = m_PSBase.get();
-	m_GameObject3DMoon->ComponentRender.PtrTexture = m_SkyTexture.get();
 	m_GameObject3DMoon->ComponentRender.bIsTransparent = true;
 	m_GameObject3DMoon->ComponentPhysics.bIsPickable = false;
 	m_GameObject3DMoon->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoCulling | EFlagsGameObject3DRendering::NoLighting;
@@ -235,7 +210,6 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	m_GameObject3DCloud->ComponentRender.PtrObject3D = m_Object3DCloud.get();
 	m_GameObject3DCloud->ComponentRender.PtrVS = m_VSSky.get();
 	m_GameObject3DCloud->ComponentRender.PtrPS = m_PSBase.get();
-	m_GameObject3DCloud->ComponentRender.PtrTexture = m_SkyTexture.get();
 	m_GameObject3DCloud->ComponentRender.bIsTransparent = true;
 	m_GameObject3DCloud->ComponentPhysics.bIsPickable = false;
 	m_GameObject3DCloud->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoCulling | EFlagsGameObject3DRendering::NoLighting;
@@ -305,18 +279,18 @@ void CGame::SaveTerrain(const string& TerrainFileName)
 	m_Terrain->Save(TerrainFileName);
 }
 
-void CGame::SetTerrainTexture(int TextureID, const string& TextureFileName)
-{
-	if (!m_Terrain) return;
-
-	m_Terrain->SetTexture(TextureID, TextureFileName);
-}
-
 void CGame::AddTerrainTexture(const string& TextureFileName)
 {
 	if (!m_Terrain) return;
 
-	m_Terrain->AddTexture(TextureFileName);
+	m_Terrain->AddMaterial(TextureFileName);
+}
+
+void CGame::SetTerrainTexture(int TextureID, const string& TextureFileName)
+{
+	if (!m_Terrain) return;
+
+	m_Terrain->SetMaterial(TextureID, TextureFileName);
 }
 
 void CGame::SetTerrainSelectionSize(float& Size)
@@ -536,6 +510,7 @@ void CGame::CreateBaseShaders()
 
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSNormal->Create(EShaderType::GeometryShader, L"Shader\\GSNormal.hlsl", "main");
+	m_GSNormal->AddConstantBuffer(&m_cbGSSpaceData, sizeof(SCBGSSpaceData));
 
 	m_PSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase->Create(EShaderType::PixelShader, L"Shader\\PSBase.hlsl", "main");
@@ -577,7 +552,11 @@ void CGame::CreateMiniAxes()
 	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
 
 	SMesh Cone{ GenerateCone(0, 1.0f, 1.0f, 16) };
-	vector<SMaterial> vMaterials{ SMaterial(XMFLOAT3(1, 0, 0)), SMaterial(XMFLOAT3(0, 1, 0)), SMaterial(XMFLOAT3(0, 0, 1)) };
+	vector<CMaterial> vMaterials{};
+	vMaterials.resize(3);
+	vMaterials[0].SetUniformColor(XMFLOAT3(1, 0, 0));
+	vMaterials[1].SetUniformColor(XMFLOAT3(0, 1, 0));
+	vMaterials[2].SetUniformColor(XMFLOAT3(0, 0, 1));
 	m_vObject3DMiniAxes[0]->Create(Cone, vMaterials[0]);
 	m_vObject3DMiniAxes[1]->Create(Cone, vMaterials[1]);
 	m_vObject3DMiniAxes[2]->Create(Cone, vMaterials[2]);
@@ -891,21 +870,21 @@ CObject2D* CGame::GetObject2D(size_t Index)
 	return m_vObject2Ds[Index].get();
 }
 
-CTexture* CGame::AddTexture(const string& Name)
+CMaterialTexture* CGame::AddMaterialTexture(const string& Name)
 {
-	if (m_mapTextureNameToIndex.find(Name) != m_mapTextureNameToIndex.end()) return nullptr;
+	if (m_mapMaterialTextureNameToIndex.find(Name) != m_mapMaterialTextureNameToIndex.end()) return nullptr;
 
-	m_vTextures.emplace_back(make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get(), Name));
+	m_vMaterialTextures.emplace_back(make_unique<CMaterialTexture>(m_Device.Get(), m_DeviceContext.Get()));
 
-	m_mapTextureNameToIndex[Name] = m_vTextures.size() - 1;
+	m_mapMaterialTextureNameToIndex[Name] = m_vMaterialTextures.size() - 1;
 
-	return m_vTextures.back().get();
+	return m_vMaterialTextures.back().get();
 }
 
-CTexture* CGame::GetTexture(const string& Name)
+CMaterialTexture* CGame::GetMaterialTexture(const string& Name)
 {
-	assert(m_mapTextureNameToIndex.find(Name) != m_mapTextureNameToIndex.end());
-	return m_vTextures[m_mapTextureNameToIndex[Name]].get();
+	assert(m_mapMaterialTextureNameToIndex.find(Name) != m_mapMaterialTextureNameToIndex.end());
+	return m_vMaterialTextures[m_mapMaterialTextureNameToIndex[Name]].get();
 }
 
 CGameObject3D* CGame::AddGameObject3D(const string& Name)
@@ -1252,13 +1231,15 @@ void CGame::UpdateGameObject3D(CGameObject3D* PtrGO)
 		m_cbPSBaseFlagsData.bUseLighting = FALSE;
 	}
 
-	m_cbPSBaseFlagsData.bUseTexture = FALSE;
-	if (PtrGO->ComponentRender.PtrTexture)
+	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoTexture))
+	{
+		m_cbPSBaseFlagsData.bUseTexture = FALSE;
+	}
+	else
 	{
 		m_cbPSBaseFlagsData.bUseTexture = TRUE;
-		PtrGO->ComponentRender.PtrTexture->Use();
 	}
-
+	
 	VS->Use();
 	VS->UpdateAllConstantBuffers();
 
@@ -1292,6 +1273,8 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawNormals))
 	{
 		m_GSNormal->Use();
+		
+		UpdateGSSpace();
 
 		PtrGO->ComponentRender.PtrObject3D->Draw();
 
@@ -1368,6 +1351,7 @@ void CGame::DrawGameObject2Ds()
 			m_cbVS2DSpaceData.World = XMMatrixTranspose(GO2D->ComponentTransform.MatrixWorld);
 			m_VSBase2D->UpdateConstantBuffer(0);
 
+			/*
 			if (GO2D->ComponentRender.PtrTexture)
 			{
 				GO2D->ComponentRender.PtrTexture->Use();
@@ -1379,6 +1363,7 @@ void CGame::DrawGameObject2Ds()
 				m_cbPS2DFlagsData.bUseTexture = FALSE;
 				m_PSBase2D->UpdateConstantBuffer(0);
 			}
+			*/
 
 			GO2D->ComponentRender.PtrObject2D->Draw();
 		}
@@ -1522,7 +1507,7 @@ void CGame::DrawTerrain()
 		m_HSBezier->Use();
 		m_DSBezier->Use();
 
-		m_cbDSSpaceData.VP = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
+		m_cbDSSpaceData.VP = GetTransposedVPMatrix();
 		m_DSBezier->UpdateConstantBuffer(0);
 
 		m_Terrain->Draw(
@@ -2024,4 +2009,9 @@ const XMFLOAT2& CGame::GetTerrainSelectionRoundUpPosition()
 float CGame::GetSkyTime()
 {
 	return m_cbPSSkyTimeData.SkyTime;
+}
+
+XMMATRIX CGame::GetTransposedVPMatrix()
+{
+	return XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
 }

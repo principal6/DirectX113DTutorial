@@ -9,8 +9,9 @@ static const XMVECTOR KColorWhite{ XMVectorSet(1, 1, 1 ,1) };
 static const XMMATRIX KMatrixIdentity{ XMMatrixIdentity() };
 
 static string ConvertXMVECTORToString(const XMVECTOR& Vector);
-static void CalculateVertexNormalsFromFaceNormals(SMesh& Object3DData);
-static void CalculateFaceNormals(SMesh& Object3DData);
+static void CalculateFaceNormals(SMesh& Mesh);
+static void CalculateVertexNormalsFromFaceNormals(SMesh& Mesh);
+static void CalculateTangentBitangent(SMesh& Mesh);
 static vector<STriangle> GenerateContinuousQuads(int QuadCount);
 static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVECTOR& V2, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSquareXZPlane(const XMVECTOR& Color = KColorWhite);
@@ -48,14 +49,31 @@ static string ConvertXMVECTORToString(const XMVECTOR& Vector)
 	return Result;
 }
 
-static void CalculateVertexNormalsFromFaceNormals(SMesh& Object3DData)
+static void CalculateFaceNormals(SMesh& Mesh)
+{
+	for (const STriangle& Triangle : Mesh.vTriangles)
+	{
+		SVertex3D& V0{ Mesh.vVertices[Triangle.I0] };
+		SVertex3D& V1{ Mesh.vVertices[Triangle.I1] };
+		SVertex3D& V2{ Mesh.vVertices[Triangle.I2] };
+
+		XMVECTOR Edge01{ V1.Position - V0.Position };
+		XMVECTOR Edge02{ V2.Position - V0.Position };
+
+		XMVECTOR Normal{ XMVector3Normalize(XMVector3Cross(Edge01, Edge02)) };
+
+		V0.Normal = V1.Normal = V2.Normal = Normal;
+	}
+}
+
+static void CalculateVertexNormalsFromFaceNormals(SMesh& Mesh)
 {
 	std::unordered_map<string, vector<XMVECTOR>> mapVertexToNormals{};
-	for (const STriangle& Triangle : Object3DData.vTriangles)
+	for (const STriangle& Triangle : Mesh.vTriangles)
 	{
-		const SVertex3D& V0{ Object3DData.vVertices[Triangle.I0] };
-		const SVertex3D& V1{ Object3DData.vVertices[Triangle.I1] };
-		const SVertex3D& V2{ Object3DData.vVertices[Triangle.I2] };
+		const SVertex3D& V0{ Mesh.vVertices[Triangle.I0] };
+		const SVertex3D& V1{ Mesh.vVertices[Triangle.I1] };
+		const SVertex3D& V2{ Mesh.vVertices[Triangle.I2] };
 
 		string V0Str{ ConvertXMVECTORToString(V0.Position) };
 		string V1Str{ ConvertXMVECTORToString(V1.Position) };
@@ -66,13 +84,13 @@ static void CalculateVertexNormalsFromFaceNormals(SMesh& Object3DData)
 			auto found{ std::find(vV0s.begin(), vV0s.end(), V0.Normal) };
 			if (found == vV0s.end()) mapVertexToNormals[V0Str].emplace_back(V0.Normal);
 		}
-		
+
 		const vector<XMVECTOR>& vV1s{ mapVertexToNormals[V1Str] };
 		{
 			auto found{ std::find(vV1s.begin(), vV1s.end(), V1.Normal) };
 			if (found == vV1s.end()) mapVertexToNormals[V1Str].emplace_back(V1.Normal);
 		}
-		
+
 		const vector<XMVECTOR>& vV2s{ mapVertexToNormals[V2Str] };
 		{
 			auto found{ std::find(vV2s.begin(), vV2s.end(), V2.Normal) };
@@ -80,7 +98,7 @@ static void CalculateVertexNormalsFromFaceNormals(SMesh& Object3DData)
 		}
 	}
 
-	for (SVertex3D& Vertex : Object3DData.vVertices)
+	for (SVertex3D& Vertex : Mesh.vVertices)
 	{
 		string VStr{ ConvertXMVECTORToString(Vertex.Position) };
 
@@ -97,20 +115,40 @@ static void CalculateVertexNormalsFromFaceNormals(SMesh& Object3DData)
 	}
 }
 
-static void CalculateFaceNormals(SMesh& Object3DData)
+static void CalculateTangentBitangent(SMesh& Mesh)
 {
-	for (const STriangle& Triangle : Object3DData.vTriangles)
+	for (STriangle& Triangle : Mesh.vTriangles)
 	{
-		SVertex3D& V0{ Object3DData.vVertices[Triangle.I0] };
-		SVertex3D& V1{ Object3DData.vVertices[Triangle.I1] };
-		SVertex3D& V2{ Object3DData.vVertices[Triangle.I2] };
+		SVertex3D& Vert0{ Mesh.vVertices[Triangle.I0] };
+		SVertex3D& Vert1{ Mesh.vVertices[Triangle.I1] };
+		SVertex3D& Vert2{ Mesh.vVertices[Triangle.I2] };
 
-		XMVECTOR Edge01{ V1.Position - V0.Position };
-		XMVECTOR Edge02{ V2.Position - V0.Position };
+		XMVECTOR Edge01{ Vert1.Position - Vert0.Position };
+		XMVECTOR Edge02{ Vert2.Position - Vert0.Position };
 
-		XMVECTOR Normal{ XMVector3Normalize(XMVector3Cross(Edge01, Edge02)) };
+		XMVECTOR UV01{ Vert1.TexCoord - Vert0.TexCoord };
+		XMVECTOR UV02{ Vert2.TexCoord - Vert0.TexCoord };
 
-		V0.Normal = V1.Normal = V2.Normal = Normal;
+		float U01{ XMVectorGetX(UV01) };
+		float V01{ XMVectorGetY(UV01) };
+
+		float U02{ XMVectorGetX(UV02) };
+		float V02{ XMVectorGetY(UV02) };
+
+		// Edge01 = U01 * Tangent + V01 * Bitangent
+		// Edge02 = U02 * Tangent + V02 * Bitangent
+
+		// | Edge01 x y z | = | U01 V01 | * | Tangent	x y z |
+		// | Edge02 x y z |   | U02 V02 |   | Bitangent	x y z |
+
+		// ( Determinant == U01 * V02 - V01 * U02 )
+
+		//       1		  *  |  V02 -V01 | * | Edge01 x y z | = | Tangent	x y z |
+		//	Determinant		 | -U02  U01 | * | Edge02 x y z | = | Bitangent	x y z |
+
+		float InverseDeterminant{ 1 / U01 * V02 - V01 * U02 };
+		Vert2.Tangent = Vert1.Tangent = Vert0.Tangent = InverseDeterminant * V02 * Edge01 - V01 * Edge02;
+		Vert2.Bitangent = Vert1.Bitangent = Vert0.Bitangent = InverseDeterminant * -U02 * Edge01 + U01 * Edge02;
 	}
 }
 
