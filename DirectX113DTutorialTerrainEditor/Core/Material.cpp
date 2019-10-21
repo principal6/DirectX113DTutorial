@@ -116,22 +116,50 @@ void CMaterialTexture::Use(int ForcedSlot) const
 	}
 }
 
-void CMaterial::SetTextureRawData(const vector<uint8_t>& Data)
+void CMaterial::SetbShouldGenerateAutoMipMap(bool Value)
 {
-	bHasTexture = true;
-
-	vEmbeddedTextureRawData = Data;
+	m_bShouldGenerateAutoMipMap = Value;
 }
 
-void CMaterial::SetTextureFileName(const string& FileName, bool bShouldGenerateAutoMipMap)
+void CMaterial::SetName(const string& Name)
+{
+	m_Name = Name;
+}
+
+void CMaterial::SetDiffuseTextureRawData(const vector<uint8_t>& Data)
 {
 	bHasTexture = true;
+	bHasDiffuseTexture = true;
 
-	TextureFileName = FileName;
+	vEmbeddedDiffuseTextureRawData = Data;
+}
 
-	m_bShouldGenerateAutoMipMap = bShouldGenerateAutoMipMap;
+void CMaterial::SetDiffuseTextureFileName(const string& FileName)
+{
+	bHasTexture = true;
+	bHasDiffuseTexture = true;
 
-	vEmbeddedTextureRawData.clear();
+	DiffuseTextureFileName = FileName;
+
+	vEmbeddedDiffuseTextureRawData.clear();
+}
+
+void CMaterial::SetNormalTextureRawData(const vector<uint8_t>& Data)
+{
+	bHasTexture = true;
+	bHasNormalTexture = true;
+
+	vEmbeddedNormalTextureRawData = Data;
+}
+
+void CMaterial::SetNormalTextureFileName(const string& FileName)
+{
+	bHasTexture = true;
+	bHasNormalTexture = true;
+
+	NormalTextureFileName = FileName;
+
+	vEmbeddedNormalTextureRawData.clear();
 }
 
 void CMaterial::SetUniformColor(const XMFLOAT3& Color)

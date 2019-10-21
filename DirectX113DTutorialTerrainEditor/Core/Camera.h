@@ -56,9 +56,21 @@ public:
 	~CCamera() {}
 
 public:
-	void MoveCamera(ECameraMovementDirection Direction, float StrideFactor = 1.0f);
-	void RotateCamera(int DeltaX, int DeltaY, float RotationFactor = 1.0f);
-	void ZoomCamera(int DeltaWheel, float ZoomFactor = 1.0f);
+	void Move(ECameraMovementDirection Direction, float StrideFactor = 1.0f);
+	void Rotate(int DeltaX, int DeltaY, float RotationFactor = 1.0f);
+	void Zoom(int DeltaWheel, float ZoomFactor = 1.0f);
+
+	void SetPosition(const XMVECTOR& Position);
+	void SetPitch(float Value);
+	void SetYaw(float Value);
+
+	const SCameraData& GetData() { return m_CameraData; }
+
+private:
+	void Update();
+
+private:
+	static constexpr float KPitchLimit{ XM_PIDIV2 - 0.01f };
 
 private:
 	SCameraData m_CameraData{};

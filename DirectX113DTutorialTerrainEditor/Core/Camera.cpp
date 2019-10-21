@@ -1,6 +1,6 @@
 #include "Camera.h"
 
-void CCamera::MoveCamera(ECameraMovementDirection Direction, float StrideFactor)
+void CCamera::Move(ECameraMovementDirection Direction, float StrideFactor)
 {
 	XMVECTOR dPosition{};
 
@@ -54,12 +54,11 @@ void CCamera::MoveCamera(ECameraMovementDirection Direction, float StrideFactor)
 	m_CameraData.FocusPosition += dPosition;
 }
 
-void CCamera::RotateCamera(int DeltaX, int DeltaY, float RotationFactor)
+void CCamera::Rotate(int DeltaX, int DeltaY, float RotationFactor)
 {
 	m_CameraData.Pitch += RotationFactor * DeltaY;
 	m_CameraData.Yaw += RotationFactor * DeltaX;
 
-	static constexpr float KPitchLimit{ XM_PIDIV2 - 0.01f };
 	m_CameraData.Pitch = max(-KPitchLimit, m_CameraData.Pitch);
 	m_CameraData.Pitch = min(+KPitchLimit, m_CameraData.Pitch);
 
@@ -89,7 +88,7 @@ void CCamera::RotateCamera(int DeltaX, int DeltaY, float RotationFactor)
 	}
 }
 
-void CCamera::ZoomCamera(int DeltaWheel, float ZoomFactor)
+void CCamera::Zoom(int DeltaWheel, float ZoomFactor)
 {
 	if (m_CameraData.CameraType == ECameraType::ThirdPerson)
 	{
@@ -99,4 +98,31 @@ void CCamera::ZoomCamera(int DeltaWheel, float ZoomFactor)
 
 		m_CameraData.EyePosition = m_CameraData.FocusPosition - m_CameraData.Forward * m_CameraData.ZoomDistance;
 	}
+}
+
+void CCamera::SetPosition(const XMVECTOR& Position)
+{
+	m_CameraData.EyePosition = Position;
+	
+	Update();
+}
+
+void CCamera::SetPitch(float Value)
+{
+	m_CameraData.Pitch = Value;
+
+	Update();
+}
+
+void CCamera::SetYaw(float Value)
+{
+	m_CameraData.Yaw = Value;
+
+	Update();
+}
+
+void CCamera::Update()
+{
+	Rotate(0, 0, 0.0f);
+	Move(ECameraMovementDirection::Forward, 0.0f);
 }

@@ -56,6 +56,8 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 {
 	DS_OUTPUT Output;
 
+	Output.bUseVertexColor = Patch[0].bUseVertexColor + Patch[1].bUseVertexColor + Patch[2].bUseVertexColor;
+
 	float4 P1 = Patch[0].WorldPosition;
 	float4 P2 = Patch[1].WorldPosition;
 	float4 P3 = Patch[2].WorldPosition;
@@ -63,8 +65,6 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 	float4 N1 = normalize(Patch[0].WorldNormal);
 	float4 N2 = normalize(Patch[1].WorldNormal);
 	float4 N3 = normalize(Patch[2].WorldNormal);
-
-	Output.bUseVertexColor = Patch[0].bUseVertexColor + Patch[1].bUseVertexColor + Patch[2].bUseVertexColor;
 
 	Output.Position = Output.WorldPosition = GetBezier(P1, P2, P3, N1, N2, N3, Domain);
 
@@ -77,12 +77,13 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 	Output.UV = Patch[0].UV * Domain.x + Patch[1].UV * Domain.y + Patch[2].UV * Domain.z;
 	
 	Output.WorldNormal = Patch[0].WorldNormal * Domain.x + Patch[1].WorldNormal * Domain.y + Patch[2].WorldNormal * Domain.z;
-	
-	Output.WorldTangent = Patch[0].WorldTangent * Domain.x + Patch[0].WorldTangent * Domain.y + Patch[0].WorldTangent * Domain.z;
-	Output.WorldBitangent = Patch[0].WorldBitangent * Domain.x + Patch[0].WorldBitangent * Domain.y + Patch[0].WorldBitangent * Domain.z;
+	Output.WorldNormal = normalize(Output.WorldNormal);
 
-	//Output.WorldTangent = Patch[0].WorldTangent * Domain.x + Patch[1].WorldTangent * Domain.y + Patch[2].WorldTangent * Domain.z;
-	//Output.WorldBitangent = Patch[0].WorldBitangent * Domain.x + Patch[1].WorldBitangent * Domain.y + Patch[2].WorldBitangent * Domain.z;
+	Output.WorldTangent = Patch[0].WorldTangent * Domain.x + Patch[1].WorldTangent * Domain.y + Patch[2].WorldTangent * Domain.z;
+	Output.WorldTangent = normalize(Output.WorldTangent);
+
+	Output.WorldBitangent = Patch[0].WorldBitangent * Domain.x + Patch[1].WorldBitangent * Domain.y + Patch[2].WorldBitangent * Domain.z;
+	Output.WorldBitangent = normalize(Output.WorldBitangent);
 
 	return Output;
 }

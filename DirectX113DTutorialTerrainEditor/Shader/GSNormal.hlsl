@@ -1,5 +1,7 @@
 #include "Header.hlsli"
 
+#define LINE_LENGTH 0.3f
+
 cbuffer cbSpace : register(b0)
 {
 	float4x4 VP;
@@ -24,7 +26,7 @@ void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 
 		Output.Append(Vertex);
 
-		Vertex.Position = Vertex.WorldPosition + normalize(Input[i].WorldNormal);
+		Vertex.Position = Vertex.WorldPosition + normalize(Input[i].WorldNormal) * LINE_LENGTH;
 		Vertex.Position = float4(Vertex.Position.xyz, 1);
 		Vertex.Position = mul(Vertex.Position, VP);
 
@@ -45,7 +47,7 @@ void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 
 		Output.Append(Vertex);
 
-		Vertex.Position = Vertex.WorldPosition + normalize(Input[j].WorldTangent);
+		Vertex.Position = Vertex.WorldPosition + normalize(Input[j].WorldTangent) * LINE_LENGTH;
 		Vertex.Position = float4(Vertex.Position.xyz, 1);
 		Vertex.Position = mul(Vertex.Position, VP);
 
@@ -64,7 +66,7 @@ void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 
 		Output.Append(Vertex);
 
-		Vertex.Position = Vertex.WorldPosition + normalize(Input[k].WorldBitangent);
+		Vertex.Position = Vertex.WorldPosition + normalize(Input[k].WorldBitangent) * LINE_LENGTH;
 		Vertex.Position = float4(Vertex.Position.xyz, 1);
 		Vertex.Position = mul(Vertex.Position, VP);
 

@@ -35,7 +35,7 @@ public:
 	~CTerrain() {}
 
 public:
-	void Create(const XMFLOAT2& TerrainSize, const string& TextureFileName, float MaskingDetail);
+	void Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, float MaskingDetail);
 	void Load(const string& FileName);
 	void Save(const string& FileName);
 
@@ -50,8 +50,8 @@ public:
 	const CMaterial& GetMaterial(int Index) const;
 
 public:
-	void AddMaterial(const string& TextureFileName);
-	void SetMaterial(int TextureID, const string& TextureFileName);
+	void AddMaterial(const CMaterial& Material);
+	void SetMaterial(int MaterialID, const CMaterial& NewMaterial);
 	
 	void UpdateVertexNormals();
 

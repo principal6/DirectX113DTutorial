@@ -545,9 +545,6 @@
     <FxCompile Include="Shader\VSGizmo.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shader\PSTerrainEdit.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
     <FxCompile Include="Shader\PSMasking2D.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
@@ -555,6 +552,9 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\HSBezier.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PSTerrain.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

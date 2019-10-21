@@ -140,25 +140,46 @@ void CObject3D::CreateMeshBuffer(size_t MeshIndex, bool IsAnimated)
 void CObject3D::CreateMaterialTextures()
 {
 	m_vDiffuseTextures.clear();
+	m_vNormalTextures.clear();
 
 	for (CMaterial& Material : m_Model.vMaterials)
 	{
 		m_vDiffuseTextures.emplace_back();
+		m_vNormalTextures.emplace_back();
 
 		if (Material.HasTexture())
 		{
-			m_vDiffuseTextures.back() = make_unique<CMaterialTexture>(m_PtrDevice, m_PtrDeviceContext);
-
-			if (Material.HasEmbededdTexture())
+			if (Material.HasDiffuseTexture())
 			{
-				m_vDiffuseTextures.back()->CreateTextureFromMemory(Material.GetTextureRawData());
-			}
-			else
-			{
-				m_vDiffuseTextures.back()->CreateTextureFromFile(Material.GetTextureFileName(), Material.ShouldGenerateAutoMipMap());
+				m_vDiffuseTextures.back() = make_unique<CMaterialTexture>(m_PtrDevice, m_PtrDeviceContext);
+
+				if (Material.IsDiffuseTextureEmbedded())
+				{
+					m_vDiffuseTextures.back()->CreateTextureFromMemory(Material.GetDiffuseTextureRawData());
+				}
+				else
+				{
+					m_vDiffuseTextures.back()->CreateTextureFromFile(Material.GetDiffuseTextureFileName(), Material.ShouldGenerateAutoMipMap());
+				}
+
+				m_vDiffuseTextures.back()->SetSlot(static_cast<UINT>(m_vDiffuseTextures.size() - 1));
 			}
 
-			m_vDiffuseTextures.back()->SetSlot(m_vDiffuseTextures.size() - 1);
+			if (Material.HasNormalTexture())
+			{
+				m_vNormalTextures.back() = make_unique<CMaterialTexture>(m_PtrDevice, m_PtrDeviceContext);
+
+				if (Material.IsDiffuseTextureEmbedded())
+				{
+					m_vNormalTextures.back()->CreateTextureFromMemory(Material.GetNormalTextureRawData());
+				}
+				else
+				{
+					m_vNormalTextures.back()->CreateTextureFromFile(Material.GetNormalTextureFileName(), Material.ShouldGenerateAutoMipMap());
+				}
+
+				m_vNormalTextures.back()->SetSlot(static_cast<UINT>(KTerrainNormalTextureSlotOffset + m_vNormalTextures.size() - 1));
+			}
 		}
 	}
 }
@@ -303,14 +324,19 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 		{
 			if (m_Model.bUseMultipleTexturesInSingleMesh)
 			{
-				for (const auto& MaterialTexture : m_vDiffuseTextures)
+				for (const auto& DiffuseTexture : m_vDiffuseTextures)
 				{
-					MaterialTexture->Use();
+					if (DiffuseTexture) DiffuseTexture->Use();
+				}
+				for (const auto& NormalTexture : m_vNormalTextures)
+				{
+					if (NormalTexture) NormalTexture->Use();
 				}
 			}
 			else
 			{
 				m_vDiffuseTextures[Mesh.MaterialID]->Use();
+				m_vNormalTextures[Mesh.MaterialID]->Use();
 			}
 		}
 

@@ -59,8 +59,14 @@ public:
 	~CMaterial() {}
 
 public:
-	void SetTextureRawData(const vector<uint8_t>& Data);
-	void SetTextureFileName(const string& FileName, bool bShouldGenerateAutoMipMap);
+	void SetbShouldGenerateAutoMipMap(bool Value);
+	void SetName(const string& Name);
+
+	void SetDiffuseTextureRawData(const vector<uint8_t>& Data);
+	void SetDiffuseTextureFileName(const string& FileName);
+
+	void SetNormalTextureRawData(const vector<uint8_t>& Data);
+	void SetNormalTextureFileName(const string& FileName);
 
 public:
 	void SetUniformColor(const XMFLOAT3& Color);
@@ -71,17 +77,29 @@ public:
 	void SetSpecularIntensity(float Intensity);
 
 public:
+	const string& GetName() const { return m_Name; }
 	bool HasTexture() const { return bHasTexture; }
-	bool HasEmbededdTexture() const { return (vEmbeddedTextureRawData.size()) ? true : false; }
-	const string& GetTextureFileName() const { return TextureFileName; }
-	const vector<uint8_t>& GetTextureRawData() const { return vEmbeddedTextureRawData; }
+
+	bool HasDiffuseTexture() const { return bHasDiffuseTexture; }
+	bool IsDiffuseTextureEmbedded() const { return (vEmbeddedDiffuseTextureRawData.size()) ? true : false; }
+	const string& GetDiffuseTextureFileName() const { return DiffuseTextureFileName; }
+	const vector<uint8_t>& GetDiffuseTextureRawData() const { return vEmbeddedDiffuseTextureRawData; }
+
+	bool HasNormalTexture() const { return bHasNormalTexture; }
+	bool IsNormalTextureEmbedded() const { return (vEmbeddedNormalTextureRawData.size()) ? true : false; }
+	const string& GetNormalTextureFileName() const { return NormalTextureFileName; }
+	const vector<uint8_t>& GetNormalTextureRawData() const { return vEmbeddedNormalTextureRawData; }
+	
 	bool ShouldGenerateAutoMipMap() const { return m_bShouldGenerateAutoMipMap; }
 
-	const XMFLOAT3& GetAmbient() const { return MaterialAmbient; }
-	const XMFLOAT3& GetDiffuse() const { return MaterialDiffuse; }
-	const XMFLOAT3& GetSpecular() const { return MaterialSpecular; }
+	const XMFLOAT3& GetAmbientColor() const { return MaterialAmbient; }
+	const XMFLOAT3& GetDiffuseColor() const { return MaterialDiffuse; }
+	const XMFLOAT3& GetSpecularColor() const { return MaterialSpecular; }
 	float GetSpecularIntensity() const { return SpecularIntensity; }
 	float GetSpecularExponent() const { return SpecularExponent; }
+
+private:
+	string					m_Name{};
 
 private:
 	XMFLOAT3				MaterialAmbient{};
@@ -91,10 +109,16 @@ private:
 	float					SpecularIntensity{ 0.0f };
 
 	bool					bHasTexture{ false };
-	string					TextureFileName{};
 
-	// This will be cleared after loading the texture into CMaterialTexture
-	vector<uint8_t>			vEmbeddedTextureRawData{};
+	bool					bHasDiffuseTexture{ false };
+	string					DiffuseTextureFileName{};
+
+	bool					bHasNormalTexture{ false };
+	string					NormalTextureFileName{};
+
+	// This should be cleared after loading the texture into CMaterialTexture
+	vector<uint8_t>			vEmbeddedDiffuseTextureRawData{};
+	vector<uint8_t>			vEmbeddedNormalTextureRawData{};
 
 	bool					m_bShouldGenerateAutoMipMap{};
 };

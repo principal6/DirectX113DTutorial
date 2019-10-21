@@ -63,6 +63,10 @@ private:
 	void Draw(bool bIgnoreOwnTexture = false) const;
 
 private:
+	static constexpr size_t			KTerrainNormalTextureSlotOffset{ 5 };
+	static constexpr size_t			KTerrainMaskingTextureSlot{ 10 };
+
+private:
 	ID3D11Device*					m_PtrDevice{};
 	ID3D11DeviceContext*			m_PtrDeviceContext{};
 	CGame*							m_PtrGame{};
@@ -71,6 +75,7 @@ private:
 	SModel									m_Model{};
 	vector<SMeshBuffers>					m_vMeshBuffers{};
 	vector<unique_ptr<CMaterialTexture>>	m_vDiffuseTextures{};
+	vector<unique_ptr<CMaterialTexture>>	m_vNormalTextures{};
 
 	XMMATRIX								m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
 	size_t									m_CurrentAnimationIndex{};

@@ -17,7 +17,6 @@ VS_OUTPUT main(VS_INPUT input)
 
 	output.WorldNormal = normalize(mul(input.Normal, World));
 	output.WorldTangent = normalize(mul(input.Tangent, World));
-	//output.WorldBitangent = normalize(mul(input.Bitangent, World));
 	output.WorldBitangent = float4(normalize(cross(output.WorldNormal.xyz, output.WorldTangent.xyz)), 0);
 
 	output.bUseVertexColor = 0;

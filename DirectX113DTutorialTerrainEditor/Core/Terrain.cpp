@@ -18,12 +18,12 @@
 // ...
 // ###########################
 
-void CTerrain::Create(const XMFLOAT2& TerrainSize, const string& TextureFileName, float MaskingDetail)
+void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, float MaskingDetail)
 {
 	SModel Model{};
 	Model.vMeshes.emplace_back(GenerateTerrainBase(TerrainSize));
-	Model.vMaterials.emplace_back();
-	Model.vMaterials.back().SetTextureFileName(TextureFileName, true);
+	Model.vMaterials.emplace_back(Material);
+	Model.vMaterials.back().SetbShouldGenerateAutoMipMap(true); // @important
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
 
 	m_Size = TerrainSize;
@@ -157,7 +157,7 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 	m_MaskingTexture.release();
 	m_MaskingTexture = make_unique<CMaterialTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_MaskingTexture->CreateBlankTexture(DXGI_FORMAT_R8G8B8A8_UNORM, m_MaskingTextureSize);
-	m_MaskingTexture->SetSlot(5);
+	m_MaskingTexture->SetSlot(CObject3D::KTerrainMaskingTextureSlot);
 	m_MaskingTexture->Use();
 
 	if (bShouldClear)
@@ -173,7 +173,7 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 	XMMATRIX Translation{ XMMatrixTranslation(m_Size.x / 2.0f, 0, m_Size.y / 2.0f) };
 	XMMATRIX Scaling{ XMMatrixScaling(1 / m_Size.x, 1.0f, 1 / m_Size.y) };
 	m_MatrixMaskingSpace = Translation * Scaling;
-	m_PtrGame->UpdatePSTerrainEditSpace(m_MatrixMaskingSpace);
+	m_PtrGame->UpdatePSTerrainSpace(m_MatrixMaskingSpace);
 }
 
 const XMFLOAT2& CTerrain::GetSize() const
@@ -203,26 +203,20 @@ const CMaterial& CTerrain::GetMaterial(int Index) const
 	return m_Object3D->m_Model.vMaterials[Index];
 }
 
-void CTerrain::AddMaterial(const string& TextureFileName)
+void CTerrain::AddMaterial(const CMaterial& Material)
 {
 	assert(m_Object3D);
 	if ((int)m_Object3D->m_Model.vMaterials.size() == KMaterialMaxCount) return;
 
-	CMaterial Material{};
-	Material.SetTextureFileName(TextureFileName, true);
-	
 	m_Object3D->AddMaterial(Material);
 }
 
-void CTerrain::SetMaterial(int MaterialID, const string& TextureFileName)
+void CTerrain::SetMaterial(int MaterialID, const CMaterial& NewMaterial)
 {
 	assert(m_Object3D);
 	assert(MaterialID >= 0 && MaterialID < 4);
 
-	CMaterial Material{};
-	Material.SetTextureFileName(TextureFileName, true);
-
-	m_Object3D->SetMaterial(MaterialID, Material);
+	m_Object3D->SetMaterial(MaterialID, NewMaterial);
 }
 
 void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, float Value, float Radius, bool bForceSet)
@@ -497,7 +491,7 @@ void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
 	if (!m_Object3D) return;
 
 	CShader* VS{ m_PtrGame->GetBaseShader(EBaseShader::VSBase) };
-	CShader* PS{ m_PtrGame->GetBaseShader(EBaseShader::PSTerrainEdit) };
+	CShader* PS{ m_PtrGame->GetBaseShader(EBaseShader::PSTerrain) };
 	
 	VS->Use();
 	PS->Use();

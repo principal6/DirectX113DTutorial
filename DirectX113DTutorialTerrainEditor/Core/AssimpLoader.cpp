@@ -188,11 +188,11 @@ vector<CMaterial> CAssimpLoader::LoadMaterialsFromFile(const aiScene* Scene, ID3
 					vEmbeddedTextureRawData.emplace_back((uint8_t)Texel.a);
 				}
 
-				CurrentMaterial.SetTextureRawData(vEmbeddedTextureRawData);
+				CurrentMaterial.SetDiffuseTextureRawData(vEmbeddedTextureRawData);
 			}
 			else
 			{
-				CurrentMaterial.SetTextureFileName(TextureFileName.C_Str(), false);
+				CurrentMaterial.SetDiffuseTextureFileName(TextureFileName.C_Str());
 			}
 		}
 
