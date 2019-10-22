@@ -248,7 +248,7 @@ public:
 	void SetTerrainMaterial(int MaterialID, const CMaterial& Material);
 	CTerrain* GetTerrain() { return m_Terrain.get(); }
 	void SetTerrainSelectionSize(float& Size);
-	void RecalculateTerrainNormals();
+	void RecalculateTerrainNormalsTangents();
 
 private:
 	void LoadSkyObjectData(tinyxml2::XMLElement* xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);

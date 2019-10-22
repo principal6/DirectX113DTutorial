@@ -475,7 +475,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 							if (ImGui::Button(u8"전체 법선 재계산"))
 							{
-								Game.RecalculateTerrainNormals();
+								Game.RecalculateTerrainNormalsTangents();
 							}
 
 							ImGui::Separator();

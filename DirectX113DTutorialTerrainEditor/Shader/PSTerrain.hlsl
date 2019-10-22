@@ -55,7 +55,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	ResultNormal.xyz = NormalLayer3.xyz * Masking.b + ResultNormal.xyz * (1.0f - Masking.b);
 	ResultNormal.xyz = NormalLayer4.xyz * Masking.a + ResultNormal.xyz * (1.0f - Masking.a);
 	ResultNormal = normalize(ResultNormal);
-	ResultNormal = float4(normalize(mul(ResultNormal.xyz, TextureSpace)), 0.0f);
+	ResultNormal = normalize(float4(mul(ResultNormal.xyz, TextureSpace), 0.0f));
 	
 	// Selection highlight (for edit mode)
 	if (input.UV.z > 0.0f)

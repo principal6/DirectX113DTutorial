@@ -53,7 +53,7 @@ public:
 	void AddMaterial(const CMaterial& Material);
 	void SetMaterial(int MaterialID, const CMaterial& NewMaterial);
 	
-	void UpdateVertexNormals();
+	void UpdateVertexNormalsTangents();
 
 	void SelectTerrain(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor);
 	void UpdateMaskingTexture();

@@ -43,7 +43,7 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, fl
 
 	CreateMaskingTexture(true);
 
-	UpdateVertexNormals();
+	UpdateVertexNormalsTangents();
 }
 
 void CTerrain::Load(const string& FileName)
@@ -103,7 +103,7 @@ void CTerrain::Load(const string& FileName)
 
 	CreateMaskingTexture(false);
 
-	UpdateVertexNormals();
+	UpdateVertexNormalsTangents();
 }
 
 void CTerrain::Save(const string& FileName)
@@ -288,13 +288,14 @@ void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, flo
 	UpdateMaskingTexture();
 }
 
-void CTerrain::UpdateVertexNormals()
+void CTerrain::UpdateVertexNormalsTangents()
 {
 	assert(m_Object3D);
 
-	CalculateFaceNormals(m_Object3D->m_Model.vMeshes[0]);
-	CalculateVertexNormalsFromFaceNormals(m_Object3D->m_Model.vMeshes[0]);
-	CalculateTangentBitangent(m_Object3D->m_Model.vMeshes[0]);
+	CalculateNormals(m_Object3D->m_Model.vMeshes[0]);
+	AverageNormals(m_Object3D->m_Model.vMeshes[0]);
+	CalculateTangents(m_Object3D->m_Model.vMeshes[0]);
+	AverageTangents(m_Object3D->m_Model.vMeshes[0]);
 
 	m_Object3D->UpdateMeshBuffer();
 }

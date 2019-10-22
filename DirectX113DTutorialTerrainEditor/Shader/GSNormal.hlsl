@@ -10,6 +10,10 @@ cbuffer cbSpace : register(b0)
 [maxvertexcount(30)]
 void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 {
+	const float4 KTangentColor		= float4(1, 0, 0, 1);
+	const float4 KBitangentColor	= float4(0, 1, 0, 1);
+	const float4 KNormalColor		= float4(0, 0, 1, 1);
+
 	Output.Append(Input[0]);
 	Output.Append(Input[1]);
 	Output.Append(Input[2]);
@@ -21,17 +25,11 @@ void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 	for (int i = 0; i < 3; ++i)
 	{
 		Vertex = Input[i];
-		Vertex.Color = float4(1, 1, 0, 1);
+		Vertex.Color = KNormalColor;
 		Vertex.bUseVertexColor = 1;
-
 		Output.Append(Vertex);
 
-		Vertex.Position = Vertex.WorldPosition + normalize(Input[i].WorldNormal) * LINE_LENGTH;
-		Vertex.Position = float4(Vertex.Position.xyz, 1);
-		Vertex.Position = mul(Vertex.Position, VP);
-
-		Vertex.Color = float4(1, 0.6f, 0, 1);
-
+		Vertex.Position = mul(Vertex.WorldPosition + normalize(Input[i].WorldNormal) * LINE_LENGTH, VP);
 		Output.Append(Vertex);
 		Output.Append(Vertex);
 
@@ -42,15 +40,11 @@ void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 	for (int j = 0; j < 3; ++j)
 	{
 		Vertex = Input[j];
-		Vertex.Color = float4(1, 0, 0, 1);
+		Vertex.Color = KTangentColor;
 		Vertex.bUseVertexColor = 1;
-
 		Output.Append(Vertex);
 
-		Vertex.Position = Vertex.WorldPosition + normalize(Input[j].WorldTangent) * LINE_LENGTH;
-		Vertex.Position = float4(Vertex.Position.xyz, 1);
-		Vertex.Position = mul(Vertex.Position, VP);
-
+		Vertex.Position = mul(Vertex.WorldPosition + normalize(Input[j].WorldTangent) * LINE_LENGTH, VP);
 		Output.Append(Vertex);
 		Output.Append(Vertex);
 
@@ -61,15 +55,11 @@ void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 	for (int k = 0; k < 3; ++k)
 	{
 		Vertex = Input[k];
-		Vertex.Color = float4(0, 0, 1, 1);
+		Vertex.Color = KBitangentColor;
 		Vertex.bUseVertexColor = 1;
-
 		Output.Append(Vertex);
 
-		Vertex.Position = Vertex.WorldPosition + normalize(Input[k].WorldBitangent) * LINE_LENGTH;
-		Vertex.Position = float4(Vertex.Position.xyz, 1);
-		Vertex.Position = mul(Vertex.Position, VP);
-
+		Vertex.Position = mul(Vertex.WorldPosition + normalize(Input[k].WorldBitangent) * LINE_LENGTH, VP);		
 		Output.Append(Vertex);
 		Output.Append(Vertex);
 
