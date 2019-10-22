@@ -6,8 +6,6 @@ class CObject3DLine;
 
 class CGameObject3DLine
 {
-	friend class CGame;
-
 	struct SComponentTransform
 	{
 		XMVECTOR		Translation{};
@@ -36,7 +34,7 @@ public:
 	CGameObject3DLine(const string& Name) : m_Name{ Name } {}
 	~CGameObject3DLine() {}
 
-private:
+public:
 	void UpdateWorldMatrix();
 
 private:

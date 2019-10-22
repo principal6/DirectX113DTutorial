@@ -20,10 +20,6 @@ struct SMeshBuffers
 
 class CObject3D
 {
-	friend class CGameObject3D;
-	friend class CGame;
-	friend class CTerrain;
-
 public:
 	CObject3D(ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext, CGame* PtrGame) :
 		m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }, m_PtrGame{ PtrGame }
@@ -47,11 +43,17 @@ public:
 	size_t GetMaterialCount() const;
 
 	void UpdateQuadUV(const XMFLOAT2& UVOffset, const XMFLOAT2& UVSize);
+	void UpdateMeshBuffer(size_t MeshIndex = 0);
 
 	void Animate();
+	void Draw(bool bIgnoreOwnTexture = false) const;
 
 	bool ShouldTessellate() const { return m_bShouldTesselate; }
 	void ShouldTessellate(bool Value);
+
+public:
+	const SModel& GetModel() const { return m_Model; }
+	SModel& GetModel() { return m_Model; }
 
 private:
 	void CreateMeshBuffers();
@@ -59,13 +61,9 @@ private:
 
 	void CreateMaterialTextures();
 
-	void UpdateMeshBuffer(size_t MeshIndex = 0);
-
 	void CalculateAnimatedBoneMatrices(const SModelNode& Node, XMMATRIX ParentTransform);
 
-	void Draw(bool bIgnoreOwnTexture = false) const;
-
-private:
+public:
 	static constexpr size_t			KTerrainNormalTextureSlotOffset{ 5 };
 	static constexpr size_t			KTerrainMaskingTextureSlot{ 10 };
 

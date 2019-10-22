@@ -15,6 +15,7 @@ static void CalculateTangents(SMesh& Mesh);
 static vector<STriangle> GenerateContinuousQuads(int QuadCount);
 static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVECTOR& V2, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVECTOR& V2, const XMVECTOR& Color0, const XMVECTOR& Color1, const XMVECTOR& Color2);
+static SMesh GenerateSquareXYPlane(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSquareXZPlane(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSquareYZPlane(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateTerrainBase(const XMFLOAT2& Size);
@@ -237,17 +238,38 @@ static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVE
 	return Mesh;
 }
 
+static SMesh GenerateSquareXYPlane(const XMVECTOR& Color)
+{
+	constexpr float KHalfLengthX{ 0.5f };
+	constexpr float KHalfLengthY{ 0.5f };
+
+	SMesh Mesh{};
+
+	Mesh.vVertices.emplace_back(XMVectorSet(-KHalfLengthX, +KHalfLengthY, 0.0f, 1), Color, XMVectorSet(0, 0, 0, 0));
+	Mesh.vVertices.emplace_back(XMVectorSet(+KHalfLengthX, +KHalfLengthY, 0.0f, 1), Color, XMVectorSet(1, 0, 0, 0));
+	Mesh.vVertices.emplace_back(XMVectorSet(-KHalfLengthX, -KHalfLengthY, 0.0f, 1), Color, XMVectorSet(0, 1, 0, 0));
+	Mesh.vVertices.emplace_back(XMVectorSet(+KHalfLengthX, -KHalfLengthY, 0.0f, 1), Color, XMVectorSet(1, 1, 0, 0));
+
+	Mesh.vTriangles = GenerateContinuousQuads(1);
+
+	CalculateNormals(Mesh);
+
+	AverageNormals(Mesh);
+
+	return Mesh;
+}
+
 static SMesh GenerateSquareXZPlane(const XMVECTOR& Color)
 {
 	constexpr float KHalfLengthX{ 0.5f };
 	constexpr float KHalfLengthZ{ 0.5f };
-	
+
 	SMesh Mesh{};
 
-	Mesh.vVertices.emplace_back(XMVectorSet(-KHalfLengthX, +0.0f, +KHalfLengthZ, 1), Color, XMVectorSet(0, 0, 0, 0));
-	Mesh.vVertices.emplace_back(XMVectorSet(+KHalfLengthX, +0.0f, +KHalfLengthZ, 1), Color, XMVectorSet(1, 0, 0, 0));
-	Mesh.vVertices.emplace_back(XMVectorSet(-KHalfLengthX, +0.0f, -KHalfLengthZ, 1), Color, XMVectorSet(0, 1, 0, 0));
-	Mesh.vVertices.emplace_back(XMVectorSet(+KHalfLengthX, +0.0f, -KHalfLengthZ, 1), Color, XMVectorSet(1, 1, 0, 0));
+	Mesh.vVertices.emplace_back(XMVectorSet(-KHalfLengthX, 0.0f, +KHalfLengthZ, 1), Color, XMVectorSet(0, 0, 0, 0));
+	Mesh.vVertices.emplace_back(XMVectorSet(+KHalfLengthX, 0.0f, +KHalfLengthZ, 1), Color, XMVectorSet(1, 0, 0, 0));
+	Mesh.vVertices.emplace_back(XMVectorSet(-KHalfLengthX, 0.0f, -KHalfLengthZ, 1), Color, XMVectorSet(0, 1, 0, 0));
+	Mesh.vVertices.emplace_back(XMVectorSet(+KHalfLengthX, 0.0f, -KHalfLengthZ, 1), Color, XMVectorSet(1, 1, 0, 0));
 
 	Mesh.vTriangles = GenerateContinuousQuads(1);
 

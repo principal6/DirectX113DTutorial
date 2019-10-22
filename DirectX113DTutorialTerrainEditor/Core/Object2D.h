@@ -21,8 +21,6 @@ struct SObject2DData
 
 class CObject2D
 {
-	friend class CGame;
-
 public:
 	CObject2D(ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext) : 
 		m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }

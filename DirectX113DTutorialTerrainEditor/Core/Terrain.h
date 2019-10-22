@@ -23,8 +23,6 @@ enum class EMaskingLayer
 
 class CTerrain
 {
-	friend class CGame;
-
 public:
 	CTerrain(ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext, CGame* PtrGame) :
 		m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }, m_PtrGame{ PtrGame }

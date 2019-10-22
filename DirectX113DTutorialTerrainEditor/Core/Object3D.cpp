@@ -340,8 +340,8 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 			}
 			else
 			{
-				m_vDiffuseTextures[Mesh.MaterialID]->Use();
-				m_vNormalTextures[Mesh.MaterialID]->Use();
+				if (m_vDiffuseTextures[Mesh.MaterialID]) m_vDiffuseTextures[Mesh.MaterialID]->Use();
+				if (m_vNormalTextures[Mesh.MaterialID]) m_vNormalTextures[Mesh.MaterialID]->Use();
 			}
 		}
 

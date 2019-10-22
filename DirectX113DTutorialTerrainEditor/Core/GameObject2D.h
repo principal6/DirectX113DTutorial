@@ -7,8 +7,6 @@ class CMaterial;
 
 class CGameObject2D
 {
-	friend class CGame;
-
 	struct SComponentTransform
 	{
 		XMVECTOR	Translation{};
@@ -38,7 +36,7 @@ public:
 	CGameObject2D(const string& Name) : m_Name{ Name } {}
 	~CGameObject2D() {}
 
-private:
+public:
 	void UpdateWorldMatrix();
 
 private:

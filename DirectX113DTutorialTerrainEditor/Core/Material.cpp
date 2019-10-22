@@ -92,7 +92,9 @@ void CMaterialTexture::UpdateTextureRawData(const SPixelUNorm* PtrData)
 		UINT RowCount{ MappedSubresource.DepthPitch / MappedSubresource.RowPitch };
 		for (UINT iRow = 0; iRow < RowCount; ++iRow)
 		{
-			memcpy(PtrDest + (iRow * MappedSubresource.RowPitch), PtrData + (iRow * SrcRowPixelCount), SrcRowPixelCount * sizeof(SPixelUNorm));
+			memcpy(PtrDest + (static_cast<size_t>(iRow) * MappedSubresource.RowPitch), 
+				PtrData + (static_cast<size_t>(iRow) * SrcRowPixelCount),
+				SrcRowPixelCount * sizeof(SPixelUNorm));
 		}
 
 		m_PtrDeviceContext->Unmap(m_Texture2D.Get(), 0);
@@ -104,15 +106,35 @@ void CMaterialTexture::SetSlot(UINT Slot)
 	m_Slot = Slot;
 }
 
+void CMaterialTexture::SetShaderType(EShaderType eShaderType)
+{
+	m_eShaderType = eShaderType;
+}
+
 void CMaterialTexture::Use(int ForcedSlot) const
 {
-	if (ForcedSlot != -1)
+	UINT Slot{ m_Slot };
+	if (ForcedSlot != -1) Slot = static_cast<UINT>(ForcedSlot);
+
+	switch (m_eShaderType)
 	{
-		m_PtrDeviceContext->PSSetShaderResources(static_cast<UINT>(ForcedSlot), 1, m_ShaderResourceView.GetAddressOf());
-	}
-	else
-	{
-		m_PtrDeviceContext->PSSetShaderResources(m_Slot, 1, m_ShaderResourceView.GetAddressOf());
+	case EShaderType::VertexShader:
+		m_PtrDeviceContext->VSSetShaderResources(Slot, 1, m_ShaderResourceView.GetAddressOf());
+		break;
+	case EShaderType::HullShader:
+		m_PtrDeviceContext->HSSetShaderResources(Slot, 1, m_ShaderResourceView.GetAddressOf());
+		break;
+	case EShaderType::DomainShader:
+		m_PtrDeviceContext->DSSetShaderResources(Slot, 1, m_ShaderResourceView.GetAddressOf());
+		break;
+	case EShaderType::GeometryShader:
+		m_PtrDeviceContext->GSSetShaderResources(Slot, 1, m_ShaderResourceView.GetAddressOf());
+		break;
+	case EShaderType::PixelShader:
+		m_PtrDeviceContext->PSSetShaderResources(Slot, 1, m_ShaderResourceView.GetAddressOf());
+		break;
+	default:
+		break;
 	}
 }
 

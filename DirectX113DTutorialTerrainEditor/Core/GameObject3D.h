@@ -20,8 +20,6 @@ ENUM_CLASS_FLAG(EFlagsGameObject3DRendering)
 
 class CGameObject3D
 {
-	friend class CGame;
-
 	struct SComponentTransform
 	{
 		XMVECTOR	Translation{};
@@ -70,8 +68,9 @@ public:
 	CGameObject3D(const string& Name) : m_Name{ Name } {}
 	~CGameObject3D() {}
 
-private:
+public:
 	void UpdateWorldMatrix();
+	const string& GetName() const { return m_Name; }
 
 private:
 	string							m_Name{};

@@ -1157,12 +1157,12 @@ bool CGame::PickTriangle()
 		if (!m_PtrPickedGameObject3D->ComponentRender.PtrObject3D) return false;
 
 		// Pick only static models' triangle.
-		if (m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->m_Model.bIsModelAnimated) return false;
+		if (m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->GetModel().bIsModelAnimated) return false;
 
 		const XMMATRIX& World{ m_PtrPickedGameObject3D->ComponentTransform.MatrixWorld };
-		for (auto& Mesh : m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->m_Model.vMeshes)
+		for (const SMesh& Mesh : m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->GetModel().vMeshes)
 		{
-			for (auto& Triangle : Mesh.vTriangles)
+			for (const STriangle& Triangle : Mesh.vTriangles)
 			{
 				XMVECTOR V0{ Mesh.vVertices[Triangle.I0].Position };
 				XMVECTOR V1{ Mesh.vVertices[Triangle.I1].Position };
@@ -1551,9 +1551,9 @@ void CGame::DrawPickedTriangle()
 	
 	m_PSVertexColor->Use();
 
-	m_Object3DPickedTriangle->m_Model.vMeshes[0].vVertices[0].Position = m_PickedTriangleV0;
-	m_Object3DPickedTriangle->m_Model.vMeshes[0].vVertices[1].Position = m_PickedTriangleV1;
-	m_Object3DPickedTriangle->m_Model.vMeshes[0].vVertices[2].Position = m_PickedTriangleV2;
+	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[0].Position = m_PickedTriangleV0;
+	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[1].Position = m_PickedTriangleV1;
+	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[2].Position = m_PickedTriangleV2;
 	m_Object3DPickedTriangle->UpdateMeshBuffer();
 
 	m_Object3DPickedTriangle->Draw();
@@ -2114,7 +2114,7 @@ const char* CGame::GetPickedGameObject3DName()
 {
 	if (m_PtrPickedGameObject3D)
 	{
-		return m_PtrPickedGameObject3D->m_Name.c_str();
+		return m_PtrPickedGameObject3D->GetName().c_str();
 	}
 	return nullptr;
 }
@@ -2123,7 +2123,7 @@ const char* CGame::GetCapturedPickedGameObject3DName()
 {
 	if (m_PtrCapturedPickedGameObject3D)
 	{
-		return m_PtrCapturedPickedGameObject3D->m_Name.c_str();
+		return m_PtrCapturedPickedGameObject3D->GetName().c_str();
 	}
 	return nullptr;
 }

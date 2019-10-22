@@ -35,7 +35,7 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, fl
 	m_Object3D.release();
 	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3D->Create(Model);
-	m_Object3D->m_bShouldTesselate = true; // @important
+	m_Object3D->ShouldTessellate(true); // @important
 
 	m_Object2DMaskingTextureRepresentation.release();
 	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
@@ -95,7 +95,7 @@ void CTerrain::Load(const string& FileName)
 	m_Object3D.release();
 	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3D->Create(Model);
-	m_Object3D->m_bShouldTesselate = true; // @important
+	m_Object3D->ShouldTessellate(true); // @important
 
 	m_Object2DMaskingTextureRepresentation.release();
 	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
@@ -144,7 +144,7 @@ void CTerrain::Save(const string& FileName)
 	}
 
 	// Model data
-	_WriteStaticModelFile(ofs, m_Object3D->m_Model);
+	_WriteStaticModelFile(ofs, m_Object3D->GetModel());
 
 	ofs.close();
 }
@@ -184,7 +184,7 @@ const XMFLOAT2& CTerrain::GetSize() const
 int CTerrain::GetMaterialCount() const
 {
 	assert(m_Object3D);
-	return (int)m_Object3D->m_Model.vMaterials.size();
+	return (int)m_Object3D->GetMaterialCount();
 }
 
 const XMFLOAT2& CTerrain::GetSelectionRoundUpPosition() const
@@ -200,13 +200,13 @@ float CTerrain::GetMaskingTextureDetail() const
 const CMaterial& CTerrain::GetMaterial(int Index) const
 {
 	assert(m_Object3D);
-	return m_Object3D->m_Model.vMaterials[Index];
+	return m_Object3D->GetModel().vMaterials[Index];
 }
 
 void CTerrain::AddMaterial(const CMaterial& Material)
 {
 	assert(m_Object3D);
-	if ((int)m_Object3D->m_Model.vMaterials.size() == KMaterialMaxCount) return;
+	if ((int)m_Object3D->GetModel().vMaterials.size() == KMaterialMaxCount) return;
 
 	m_Object3D->AddMaterial(Material);
 }
@@ -292,10 +292,10 @@ void CTerrain::UpdateVertexNormalsTangents()
 {
 	assert(m_Object3D);
 
-	CalculateNormals(m_Object3D->m_Model.vMeshes[0]);
-	AverageNormals(m_Object3D->m_Model.vMeshes[0]);
-	CalculateTangents(m_Object3D->m_Model.vMeshes[0]);
-	AverageTangents(m_Object3D->m_Model.vMeshes[0]);
+	CalculateNormals(m_Object3D->GetModel().vMeshes[0]);
+	AverageNormals(m_Object3D->GetModel().vMeshes[0]);
+	CalculateTangents(m_Object3D->GetModel().vMeshes[0]);
+	AverageTangents(m_Object3D->GetModel().vMeshes[0]);
 
 	m_Object3D->UpdateMeshBuffer();
 }
@@ -312,7 +312,7 @@ void CTerrain::UpdateSelection(const XMVECTOR& PickingRayOrigin, const XMVECTOR&
 {
 	// Do not consider World transformation!!
 	// Terrain uses single mesh
-	SMesh& Mesh{ m_Object3D->m_Model.vMeshes[0] };
+	SMesh& Mesh{ m_Object3D->GetModel().vMeshes[0] };
 
 	XMVECTOR T{ KVectorGreatest };
 	XMVECTOR PlaneT{};
@@ -372,7 +372,7 @@ void CTerrain::ReleaseSelection()
 {
 	// Do not consider World transformation!!
 	// Terrain uses single mesh
-	SMesh& Mesh{ m_Object3D->m_Model.vMeshes[0] };
+	SMesh& Mesh{ m_Object3D->GetModel().vMeshes[0] };
 
 	for (auto& Triangle : Mesh.vTriangles)
 	{
@@ -441,7 +441,7 @@ void CTerrain::ShouldTessellate(bool Value)
 {
 	if (m_Object3D)
 	{
-		m_Object3D->m_bShouldTesselate = Value;
+		m_Object3D->ShouldTessellate(Value);
 	}
 }
 
@@ -548,7 +548,7 @@ void CTerrain::UpdateHeight(bool bIsLeftButton, float DeltaHeightFactor)
 {
 	if (!m_Object3D) return;
 
-	SMesh& Mesh{ m_Object3D->m_Model.vMeshes[0] };
+	SMesh& Mesh{ m_Object3D->GetModel().vMeshes[0] };
 
 	int VertexCount{ static_cast<int>(m_Size.x * m_Size.y * 4) };
 	const int ZMax{ (int)m_Size.y + 1 };

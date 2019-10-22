@@ -32,6 +32,7 @@ private:
 public:
 	void UpdateTextureRawData(const SPixelUNorm* PtrData);
 	void SetSlot(UINT Slot);
+	void SetShaderType(EShaderType eShaderType);
 	void Use(int ForcedSlot = -1) const;
 
 public:
@@ -46,6 +47,7 @@ private:
 	string								m_TextureFileName{};
 	XMFLOAT2							m_TextureSize{};
 	UINT								m_Slot{};
+	EShaderType							m_eShaderType{ EShaderType::PixelShader };
 
 private:
 	ComPtr<ID3D11Texture2D>				m_Texture2D{};
