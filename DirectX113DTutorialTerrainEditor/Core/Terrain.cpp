@@ -35,7 +35,7 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, fl
 	m_Object3D.release();
 	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3D->Create(Model);
-	m_Object3D->m_bTesselate = true; // @important
+	m_Object3D->m_bShouldTesselate = true; // @important
 
 	m_Object2DMaskingTextureRepresentation.release();
 	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
@@ -95,7 +95,7 @@ void CTerrain::Load(const string& FileName)
 	m_Object3D.release();
 	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3D->Create(Model);
-	m_Object3D->m_bTesselate = true; // @important
+	m_Object3D->m_bShouldTesselate = true; // @important
 
 	m_Object2DMaskingTextureRepresentation.release();
 	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
@@ -441,7 +441,7 @@ void CTerrain::ShouldTessellate(bool Value)
 {
 	if (m_Object3D)
 	{
-		m_Object3D->m_bTesselate = Value;
+		m_Object3D->m_bShouldTesselate = Value;
 	}
 }
 

@@ -50,6 +50,9 @@ public:
 
 	void Animate();
 
+	bool ShouldTessellate() const { return m_bShouldTesselate; }
+	void ShouldTessellate(bool Value);
+
 private:
 	void CreateMeshBuffers();
 	void CreateMeshBuffer(size_t MeshIndex, bool IsAnimated);
@@ -80,8 +83,8 @@ private:
 	XMMATRIX								m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
 	size_t									m_CurrentAnimationIndex{};
 	float									m_CurrentAnimationTick{};
-	bool									m_bTesselate{ false };
+	bool									m_bShouldTesselate{ false };
 
 private:
-	static CAssimpLoader			ms_AssimpLoader;
+	static CAssimpLoader					ms_AssimpLoader;
 };

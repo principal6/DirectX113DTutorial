@@ -1366,6 +1366,20 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 	if (!PtrGO) return;
 	if (!PtrGO->ComponentRender.PtrObject3D) return;
 
+	if (PtrGO->ComponentRender.PtrObject3D->ShouldTessellate())
+	{
+		m_HSBezier->Use();
+		m_DSBezier->Use();
+
+		m_cbDSSpaceData.VP = GetTransposedVPMatrix();
+		m_DSBezier->UpdateConstantBuffer(0);
+	}
+	else
+	{
+		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
+		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
+	}
+
 	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoCulling))
 	{
 		m_DeviceContext->RSSetState(m_CommonStates->CullNone());

@@ -227,6 +227,11 @@ void CObject3D::Animate()
 	m_PtrGame->UpdateVSAnimationBoneMatrices(m_AnimatedBoneMatrices);
 }
 
+void CObject3D::ShouldTessellate(bool Value)
+{
+	m_bShouldTesselate = Value;
+}
+
 void CObject3D::CalculateAnimatedBoneMatrices(const SModelNode& Node, XMMATRIX ParentTransform)
 {
 	XMMATRIX MatrixTransformation{ Node.MatrixTransformation * ParentTransform };
@@ -351,7 +356,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 				&m_vMeshBuffers[iMesh].VertexBufferAnimationStride, &m_vMeshBuffers[iMesh].VertexBufferAnimationOffset);
 		}
 
-		if (m_bTesselate)
+		if (m_bShouldTesselate)
 		{
 			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
 		}
