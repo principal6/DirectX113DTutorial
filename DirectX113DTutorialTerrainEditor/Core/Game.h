@@ -119,6 +119,11 @@ struct SCBVSAnimationBonesData
 	XMMATRIX	BoneMatrices[KMaxBoneMatrixCount]{};
 };
 
+struct SCBHSCameraData
+{
+	XMVECTOR	EyePosition{};
+};
+
 struct SCBDSSpaceData
 {
 	XMMATRIX	VP{};
@@ -420,6 +425,8 @@ private:
 	SCBVSSpaceData				m_cbVSSpaceData{};
 	SCBVSAnimationBonesData		m_cbVSAnimationBonesData{};
 	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
+
+	SCBHSCameraData				m_cbHSCameraData{};
 
 	SCBDSSpaceData				m_cbDSSpaceData{};
 

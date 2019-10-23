@@ -511,6 +511,7 @@ void CGame::CreateBaseShaders()
 
 	m_HSBezier = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSBezier->Create(EShaderType::HullShader, L"Shader\\HSBezier.hlsl", "main");
+	m_HSBezier->AddConstantBuffer(&m_cbHSCameraData, sizeof(SCBHSCameraData));
 
 	m_DSBezier = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSBezier->Create(EShaderType::DomainShader, L"Shader\\DSBezier.hlsl", "main");
@@ -1369,8 +1370,10 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 	if (PtrGO->ComponentRender.PtrObject3D->ShouldTessellate())
 	{
 		m_HSBezier->Use();
-		m_DSBezier->Use();
+		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetData().EyePosition;
+		m_HSBezier->UpdateConstantBuffer(0);
 
+		m_DSBezier->Use();
 		m_cbDSSpaceData.VP = GetTransposedVPMatrix();
 		m_DSBezier->UpdateConstantBuffer(0);
 	}
@@ -1633,8 +1636,10 @@ void CGame::DrawTerrain()
 	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::TessellateTerrain))
 	{
 		m_HSBezier->Use();
-		m_DSBezier->Use();
+		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetData().EyePosition;
+		m_HSBezier->UpdateConstantBuffer(0);
 
+		m_DSBezier->Use();
 		m_cbDSSpaceData.VP = GetTransposedVPMatrix();
 		m_DSBezier->UpdateConstantBuffer(0);
 

@@ -1,25 +1,33 @@
 #include "Header.hlsli"
 
+cbuffer cbCamera : register(b0)
+{
+	float4 EyePosition;
+};
+
 HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(InputPatch<VS_OUTPUT, 3> Patch, uint PatchID : SV_PrimitiveID)
 {
 	HS_CONSTANT_DATA_OUTPUT Output;
 
-	Output.EdgeTessFactor[0] = 3.0f;
-	Output.EdgeTessFactor[1] = 3.0f;
-	Output.EdgeTessFactor[2] = 3.0f;
+	float4 CenterPosition = (Patch[0].WorldPosition + Patch[1].WorldPosition + Patch[2].WorldPosition) / 3.0f;
+	float Distance = distance(CenterPosition, EyePosition);
 
-	Output.InsideTessFactor = 3.0f;
-
-	/*
-	if (all(Patch[0].WorldNormal == Patch[1].WorldNormal) && all(Patch[0].WorldNormal == Patch[2].WorldNormal))
+	if (Distance < 0.0f)
 	{
-		Output.EdgeTessFactor[0] = 1.0f;
-		Output.EdgeTessFactor[1] = 1.0f;
-		Output.EdgeTessFactor[2] = 1.0f;
+		Output.EdgeTessFactor[0] = 0.0f;
+		Output.EdgeTessFactor[1] = 0.0f;
+		Output.EdgeTessFactor[2] = 0.0f;
 
-		Output.InsideTessFactor = 1.0f;
+		Output.InsideTessFactor = 0.0f;
 	}
-	*/
+	else
+	{
+		Output.EdgeTessFactor[0] = 32.0f / Distance;
+		Output.EdgeTessFactor[1] = 32.0f / Distance;
+		Output.EdgeTessFactor[2] = 32.0f / Distance;
+
+		Output.InsideTessFactor = 32.0f / Distance;
+	}
 	
 	return Output;
 }
