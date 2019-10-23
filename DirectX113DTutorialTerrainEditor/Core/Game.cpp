@@ -311,7 +311,7 @@ void CGame::RecalculateTerrainNormalsTangents()
 	m_Terrain->UpdateVertexNormalsTangents();
 }
 
-CCamera* CGame::AddCamera(const SCameraData& CameraData)
+CCamera* CGame::AddCamera(const CCamera::SCameraData& CameraData)
 {
 	m_vCameras.emplace_back(CameraData);
 
@@ -1238,9 +1238,9 @@ void CGame::BeginRendering(const FLOAT* ClearColor)
 
 	SetUniversalRasterizerState();
 
-	m_MatrixView = XMMatrixLookAtLH(m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition, 
-		m_vCameras[m_CurrentCameraIndex].m_CameraData.FocusPosition,
-		m_vCameras[m_CurrentCameraIndex].m_CameraData.UpDirection);
+	m_MatrixView = XMMatrixLookAtLH(m_vCameras[m_CurrentCameraIndex].GetEyePosition(), 
+		m_vCameras[m_CurrentCameraIndex].GetFocusPosition(),
+		m_vCameras[m_CurrentCameraIndex].GetUpDirection());
 }
 
 void CGame::Animate()
@@ -1255,7 +1255,7 @@ void CGame::Draw(float DeltaTime)
 {
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 
-	m_cbPSBaseEyeData.EyePosition = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition;
+	m_cbPSBaseEyeData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
 
 	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawWireFrame))
 	{
@@ -1370,7 +1370,7 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 	if (PtrGO->ComponentRender.PtrObject3D->ShouldTessellate())
 	{
 		m_HSBezier->Use();
-		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetData().EyePosition;
+		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
 		m_HSBezier->UpdateConstantBuffer(0);
 
 		m_DSBezier->Use();
@@ -1513,8 +1513,8 @@ void CGame::DrawMiniAxes()
 		DrawGameObject3D(i.get());
 
 		i->ComponentTransform.Translation = 
-			m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition +
-			m_vCameras[m_CurrentCameraIndex].m_CameraData.Forward;
+			m_vCameras[m_CurrentCameraIndex].GetEyePosition() +
+			m_vCameras[m_CurrentCameraIndex].GetForward();
 
 		i->UpdateWorldMatrix();
 	}
@@ -1588,14 +1588,14 @@ void CGame::DrawSky(float DeltaTime)
 	// SkySphere
 	{
 		m_GameObject3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
-		m_GameObject3DSkySphere->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition;
+		m_GameObject3DSkySphere->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
 	}
 
 	// Sun
 	{
 		float SunRoll{ XM_2PI * m_cbPSSkyTimeData.SkyTime - XM_PIDIV2 };
 		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, SunRoll)) };
-		m_GameObject3DSun->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
+		m_GameObject3DSun->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
 		m_GameObject3DSun->ComponentTransform.Roll = SunRoll;
 	}
 
@@ -1603,7 +1603,7 @@ void CGame::DrawSky(float DeltaTime)
 	{
 		float MoonRoll{ XM_2PI * m_cbPSSkyTimeData.SkyTime + XM_PIDIV2 };
 		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, MoonRoll)) };
-		m_GameObject3DMoon->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
+		m_GameObject3DMoon->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
 		m_GameObject3DMoon->ComponentTransform.Roll = (MoonRoll > XM_2PI) ? (MoonRoll - XM_2PI) : MoonRoll;
 	}
 
@@ -1611,7 +1611,7 @@ void CGame::DrawSky(float DeltaTime)
 	{
 		float CloudYaw{ XM_2PI * m_cbPSSkyTimeData.SkyTime };
 		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, CloudYaw, XM_PIDIV4)) };
-		m_GameObject3DCloud->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition + Offset;
+		m_GameObject3DCloud->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
 		m_GameObject3DCloud->ComponentTransform.Yaw = CloudYaw;
 		m_GameObject3DCloud->ComponentTransform.Roll = XM_PIDIV4;
 	}
@@ -1636,7 +1636,7 @@ void CGame::DrawTerrain()
 	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::TessellateTerrain))
 	{
 		m_HSBezier->Use();
-		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetData().EyePosition;
+		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
 		m_HSBezier->UpdateConstantBuffer(0);
 
 		m_DSBezier->Use();
@@ -1750,7 +1750,7 @@ void CGame::Draw3DGizmos()
 	if (m_PtrCapturedPickedGameObject3D)
 	{
 		m_3DGizmoDistanceScalar =
-			XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition -
+			XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].GetEyePosition() -
 				m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation)) * 0.1f;
 		m_3DGizmoDistanceScalar = pow(m_3DGizmoDistanceScalar, 0.7f);
 
@@ -2042,7 +2042,7 @@ void CGame::Draw3DGizmo(CGameObject3D* Gizmo, bool bShouldHighlight)
 	CShader* VS{ Gizmo->ComponentRender.PtrVS };
 	CShader* PS{ Gizmo->ComponentRender.PtrPS };
 
-	float Scalar{ XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].m_CameraData.EyePosition - Gizmo->ComponentTransform.Translation)) * 0.1f };
+	float Scalar{ XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].GetEyePosition() - Gizmo->ComponentTransform.Translation)) * 0.1f };
 	Scalar = pow(Scalar, 0.7f);
 
 	Gizmo->ComponentTransform.Scaling = XMVectorSet(Scalar, Scalar, Scalar, 0.0f);

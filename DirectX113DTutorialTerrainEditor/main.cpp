@@ -31,8 +31,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	Game.SetGameRenderingFlags(EFlagsGameRendering::UseLighting | EFlagsGameRendering::DrawMiniAxes | 
 		EFlagsGameRendering::UseTerrainSelector | EFlagsGameRendering::DrawTerrainMaskingTexture | EFlagsGameRendering::TessellateTerrain);
 
-	CCamera* MainCamera{ Game.AddCamera(SCameraData(ECameraType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
-	MainCamera->SetPosition(XMVectorSet(0, 2, 0, 1));
+	CCamera* MainCamera{ Game.AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
+	MainCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
 
 	CGameObject3DLine* goGrid{ Game.AddGameObject3DLine("Grid") };
 	{
@@ -104,19 +104,19 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			}
 			if (KeyState.W)
 			{
-				MainCamera->Move(ECameraMovementDirection::Forward, DeltaTimeF * 10.0f);
+				MainCamera->Move(CCamera::EMovementDirection::Forward, DeltaTimeF * 10.0f);
 			}
 			if (KeyState.S)
 			{
-				MainCamera->Move(ECameraMovementDirection::Backward, DeltaTimeF * 10.0f);
+				MainCamera->Move(CCamera::EMovementDirection::Backward, DeltaTimeF * 10.0f);
 			}
 			if (KeyState.A)
 			{
-				MainCamera->Move(ECameraMovementDirection::Leftward, DeltaTimeF * 10.0f);
+				MainCamera->Move(CCamera::EMovementDirection::Leftward, DeltaTimeF * 10.0f);
 			}
 			if (KeyState.D)
 			{
-				MainCamera->Move(ECameraMovementDirection::Rightward, DeltaTimeF * 10.0f);
+				MainCamera->Move(CCamera::EMovementDirection::Rightward, DeltaTimeF * 10.0f);
 			}
 			if (KeyState.D1)
 			{
@@ -797,18 +797,15 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(300, 200));
 					if (ImGui::Begin(u8"카메라 편집기", &bShowCameraEditor, ImGuiWindowFlags_AlwaysAutoResize))
 					{
-						const SCameraData& CameraData{ MainCamera->GetData() };
-						float EyePosition[3]{};
-						EyePosition[0] = XMVectorGetX(CameraData.EyePosition);
-						EyePosition[1] = XMVectorGetY(CameraData.EyePosition);
-						EyePosition[2] = XMVectorGetZ(CameraData.EyePosition);
-						float Pitch{ CameraData.Pitch };
-						float Yaw{ CameraData.Yaw };
+						const XMVECTOR& KEyePosition{ MainCamera->GetEyePosition() };
+						float EyePosition[3]{ XMVectorGetX(KEyePosition), XMVectorGetY(KEyePosition), XMVectorGetZ(KEyePosition) };
+						float Pitch{ MainCamera->GetPitch() };
+						float Yaw{ MainCamera->GetYaw() };
 
 						ImGui::SetNextItemWidth(180);
 						if (ImGui::DragFloat3(u8"위치", EyePosition, 0.01f, -10000.0f, +10000.0f, "%.3f"))
 						{
-							MainCamera->SetPosition(XMVectorSet(EyePosition[0], EyePosition[1], EyePosition[2], 1.0f));
+							MainCamera->SetEyePosition(XMVectorSet(EyePosition[0], EyePosition[1], EyePosition[2], 1.0f));
 						}
 
 						ImGui::SetNextItemWidth(180);

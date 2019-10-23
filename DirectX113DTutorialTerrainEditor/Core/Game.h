@@ -260,7 +260,7 @@ private:
 
 // Object pool
 public:
-	CCamera* AddCamera(const SCameraData& CameraData);
+	CCamera* AddCamera(const CCamera::SCameraData& CameraData);
 	CCamera* GetCamera(size_t Index);
 
 	CShader* AddShader();

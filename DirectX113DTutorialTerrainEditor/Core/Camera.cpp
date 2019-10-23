@@ -1,48 +1,48 @@
 #include "Camera.h"
 
-void CCamera::Move(ECameraMovementDirection Direction, float StrideFactor)
+void CCamera::Move(EMovementDirection Direction, float StrideFactor)
 {
 	XMVECTOR dPosition{};
 
-	if (m_CameraData.CameraType == ECameraType::FreeLook)
+	if (m_CameraData.eType == EType::FreeLook)
 	{
 		XMVECTOR Rightward{ XMVector3Normalize(XMVector3Cross(m_CameraData.UpDirection, m_CameraData.Forward)) };
 
 		switch (Direction)
 		{
-		case ECameraMovementDirection::Forward:
+		case EMovementDirection::Forward:
 			dPosition = +m_CameraData.Forward * StrideFactor;
 			break;
-		case ECameraMovementDirection::Backward:
+		case EMovementDirection::Backward:
 			dPosition = -m_CameraData.Forward * StrideFactor;
 			break;
-		case ECameraMovementDirection::Rightward:
+		case EMovementDirection::Rightward:
 			dPosition = +Rightward * StrideFactor;
 			break;
-		case ECameraMovementDirection::Leftward:
+		case EMovementDirection::Leftward:
 			dPosition = -Rightward * StrideFactor;
 			break;
 		default:
 			break;
 		}
 	}
-	else if (m_CameraData.CameraType == ECameraType::FirstPerson || m_CameraData.CameraType == ECameraType::ThirdPerson)
+	else if (m_CameraData.eType == EType::FirstPerson || m_CameraData.eType == EType::ThirdPerson)
 	{
 		XMVECTOR GroundRightward{ XMVector3Normalize(XMVector3Cross(m_CameraData.BaseUpDirection, m_CameraData.Forward)) };
 		XMVECTOR GroundForward{ XMVector3Normalize(XMVector3Cross(GroundRightward, m_CameraData.BaseUpDirection)) };
 
 		switch (Direction)
 		{
-		case ECameraMovementDirection::Forward:
+		case EMovementDirection::Forward:
 			dPosition = +GroundForward * StrideFactor;
 			break;
-		case ECameraMovementDirection::Backward:
+		case EMovementDirection::Backward:
 			dPosition = -GroundForward * StrideFactor;
 			break;
-		case ECameraMovementDirection::Rightward:
+		case EMovementDirection::Rightward:
 			dPosition = +GroundRightward * StrideFactor;
 			break;
-		case ECameraMovementDirection::Leftward:
+		case EMovementDirection::Leftward:
 			dPosition = -GroundRightward * StrideFactor;
 			break;
 		default:
@@ -78,11 +78,11 @@ void CCamera::Rotate(int DeltaX, int DeltaY, float RotationFactor)
 
 	m_CameraData.UpDirection = Upward;
 
-	if (m_CameraData.CameraType == ECameraType::FirstPerson || m_CameraData.CameraType == ECameraType::FreeLook)
+	if (m_CameraData.eType == EType::FirstPerson || m_CameraData.eType == EType::FreeLook)
 	{
 		m_CameraData.FocusPosition = m_CameraData.EyePosition + m_CameraData.Forward;
 	}
-	else if (m_CameraData.CameraType == ECameraType::ThirdPerson)
+	else if (m_CameraData.eType == EType::ThirdPerson)
 	{
 		m_CameraData.EyePosition = m_CameraData.FocusPosition - m_CameraData.Forward * m_CameraData.ZoomDistance;
 	}
@@ -90,7 +90,7 @@ void CCamera::Rotate(int DeltaX, int DeltaY, float RotationFactor)
 
 void CCamera::Zoom(int DeltaWheel, float ZoomFactor)
 {
-	if (m_CameraData.CameraType == ECameraType::ThirdPerson)
+	if (m_CameraData.eType == EType::ThirdPerson)
 	{
 		m_CameraData.ZoomDistance -= DeltaWheel * ZoomFactor;
 		m_CameraData.ZoomDistance = max(m_CameraData.ZoomDistance, m_CameraData.MinZoomDistance);
@@ -100,7 +100,7 @@ void CCamera::Zoom(int DeltaWheel, float ZoomFactor)
 	}
 }
 
-void CCamera::SetPosition(const XMVECTOR& Position)
+void CCamera::SetEyePosition(const XMVECTOR& Position)
 {
 	m_CameraData.EyePosition = Position;
 	
@@ -124,5 +124,5 @@ void CCamera::SetYaw(float Value)
 void CCamera::Update()
 {
 	Rotate(0, 0, 0.0f);
-	Move(ECameraMovementDirection::Forward, 0.0f);
+	Move(EMovementDirection::Forward, 0.0f);
 }
