@@ -155,7 +155,7 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 	m_MaskingTextureSize.y = m_Size.y * m_MaskingTextureDetail;
 
 	m_MaskingTexture.release();
-	m_MaskingTexture = make_unique<CMaterialTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_MaskingTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_MaskingTexture->CreateBlankTexture(DXGI_FORMAT_R8G8B8A8_UNORM, m_MaskingTextureSize);
 	m_MaskingTexture->SetSlot(CObject3D::KTerrainMaskingTextureSlot);
 	m_MaskingTexture->Use();
@@ -408,7 +408,7 @@ void CTerrain::UpdateHoverPosition(const XMVECTOR& PickingRayOrigin, const XMVEC
 
 void CTerrain::SelectTerrain(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor)
 {
-	if (m_eEditMode == ETerrainEditMode::Masking)
+	if (m_eEditMode == EEditMode::Masking)
 	{
 		UpdateHoverPosition(PickingRayOrigin, PickingRayDirection);
 
@@ -460,14 +460,14 @@ void CTerrain::SetMaskingRadius(float Radius)
 	m_MaskingRadius = Radius;
 }
 
-void CTerrain::SetEditMode(ETerrainEditMode Mode)
+void CTerrain::SetEditMode(EEditMode Mode)
 {
 	m_eEditMode = Mode;
 
-	if (m_eEditMode == ETerrainEditMode::Masking) ReleaseSelection();
+	if (m_eEditMode == EEditMode::Masking) ReleaseSelection();
 }
 
-ETerrainEditMode CTerrain::GetEditMode()
+CTerrain::EEditMode CTerrain::GetEditMode()
 {
 	return m_eEditMode;
 }
@@ -626,14 +626,14 @@ void CTerrain::UpdateVertex(SVertex3D& Vertex, bool bIsLeftButton, float DeltaHe
 
 	switch (m_eEditMode)
 	{
-	case ETerrainEditMode::SetHeight:
+	case EEditMode::SetHeight:
 	{
 		float NewY{ m_SetHeightValue };
 		NewY = min(NewY, KMaxHeight);
 		NewY = max(NewY, KMinHeight);
 		Vertex.Position = XMVectorSetY(Vertex.Position, NewY);
 	} break;
-	case ETerrainEditMode::DeltaHeight:
+	case EEditMode::DeltaHeight:
 		if (bIsLeftButton)
 		{
 			float NewY{ Y + m_DeltaHeightValue * DeltaHeightFactor };

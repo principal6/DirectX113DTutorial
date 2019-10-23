@@ -41,63 +41,63 @@ struct SMesh
 	size_t						MaterialID{};
 };
 
-struct SModelNode
-{
-	struct SBlendWeight
-	{
-		uint32_t	MeshIndex{};
-		uint32_t	VertexID{};
-		float		Weight{};
-	};
-
-	int32_t					Index{};
-	string					Name{};
-
-	int32_t					ParentNodeIndex{};
-	vector<int32_t>			vChildNodeIndices{};
-	XMMATRIX				MatrixTransformation{};
-
-	bool					bIsBone{ false };
-	uint32_t				BoneIndex{};
-	vector<SBlendWeight>	vBlendWeights{};
-	XMMATRIX				MatrixBoneOffset{};
-};
-
-struct SModelNodeAnimation
-{
-	struct SKey
-	{
-		float		Time{};
-		XMVECTOR	Value{};
-	};
-
-	uint32_t		Index{};
-	string			NodeName{};
-	vector<SKey>	vPositionKeys{};
-	vector<SKey>	vRotationKeys{};
-	vector<SKey>	vScalingKeys{};
-};
-
-struct SModelAnimation
-{
-	vector<SModelNodeAnimation>		vNodeAnimations{};
-
-	float							Duration{};
-	float							TicksPerSecond{};
-
-	unordered_map<string, size_t>	mapNodeAnimationNameToIndex{};
-};
-
 struct SModel
 {
+	struct SNode
+	{
+		struct SBlendWeight
+		{
+			uint32_t	MeshIndex{};
+			uint32_t	VertexID{};
+			float		Weight{};
+		};
+
+		int32_t					Index{};
+		string					Name{};
+
+		int32_t					ParentNodeIndex{};
+		vector<int32_t>			vChildNodeIndices{};
+		XMMATRIX				MatrixTransformation{};
+
+		bool					bIsBone{ false };
+		uint32_t				BoneIndex{};
+		vector<SBlendWeight>	vBlendWeights{};
+		XMMATRIX				MatrixBoneOffset{};
+	};
+
+	struct SAnimation
+	{
+		struct SNodeAnimation
+		{
+			struct SKey
+			{
+				float		Time{};
+				XMVECTOR	Value{};
+			};
+
+			uint32_t		Index{};
+			string			NodeName{};
+			vector<SKey>	vPositionKeys{};
+			vector<SKey>	vRotationKeys{};
+			vector<SKey>	vScalingKeys{};
+		};
+
+		vector<SNodeAnimation>			vNodeAnimations{};
+
+		float							Duration{};
+		float							TicksPerSecond{};
+
+		unordered_map<string, size_t>	mapNodeAnimationNameToIndex{};
+	};
+
 	vector<SMesh>					vMeshes{};
 	vector<CMaterial>				vMaterials{};
 
-	vector<SModelNode>				vNodes{};
+	vector<SNode>					vNodes{};
 	unordered_map<string, size_t>	mapNodeNameToIndex{};
 	uint32_t						ModelBoneCount{};
 
-	vector<SModelAnimation>			vAnimations{};
+	vector<SAnimation>				vAnimations{};
 	bool							bIsModelAnimated{};
 	bool							bUseMultipleTexturesInSingleMesh{ false };
 };

@@ -45,12 +45,12 @@ void CGame::SetPerspective(float FOV, float NearZ, float FarZ)
 	m_MatrixProjection = XMMatrixPerspectiveFovLH(FOV, m_WindowSize.x / m_WindowSize.y, m_NearZ, m_FarZ);
 }
 
-void CGame::SetGameRenderingFlags(EFlagsGameRendering Flags)
+void CGame::SetGameRenderingFlags(EFlagsRendering Flags)
 {
 	m_eFlagsGameRendering = Flags;
 }
 
-void CGame::ToggleGameRenderingFlags(EFlagsGameRendering Flags)
+void CGame::ToggleGameRenderingFlags(EFlagsRendering Flags)
 {
 	m_eFlagsGameRendering ^= Flags;
 }
@@ -184,7 +184,7 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	m_GameObject3DSkySphere->ComponentRender.PtrVS = m_VSSky.get();
 	m_GameObject3DSkySphere->ComponentRender.PtrPS = m_PSSky.get();
 	m_GameObject3DSkySphere->ComponentPhysics.bIsPickable = false;
-	m_GameObject3DSkySphere->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoCulling | EFlagsGameObject3DRendering::NoLighting;
+	m_GameObject3DSkySphere->eFlagsRendering = CGameObject3D::EFlagsRendering::NoCulling | CGameObject3D::EFlagsRendering::NoLighting;
 
 	m_GameObject3DSun = make_unique<CGameObject3D>("Sun");
 	m_GameObject3DSun->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Sun.WidthHeightRatio, 0);
@@ -193,7 +193,7 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	m_GameObject3DSun->ComponentRender.PtrPS = m_PSBase.get();
 	m_GameObject3DSun->ComponentRender.bIsTransparent = true;
 	m_GameObject3DSun->ComponentPhysics.bIsPickable = false;
-	m_GameObject3DSun->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoCulling | EFlagsGameObject3DRendering::NoLighting;
+	m_GameObject3DSun->eFlagsRendering = CGameObject3D::EFlagsRendering::NoCulling | CGameObject3D::EFlagsRendering::NoLighting;
 
 	m_GameObject3DMoon = make_unique<CGameObject3D>("Moon");
 	m_GameObject3DMoon->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Moon.WidthHeightRatio, 0);
@@ -202,7 +202,7 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	m_GameObject3DMoon->ComponentRender.PtrPS = m_PSBase.get();
 	m_GameObject3DMoon->ComponentRender.bIsTransparent = true;
 	m_GameObject3DMoon->ComponentPhysics.bIsPickable = false;
-	m_GameObject3DMoon->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoCulling | EFlagsGameObject3DRendering::NoLighting;
+	m_GameObject3DMoon->eFlagsRendering = CGameObject3D::EFlagsRendering::NoCulling | CGameObject3D::EFlagsRendering::NoLighting;
 
 	m_GameObject3DCloud = make_unique<CGameObject3D>("Cloud");
 	m_GameObject3DCloud->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Cloud.WidthHeightRatio, 0);
@@ -211,7 +211,7 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	m_GameObject3DCloud->ComponentRender.PtrPS = m_PSBase.get();
 	m_GameObject3DCloud->ComponentRender.bIsTransparent = true;
 	m_GameObject3DCloud->ComponentPhysics.bIsPickable = false;
-	m_GameObject3DCloud->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoCulling | EFlagsGameObject3DRendering::NoLighting;
+	m_GameObject3DCloud->eFlagsRendering = CGameObject3D::EFlagsRendering::NoCulling | CGameObject3D::EFlagsRendering::NoLighting;
 
 	m_SkyData.bIsDataSet = true;
 
@@ -578,19 +578,19 @@ void CGame::CreateMiniAxes()
 	m_vGameObject3DMiniAxes[0]->ComponentRender.PtrVS = m_VSBase.get();
 	m_vGameObject3DMiniAxes[0]->ComponentRender.PtrPS = m_PSBase.get();
 	m_vGameObject3DMiniAxes[0]->ComponentTransform.Roll = -XM_PIDIV2;
-	m_vGameObject3DMiniAxes[0]->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoLighting;
+	m_vGameObject3DMiniAxes[0]->eFlagsRendering = CGameObject3D::EFlagsRendering::NoLighting;
 
 	m_vGameObject3DMiniAxes[1]->ComponentRender.PtrObject3D = m_vObject3DMiniAxes[1].get();
 	m_vGameObject3DMiniAxes[1]->ComponentRender.PtrVS = m_VSBase.get();
 	m_vGameObject3DMiniAxes[1]->ComponentRender.PtrPS = m_PSBase.get();
-	m_vGameObject3DMiniAxes[1]->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoLighting;
+	m_vGameObject3DMiniAxes[1]->eFlagsRendering = CGameObject3D::EFlagsRendering::NoLighting;
 
 	m_vGameObject3DMiniAxes[2]->ComponentRender.PtrObject3D = m_vObject3DMiniAxes[2].get();
 	m_vGameObject3DMiniAxes[2]->ComponentRender.PtrVS = m_VSBase.get();
 	m_vGameObject3DMiniAxes[2]->ComponentRender.PtrPS = m_PSBase.get();
 	m_vGameObject3DMiniAxes[2]->ComponentTransform.Yaw = -XM_PIDIV2;
 	m_vGameObject3DMiniAxes[2]->ComponentTransform.Roll = -XM_PIDIV2;
-	m_vGameObject3DMiniAxes[2]->eFlagsGameObject3DRendering = EFlagsGameObject3DRendering::NoLighting;
+	m_vGameObject3DMiniAxes[2]->eFlagsRendering = CGameObject3D::EFlagsRendering::NoLighting;
 
 	m_vGameObject3DMiniAxes[0]->ComponentTransform.Scaling =
 		m_vGameObject3DMiniAxes[1]->ComponentTransform.Scaling =
@@ -938,7 +938,7 @@ void CGame::UpdateMaterial(const string& Name)
 	if (Material->HasDiffuseTexture())
 	{
 		m_vMaterialDiffuseTextures[iMaterial].release();
-		m_vMaterialDiffuseTextures[iMaterial] = make_unique<CMaterialTexture>(m_Device.Get(), m_DeviceContext.Get());
+		m_vMaterialDiffuseTextures[iMaterial] = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
 
 		if (Material->IsDiffuseTextureEmbedded())
 		{
@@ -953,7 +953,7 @@ void CGame::UpdateMaterial(const string& Name)
 	if (Material->HasNormalTexture())
 	{
 		m_vMaterialNormalTextures[iMaterial].release();
-		m_vMaterialNormalTextures[iMaterial] = make_unique<CMaterialTexture>(m_Device.Get(), m_DeviceContext.Get());
+		m_vMaterialNormalTextures[iMaterial] = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
 
 		if (Material->IsNormalTextureEmbedded())
 		{
@@ -966,16 +966,16 @@ void CGame::UpdateMaterial(const string& Name)
 	}
 }
 
-CMaterialTexture* CGame::AddMaterialDiffuseTexture(const string& Name)
+CMaterial::CTexture* CGame::AddMaterialDiffuseTexture(const string& Name)
 {
 	if (m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end()) return nullptr;
 
-	m_vMaterialDiffuseTextures.emplace_back(make_unique<CMaterialTexture>(m_Device.Get(), m_DeviceContext.Get()));
+	m_vMaterialDiffuseTextures.emplace_back(make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get()));
 
 	return m_vMaterialDiffuseTextures.back().get();
 }
 
-CMaterialTexture* CGame::GetMaterialDiffuseTexture(const string& Name)
+CMaterial::CTexture* CGame::GetMaterialDiffuseTexture(const string& Name)
 {
 	assert(m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end());
 	size_t iMaterial{ m_mapMaterialNameToIndex[Name] };
@@ -984,16 +984,16 @@ CMaterialTexture* CGame::GetMaterialDiffuseTexture(const string& Name)
 	return m_vMaterialDiffuseTextures[iMaterial].get();
 }
 
-CMaterialTexture* CGame::AddMaterialNormalTexture(const string& Name)
+CMaterial::CTexture* CGame::AddMaterialNormalTexture(const string& Name)
 {
 	if (m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end()) return nullptr;
 
-	m_vMaterialNormalTextures.emplace_back(make_unique<CMaterialTexture>(m_Device.Get(), m_DeviceContext.Get()));
+	m_vMaterialNormalTextures.emplace_back(make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get()));
 
 	return m_vMaterialNormalTextures.back().get();
 }
 
-CMaterialTexture* CGame::GetMaterialNormalTexture(const string& Name)
+CMaterial::CTexture* CGame::GetMaterialNormalTexture(const string& Name)
 {
 	assert(m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end());
 	size_t iMaterial{ m_mapMaterialNameToIndex[Name] };
@@ -1083,7 +1083,7 @@ void CGame::Pick()
 
 	PickTriangle();
 
-	if (EFLAG_HAS_NO(m_eFlagsGameRendering, EFlagsGameRendering::Use3DGizmos))
+	if (EFLAG_HAS_NO(m_eFlagsGameRendering, EFlagsRendering::Use3DGizmos))
 	{
 		if (m_PtrPickedGameObject3D) m_PtrCapturedPickedGameObject3D =  m_PtrPickedGameObject3D;
 	}
@@ -1198,7 +1198,7 @@ void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton, float DeltaHeigh
 {
 	if (!m_Terrain) return;
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::UseTerrainSelector))
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::UseTerrainSelector))
 	{
 		CastPickingRay();
 
@@ -1206,12 +1206,12 @@ void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton, float DeltaHeigh
 	}
 }
 
-void CGame::SetTerrainEditMode(ETerrainEditMode Mode)
+void CGame::SetTerrainEditMode(CTerrain::EEditMode Mode)
 {
 	m_Terrain->SetEditMode(Mode);
 }
 
-void CGame::SetTerrainMaskingLayer(EMaskingLayer eLayer)
+void CGame::SetTerrainMaskingLayer(CTerrain::EMaskingLayer eLayer)
 {
 	m_Terrain->SetMaskingLayer(eLayer);
 }
@@ -1257,7 +1257,7 @@ void CGame::Draw(float DeltaTime)
 
 	m_cbPSBaseEyeData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawWireFrame))
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawWireFrame))
 	{
 		m_eRasterizerState = ERasterizerState::WireFrame;
 	}
@@ -1273,7 +1273,7 @@ void CGame::Draw(float DeltaTime)
 		UpdateGameObject3D(i.get());
 		DrawGameObject3D(i.get());
 
-		if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawBoundingSphere))
+		if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawBoundingSphere))
 		{
 			DrawGameObject3DBoundingSphere(i.get());
 		}
@@ -1286,18 +1286,18 @@ void CGame::Draw(float DeltaTime)
 		UpdateGameObject3D(i.get());
 		DrawGameObject3D(i.get());
 		
-		if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawBoundingSphere))
+		if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawBoundingSphere))
 		{
 			DrawGameObject3DBoundingSphere(i.get());
 		}
 	}
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawMiniAxes))
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawMiniAxes))
 	{
 		DrawMiniAxes();
 	}
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawPickingData))
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawPickingData))
 	{
 		DrawPickingRay();
 
@@ -1309,7 +1309,7 @@ void CGame::Draw(float DeltaTime)
 		DrawSky(DeltaTime);
 	}
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::Use3DGizmos))
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::Use3DGizmos))
 	{
 		Draw3DGizmos();
 	}
@@ -1335,18 +1335,18 @@ void CGame::UpdateGameObject3D(CGameObject3D* PtrGO)
 	m_cbVSSpaceData.WVP = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
 	PtrGO->UpdateWorldMatrix();
 
-	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::UseRawVertexColor))
+	if (EFLAG_HAS(PtrGO->eFlagsRendering, CGameObject3D::EFlagsRendering::UseRawVertexColor))
 	{
 		PS = m_PSVertexColor.get();
 	}
 
 	SetUniversalbUseLighiting();
-	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoLighting))
+	if (EFLAG_HAS(PtrGO->eFlagsRendering, CGameObject3D::EFlagsRendering::NoLighting))
 	{
 		m_cbPSBaseFlagsData.bUseLighting = FALSE;
 	}
 
-	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoTexture))
+	if (EFLAG_HAS(PtrGO->eFlagsRendering, CGameObject3D::EFlagsRendering::NoTexture))
 	{
 		m_cbPSBaseFlagsData.bUseTexture = FALSE;
 	}
@@ -1383,7 +1383,7 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
 	}
 
-	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoCulling))
+	if (EFLAG_HAS(PtrGO->eFlagsRendering, CGameObject3D::EFlagsRendering::NoCulling))
 	{
 		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
 	}
@@ -1392,7 +1392,7 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 		SetUniversalRasterizerState();
 	}
 
-	if (EFLAG_HAS(PtrGO->eFlagsGameObject3DRendering, EFlagsGameObject3DRendering::NoDepthComparison))
+	if (EFLAG_HAS(PtrGO->eFlagsRendering, CGameObject3D::EFlagsRendering::NoDepthComparison))
 	{
 		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 	}
@@ -1401,7 +1401,7 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
 	}
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawNormals))
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawNormals))
 	{
 		m_GSNormal->Use();
 		
@@ -1524,8 +1524,8 @@ void CGame::DrawMiniAxes()
 
 void CGame::UpdatePickingRay()
 {
-	m_Object3DLinePickingRay->vVertices[0].Position = m_PickingRayWorldSpaceOrigin;
-	m_Object3DLinePickingRay->vVertices[1].Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
+	m_Object3DLinePickingRay->GetVertices().at(0).Position = m_PickingRayWorldSpaceOrigin;
+	m_Object3DLinePickingRay->GetVertices().at(1).Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
 	m_Object3DLinePickingRay->Update();
 }
 
@@ -1633,7 +1633,7 @@ void CGame::DrawTerrain()
 {
 	if (!m_Terrain) return;
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::TessellateTerrain))
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::TessellateTerrain))
 	{
 		m_HSBezier->Use();
 		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
@@ -1644,8 +1644,8 @@ void CGame::DrawTerrain()
 		m_DSBezier->UpdateConstantBuffer(0);
 
 		m_Terrain->Draw(
-			EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::UseTerrainSelector),
-			EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawNormals)
+			EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::UseTerrainSelector),
+			EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawNormals)
 		);
 
 		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
@@ -1654,13 +1654,13 @@ void CGame::DrawTerrain()
 	else
 	{
 		m_Terrain->Draw(
-			EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::UseTerrainSelector),
-			EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawNormals)
+			EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::UseTerrainSelector),
+			EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawNormals)
 		);
 	}
 	
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::DrawTerrainMaskingTexture))
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawTerrainMaskingTexture))
 	{
 		m_DeviceContext->RSSetViewports(1, &m_vViewports[2]);
 		m_Terrain->DrawMaskingTexture();
@@ -2089,7 +2089,7 @@ void CGame::SetUniversalRasterizerState()
 
 void CGame::SetUniversalbUseLighiting()
 {
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsGameRendering::UseLighting))
+	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::UseLighting))
 	{
 		m_cbPSBaseFlagsData.bUseLighting = TRUE;
 	}

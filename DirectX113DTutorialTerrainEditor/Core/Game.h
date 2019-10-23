@@ -17,22 +17,6 @@
 #include "TinyXml2/tinyxml2.h"
 #include "Terrain.h"
 
-enum class EFlagsGameRendering
-{
-	None						= 0x000,
-	DrawWireFrame				= 0x001,
-	DrawNormals					= 0x002,
-	UseLighting					= 0x004,
-	DrawMiniAxes				= 0x008,
-	DrawPickingData				= 0x010,
-	DrawBoundingSphere			= 0x020,
-	Use3DGizmos					= 0x040,
-	UseTerrainSelector			= 0x080,
-	DrawTerrainMaskingTexture	= 0x100,
-	TessellateTerrain			= 0x200
-};
-ENUM_CLASS_FLAG(EFlagsGameRendering)
-
 enum class EBaseShader
 {
 	VSBase,
@@ -194,6 +178,22 @@ struct SCBPSTerrainSpaceData
 class CGame
 {
 public:
+	enum class EFlagsRendering
+	{
+		None = 0x000,
+		DrawWireFrame = 0x001,
+		DrawNormals = 0x002,
+		UseLighting = 0x004,
+		DrawMiniAxes = 0x008,
+		DrawPickingData = 0x010,
+		DrawBoundingSphere = 0x020,
+		Use3DGizmos = 0x040,
+		UseTerrainSelector = 0x080,
+		DrawTerrainMaskingTexture = 0x100,
+		TessellateTerrain = 0x200
+	};
+
+public:
 	CGame(HINSTANCE hInstance, const XMFLOAT2& WindowSize) : m_hInstance{ hInstance }, m_WindowSize{ WindowSize } {}
 	~CGame() {}
 
@@ -220,8 +220,8 @@ private:
 // Advanced settings
 public:
 	void SetPerspective(float FOV, float NearZ, float FarZ);
-	void SetGameRenderingFlags(EFlagsGameRendering Flags);
-	void ToggleGameRenderingFlags(EFlagsGameRendering Flags);
+	void SetGameRenderingFlags(EFlagsRendering Flags);
+	void ToggleGameRenderingFlags(EFlagsRendering Flags);
 	void Set3DGizmoMode(E3DGizmoMode Mode);
 	E3DGizmoMode Get3DGizmoMode() { return m_e3DGizmoMode; }
 	CommonStates* GetCommonStates() { return m_CommonStates.get(); }
@@ -284,11 +284,11 @@ public:
 	void UpdateMaterial(const string& Name);
 	const map<string, size_t>& GetMaterialListMap() { return m_mapMaterialNameToIndex; }
 
-	CMaterialTexture* AddMaterialDiffuseTexture(const string& Name);
-	CMaterialTexture* GetMaterialDiffuseTexture(const string& Name);
+	CMaterial::CTexture* AddMaterialDiffuseTexture(const string& Name);
+	CMaterial::CTexture* GetMaterialDiffuseTexture(const string& Name);
 	
-	CMaterialTexture* AddMaterialNormalTexture(const string& Name);
-	CMaterialTexture* GetMaterialNormalTexture(const string& Name);
+	CMaterial::CTexture* AddMaterialNormalTexture(const string& Name);
+	CMaterial::CTexture* GetMaterialNormalTexture(const string& Name);
 
 	CGameObject3D* AddGameObject3D(const string& Name);
 	CGameObject3D* GetGameObject3D(const string& Name);
@@ -313,8 +313,8 @@ private:
 
 public:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor);
-	void SetTerrainEditMode(ETerrainEditMode Mode);
-	void SetTerrainMaskingLayer(EMaskingLayer eLayer);
+	void SetTerrainEditMode(CTerrain::EEditMode Mode);
+	void SetTerrainMaskingLayer(CTerrain::EMaskingLayer eLayer);
 	void SetTerrainMaskingAttenuation(float Attenuation);
 	void SetTerrainMaskingSize(float Size);
 
@@ -447,8 +447,8 @@ private:
 	vector<unique_ptr<CObject3DLine>>		m_vObject3DLines{};
 	vector<unique_ptr<CObject2D>>			m_vObject2Ds{};
 	vector<unique_ptr<CMaterial>>			m_vMaterials{};
-	vector<unique_ptr<CMaterialTexture>>	m_vMaterialDiffuseTextures{};
-	vector<unique_ptr<CMaterialTexture>>	m_vMaterialNormalTextures{};
+	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialDiffuseTextures{};
+	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialNormalTextures{};
 	vector<unique_ptr<CGameObject3D>>		m_vGameObject3Ds{};
 	vector<unique_ptr<CGameObject3DLine>>	m_vGameObject3DLines{};
 	vector<unique_ptr<CGameObject2D>>		m_vGameObject2Ds{};
@@ -536,7 +536,7 @@ private:
 
 private:
 	ERasterizerState	m_eRasterizerState{ ERasterizerState::CullCounterClockwise };
-	EFlagsGameRendering	m_eFlagsGameRendering{};
+	EFlagsRendering	m_eFlagsGameRendering{};
 
 private:
 	ComPtr<IDXGISwapChain>			m_SwapChain{};
@@ -552,3 +552,5 @@ private:
 	unique_ptr<SpriteFont>			m_SpriteFont{};
 	unique_ptr<CommonStates>		m_CommonStates{};
 };
+
+ENUM_CLASS_FLAG(CGame::EFlagsRendering)

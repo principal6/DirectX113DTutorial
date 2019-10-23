@@ -21,7 +21,7 @@ static string SerializeXMMATRIX(const XMMATRIX& Matrix)
 	return Result;
 }
 
-static void SerializeNodes(const vector<SModelNode>& vNodes, uint32_t NodeIndex, uint32_t Depth, string& SerializedString)
+static void SerializeNodes(const vector<SModel::SNode>& vNodes, uint32_t NodeIndex, uint32_t Depth, string& SerializedString)
 {
 	for (uint32_t i = 0; i < Depth; ++i)
 	{

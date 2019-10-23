@@ -28,8 +28,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	Game.SetAmbientlLight(XMFLOAT3(1, 1, 1), 0.2f);
 	Game.SetDirectionalLight(XMVectorSet(0, 1, 0, 0), XMVectorSet(1, 1, 1, 1));
 
-	Game.SetGameRenderingFlags(EFlagsGameRendering::UseLighting | EFlagsGameRendering::DrawMiniAxes | 
-		EFlagsGameRendering::UseTerrainSelector | EFlagsGameRendering::DrawTerrainMaskingTexture | EFlagsGameRendering::TessellateTerrain);
+	Game.SetGameRenderingFlags(CGame::EFlagsRendering::UseLighting | CGame::EFlagsRendering::DrawMiniAxes |
+		CGame::EFlagsRendering::UseTerrainSelector | CGame::EFlagsRendering::DrawTerrainMaskingTexture | CGame::EFlagsRendering::TessellateTerrain);
 
 	CCamera* MainCamera{ Game.AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
 	MainCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
@@ -133,15 +133,15 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 			if (KeyDown == VK_F1)
 			{
-				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawWireFrame);
+				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawWireFrame);
 			}
 			if (KeyDown == VK_F2)
 			{
-				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawNormals);
+				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawNormals);
 			}
 			if (KeyDown == VK_F3)
 			{
-				Game.ToggleGameRenderingFlags(EFlagsGameRendering::DrawMiniAxes);
+				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawMiniAxes);
 			}
 
 			// Mouse input
@@ -305,7 +305,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (ImGui::Button(u8"°áÁ¤") || ImGui::IsKeyDown(VK_RETURN))
 					{
-						ETerrainEditMode eEditMode{};
+						CTerrain::EEditMode eEditMode{};
 						if (Game.GetTerrain()) eEditMode = Game.GetTerrain()->GetEditMode();
 
 						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
@@ -370,13 +370,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									switch (iSelectedItem)
 									{
 									case 0:
-										Game.SetTerrainEditMode(ETerrainEditMode::SetHeight);
+										Game.SetTerrainEditMode(CTerrain::EEditMode::SetHeight);
 										break;
 									case 1:
-										Game.SetTerrainEditMode(ETerrainEditMode::DeltaHeight);
+										Game.SetTerrainEditMode(CTerrain::EEditMode::DeltaHeight);
 										break;
 									case 2:
-										Game.SetTerrainEditMode(ETerrainEditMode::Masking);
+										Game.SetTerrainEditMode(CTerrain::EEditMode::Masking);
 										break;
 									default:
 										break;
@@ -402,16 +402,16 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									switch (TerrainMaskingLayer)
 									{
 									case 0:
-										Game.SetTerrainMaskingLayer(EMaskingLayer::LayerR);
+										Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerR);
 										break;
 									case 1:
-										Game.SetTerrainMaskingLayer(EMaskingLayer::LayerG);
+										Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerG);
 										break;
 									case 2:
-										Game.SetTerrainMaskingLayer(EMaskingLayer::LayerB);
+										Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerB);
 										break;
 									case 3:
-										Game.SetTerrainMaskingLayer(EMaskingLayer::LayerA);
+										Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerA);
 										break;
 									default:
 										break;

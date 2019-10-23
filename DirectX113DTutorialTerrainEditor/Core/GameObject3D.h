@@ -7,19 +7,20 @@ class CShader;
 
 static constexpr float KBoundingSphereRadiusDefault{ 1.0f };
 
-enum class EFlagsGameObject3DRendering
-{
-	None				= 0x00,
-	NoCulling			= 0x01,
-	NoLighting			= 0x02,
-	NoTexture			= 0x04,
-	NoDepthComparison	= 0x08,
-	UseRawVertexColor	= 0x10
-};
-ENUM_CLASS_FLAG(EFlagsGameObject3DRendering)
-
 class CGameObject3D
 {
+public:
+	enum class EFlagsRendering
+	{
+		None = 0x00,
+		NoCulling = 0x01,
+		NoLighting = 0x02,
+		NoTexture = 0x04,
+		NoDepthComparison = 0x08,
+		UseRawVertexColor = 0x10
+	};
+
+private:
 	struct SComponentTransform
 	{
 		XMVECTOR	Translation{};
@@ -73,11 +74,13 @@ public:
 	const string& GetName() const { return m_Name; }
 
 private:
-	string							m_Name{};
+	string				m_Name{};
 
 public:
-	SComponentTransform				ComponentTransform{};
-	SComponentRender				ComponentRender{};
-	SComponentPhysics				ComponentPhysics{};
-	EFlagsGameObject3DRendering		eFlagsGameObject3DRendering{};
+	SComponentTransform	ComponentTransform{};
+	SComponentRender	ComponentRender{};
+	SComponentPhysics	ComponentPhysics{};
+	EFlagsRendering		eFlagsRendering{};
 };
+
+ENUM_CLASS_FLAG(CGameObject3D::EFlagsRendering)

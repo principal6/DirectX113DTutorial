@@ -26,15 +26,18 @@ public:
 	void Update();
 	void Draw() const;
 
+public:
+	vector<SVertex3DLine>& GetVertices() { return m_vVertices; }
+	const vector<SVertex3DLine>& GetVertices() const { return m_vVertices; }
+
 private:
 	ID3D11Device*			m_PtrDevice{};
 	ID3D11DeviceContext*	m_PtrDeviceContext{};
 
 private:
+	vector<SVertex3DLine>	m_vVertices{};
+
 	ComPtr<ID3D11Buffer>	m_VertexBuffer{};
 	UINT					m_VertexBufferStride{ sizeof(SVertex3DLine) };
 	UINT					m_VertexBufferOffset{};
-
-public:
-	vector<SVertex3DLine>	vVertices{};
 };

@@ -419,9 +419,6 @@
     <ClInclude Include="Core\GameObject3DLine.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\Serializator.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="ImGui\imconfig.h">
       <Filter>ImGui</Filter>
     </ClInclude>
@@ -453,6 +450,9 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\Material.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Serializer.h">
       <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,6 +1,6 @@
 #include "Material.h"
 
-void CMaterialTexture::CreateTextureFromFile(const string& TextureFileName, bool bShouldGenerateMipMap)
+void CMaterial::CTexture::CreateTextureFromFile(const string& TextureFileName, bool bShouldGenerateMipMap)
 {
 	m_TextureFileName = TextureFileName;
 
@@ -44,7 +44,7 @@ void CMaterialTexture::CreateTextureFromFile(const string& TextureFileName, bool
 	SetTextureSize();
 }
 
-void CMaterialTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData)
+void CMaterial::CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData)
 {
 	assert(SUCCEEDED(CreateWICTextureFromMemory(m_PtrDevice, &RawData[0], RawData.size(), 
 		(ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
@@ -52,7 +52,7 @@ void CMaterialTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData)
 	SetTextureSize();
 }
 
-void CMaterialTexture::CreateBlankTexture(DXGI_FORMAT Format, const XMFLOAT2& TextureSize)
+void CMaterial::CTexture::CreateBlankTexture(DXGI_FORMAT Format, const XMFLOAT2& TextureSize)
 {
 	m_TextureSize = TextureSize;
 
@@ -72,7 +72,7 @@ void CMaterialTexture::CreateBlankTexture(DXGI_FORMAT Format, const XMFLOAT2& Te
 	m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
 }
 
-void CMaterialTexture::SetTextureSize()
+void CMaterial::CTexture::SetTextureSize()
 {
 	D3D11_TEXTURE2D_DESC Texture2DDesc{};
 	m_Texture2D->GetDesc(&Texture2DDesc);
@@ -81,7 +81,7 @@ void CMaterialTexture::SetTextureSize()
 	m_TextureSize.x = static_cast<float>(Texture2DDesc.Height);
 }
 
-void CMaterialTexture::UpdateTextureRawData(const SPixelUNorm* PtrData)
+void CMaterial::CTexture::UpdateTextureRawData(const SPixelUNorm* PtrData)
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
@@ -101,17 +101,17 @@ void CMaterialTexture::UpdateTextureRawData(const SPixelUNorm* PtrData)
 	}
 }
 
-void CMaterialTexture::SetSlot(UINT Slot)
+void CMaterial::CTexture::SetSlot(UINT Slot)
 {
 	m_Slot = Slot;
 }
 
-void CMaterialTexture::SetShaderType(EShaderType eShaderType)
+void CMaterial::CTexture::SetShaderType(EShaderType eShaderType)
 {
 	m_eShaderType = eShaderType;
 }
 
-void CMaterialTexture::Use(int ForcedSlot) const
+void CMaterial::CTexture::Use(int ForcedSlot) const
 {
 	UINT Slot{ m_Slot };
 	if (ForcedSlot != -1) Slot = static_cast<UINT>(ForcedSlot);

@@ -33,7 +33,7 @@ static void ScaleMesh(SMesh& Mesh, const XMVECTOR& Scaling);
 static SMesh MergeStaticMeshes(const SMesh& MeshA, const SMesh& MeshB);
 static vector<SVertex3DLine> Generate3DLineCircleYZ(const XMVECTOR& Color = KColorWhite, uint32_t SegmentCount = 32);
 static vector<SVertex3DLine> Generate3DGrid(int GuidelineCount = 10, float Interval = 1.0f);
-static SObject2DData Generate2DRectangle(const XMFLOAT2& RectangleSize);
+static CObject2D::SData Generate2DRectangle(const XMFLOAT2& RectangleSize);
 
 static bool operator==(const XMVECTOR& A, const XMVECTOR& B)
 {
@@ -774,12 +774,12 @@ static vector<SVertex3DLine> Generate3DGrid(int GuidelineCount, float Interval)
 	return vVertices;
 }
 
-static SObject2DData Generate2DRectangle(const XMFLOAT2& RectangleSize)
+static CObject2D::SData Generate2DRectangle(const XMFLOAT2& RectangleSize)
 {
 	const float KHalfWidth{ RectangleSize.x / 2 };
 	const float KHalfHeight{ RectangleSize.y / 2 };
 
-	SObject2DData Result{};
+	CObject2D::SData Result{};
 
 	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(-KHalfWidth, +KHalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(0.0f, 0.0f, 0, 0)));
 	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(+KHalfWidth, +KHalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(1.0f, 0.0f, 0, 0)));

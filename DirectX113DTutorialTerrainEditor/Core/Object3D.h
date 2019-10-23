@@ -3,23 +3,22 @@
 #include "AssimpLoader.h"
 
 class CGame;
-class CTerrain;
-
-struct SMeshBuffers
-{
-	ComPtr<ID3D11Buffer>	VertexBuffer{};
-	UINT					VertexBufferStride{ sizeof(SVertex3D) };
-	UINT					VertexBufferOffset{};
-
-	ComPtr<ID3D11Buffer>	VertexBufferAnimation{};
-	UINT					VertexBufferAnimationStride{ sizeof(SVertexAnimation) };
-	UINT					VertexBufferAnimationOffset{};
-
-	ComPtr<ID3D11Buffer>	IndexBuffer{};
-};
 
 class CObject3D
 {
+	struct SMeshBuffers
+	{
+		ComPtr<ID3D11Buffer>	VertexBuffer{};
+		UINT					VertexBufferStride{ sizeof(SVertex3D) };
+		UINT					VertexBufferOffset{};
+
+		ComPtr<ID3D11Buffer>	VertexBufferAnimation{};
+		UINT					VertexBufferAnimationStride{ sizeof(SVertexAnimation) };
+		UINT					VertexBufferAnimationOffset{};
+
+		ComPtr<ID3D11Buffer>	IndexBuffer{};
+	};
+
 public:
 	CObject3D(ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext, CGame* PtrGame) :
 		m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }, m_PtrGame{ PtrGame }
@@ -61,7 +60,7 @@ private:
 
 	void CreateMaterialTextures();
 
-	void CalculateAnimatedBoneMatrices(const SModelNode& Node, XMMATRIX ParentTransform);
+	void CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRIX ParentTransform);
 
 public:
 	static constexpr size_t			KTerrainNormalTextureSlotOffset{ 5 };
@@ -75,8 +74,8 @@ private:
 private:
 	SModel									m_Model{};
 	vector<SMeshBuffers>					m_vMeshBuffers{};
-	vector<unique_ptr<CMaterialTexture>>	m_vDiffuseTextures{};
-	vector<unique_ptr<CMaterialTexture>>	m_vNormalTextures{};
+	vector<unique_ptr<CMaterial::CTexture>>	m_vDiffuseTextures{};
+	vector<unique_ptr<CMaterial::CTexture>>	m_vNormalTextures{};
 
 	XMMATRIX								m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
 	size_t									m_CurrentAnimationIndex{};

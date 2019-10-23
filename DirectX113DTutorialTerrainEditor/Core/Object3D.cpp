@@ -151,7 +151,7 @@ void CObject3D::CreateMaterialTextures()
 		{
 			if (Material.HasDiffuseTexture())
 			{
-				m_vDiffuseTextures.back() = make_unique<CMaterialTexture>(m_PtrDevice, m_PtrDeviceContext);
+				m_vDiffuseTextures.back() = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
 
 				if (Material.IsDiffuseTextureEmbedded())
 				{
@@ -167,7 +167,7 @@ void CObject3D::CreateMaterialTextures()
 
 			if (Material.HasNormalTexture())
 			{
-				m_vNormalTextures.back() = make_unique<CMaterialTexture>(m_PtrDevice, m_PtrDeviceContext);
+				m_vNormalTextures.back() = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
 
 				if (Material.IsDiffuseTextureEmbedded())
 				{
@@ -214,7 +214,7 @@ void CObject3D::Animate()
 {
 	if (!m_Model.vAnimations.size()) return;
 
-	SModelAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationIndex] };
+	SModel::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationIndex] };
 	
 	m_CurrentAnimationTick += CurrentAnimation.TicksPerSecond * 0.001f; // TEMPORARY SLOW DOWN!!
 	if (m_CurrentAnimationTick >= CurrentAnimation.Duration)
@@ -232,29 +232,29 @@ void CObject3D::ShouldTessellate(bool Value)
 	m_bShouldTesselate = Value;
 }
 
-void CObject3D::CalculateAnimatedBoneMatrices(const SModelNode& Node, XMMATRIX ParentTransform)
+void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRIX ParentTransform)
 {
 	XMMATRIX MatrixTransformation{ Node.MatrixTransformation * ParentTransform };
 
 	if (Node.bIsBone)
 	{
-		SModelAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationIndex] };
+		const SModel::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationIndex] };
 		if (CurrentAnimation.vNodeAnimations.size())
 		{
 			if (CurrentAnimation.mapNodeAnimationNameToIndex.find(Node.Name) != CurrentAnimation.mapNodeAnimationNameToIndex.end())
 			{
-				size_t NodeAnimationIndex{ CurrentAnimation.mapNodeAnimationNameToIndex[Node.Name] };
+				size_t NodeAnimationIndex{ CurrentAnimation.mapNodeAnimationNameToIndex.at(Node.Name) };
 
-				SModelNodeAnimation& NodeAnimation{ CurrentAnimation.vNodeAnimations[NodeAnimationIndex] };
+				const SModel::SAnimation::SNodeAnimation& NodeAnimation{ CurrentAnimation.vNodeAnimations[NodeAnimationIndex] };
 
 				XMMATRIX MatrixPosition{ XMMatrixIdentity() };
 				XMMATRIX MatrixRotation{ XMMatrixIdentity() };
 				XMMATRIX MatrixScaling{ XMMatrixIdentity() };
 
 				{
-					vector<SModelNodeAnimation::SKey>& vKeys{ NodeAnimation.vPositionKeys };
-					SModelNodeAnimation::SKey KeyA{};
-					SModelNodeAnimation::SKey KeyB{};
+					const vector<SModel::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vPositionKeys };
+					SModel::SAnimation::SNodeAnimation::SKey KeyA{};
+					SModel::SAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
 						if (vKeys[iKey].Time <= m_CurrentAnimationTick)
@@ -268,9 +268,9 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModelNode& Node, XMMATRIX P
 				}
 
 				{
-					vector<SModelNodeAnimation::SKey>& vKeys{ NodeAnimation.vRotationKeys };
-					SModelNodeAnimation::SKey KeyA{};
-					SModelNodeAnimation::SKey KeyB{};
+					const vector<SModel::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vRotationKeys };
+					SModel::SAnimation::SNodeAnimation::SKey KeyA{};
+					SModel::SAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
 						if (vKeys[iKey].Time <= m_CurrentAnimationTick)
@@ -284,9 +284,9 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModelNode& Node, XMMATRIX P
 				}
 
 				{
-					vector<SModelNodeAnimation::SKey>& vKeys{ NodeAnimation.vScalingKeys };
-					SModelNodeAnimation::SKey KeyA{};
-					SModelNodeAnimation::SKey KeyB{};
+					const vector<SModel::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vScalingKeys };
+					SModel::SAnimation::SNodeAnimation::SKey KeyA{};
+					SModel::SAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
 						if (vKeys[iKey].Time <= m_CurrentAnimationTick)
