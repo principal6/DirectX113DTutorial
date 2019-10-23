@@ -40,6 +40,7 @@ public:
 
 private:
 	void CreateMaskingTexture(bool bShouldClear);
+	void CreateWater();
 
 public:
 	const XMFLOAT2& GetSize() const;
@@ -124,7 +125,9 @@ private:
 
 private:
 	unique_ptr<CObject2D>			m_Object2DMaskingTextureRepresentation{};
-	unique_ptr<CObject3D>			m_Object3D{};
+	unique_ptr<CObject3D>			m_Object3DTerrain{};
+	unique_ptr<CObject3D>			m_Object3DWater{};
+	unique_ptr<CMaterial::CTexture>	m_WaterNormalTexture{};
 	XMFLOAT2						m_Size{};
 	unique_ptr<CMaterial::CTexture>	m_MaskingTexture{};
 	XMFLOAT2						m_MaskingTextureSize{};

@@ -364,6 +364,8 @@ void CGame::InitializeDirectX(const wstring& FontFileName, bool bWindowed)
 
 	SetViewports();
 
+	CreateDepthStencilState();
+
 	SetPerspective(KDefaultFOV, KDefaultNearZ, KDefaultFarZ);
 
 	CreateInputDevices();
@@ -473,6 +475,17 @@ void CGame::SetViewports()
 	}
 }
 
+void CGame::CreateDepthStencilState()
+{
+	D3D11_DEPTH_STENCIL_DESC DepthStencilDesc{};
+	DepthStencilDesc.DepthEnable = TRUE;
+	DepthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+	DepthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	DepthStencilDesc.StencilEnable = FALSE;
+
+	assert(SUCCEEDED(m_Device->CreateDepthStencilState(&DepthStencilDesc, m_DepthStencilStateLessEqualNoWrite.GetAddressOf())));
+}
+
 void CGame::CreateInputDevices()
 {
 	m_Keyboard = make_unique<Keyboard>();
@@ -545,6 +558,10 @@ void CGame::CreateBaseShaders()
 	m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSTerrain->Create(EShaderType::PixelShader, L"Shader\\PSTerrain.hlsl", "main");
 	m_PSTerrain->AddConstantBuffer(&m_cbPSTerrainSpaceData, sizeof(SCBPSTerrainSpaceData));
+
+	m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSWater->Create(EShaderType::PixelShader, L"Shader\\PSWater.hlsl", "main");
+	m_PSWater->AddConstantBuffer(&m_cbPSBaseEyeData, sizeof(SCBPSBaseEyeData));
 
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
@@ -808,6 +825,12 @@ CShader* CGame::GetBaseShader(EBaseShader eShader)
 	case EBaseShader::VSBase2D:
 		Result = m_VSBase2D.get();
 		break;
+	case EBaseShader::HSBezier:
+		Result = m_HSBezier.get();
+		break;
+	case EBaseShader::DSBezier:
+		Result = m_DSBezier.get();
+		break;
 	case EBaseShader::GSNormal:
 		Result = m_GSNormal.get();
 		break;
@@ -828,6 +851,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader)
 		break;
 	case EBaseShader::PSTerrain:
 		Result = m_PSTerrain.get();
+		break;
+	case EBaseShader::PSWater:
+		Result = m_PSWater.get();
 		break;
 	case EBaseShader::PSBase2D:
 		Result = m_PSBase2D.get();

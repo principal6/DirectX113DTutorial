@@ -27,6 +27,7 @@ enum class EBaseShader
 	VSBase2D,
 
 	HSBezier,
+
 	DSBezier,
 
 	GSNormal,
@@ -37,6 +38,8 @@ enum class EBaseShader
 	PSLine,
 	PSGizmo,
 	PSTerrain,
+	PSWater,
+
 	PSBase2D,
 	PSMasking2D
 };
@@ -209,6 +212,7 @@ private:
 	void CreateSwapChain(bool bWindowed);
 	void CreateSetViews();
 	void SetViewports();
+	void CreateDepthStencilState();
 	void CreateInputDevices();
 	void CreateBaseShaders();
 	void CreateMiniAxes();
@@ -337,6 +341,7 @@ public:
 	const XMFLOAT2& GetTerrainSelectionRoundUpPosition();
 	float GetSkyTime();
 	XMMATRIX GetTransposedVPMatrix();
+	ID3D11DepthStencilState* GetDepthStencilStateLessEqualNoWrite() { return m_DepthStencilStateLessEqualNoWrite.Get(); }
 
 private:
 	void UpdateGameObject3D(CGameObject3D* PtrGO);
@@ -408,6 +413,7 @@ private:
 	unique_ptr<CShader>	m_VSBase2D{};
 
 	unique_ptr<CShader>	m_HSBezier{};
+	
 	unique_ptr<CShader>	m_DSBezier{};
 
 	unique_ptr<CShader>	m_GSNormal{};
@@ -418,6 +424,8 @@ private:
 	unique_ptr<CShader>	m_PSLine{};
 	unique_ptr<CShader>	m_PSGizmo{};
 	unique_ptr<CShader>	m_PSTerrain{};
+	unique_ptr<CShader>	m_PSWater{};
+
 	unique_ptr<CShader>	m_PSBase2D{};
 	unique_ptr<CShader>	m_PSMasking2D{};
 
@@ -545,6 +553,7 @@ private:
 	ComPtr<ID3D11RenderTargetView>	m_RenderTargetView{};
 	ComPtr<ID3D11DepthStencilView>	m_DepthStencilView{};
 	ComPtr<ID3D11Texture2D>			m_DepthStencilBuffer{};
+	ComPtr<ID3D11DepthStencilState>	m_DepthStencilStateLessEqualNoWrite{};
 
 	unique_ptr<Keyboard>			m_Keyboard{};
 	unique_ptr<Mouse>				m_Mouse{};

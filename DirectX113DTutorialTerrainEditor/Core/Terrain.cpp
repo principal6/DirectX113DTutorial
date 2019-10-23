@@ -32,16 +32,18 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, fl
 	m_MaskingTextureDetail = max(m_MaskingTextureDetail, KMaskingMinDetail);
 	m_MaskingTextureDetail = min(m_MaskingTextureDetail, KMaskingMaxDetail);
 
-	m_Object3D.release();
-	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
-	m_Object3D->Create(Model);
-	m_Object3D->ShouldTessellate(true); // @important
+	m_Object3DTerrain.release();
+	m_Object3DTerrain = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	m_Object3DTerrain->Create(Model);
+	m_Object3DTerrain->ShouldTessellate(true); // @important
 
 	m_Object2DMaskingTextureRepresentation.release();
 	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
 	m_Object2DMaskingTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
 
 	CreateMaskingTexture(true);
+
+	CreateWater();
 
 	UpdateVertexNormalsTangents();
 }
@@ -92,10 +94,10 @@ void CTerrain::Load(const string& FileName)
 
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
 
-	m_Object3D.release();
-	m_Object3D = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
-	m_Object3D->Create(Model);
-	m_Object3D->ShouldTessellate(true); // @important
+	m_Object3DTerrain.release();
+	m_Object3DTerrain = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	m_Object3DTerrain->Create(Model);
+	m_Object3DTerrain->ShouldTessellate(true); // @important
 
 	m_Object2DMaskingTextureRepresentation.release();
 	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
@@ -103,12 +105,14 @@ void CTerrain::Load(const string& FileName)
 
 	CreateMaskingTexture(false);
 
+	CreateWater();
+
 	UpdateVertexNormalsTangents();
 }
 
 void CTerrain::Save(const string& FileName)
 {
-	if (!m_Object3D) return;
+	if (!m_Object3DTerrain) return;
 
 	std::ofstream ofs{};
 	ofs.open(FileName, std::ofstream::binary);
@@ -144,7 +148,7 @@ void CTerrain::Save(const string& FileName)
 	}
 
 	// Model data
-	_WriteStaticModelFile(ofs, m_Object3D->GetModel());
+	_WriteStaticModelFile(ofs, m_Object3DTerrain->GetModel());
 
 	ofs.close();
 }
@@ -176,6 +180,27 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 	m_PtrGame->UpdatePSTerrainSpace(m_MatrixMaskingSpace);
 }
 
+void CTerrain::CreateWater()
+{
+	const XMVECTOR KWaterColor{ XMVectorSet(0.2f, 0.6f, 0.8f, 0.5f) };
+
+	m_Object3DWater.release();
+	m_Object3DWater = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	SMesh WaterMesh{ GenerateSquareXZPlane(KWaterColor) };
+	CalculateNormals(WaterMesh);
+	CalculateTangents(WaterMesh);
+	ScaleMesh(WaterMesh, XMVectorSet(m_Size.x, 1.0f, m_Size.y, 0));
+	ScaleMeshTexCoord(WaterMesh, XMVectorSet(m_Size.x, m_Size.y, 0, 0));
+	
+	m_Object3DWater->Create(WaterMesh);
+
+	m_WaterNormalTexture.release();
+	m_WaterNormalTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_WaterNormalTexture->CreateTextureFromFile("Asset\\water_normal.png", true);
+	m_WaterNormalTexture->SetSlot(0);
+	m_WaterNormalTexture->Use();
+}
+
 const XMFLOAT2& CTerrain::GetSize() const
 {
 	return m_Size;
@@ -183,8 +208,8 @@ const XMFLOAT2& CTerrain::GetSize() const
 
 int CTerrain::GetMaterialCount() const
 {
-	assert(m_Object3D);
-	return (int)m_Object3D->GetMaterialCount();
+	assert(m_Object3DTerrain);
+	return (int)m_Object3DTerrain->GetMaterialCount();
 }
 
 const XMFLOAT2& CTerrain::GetSelectionRoundUpPosition() const
@@ -199,24 +224,24 @@ float CTerrain::GetMaskingTextureDetail() const
 
 const CMaterial& CTerrain::GetMaterial(int Index) const
 {
-	assert(m_Object3D);
-	return m_Object3D->GetModel().vMaterials[Index];
+	assert(m_Object3DTerrain);
+	return m_Object3DTerrain->GetModel().vMaterials[Index];
 }
 
 void CTerrain::AddMaterial(const CMaterial& Material)
 {
-	assert(m_Object3D);
-	if ((int)m_Object3D->GetModel().vMaterials.size() == KMaterialMaxCount) return;
+	assert(m_Object3DTerrain);
+	if ((int)m_Object3DTerrain->GetModel().vMaterials.size() == KMaterialMaxCount) return;
 
-	m_Object3D->AddMaterial(Material);
+	m_Object3DTerrain->AddMaterial(Material);
 }
 
 void CTerrain::SetMaterial(int MaterialID, const CMaterial& NewMaterial)
 {
-	assert(m_Object3D);
+	assert(m_Object3DTerrain);
 	assert(MaterialID >= 0 && MaterialID < 4);
 
-	m_Object3D->SetMaterial(MaterialID, NewMaterial);
+	m_Object3DTerrain->SetMaterial(MaterialID, NewMaterial);
 }
 
 void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, float Value, float Radius, bool bForceSet)
@@ -290,14 +315,14 @@ void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, flo
 
 void CTerrain::UpdateVertexNormalsTangents()
 {
-	assert(m_Object3D);
+	assert(m_Object3DTerrain);
 
-	CalculateNormals(m_Object3D->GetModel().vMeshes[0]);
-	AverageNormals(m_Object3D->GetModel().vMeshes[0]);
-	CalculateTangents(m_Object3D->GetModel().vMeshes[0]);
-	AverageTangents(m_Object3D->GetModel().vMeshes[0]);
+	CalculateNormals(m_Object3DTerrain->GetModel().vMeshes[0]);
+	AverageNormals(m_Object3DTerrain->GetModel().vMeshes[0]);
+	CalculateTangents(m_Object3DTerrain->GetModel().vMeshes[0]);
+	AverageTangents(m_Object3DTerrain->GetModel().vMeshes[0]);
 
-	m_Object3D->UpdateMeshBuffer();
+	m_Object3DTerrain->UpdateMeshBuffer();
 }
 
 void CTerrain::SetSelectionSize(float& Size)
@@ -312,7 +337,7 @@ void CTerrain::UpdateSelection(const XMVECTOR& PickingRayOrigin, const XMVECTOR&
 {
 	// Do not consider World transformation!!
 	// Terrain uses single mesh
-	SMesh& Mesh{ m_Object3D->GetModel().vMeshes[0] };
+	SMesh& Mesh{ m_Object3DTerrain->GetModel().vMeshes[0] };
 
 	XMVECTOR T{ KVectorGreatest };
 	XMVECTOR PlaneT{};
@@ -364,7 +389,7 @@ void CTerrain::UpdateSelection(const XMVECTOR& PickingRayOrigin, const XMVECTOR&
 			}
 		}
 
-		m_Object3D->UpdateMeshBuffer();
+		m_Object3DTerrain->UpdateMeshBuffer();
 	}
 }
 
@@ -372,7 +397,7 @@ void CTerrain::ReleaseSelection()
 {
 	// Do not consider World transformation!!
 	// Terrain uses single mesh
-	SMesh& Mesh{ m_Object3D->GetModel().vMeshes[0] };
+	SMesh& Mesh{ m_Object3DTerrain->GetModel().vMeshes[0] };
 
 	for (auto& Triangle : Mesh.vTriangles)
 	{
@@ -385,12 +410,12 @@ void CTerrain::ReleaseSelection()
 		V2.TexCoord = XMVectorSetZ(V2.TexCoord, 0.0f);
 	}
 
-	m_Object3D->UpdateMeshBuffer();
+	m_Object3DTerrain->UpdateMeshBuffer();
 }
 
 void CTerrain::UpdateHoverPosition(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection)
 {
-	if (!m_Object3D) return;
+	if (!m_Object3DTerrain) return;
 
 	// Do not consider World transformation!!
 	// Terrain uses single mesh
@@ -439,9 +464,9 @@ void CTerrain::UpdateMaskingTexture()
 
 void CTerrain::ShouldTessellate(bool Value)
 {
-	if (m_Object3D)
+	if (m_Object3DTerrain)
 	{
-		m_Object3D->ShouldTessellate(Value);
+		m_Object3DTerrain->ShouldTessellate(Value);
 	}
 }
 
@@ -489,7 +514,7 @@ void CTerrain::SetMaskingValue(float Value)
 
 void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
 {
-	if (!m_Object3D) return;
+	if (!m_Object3DTerrain) return;
 
 	CShader* VS{ m_PtrGame->GetBaseShader(EBaseShader::VSBase) };
 	CShader* PS{ m_PtrGame->GetBaseShader(EBaseShader::PSTerrain) };
@@ -506,23 +531,37 @@ void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
 	{
 		m_PtrGame->GetBaseShader(EBaseShader::GSNormal)->Use();
 		m_PtrGame->UpdateGSSpace();
+	}
 
-		m_Object3D->Draw();
+	m_Object3DTerrain->Draw();
 
+	if (bDrawNormals)
+	{
 		m_PtrDeviceContext->GSSetShader(nullptr, nullptr, 0);
 	}
-	else
-	{
-		m_Object3D->Draw();
-	}
-	
+
 	if (bUseTerrainSelector)
 	{
 		m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->Wireframe());
 		m_PtrDeviceContext->PSSetShaderResources(0, 0, nullptr);
 
-		m_Object3D->Draw(true);
+		m_Object3DTerrain->Draw(true);
 	}
+
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
+	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
+	m_PtrGame->UpdateVSSpace(XMMatrixTranslation(0, -0.2f, 0));
+	VS->UpdateConstantBuffer(0);
+	m_PtrDeviceContext->HSSetShader(nullptr, nullptr, 0);
+	m_PtrDeviceContext->DSSetShader(nullptr, nullptr, 0);
+	m_PtrGame->GetBaseShader(EBaseShader::PSWater)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::PSWater)->UpdateConstantBuffer(0);
+	m_WaterNormalTexture->Use();
+	m_Object3DWater->Draw();
+
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
+
+	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
 }
 
 void CTerrain::DrawMaskingTexture()
@@ -546,9 +585,9 @@ void CTerrain::DrawMaskingTexture()
 
 void CTerrain::UpdateHeight(bool bIsLeftButton, float DeltaHeightFactor)
 {
-	if (!m_Object3D) return;
+	if (!m_Object3DTerrain) return;
 
-	SMesh& Mesh{ m_Object3D->GetModel().vMeshes[0] };
+	SMesh& Mesh{ m_Object3DTerrain->GetModel().vMeshes[0] };
 
 	int VertexCount{ static_cast<int>(m_Size.x * m_Size.y * 4) };
 	const int ZMax{ (int)m_Size.y + 1 };
@@ -617,7 +656,7 @@ void CTerrain::UpdateHeight(bool bIsLeftButton, float DeltaHeightFactor)
 		}
 	}
 
-	m_Object3D->UpdateMeshBuffer();
+	m_Object3DTerrain->UpdateMeshBuffer();
 }
 
 void CTerrain::UpdateVertex(SVertex3D& Vertex, bool bIsLeftButton, float DeltaHeightFactor)
