@@ -536,7 +536,7 @@ private:
 
 private:
 	ERasterizerState	m_eRasterizerState{ ERasterizerState::CullCounterClockwise };
-	EFlagsRendering	m_eFlagsGameRendering{};
+	EFlagsRendering		m_eFlagsRendering{};
 
 private:
 	ComPtr<IDXGISwapChain>			m_SwapChain{};

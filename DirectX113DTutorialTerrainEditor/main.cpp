@@ -342,7 +342,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(300, 400));
 					if (ImGui::Begin(u8"지형 편집기", &bShowTerrainEditor, ImGuiWindowFlags_AlwaysAutoResize))
 					{
-						if (Game.GetTerrain())
+						CTerrain* Terrain{ Game.GetTerrain() };
+						if (Terrain)
 						{
 							static bool bShouldRecalculateTerrainVertexNormals{ false };
 							static float TerrainSelectionSize{ CTerrain::KSelectionMinSize };

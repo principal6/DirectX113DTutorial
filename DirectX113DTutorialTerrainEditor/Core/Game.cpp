@@ -47,12 +47,12 @@ void CGame::SetPerspective(float FOV, float NearZ, float FarZ)
 
 void CGame::SetGameRenderingFlags(EFlagsRendering Flags)
 {
-	m_eFlagsGameRendering = Flags;
+	m_eFlagsRendering = Flags;
 }
 
 void CGame::ToggleGameRenderingFlags(EFlagsRendering Flags)
 {
-	m_eFlagsGameRendering ^= Flags;
+	m_eFlagsRendering ^= Flags;
 }
 
 void CGame::Set3DGizmoMode(E3DGizmoMode Mode)
@@ -1083,7 +1083,7 @@ void CGame::Pick()
 
 	PickTriangle();
 
-	if (EFLAG_HAS_NO(m_eFlagsGameRendering, EFlagsRendering::Use3DGizmos))
+	if (EFLAG_HAS_NO(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
 	{
 		if (m_PtrPickedGameObject3D) m_PtrCapturedPickedGameObject3D =  m_PtrPickedGameObject3D;
 	}
@@ -1198,7 +1198,7 @@ void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton, float DeltaHeigh
 {
 	if (!m_Terrain) return;
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::UseTerrainSelector))
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseTerrainSelector))
 	{
 		CastPickingRay();
 
@@ -1257,7 +1257,7 @@ void CGame::Draw(float DeltaTime)
 
 	m_cbPSBaseEyeData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawWireFrame))
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawWireFrame))
 	{
 		m_eRasterizerState = ERasterizerState::WireFrame;
 	}
@@ -1273,7 +1273,7 @@ void CGame::Draw(float DeltaTime)
 		UpdateGameObject3D(i.get());
 		DrawGameObject3D(i.get());
 
-		if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawBoundingSphere))
+		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
 		{
 			DrawGameObject3DBoundingSphere(i.get());
 		}
@@ -1286,18 +1286,18 @@ void CGame::Draw(float DeltaTime)
 		UpdateGameObject3D(i.get());
 		DrawGameObject3D(i.get());
 		
-		if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawBoundingSphere))
+		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
 		{
 			DrawGameObject3DBoundingSphere(i.get());
 		}
 	}
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawMiniAxes))
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawMiniAxes))
 	{
 		DrawMiniAxes();
 	}
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawPickingData))
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawPickingData))
 	{
 		DrawPickingRay();
 
@@ -1309,7 +1309,7 @@ void CGame::Draw(float DeltaTime)
 		DrawSky(DeltaTime);
 	}
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::Use3DGizmos))
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
 	{
 		Draw3DGizmos();
 	}
@@ -1401,7 +1401,7 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
 	}
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawNormals))
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals))
 	{
 		m_GSNormal->Use();
 		
@@ -1633,7 +1633,7 @@ void CGame::DrawTerrain()
 {
 	if (!m_Terrain) return;
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::TessellateTerrain))
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain))
 	{
 		m_HSBezier->Use();
 		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
@@ -1644,8 +1644,8 @@ void CGame::DrawTerrain()
 		m_DSBezier->UpdateConstantBuffer(0);
 
 		m_Terrain->Draw(
-			EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::UseTerrainSelector),
-			EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawNormals)
+			EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseTerrainSelector),
+			EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals)
 		);
 
 		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
@@ -1654,13 +1654,13 @@ void CGame::DrawTerrain()
 	else
 	{
 		m_Terrain->Draw(
-			EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::UseTerrainSelector),
-			EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawNormals)
+			EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseTerrainSelector),
+			EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals)
 		);
 	}
 	
 
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::DrawTerrainMaskingTexture))
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainMaskingTexture))
 	{
 		m_DeviceContext->RSSetViewports(1, &m_vViewports[2]);
 		m_Terrain->DrawMaskingTexture();
@@ -2089,7 +2089,7 @@ void CGame::SetUniversalRasterizerState()
 
 void CGame::SetUniversalbUseLighiting()
 {
-	if (EFLAG_HAS(m_eFlagsGameRendering, EFlagsRendering::UseLighting))
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseLighting))
 	{
 		m_cbPSBaseFlagsData.bUseLighting = TRUE;
 	}
