@@ -121,8 +121,8 @@ public:
 	static constexpr float KMaskingDefaultDetail{ 8.0f };
 
 	static constexpr float KWaterHeightUnit{ 0.1f };
-	static constexpr float KWaterMinHeight{ -5.0f };
-	static constexpr float KWaterMaxHeight{ +5.0f };
+	static constexpr float KWaterMinHeight{ KMinHeight };
+	static constexpr float KWaterMaxHeight{ KMaxHeight };
 
 private:
 	ID3D11Device*			m_PtrDevice{};
