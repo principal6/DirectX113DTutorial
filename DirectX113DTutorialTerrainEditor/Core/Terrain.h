@@ -76,6 +76,8 @@ public:
 	void SetSetHeightValue(float Value);
 	void SetDeltaHeightValue(float Value);
 	void SetMaskingValue(float Value);
+	void SetWaterHeight(float Value);
+	float GetWaterHeight() const;
 
 public:
 	void Draw(bool bUseTerrainSelector, bool bDrawNormals);
@@ -118,6 +120,10 @@ public:
 	static constexpr float KMaskingMaxDetail{ 16.0f };
 	static constexpr float KMaskingDefaultDetail{ 8.0f };
 
+	static constexpr float KWaterHeightUnit{ 0.1f };
+	static constexpr float KWaterMinHeight{ -5.0f };
+	static constexpr float KWaterMaxHeight{ +5.0f };
+
 private:
 	ID3D11Device*			m_PtrDevice{};
 	ID3D11DeviceContext*	m_PtrDeviceContext{};
@@ -126,13 +132,17 @@ private:
 private:
 	unique_ptr<CObject2D>			m_Object2DMaskingTextureRepresentation{};
 	unique_ptr<CObject3D>			m_Object3DTerrain{};
-	unique_ptr<CObject3D>			m_Object3DWater{};
-	unique_ptr<CMaterial::CTexture>	m_WaterNormalTexture{};
 	XMFLOAT2						m_Size{};
 	unique_ptr<CMaterial::CTexture>	m_MaskingTexture{};
 	XMFLOAT2						m_MaskingTextureSize{};
 	vector<SPixelUNorm>				m_MaskingTextureRawData{};
 	XMMATRIX						m_MatrixMaskingSpace{};
+
+private:
+	unique_ptr<CObject3D>			m_Object3DWater{};
+	unique_ptr<CMaterial::CTexture>	m_WaterNormalTexture{};
+	unique_ptr<CMaterial::CTexture>	m_WaterDisplacementTexture{};
+	float							m_WaterHeight{};
 
 private:
 	float			m_SelectionHalfSize{ KSelectionMinSize / 2.0f };

@@ -526,9 +526,18 @@ void CGame::CreateBaseShaders()
 	m_HSBezier->Create(EShaderType::HullShader, L"Shader\\HSBezier.hlsl", "main");
 	m_HSBezier->AddConstantBuffer(&m_cbHSCameraData, sizeof(SCBHSCameraData));
 
+	m_HSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_HSWater->Create(EShaderType::HullShader, L"Shader\\HSWater.hlsl", "main");
+	m_HSWater->AddConstantBuffer(&m_cbHSCameraData, sizeof(SCBHSCameraData));
+
 	m_DSBezier = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSBezier->Create(EShaderType::DomainShader, L"Shader\\DSBezier.hlsl", "main");
 	m_DSBezier->AddConstantBuffer(&m_cbDSSpaceData, sizeof(SCBDSSpaceData));
+
+	m_DSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_DSWater->Create(EShaderType::DomainShader, L"Shader\\DSWater.hlsl", "main");
+	m_DSWater->AddConstantBuffer(&m_cbDSSpaceData, sizeof(SCBDSSpaceData));
+	m_DSWater->AddConstantBuffer(&m_cbWaterTimeData, sizeof(SCBWaterTimeData));
 
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSNormal->Create(EShaderType::GeometryShader, L"Shader\\GSNormal.hlsl", "main");
@@ -562,6 +571,7 @@ void CGame::CreateBaseShaders()
 	m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSWater->Create(EShaderType::PixelShader, L"Shader\\PSWater.hlsl", "main");
 	m_PSWater->AddConstantBuffer(&m_cbPSBaseEyeData, sizeof(SCBPSBaseEyeData));
+	m_PSWater->AddConstantBuffer(&m_cbWaterTimeData, sizeof(SCBWaterTimeData));
 
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
@@ -828,8 +838,14 @@ CShader* CGame::GetBaseShader(EBaseShader eShader)
 	case EBaseShader::HSBezier:
 		Result = m_HSBezier.get();
 		break;
+	case EBaseShader::HSWater:
+		Result = m_HSWater.get();
+		break;
 	case EBaseShader::DSBezier:
 		Result = m_DSBezier.get();
+		break;
+	case EBaseShader::DSWater:
+		Result = m_DSWater.get();
 		break;
 	case EBaseShader::GSNormal:
 		Result = m_GSNormal.get();
@@ -1259,6 +1275,7 @@ void CGame::BeginRendering(const FLOAT* ClearColor)
 
 	ID3D11SamplerState* SamplerState{ m_CommonStates->LinearWrap() };
 	m_DeviceContext->PSSetSamplers(0, 1, &SamplerState);
+	m_DeviceContext->DSSetSamplers(0, 1, &SamplerState);
 
 	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
 
@@ -1279,6 +1296,9 @@ void CGame::Animate()
 
 void CGame::Draw(float DeltaTime)
 {
+	m_cbWaterTimeData.Time += DeltaTime * 0.1f;
+	if (m_cbWaterTimeData.Time >= 1.0f) m_cbWaterTimeData.Time = 0.0f;
+
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 
 	m_cbPSBaseEyeData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();

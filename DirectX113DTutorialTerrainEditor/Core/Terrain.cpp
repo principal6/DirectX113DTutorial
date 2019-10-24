@@ -182,23 +182,27 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 
 void CTerrain::CreateWater()
 {
-	const XMVECTOR KWaterColor{ XMVectorSet(0.2f, 0.6f, 0.8f, 0.5f) };
+	const XMVECTOR KWaterColor{ XMVectorSet(0.0f, 0.4f, 0.6f, 0.8f) };
 
 	m_Object3DWater.release();
 	m_Object3DWater = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
-	SMesh WaterMesh{ GenerateSquareXZPlane(KWaterColor) };
-	CalculateNormals(WaterMesh);
-	CalculateTangents(WaterMesh);
-	ScaleMesh(WaterMesh, XMVectorSet(m_Size.x, 1.0f, m_Size.y, 0));
-	ScaleMeshTexCoord(WaterMesh, XMVectorSet(m_Size.x, m_Size.y, 0, 0));
-	
+
+	SMesh WaterMesh{ GenerateTerrainBase(m_Size, false, KWaterColor) };
 	m_Object3DWater->Create(WaterMesh);
+	m_Object3DWater->ShouldTessellate(true);
 
 	m_WaterNormalTexture.release();
 	m_WaterNormalTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
-	m_WaterNormalTexture->CreateTextureFromFile("Asset\\water_normal.png", true);
+	m_WaterNormalTexture->CreateTextureFromFile("Asset\\water_normal.jpg", false);
 	m_WaterNormalTexture->SetSlot(0);
 	m_WaterNormalTexture->Use();
+
+	m_WaterDisplacementTexture.release();
+	m_WaterDisplacementTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_WaterDisplacementTexture->CreateTextureFromFile("Asset\\water_displacement.jpg", false);
+	m_WaterDisplacementTexture->SetSlot(0);
+	m_WaterDisplacementTexture->SetShaderType(EShaderType::DomainShader);
+	m_WaterDisplacementTexture->Use();
 }
 
 const XMFLOAT2& CTerrain::GetSize() const
@@ -512,6 +516,16 @@ void CTerrain::SetMaskingValue(float Value)
 	m_MaskingRatio = Value;
 }
 
+void CTerrain::SetWaterHeight(float Value)
+{
+	m_WaterHeight = Value;
+}
+
+float CTerrain::GetWaterHeight() const
+{
+	return m_WaterHeight;
+}
+
 void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
 {
 	if (!m_Object3DTerrain) return;
@@ -546,22 +560,25 @@ void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
 		m_PtrDeviceContext->PSSetShaderResources(0, 0, nullptr);
 
 		m_Object3DTerrain->Draw(true);
+
+		m_PtrGame->SetUniversalRasterizerState();
 	}
 
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
-	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
-	m_PtrGame->UpdateVSSpace(XMMatrixTranslation(0, -0.2f, 0));
-	VS->UpdateConstantBuffer(0);
-	m_PtrDeviceContext->HSSetShader(nullptr, nullptr, 0);
-	m_PtrDeviceContext->DSSetShader(nullptr, nullptr, 0);
+	m_PtrGame->UpdateVSSpace(XMMatrixTranslation(0, m_WaterHeight, 0));
+	m_PtrGame->GetBaseShader(EBaseShader::VSBase)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::VSBase)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(EBaseShader::HSWater)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::HSWater)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(EBaseShader::DSWater)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::DSWater)->UpdateAllConstantBuffers();
 	m_PtrGame->GetBaseShader(EBaseShader::PSWater)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::PSWater)->UpdateConstantBuffer(0);
+	m_PtrGame->GetBaseShader(EBaseShader::PSWater)->UpdateAllConstantBuffers();
 	m_WaterNormalTexture->Use();
+	m_WaterDisplacementTexture->Use();
 	m_Object3DWater->Draw();
 
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
-
-	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
 }
 
 void CTerrain::DrawMaskingTexture()

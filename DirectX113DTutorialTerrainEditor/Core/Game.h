@@ -27,8 +27,10 @@ enum class EBaseShader
 	VSBase2D,
 
 	HSBezier,
+	HSWater,
 
 	DSBezier,
+	DSWater,
 
 	GSNormal,
 
@@ -178,6 +180,12 @@ struct SCBPSTerrainSpaceData
 	XMMATRIX	Matrix{};
 };
 
+struct SCBWaterTimeData
+{
+	float		Time{};
+	float		Pads[3]{};
+};
+
 class CGame
 {
 public:
@@ -227,6 +235,8 @@ public:
 	void SetGameRenderingFlags(EFlagsRendering Flags);
 	void ToggleGameRenderingFlags(EFlagsRendering Flags);
 	void Set3DGizmoMode(E3DGizmoMode Mode);
+	void SetUniversalRasterizerState();
+	void SetUniversalbUseLighiting();
 	E3DGizmoMode Get3DGizmoMode() { return m_e3DGizmoMode; }
 	CommonStates* GetCommonStates() { return m_CommonStates.get(); }
 
@@ -369,10 +379,6 @@ private:
 	void Draw3DGizmoScalings(E3DGizmoAxis Axis);
 	void Draw3DGizmo(CGameObject3D* Gizmo, bool bShouldHighlight);
 
-private:
-	void SetUniversalRasterizerState();
-	void SetUniversalbUseLighiting();	
-
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
 	static constexpr float KTranslationMaxLimit{ +1000.0f };
@@ -413,8 +419,10 @@ private:
 	unique_ptr<CShader>	m_VSBase2D{};
 
 	unique_ptr<CShader>	m_HSBezier{};
+	unique_ptr<CShader>	m_HSWater{};
 	
 	unique_ptr<CShader>	m_DSBezier{};
+	unique_ptr<CShader>	m_DSWater{};
 
 	unique_ptr<CShader>	m_GSNormal{};
 
@@ -446,6 +454,8 @@ private:
 	SCBPSBaseEyeData			m_cbPSBaseEyeData{};
 	SCBPSGizmoColorFactorData	m_cbPSGizmoColorFactorData{};
 	SCBPSSkyTimeData			m_cbPSSkyTimeData{};
+	SCBWaterTimeData			m_cbWaterTimeData{};
+
 	SCBPS2DFlagsData			m_cbPS2DFlagsData{};
 	SCBPSTerrainSpaceData		m_cbPSTerrainSpaceData{};
 

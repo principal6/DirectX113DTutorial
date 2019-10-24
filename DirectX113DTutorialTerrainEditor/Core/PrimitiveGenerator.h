@@ -18,7 +18,7 @@ static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVE
 static SMesh GenerateSquareXYPlane(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSquareXZPlane(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSquareYZPlane(const XMVECTOR& Color = KColorWhite);
-static SMesh GenerateTerrainBase(const XMFLOAT2& Size, const XMVECTOR& Color = KColorWhite);
+static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord = false, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateCircleXZPlane(uint32_t SideCount = 16, const XMVECTOR& Color = KColorWhite);
 static SMesh GeneratePyramid(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateCube(const XMVECTOR& Color = KColorWhite);
@@ -302,7 +302,7 @@ static SMesh GenerateSquareYZPlane(const XMVECTOR& Color)
 	return Mesh;
 }
 
-static SMesh GenerateTerrainBase(const XMFLOAT2& Size, const XMVECTOR& Color)
+static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord, const XMVECTOR& Color)
 {
 	int SizeX{ max((int)Size.x, 2) };
 	int SizeZ{ max((int)Size.y, 2) };
@@ -310,14 +310,28 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size, const XMVECTOR& Color)
 	if (SizeZ % 2) ++SizeZ;
 
 	SMesh Mesh{};
+	float U0{}, V0{}, U1{}, V1{};
 	for (int z = 0; z < SizeZ; ++z)
 	{
 		for (int x = 0; x < SizeX; ++x)
 		{
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z + 0), 1), Color, XMVectorSet(0, 0, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(-z + 0), 1), Color, XMVectorSet(1, 0, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z - 1), 1), Color, XMVectorSet(0, 1, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(-z - 1), 1), Color, XMVectorSet(1, 1, 0, 0));
+			if (bSubdivideTexCoord)
+			{
+				U0 = (float)(x)		/ (float)SizeX;
+				U1 = (float)(x + 1)	/ (float)SizeX;
+
+				V0 = (float)(z)		/ (float)SizeZ;
+				V1 = (float)(z + 1)	/ (float)SizeZ;
+			}
+			else
+			{
+				U0 = V0 = 0.0f;
+				U1 = V1 = 1.0f;
+			}
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z + 0), 1), Color, XMVectorSet(U0, V0, 0, 0));
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(-z + 0), 1), Color, XMVectorSet(U1, V0, 0, 0));
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z - 1), 1), Color, XMVectorSet(U0, V1, 0, 0));
+			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(-z - 1), 1), Color, XMVectorSet(U1, V1, 0, 0));
 		}
 	}
 

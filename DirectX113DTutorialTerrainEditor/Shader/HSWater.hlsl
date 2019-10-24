@@ -9,16 +9,22 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(InputPatch<VS_OUTPUT, 3> Patch, uin
 {
 	HS_CONSTANT_DATA_OUTPUT Output;
 
-	const float KTessFactor = 24.0f;
+	const float KTessFactor = 32.0f;
 	float4 CenterPosition = (Patch[0].WorldPosition + Patch[1].WorldPosition + Patch[2].WorldPosition) / 3.0f;
 	float Distance = distance(CenterPosition, EyePosition);
 
-	Output.EdgeTessFactor[0] = KTessFactor / Distance;
-	Output.EdgeTessFactor[1] = KTessFactor / Distance;
-	Output.EdgeTessFactor[2] = KTessFactor / Distance;
+	float ResultTess = KTessFactor / Distance;
+	if (Distance <= 37.5f) ResultTess = KTessFactor * 0.5f;
+	if (Distance <= 25.0f) ResultTess = KTessFactor * 0.75f;
+	if (Distance <= 12.5f) ResultTess = KTessFactor;
+	if (Distance >= 75.0f) ResultTess = 0.0f;
 
-	Output.InsideTessFactor = KTessFactor / Distance;
-	
+	Output.EdgeTessFactor[0] = ResultTess;
+	Output.EdgeTessFactor[1] = ResultTess;
+	Output.EdgeTessFactor[2] = ResultTess;
+
+	Output.InsideTessFactor = ResultTess;
+
 	return Output;
 }
 
@@ -28,7 +34,7 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(InputPatch<VS_OUTPUT, 3> Patch, uin
 [outputtopology("triangle_cw")]
 [partitioning("fractional_even")]
 [patchconstantfunc("CalcHSPatchConstants")]
-HS_OUTPUT main(InputPatch<VS_OUTPUT, 3> Patch, uint i : SV_OutputControlPointID, uint PatchID : SV_PrimitiveID )
+HS_OUTPUT main(InputPatch<VS_OUTPUT, 3> Patch, uint i : SV_OutputControlPointID, uint PatchID : SV_PrimitiveID)
 {
 	HS_OUTPUT Output;
 

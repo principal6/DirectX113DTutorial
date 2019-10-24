@@ -360,6 +360,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							ImGui::Text(u8"가로 x 세로: %d x %d", (int)TerrainSize.x, (int)TerrainSize.y);
 							ImGui::Text(u8"마스킹 디테일: %d", (int)Game.GetTerrain()->GetMaskingTextureDetail());
 
+							ImGui::SetNextItemWidth(100);
+							float WaterHeight{ Terrain->GetWaterHeight() };
+							if (ImGui::DragFloat(u8"물 높이", &WaterHeight, CTerrain::KWaterHeightUnit, 
+								CTerrain::KWaterMinHeight, CTerrain::KWaterMaxHeight, "%.1f"))
+							{
+								Terrain->SetWaterHeight(WaterHeight);
+							}
+
 							ImGui::Separator();
 
 							for (int iListItem = 0; iListItem < ARRAYSIZE(Lists); ++iListItem)
