@@ -1,7 +1,5 @@
 #include "Header.hlsli"
 
-#define KMaxBoneMatrixCount 60
-
 cbuffer cbSpace : register(b0)
 {
 	float4x4 WVP;
@@ -10,15 +8,14 @@ cbuffer cbSpace : register(b0)
 
 cbuffer cbBones : register(b1)
 {
-	float4x4 BoneMatrices[KMaxBoneMatrixCount];
+	float4x4 BoneMatrices[KBoneMatrixMaxCount];
 }
 
 VS_OUTPUT main(VS_INPUT_ANIMATION input)
 {
 	VS_OUTPUT output;
 
-	float4x4 FinalBone = float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
-	
+	float4x4 FinalBone = KMatrixIdentity;
 	FinalBone = BoneMatrices[input.BoneIndex.x] * input.BoneWeight.x;
 	FinalBone += BoneMatrices[input.BoneIndex.y] * input.BoneWeight.y;
 	FinalBone += BoneMatrices[input.BoneIndex.z] * input.BoneWeight.z;

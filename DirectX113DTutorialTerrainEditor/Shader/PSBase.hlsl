@@ -16,6 +16,7 @@ cbuffer cbLights : register(b1)
 	float4	DirectionalLightColor;
 	float3	AmbientLightColor;
 	float	AmbientLightIntensity;
+	float4	EyePosition;
 }
 
 cbuffer cbMaterial : register(b2)
@@ -26,16 +27,6 @@ cbuffer cbMaterial : register(b2)
 	float	SpecularIntensity;
 	float3	MaterialSpecular;
 	bool	bHasTexture;
-}
-
-cbuffer cbEye : register(b3)
-{
-	float4	EyePosition;
-}
-
-float4 CalculateAmbient(float4 AmbientColor)
-{
-	return float4(AmbientColor.xyz * AmbientLightColor * AmbientLightIntensity, 1);
 }
 
 float4 main(VS_OUTPUT input) : SV_TARGET
@@ -53,7 +44,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	float4 Result = DiffuseColor;
 	if (UseLighting == true)
 	{
-		Result = CalculateAmbient(AmbientColor);
+		Result = CalculateAmbient(AmbientColor, AmbientLightColor, AmbientLightIntensity);
 
 		float4 Directional = CalculateDirectional(DiffuseColor, SpecularColor, SpecularExponent, SpecularIntensity,
 			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), normalize(input.WorldNormal));

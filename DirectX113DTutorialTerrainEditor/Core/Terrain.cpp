@@ -688,11 +688,12 @@ void CTerrain::Draw(bool bDrawNormals)
 	CShader* VS{ m_PtrGame->GetBaseShader(EBaseShader::VSTerrain) };
 	CShader* PS{ m_PtrGame->GetBaseShader(EBaseShader::PSTerrain) };
 	
-	VS->Use();
-	PS->Use();
-	
 	m_PtrGame->UpdateVSSpace(KMatrixIdentity);
+	VS->Use();
 	VS->UpdateAllConstantBuffers();
+
+	PS->Use();
+	PS->UpdateAllConstantBuffers();
 
 	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
 	m_HeightMapTexture->Use();
@@ -700,8 +701,9 @@ void CTerrain::Draw(bool bDrawNormals)
 
 	if (bDrawNormals)
 	{
-		m_PtrGame->GetBaseShader(EBaseShader::GSNormal)->Use();
 		m_PtrGame->UpdateGSSpace();
+		m_PtrGame->GetBaseShader(EBaseShader::GSNormal)->Use();
+		m_PtrGame->GetBaseShader(EBaseShader::GSNormal)->UpdateAllConstantBuffers();
 	}
 
 	m_Object3DTerrain->Draw();
@@ -724,7 +726,6 @@ void CTerrain::Draw(bool bDrawNormals)
 	m_WaterNormalTexture->Use();
 	m_WaterDisplacementTexture->Use();
 	m_Object3DWater->Draw();
-
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }
 
@@ -738,8 +739,8 @@ void CTerrain::DrawHeightMapTexture()
 	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
 
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->Use();
 	m_PtrGame->UpdateVS2DSpace(KMatrixIdentity);
+	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->Use();
 	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
 	m_PtrGame->GetBaseShader(EBaseShader::PSHeightMap2D)->Use();
 
@@ -757,8 +758,8 @@ void CTerrain::DrawMaskingTexture()
 	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
 
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->Use();
 	m_PtrGame->UpdateVS2DSpace(KMatrixIdentity);
+	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->Use();
 	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
 	m_PtrGame->GetBaseShader(EBaseShader::PSMasking2D)->Use();
 	

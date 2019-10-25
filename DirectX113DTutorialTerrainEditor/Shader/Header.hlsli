@@ -1,3 +1,6 @@
+static const float4x4 KMatrixIdentity = float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+static const int KBoneMatrixMaxCount = 60;
+
 struct VS_INPUT
 {
 	float4 Position		: POSITION;
@@ -51,6 +54,16 @@ struct HS_CONSTANT_DATA_OUTPUT
 	float EdgeTessFactor[3]	: SV_TessFactor;
 	float InsideTessFactor : SV_InsideTessFactor;
 };
+
+float4 CalculateBitangent(float4 Normal, float4 Tangent)
+{
+	return float4(normalize(cross(Normal.xyz, Tangent.xyz)), 0);
+}
+
+float4 CalculateAmbient(float4 AmbientColor, float3 AmbientLightColor, float AmbientLightIntensity)
+{
+	return float4(AmbientColor.xyz * AmbientLightColor * AmbientLightIntensity, AmbientColor.a);
+}
 
 float4 CalculateDirectional(float4 DiffuseColor, float4 SpecularColor, float SpecularExponent, float SpecularIntensity,
 	float4 LightColor, float4 LightDirection, float4 ToEye, float4 Normal)

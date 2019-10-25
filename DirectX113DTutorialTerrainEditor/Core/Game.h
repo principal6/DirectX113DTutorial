@@ -143,12 +143,13 @@ struct SCBPSBaseFlagsData
 	BOOL		Pad[2]{};
 };
 
-struct SCBPSBaseLightsData
+struct SCBPSLightsData
 {
 	XMVECTOR	DirectionalLightDirection{ XMVectorSet(0, 1, 0, 0) };
-	XMVECTOR	DirectionalColor{ XMVectorSet(1, 1, 1, 1) };
+	XMVECTOR	DirectionalLightColor{ XMVectorSet(1, 1, 1, 1) };
 	XMFLOAT3	AmbientLightColor{ 1, 1, 1 };
 	float		AmbientLightIntensity{ 0.5f };
+	XMVECTOR	EyePosition{};
 };
 
 struct SCBPSBaseMaterialData
@@ -165,11 +166,6 @@ struct SCBPSSkyTimeData
 {
 	float		SkyTime{};
 	float		Pads[3]{};
-};
-
-struct SCBPSBaseEyeData
-{
-	XMVECTOR	EyePosition{};
 };
 
 struct SCBPSGizmoColorFactorData
@@ -260,6 +256,7 @@ public:
 	void SetSky(const string& SkyDataFileName, float ScalingFactor);
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition);
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color);
+	const XMVECTOR& GetDirectionalLightDirection() const;
 	void SetAmbientlLight(const XMFLOAT3& Color, float Intensity);
 
 public:
@@ -455,10 +452,9 @@ private:
 
 	SCBGSSpaceData				m_cbGSSpaceData{};
 
+	SCBPSLightsData				m_cbPSLightsData{};
 	SCBPSBaseFlagsData			m_cbPSBaseFlagsData{};
-	SCBPSBaseLightsData			m_cbPSBaseLightsData{};
 	SCBPSBaseMaterialData		m_cbPSBaseMaterialData{};
-	SCBPSBaseEyeData			m_cbPSBaseEyeData{};
 	SCBPSGizmoColorFactorData	m_cbPSGizmoColorFactorData{};
 	SCBPSSkyTimeData			m_cbPSSkyTimeData{};
 	SCBWaterTimeData			m_cbWaterTimeData{};

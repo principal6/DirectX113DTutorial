@@ -106,14 +106,11 @@ void CGame::UpdateVSBaseMaterial(const CMaterial& Material)
 	m_cbPSBaseMaterialData.SpecularExponent = Material.GetSpecularExponent();
 	m_cbPSBaseMaterialData.SpecularIntensity = Material.GetSpecularIntensity();
 	m_cbPSBaseMaterialData.bHasTexture = Material.HasTexture();
-
-	m_PSBase->UpdateConstantBuffer(2);
 }
 
 void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices)
 {
 	memcpy(m_cbVSAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBVSAnimationBonesData));
-	m_VSAnimation->UpdateConstantBuffer(1);
 }
 
 void CGame::UpdateVSTerrainData(const SCBVSTerrainData& Data)
@@ -124,13 +121,11 @@ void CGame::UpdateVSTerrainData(const SCBVSTerrainData& Data)
 void CGame::UpdateGSSpace()
 {
 	m_cbGSSpaceData.VP = GetTransposedVPMatrix();
-	m_GSNormal->UpdateConstantBuffer(0);
 }
 
 void CGame::UpdatePSTerrainSpace(const XMMATRIX& Matrix)
 {
 	m_cbPSTerrainSpaceData.Matrix = XMMatrixTranspose(Matrix);
-	m_PSTerrain->UpdateConstantBuffer(0);
 }
 
 void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
@@ -241,25 +236,24 @@ void CGame::LoadSkyObjectData(tinyxml2::XMLElement* xmlSkyObject, SSkyData::SSky
 
 void CGame::SetDirectionalLight(const XMVECTOR& LightSourcePosition)
 {
-	m_cbPSBaseLightsData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
-
-	m_PSBase->UpdateConstantBuffer(1);
+	m_cbPSLightsData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
 }
 
 void CGame::SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color)
 {
-	m_cbPSBaseLightsData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
-	m_cbPSBaseLightsData.DirectionalColor = Color;
+	m_cbPSLightsData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
+	m_cbPSLightsData.DirectionalLightColor = Color;
+}
 
-	m_PSBase->UpdateConstantBuffer(1);
+const XMVECTOR& CGame::GetDirectionalLightDirection() const
+{
+	return m_cbPSLightsData.DirectionalLightDirection;
 }
 
 void CGame::SetAmbientlLight(const XMFLOAT3& Color, float Intensity)
 {
-	m_cbPSBaseLightsData.AmbientLightColor = Color;
-	m_cbPSBaseLightsData.AmbientLightIntensity = Intensity;
-
-	m_PSBase->UpdateConstantBuffer(1);
+	m_cbPSLightsData.AmbientLightColor = Color;
+	m_cbPSLightsData.AmbientLightIntensity = Intensity;
 }
 
 void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, float MaskingDetail)
@@ -563,9 +557,8 @@ void CGame::CreateBaseShaders()
 	m_PSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase->Create(EShaderType::PixelShader, L"Shader\\PSBase.hlsl", "main");
 	m_PSBase->AddConstantBuffer(&m_cbPSBaseFlagsData, sizeof(SCBPSBaseFlagsData));
-	m_PSBase->AddConstantBuffer(&m_cbPSBaseLightsData, sizeof(SCBPSBaseLightsData));
+	m_PSBase->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
 	m_PSBase->AddConstantBuffer(&m_cbPSBaseMaterialData, sizeof(SCBPSBaseMaterialData));
-	m_PSBase->AddConstantBuffer(&m_cbPSBaseEyeData, sizeof(SCBPSBaseEyeData));
 
 	m_PSVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSVertexColor->Create(EShaderType::PixelShader, L"Shader\\PSVertexColor.hlsl", "main");
@@ -584,11 +577,12 @@ void CGame::CreateBaseShaders()
 	m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSTerrain->Create(EShaderType::PixelShader, L"Shader\\PSTerrain.hlsl", "main");
 	m_PSTerrain->AddConstantBuffer(&m_cbPSTerrainSpaceData, sizeof(SCBPSTerrainSpaceData));
+	m_PSTerrain->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
 
 	m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSWater->Create(EShaderType::PixelShader, L"Shader\\PSWater.hlsl", "main");
-	m_PSWater->AddConstantBuffer(&m_cbPSBaseEyeData, sizeof(SCBPSBaseEyeData));
 	m_PSWater->AddConstantBuffer(&m_cbWaterTimeData, sizeof(SCBWaterTimeData));
+	m_PSWater->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
 
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
@@ -1324,7 +1318,7 @@ void CGame::Draw(float DeltaTime)
 
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 
-	m_cbPSBaseEyeData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
+	m_cbPSLightsData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
 
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawWireFrame))
 	{
@@ -1472,10 +1466,11 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals))
 	{
-		m_GSNormal->Use();
-		
 		UpdateGSSpace();
 
+		m_GSNormal->Use();
+		m_GSNormal->UpdateAllConstantBuffers();
+		
 		PtrGO->ComponentRender.PtrObject3D->Draw();
 
 		m_DeviceContext->GSSetShader(nullptr, nullptr, 0);

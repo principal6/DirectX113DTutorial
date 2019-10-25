@@ -21,10 +21,17 @@ cbuffer cbMaskingSpace : register(b0)
 	float4x4 Matrix;
 }
 
+cbuffer cbLights : register(b1)
+{
+	float4	DirectionalLightDirection;
+	float4	DirectionalLightColor;
+	float3	AmbientLightColor;
+	float	AmbientLightIntensity;
+	float4	EyePosition;
+}
+
 float4 main(VS_OUTPUT input) : SV_TARGET
 {
-	float4 ResultAlbedo;
-
 	float4 MaskingSpacePosition = mul(float4(input.WorldPosition.x, 0, -input.WorldPosition.z, 1), Matrix);
 	float4 Masking = MaskingTexture.Sample(CurrentSampler, MaskingSpacePosition.xz);
 
@@ -34,12 +41,11 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	float4 DiffuseLayer3 = Layer3DiffuseTexture.Sample(CurrentSampler, input.UV.xy);
 	float4 DiffuseLayer4 = Layer4DiffuseTexture.Sample(CurrentSampler, input.UV.xy);
 
-	ResultAlbedo = DiffuseLayer0;
-	ResultAlbedo.xyz = DiffuseLayer1.xyz * Masking.r + ResultAlbedo.xyz * (1.0f - Masking.r);
-	ResultAlbedo.xyz = DiffuseLayer2.xyz * Masking.g + ResultAlbedo.xyz * (1.0f - Masking.g);
-	ResultAlbedo.xyz = DiffuseLayer3.xyz * Masking.b + ResultAlbedo.xyz * (1.0f - Masking.b);
-	ResultAlbedo.xyz = DiffuseLayer4.xyz * Masking.a + ResultAlbedo.xyz * (1.0f - Masking.a);
-
+	float4 Albedo = DiffuseLayer0;
+	Albedo.xyz = DiffuseLayer1.xyz * Masking.r + Albedo.xyz * (1.0f - Masking.r);
+	Albedo.xyz = DiffuseLayer2.xyz * Masking.g + Albedo.xyz * (1.0f - Masking.g);
+	Albedo.xyz = DiffuseLayer3.xyz * Masking.b + Albedo.xyz * (1.0f - Masking.b);
+	Albedo.xyz = DiffuseLayer4.xyz * Masking.a + Albedo.xyz * (1.0f - Masking.a);
 
 	float4 NormalLayer0 = normalize((Layer0NormalTexture.Sample(CurrentSampler, input.UV.xy) * 2.0f) - 1.0f);
 	float4 NormalLayer1 = normalize((Layer1NormalTexture.Sample(CurrentSampler, input.UV.xy) * 2.0f) - 1.0f);
@@ -61,12 +67,17 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	if (input.UV.z > 0.0f)
 	{
 		float4 Factors = float4(0.2f, 0.4f, 0.6f, 0);
-		ResultAlbedo.xyz *= Factors.xyz;
+		Albedo.xyz *= Factors.xyz;
 	}
 
-	// Fixed directional light (for edit mode)
-	ResultAlbedo.xyz *= saturate(dot(ResultNormal, normalize(float4(1, 1, 0, 1))));
+	// Gamma correction
+	Albedo.xyz *= Albedo.xyz;
+	float4 ResultAlbedo = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
+	ResultAlbedo += CalculateDirectional(Albedo, Albedo, 1, 0,
+		DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), ResultNormal);
+	ResultAlbedo.a = Albedo.a;
 
+	// For normal & tangent drawing
 	if (input.bUseVertexColor != 0)
 	{
 		return input.Color;

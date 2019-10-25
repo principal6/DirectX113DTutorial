@@ -189,6 +189,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				static bool bShowTerrainEditor{ true };
 				static bool bShowMaterialEditor{ true };
 				static bool bShowCameraEditor{ true };
+				static bool bShowLightEditor{ true };
 				static bool bShowTerrainGenerator{ false };
 				static bool bShowOpenFileDialog{ false };
 				static bool bShowSaveFileDialog{ false };
@@ -256,6 +257,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						ImGui::MenuItem(u8"지형 편집기", nullptr, &bShowTerrainEditor);
 						ImGui::MenuItem(u8"재질 편집기", nullptr, &bShowMaterialEditor);
 						ImGui::MenuItem(u8"카메라 편집기", nullptr, &bShowCameraEditor);
+						ImGui::MenuItem(u8"조명 편집기", nullptr, &bShowLightEditor);
 						
 						ImGui::EndMenu();
 					}
@@ -821,6 +823,27 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						if (ImGui::DragFloat(u8"회전 Yaw", &Yaw, 0.01f, -10000.0f, +10000.0f, "%.3f"))
 						{
 							MainCamera->SetYaw(Yaw);
+						}
+					}
+					ImGui::End();
+				}
+
+				// ### 조명 편집기 윈도우 ###
+				if (bShowLightEditor)
+				{
+					ImGui::SetNextWindowPos(ImVec2(200, 200), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(300, 200));
+					if (ImGui::Begin(u8"조명 편집기", &bShowLightEditor, ImGuiWindowFlags_AlwaysAutoResize))
+					{
+						const XMVECTOR& KDirectionalLightDirection{ Game.GetDirectionalLightDirection() };
+						float DirectionalLightDirection[3]{ XMVectorGetX(KDirectionalLightDirection), XMVectorGetY(KDirectionalLightDirection),
+							XMVectorGetZ(KDirectionalLightDirection) };
+						
+						ImGui::SetNextItemWidth(135);
+						if (ImGui::DragFloat3(u8" Directional Light", DirectionalLightDirection, 0.02f, -1.0f, +1.0f, "%.2f"))
+						{
+							Game.SetDirectionalLight(XMVectorSet(DirectionalLightDirection[0], DirectionalLightDirection[1],
+								DirectionalLightDirection[2], 0.0f));
 						}
 					}
 					ImGui::End();
