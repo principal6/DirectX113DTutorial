@@ -404,7 +404,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							else if (iSelectedItem == 2)
 							{
 								ImGui::PushItemWidth(100);
-								if (ImGui::DragInt(u8"마스킹 레이어", &TerrainMaskingLayer, 1.0f, 0, CTerrain::KMaterialMaxCount - 2, "%.0f"))
+								if (ImGui::SliderInt(u8"마스킹 레이어", &TerrainMaskingLayer, 0, CTerrain::KMaterialMaxCount - 2))
 								{
 									switch (TerrainMaskingLayer)
 									{
@@ -841,6 +841,22 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						{
 							Game.SetDirectionalLight(XMVectorSet(DirectionalLightDirection[0], DirectionalLightDirection[1],
 								DirectionalLightDirection[2], 0.0f));
+						}
+
+						const XMFLOAT3& KAmbientLightColor{ Game.GetAmbientLightColor() };
+						float AmbientLightColor[3]{ KAmbientLightColor.x, KAmbientLightColor.y, KAmbientLightColor.z };
+
+						ImGui::SetNextItemWidth(135);
+						if (ImGui::DragFloat3(u8" Ambient 색상", AmbientLightColor, 0.02f, 0.0f, +1.0f, "%.2f"))
+						{
+							Game.SetAmbientlLight(XMFLOAT3(AmbientLightColor[0], AmbientLightColor[1], AmbientLightColor[2]), Game.GetAmbientLightIntensity());
+						}
+
+						float AmbientLightIntensity{ Game.GetAmbientLightIntensity() };
+						ImGui::SetNextItemWidth(135);
+						if (ImGui::DragFloat(u8" Ambient 강도", &AmbientLightIntensity, 0.02f, 0.0f, +1.0f, "%.2f"))
+						{
+							Game.SetAmbientlLight(Game.GetAmbientLightColor(), AmbientLightIntensity);
 						}
 					}
 					ImGui::End();

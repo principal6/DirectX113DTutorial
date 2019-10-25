@@ -258,6 +258,16 @@ void CGame::SetAmbientlLight(const XMFLOAT3& Color, float Intensity)
 	m_cbPSLightsData.AmbientLightIntensity = Intensity;
 }
 
+const XMFLOAT3& CGame::GetAmbientLightColor() const
+{
+	return m_cbPSLightsData.AmbientLightColor;
+}
+
+float CGame::GetAmbientLightIntensity() const
+{
+	return m_cbPSLightsData.AmbientLightIntensity;
+}
+
 void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, float MaskingDetail)
 {
 	m_Terrain.release();

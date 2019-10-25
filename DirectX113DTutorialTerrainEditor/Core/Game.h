@@ -254,10 +254,14 @@ public:
 
 public:
 	void SetSky(const string& SkyDataFileName, float ScalingFactor);
+	
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition);
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color);
 	const XMVECTOR& GetDirectionalLightDirection() const;
+
 	void SetAmbientlLight(const XMFLOAT3& Color, float Intensity);
+	const XMFLOAT3& GetAmbientLightColor() const;
+	float GetAmbientLightIntensity() const;
 
 public:
 	void CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, float MaskingDetail);
