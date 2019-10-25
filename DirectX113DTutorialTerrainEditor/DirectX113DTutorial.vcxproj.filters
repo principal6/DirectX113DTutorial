@@ -548,12 +548,6 @@
     <FxCompile Include="Shader\PSMasking2D.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shader\DSBezier.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shader\HSBezier.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
     <FxCompile Include="Shader\PSTerrain.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
@@ -564,6 +558,18 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\HSWater.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PSHeightMap2D.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\VSTerrain.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\HSTerrain.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\DSTerrain.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

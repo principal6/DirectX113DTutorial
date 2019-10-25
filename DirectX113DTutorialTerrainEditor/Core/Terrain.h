@@ -6,6 +6,14 @@
 
 class CGame;
 
+struct SCBVSTerrainData
+{
+	float TerrainSizeX{};
+	float TerrainSizeZ{};
+	float TerrainHeightRange{};
+	float Pad{};
+};
+
 class CTerrain
 {
 public:
@@ -39,53 +47,54 @@ public:
 	void Save(const string& FileName);
 
 private:
+	void CreateTerrainObject3D(vector<CMaterial>& vMaterialsl);
+	void CreateHeightMapTexture(bool bShouldClear);
 	void CreateMaskingTexture(bool bShouldClear);
 	void CreateWater();
 
 public:
-	const XMFLOAT2& GetSize() const;
-	int GetMaterialCount() const;
-	const XMFLOAT2& GetSelectionRoundUpPosition() const;
-	float GetMaskingTextureDetail() const;
-	const CMaterial& GetMaterial(int Index) const;
-
-public:
 	void AddMaterial(const CMaterial& Material);
 	void SetMaterial(int MaterialID, const CMaterial& NewMaterial);
+	const CMaterial& GetMaterial(int Index) const;
 	
-	void UpdateVertexNormalsTangents();
-
-	void SelectTerrain(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor);
-	void UpdateMaskingTexture();
-
-	void ShouldTessellate(bool Value);
+	void Select(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton);
 
 private:
 	void UpdateSelection(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection);
 	void ReleaseSelection();
+	void UpdateHeights(bool bIsLeftButton);
+	void UpdateHeight(size_t iPixel, bool bIsLeftButton);
+	void UpdateHeightMapTexture();
+
 	void UpdateHoverPosition(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection);
 	void UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, float Value, float Radius, bool bForceSet = false);
+	void UpdateMaskingTexture();
 
 public:
 	void SetSelectionSize(float& Size);
 	void SetMaskingLayer(EMaskingLayer eLayer);
 	void SetMaskingAttenuation(float Attenuation);
 	void SetMaskingRadius(float Radius);
-	void SetEditMode(EEditMode Mode);
-	CTerrain::EEditMode GetEditMode();
 	void SetSetHeightValue(float Value);
 	void SetDeltaHeightValue(float Value);
 	void SetMaskingValue(float Value);
+
+	void ShouldTessellate(bool Value);
+	bool ShouldTessellate() const;
+	void SetEditMode(EEditMode Mode);
+	CTerrain::EEditMode GetEditMode();
 	void SetWaterHeight(float Value);
 	float GetWaterHeight() const;
 
+	const XMFLOAT2& GetSize() const;
+	int GetMaterialCount() const;
+	const XMFLOAT2& GetSelectionPosition() const;
+	float GetMaskingDetail() const;
+
 public:
 	void Draw(bool bUseTerrainSelector, bool bDrawNormals);
+	void DrawHeightMapTexture();
 	void DrawMaskingTexture();
-
-private:
-	void UpdateHeight(bool bIsLeftButton, float DeltaHeightFactor);
-	void UpdateVertex(SVertex3D& Vertex, bool bIsLeftButton, float DeltaHeightFactor);
 
 public:
 	static constexpr int KMaterialMaxCount{ 5 }; // It includes 1 main texture + 4 layer textures
@@ -93,6 +102,8 @@ public:
 	static constexpr float KHeightUnit{ 0.01f };
 	static constexpr float KMaxHeight{ +5.0f };
 	static constexpr float KMinHeight{ -5.0f };
+	static constexpr float KHeightRange{ KMaxHeight - KMinHeight };
+	static constexpr float KHeightRangeHalf{ KHeightRange / 2.0f };
 
 	static constexpr float KSelectionSizeUnit{ 1.0f };
 	static constexpr float KSelectionMinSize{ 1.0f };
@@ -130,12 +141,18 @@ private:
 	CGame*					m_PtrGame{};
 
 private:
-	unique_ptr<CObject2D>			m_Object2DMaskingTextureRepresentation{};
+	unique_ptr<CObject2D>			m_Object2DTextureRepresentation{};
 	unique_ptr<CObject3D>			m_Object3DTerrain{};
 	XMFLOAT2						m_Size{};
-	unique_ptr<CMaterial::CTexture>	m_MaskingTexture{};
+
+	XMFLOAT2						m_HeightMapTextureSize{};
+	unique_ptr<CMaterial::CTexture>	m_HeightMapTexture{};
+	vector<SPixel8UInt>				m_HeightMapTextureRawData{};
+	SCBVSTerrainData				m_cbTerrainData{};
+
 	XMFLOAT2						m_MaskingTextureSize{};
-	vector<SPixelUNorm>				m_MaskingTextureRawData{};
+	unique_ptr<CMaterial::CTexture>	m_MaskingTexture{};
+	vector<SPixel32UInt>			m_MaskingTextureRawData{};
 	XMMATRIX						m_MatrixMaskingSpace{};
 
 private:
@@ -146,11 +163,11 @@ private:
 
 private:
 	float			m_SelectionHalfSize{ KSelectionMinSize / 2.0f };
-	XMFLOAT2		m_SelectionRoundUpPosition{};
+	XMFLOAT2		m_SelectionPosition{};
 
 	EEditMode		m_eEditMode{};
 	float			m_SetHeightValue{};
-	float			m_DeltaHeightValue{ KHeightUnit };
+	float			m_DeltaHeightValue{ KHeightUnit * KHeightRange };
 	float			m_MaskingRatio{ KMaskingDefaultRatio };
 
 	XMFLOAT2		m_HoverPosition{};

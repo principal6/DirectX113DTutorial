@@ -24,12 +24,13 @@ enum class EBaseShader
 	VSSky,
 	VSLine,
 	VSGizmo,
+	VSTerrain,
 	VSBase2D,
 
-	HSBezier,
+	HSTerrain,
 	HSWater,
 
-	DSBezier,
+	DSTerrain,
 	DSWater,
 
 	GSNormal,
@@ -43,7 +44,8 @@ enum class EBaseShader
 	PSWater,
 
 	PSBase2D,
-	PSMasking2D
+	PSMasking2D,
+	PSHeightMap2D
 };
 
 enum class ERasterizerState
@@ -200,8 +202,9 @@ public:
 		DrawBoundingSphere = 0x020,
 		Use3DGizmos = 0x040,
 		UseTerrainSelector = 0x080,
-		DrawTerrainMaskingTexture = 0x100,
-		TessellateTerrain = 0x200
+		TessellateTerrain = 0x100,
+		DrawTerrainHeightMapTexture = 0x200,
+		DrawTerrainMaskingTexture = 0x400
 	};
 
 public:
@@ -246,6 +249,7 @@ public:
 	void UpdateVS2DSpace(const XMMATRIX& World);
 	void UpdateVSBaseMaterial(const CMaterial& Material);
 	void UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices);
+	void UpdateVSTerrainData(const SCBVSTerrainData& Data);
 
 	void UpdateGSSpace();
 
@@ -267,7 +271,6 @@ public:
 	void SetTerrainMaterial(int MaterialID, const CMaterial& Material);
 	CTerrain* GetTerrain() { return m_Terrain.get(); }
 	void SetTerrainSelectionSize(float& Size);
-	void RecalculateTerrainNormalsTangents();
 
 private:
 	void LoadSkyObjectData(tinyxml2::XMLElement* xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
@@ -326,7 +329,7 @@ private:
 	bool PickTriangle();
 
 public:
-	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor);
+	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
 	void SetTerrainEditMode(CTerrain::EEditMode Mode);
 	void SetTerrainMaskingLayer(CTerrain::EMaskingLayer eLayer);
 	void SetTerrainMaskingAttenuation(float Attenuation);
@@ -348,7 +351,7 @@ public:
 	SpriteFont* GetSpriteFontPtr() { return m_SpriteFont.get(); }
 	const char* GetPickedGameObject3DName();
 	const char* GetCapturedPickedGameObject3DName();
-	const XMFLOAT2& GetTerrainSelectionRoundUpPosition();
+	const XMFLOAT2& GetTerrainSelectionPosition();
 	float GetSkyTime();
 	XMMATRIX GetTransposedVPMatrix();
 	ID3D11DepthStencilState* GetDepthStencilStateLessEqualNoWrite() { return m_DepthStencilStateLessEqualNoWrite.Get(); }
@@ -416,12 +419,14 @@ private:
 	unique_ptr<CShader>	m_VSSky{};
 	unique_ptr<CShader>	m_VSLine{};
 	unique_ptr<CShader>	m_VSGizmo{};
+	unique_ptr<CShader>	m_VSTerrain{};
+
 	unique_ptr<CShader>	m_VSBase2D{};
 
-	unique_ptr<CShader>	m_HSBezier{};
+	unique_ptr<CShader>	m_HSTerrain{};
 	unique_ptr<CShader>	m_HSWater{};
 	
-	unique_ptr<CShader>	m_DSBezier{};
+	unique_ptr<CShader>	m_DSTerrain{};
 	unique_ptr<CShader>	m_DSWater{};
 
 	unique_ptr<CShader>	m_GSNormal{};
@@ -436,10 +441,13 @@ private:
 
 	unique_ptr<CShader>	m_PSBase2D{};
 	unique_ptr<CShader>	m_PSMasking2D{};
+	unique_ptr<CShader>	m_PSHeightMap2D{};
 
 private:
 	SCBVSSpaceData				m_cbVSSpaceData{};
 	SCBVSAnimationBonesData		m_cbVSAnimationBonesData{};
+	SCBVSTerrainData			m_cbVSTerrainData{};
+
 	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
 
 	SCBHSCameraData				m_cbHSCameraData{};

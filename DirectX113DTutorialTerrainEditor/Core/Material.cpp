@@ -81,7 +81,27 @@ void CMaterial::CTexture::SetTextureSize()
 	m_TextureSize.x = static_cast<float>(Texture2DDesc.Height);
 }
 
-void CMaterial::CTexture::UpdateTextureRawData(const SPixelUNorm* PtrData)
+void CMaterial::CTexture::UpdateTextureRawData(const SPixel8UInt* PtrData)
+{
+	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
+	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
+	{
+		size_t SrcRowPixelCount{ (size_t)m_TextureSize.x };
+		uint8_t* PtrDest{ (uint8_t*)MappedSubresource.pData };
+
+		UINT RowCount{ MappedSubresource.DepthPitch / MappedSubresource.RowPitch };
+		for (UINT iRow = 0; iRow < RowCount; ++iRow)
+		{
+			memcpy(PtrDest + (static_cast<size_t>(iRow)* MappedSubresource.RowPitch),
+				PtrData + (static_cast<size_t>(iRow)* SrcRowPixelCount),
+				SrcRowPixelCount * sizeof(SPixel8UInt));
+		}
+
+		m_PtrDeviceContext->Unmap(m_Texture2D.Get(), 0);
+	}
+}
+
+void CMaterial::CTexture::UpdateTextureRawData(const SPixel32UInt* PtrData)
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
@@ -94,7 +114,7 @@ void CMaterial::CTexture::UpdateTextureRawData(const SPixelUNorm* PtrData)
 		{
 			memcpy(PtrDest + (static_cast<size_t>(iRow) * MappedSubresource.RowPitch), 
 				PtrData + (static_cast<size_t>(iRow) * SrcRowPixelCount),
-				SrcRowPixelCount * sizeof(SPixelUNorm));
+				SrcRowPixelCount * sizeof(SPixel32UInt));
 		}
 
 		m_PtrDeviceContext->Unmap(m_Texture2D.Get(), 0);
@@ -136,11 +156,6 @@ void CMaterial::CTexture::Use(int ForcedSlot) const
 	default:
 		break;
 	}
-}
-
-void CMaterial::SetbShouldGenerateAutoMipMap(bool Value)
-{
-	m_bShouldGenerateAutoMipMap = Value;
 }
 
 void CMaterial::SetName(const string& Name)

@@ -116,6 +116,11 @@ void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices)
 	m_VSAnimation->UpdateConstantBuffer(1);
 }
 
+void CGame::UpdateVSTerrainData(const SCBVSTerrainData& Data)
+{
+	m_cbVSTerrainData = Data;
+}
+
 void CGame::UpdateGSSpace()
 {
 	m_cbGSSpaceData.VP = GetTransposedVPMatrix();
@@ -306,11 +311,6 @@ void CGame::SetTerrainSelectionSize(float& Size)
 	m_Terrain->SetSelectionSize(Size);
 }
 
-void CGame::RecalculateTerrainNormalsTangents()
-{
-	m_Terrain->UpdateVertexNormalsTangents();
-}
-
 CCamera* CGame::AddCamera(const CCamera::SCameraData& CameraData)
 {
 	m_vCameras.emplace_back(CameraData);
@@ -473,6 +473,18 @@ void CGame::SetViewports()
 		Viewport.MinDepth = 0.0f;
 		Viewport.MaxDepth = 1.0f;
 	}
+
+	{
+		m_vViewports.emplace_back();
+
+		D3D11_VIEWPORT& Viewport{ m_vViewports.back() };
+		Viewport.TopLeftX = m_WindowSize.x * 1.0f / 8.0f;
+		Viewport.TopLeftY = m_WindowSize.y * 7.0f / 8.0f;
+		Viewport.Width = m_WindowSize.x / 8.0f;
+		Viewport.Height = m_WindowSize.y / 8.0f;
+		Viewport.MinDepth = 0.0f;
+		Viewport.MaxDepth = 1.0f;
+	}
 }
 
 void CGame::CreateDepthStencilState()
@@ -518,21 +530,26 @@ void CGame::CreateBaseShaders()
 	m_VSGizmo->Create(EShaderType::VertexShader, L"Shader\\VSGizmo.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSGizmo->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
 
+	m_VSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_VSTerrain->Create(EShaderType::VertexShader, L"Shader\\VSTerrain.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+	m_VSTerrain->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
+	m_VSTerrain->AddConstantBuffer(&m_cbVSTerrainData, sizeof(SCBVSTerrainData));
+
 	m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSBase2D->Create(EShaderType::VertexShader, L"Shader\\VSBase2D.hlsl", "main", KVS2DBaseInputLayout, ARRAYSIZE(KVS2DBaseInputLayout));
 	m_VSBase2D->AddConstantBuffer(&m_cbVS2DSpaceData, sizeof(SCBVS2DSpaceData));
 
-	m_HSBezier = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_HSBezier->Create(EShaderType::HullShader, L"Shader\\HSBezier.hlsl", "main");
-	m_HSBezier->AddConstantBuffer(&m_cbHSCameraData, sizeof(SCBHSCameraData));
+	m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_HSTerrain->Create(EShaderType::HullShader, L"Shader\\HSTerrain.hlsl", "main");
+	m_HSTerrain->AddConstantBuffer(&m_cbHSCameraData, sizeof(SCBHSCameraData));
 
 	m_HSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSWater->Create(EShaderType::HullShader, L"Shader\\HSWater.hlsl", "main");
 	m_HSWater->AddConstantBuffer(&m_cbHSCameraData, sizeof(SCBHSCameraData));
 
-	m_DSBezier = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_DSBezier->Create(EShaderType::DomainShader, L"Shader\\DSBezier.hlsl", "main");
-	m_DSBezier->AddConstantBuffer(&m_cbDSSpaceData, sizeof(SCBDSSpaceData));
+	m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_DSTerrain->Create(EShaderType::DomainShader, L"Shader\\DSTerrain.hlsl", "main");
+	m_DSTerrain->AddConstantBuffer(&m_cbDSSpaceData, sizeof(SCBDSSpaceData));
 
 	m_DSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSWater->Create(EShaderType::DomainShader, L"Shader\\DSWater.hlsl", "main");
@@ -579,6 +596,9 @@ void CGame::CreateBaseShaders()
 
 	m_PSMasking2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSMasking2D->Create(EShaderType::PixelShader, L"Shader\\PSMasking2D.hlsl", "main");
+
+	m_PSHeightMap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSHeightMap2D->Create(EShaderType::PixelShader, L"Shader\\PSHeightMap2D.hlsl", "main");
 }
 
 void CGame::CreateMiniAxes()
@@ -832,17 +852,20 @@ CShader* CGame::GetBaseShader(EBaseShader eShader)
 	case EBaseShader::VSGizmo:
 		Result = m_VSGizmo.get();
 		break;
+	case EBaseShader::VSTerrain:
+		Result = m_VSTerrain.get();
+		break;
 	case EBaseShader::VSBase2D:
 		Result = m_VSBase2D.get();
 		break;
-	case EBaseShader::HSBezier:
-		Result = m_HSBezier.get();
+	case EBaseShader::HSTerrain:
+		Result = m_HSTerrain.get();
 		break;
 	case EBaseShader::HSWater:
 		Result = m_HSWater.get();
 		break;
-	case EBaseShader::DSBezier:
-		Result = m_DSBezier.get();
+	case EBaseShader::DSTerrain:
+		Result = m_DSTerrain.get();
 		break;
 	case EBaseShader::DSWater:
 		Result = m_DSWater.get();
@@ -876,6 +899,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader)
 		break;
 	case EBaseShader::PSMasking2D:
 		Result = m_PSMasking2D.get();
+		break;
+	case EBaseShader::PSHeightMap2D:
+		Result = m_PSHeightMap2D.get();
 		break;
 	default:
 		assert(Result);
@@ -1236,7 +1262,7 @@ bool CGame::PickTriangle()
 	return false;
 }
 
-void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor)
+void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
 {
 	if (!m_Terrain) return;
 
@@ -1244,7 +1270,7 @@ void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton, float DeltaHeigh
 	{
 		CastPickingRay();
 
-		m_Terrain->SelectTerrain(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, bShouldEdit, bIsLeftButton, DeltaHeightFactor);
+		m_Terrain->Select(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, bShouldEdit, bIsLeftButton);
 	}
 }
 
@@ -1415,13 +1441,13 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 
 	if (PtrGO->ComponentRender.PtrObject3D->ShouldTessellate())
 	{
-		m_HSBezier->Use();
+		m_HSTerrain->Use();
 		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
-		m_HSBezier->UpdateConstantBuffer(0);
+		m_HSTerrain->UpdateConstantBuffer(0);
 
-		m_DSBezier->Use();
+		m_DSTerrain->Use();
 		m_cbDSSpaceData.VP = GetTransposedVPMatrix();
-		m_DSBezier->UpdateConstantBuffer(0);
+		m_DSTerrain->UpdateConstantBuffer(0);
 	}
 	else
 	{
@@ -1681,13 +1707,13 @@ void CGame::DrawTerrain()
 
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain))
 	{
-		m_HSBezier->Use();
+		m_HSTerrain->Use();
 		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
-		m_HSBezier->UpdateConstantBuffer(0);
+		m_HSTerrain->UpdateConstantBuffer(0);
 
-		m_DSBezier->Use();
+		m_DSTerrain->Use();
 		m_cbDSSpaceData.VP = GetTransposedVPMatrix();
-		m_DSBezier->UpdateConstantBuffer(0);
+		m_DSTerrain->UpdateConstantBuffer(0);
 
 		m_Terrain->Draw(
 			EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseTerrainSelector),
@@ -1705,14 +1731,19 @@ void CGame::DrawTerrain()
 		);
 	}
 	
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainHeightMapTexture))
+	{
+		m_DeviceContext->RSSetViewports(1, &m_vViewports[2]);
+		m_Terrain->DrawHeightMapTexture();
+	}
 
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainMaskingTexture))
 	{
-		m_DeviceContext->RSSetViewports(1, &m_vViewports[2]);
+		m_DeviceContext->RSSetViewports(1, &m_vViewports[3]);
 		m_Terrain->DrawMaskingTexture();
-
-		m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 	}
+
+	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 }
 
 bool CGame::ShouldSelectRotationGizmo(CGameObject3D* Gizmo, E3DGizmoAxis Axis)
@@ -2179,10 +2210,10 @@ const char* CGame::GetCapturedPickedGameObject3DName()
 	return nullptr;
 }
 
-const XMFLOAT2& CGame::GetTerrainSelectionRoundUpPosition()
+const XMFLOAT2& CGame::GetTerrainSelectionPosition()
 {
 	assert(m_Terrain);
-	return m_Terrain->GetSelectionRoundUpPosition();
+	return m_Terrain->GetSelectionPosition();
 }
 
 float CGame::GetSkyTime()

@@ -20,32 +20,30 @@
 
 void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, float MaskingDetail)
 {
-	SModel Model{};
-	Model.vMeshes.emplace_back(GenerateTerrainBase(TerrainSize));
-	Model.vMaterials.emplace_back(Material);
-	Model.vMaterials.back().SetbShouldGenerateAutoMipMap(true); // @important
-	Model.bUseMultipleTexturesInSingleMesh = true; // @important
-
 	m_Size = TerrainSize;
-
 	m_MaskingTextureDetail = MaskingDetail;
 	m_MaskingTextureDetail = max(m_MaskingTextureDetail, KMaskingMinDetail);
 	m_MaskingTextureDetail = min(m_MaskingTextureDetail, KMaskingMaxDetail);
 
-	m_Object3DTerrain.release();
-	m_Object3DTerrain = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
-	m_Object3DTerrain->Create(Model);
-	m_Object3DTerrain->ShouldTessellate(true); // @important
+	m_cbTerrainData.TerrainSizeX = m_Size.x;
+	m_cbTerrainData.TerrainSizeZ = m_Size.y;
+	m_cbTerrainData.TerrainHeightRange = KHeightRange;
+	m_PtrGame->UpdateVSTerrainData(m_cbTerrainData);
 
-	m_Object2DMaskingTextureRepresentation.release();
-	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
-	m_Object2DMaskingTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
+	vector<CMaterial> vMaterials{};
+	vMaterials.emplace_back(Material);
+	vMaterials.back().ShouldGenerateAutoMipMap(true); // @important
 
+	CreateTerrainObject3D(vMaterials);
+
+	m_Object2DTextureRepresentation.release();
+	m_Object2DTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
+	m_Object2DTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
+
+	CreateHeightMapTexture(true);
 	CreateMaskingTexture(true);
 
 	CreateWater();
-
-	UpdateVertexNormalsTangents();
 }
 
 void CTerrain::Load(const string& FileName)
@@ -64,10 +62,21 @@ void CTerrain::Load(const string& FileName)
 	// 4B (float) Terrain X Size
 	READ_BYTES(4);
 	m_Size.x = READ_BYTES_TO_FLOAT;
-
+	m_cbTerrainData.TerrainSizeX = m_Size.x;
+	
 	// 4B (float) Terrain Z Size
 	READ_BYTES(4);
 	m_Size.y = READ_BYTES_TO_FLOAT;
+	m_cbTerrainData.TerrainSizeZ = m_Size.y;
+
+	// 4B (float) Terrain Height Range
+	READ_BYTES(4);
+	m_cbTerrainData.TerrainHeightRange = READ_BYTES_TO_FLOAT;
+	m_PtrGame->UpdateVSTerrainData(m_cbTerrainData);
+
+	// 4B (float) Water height
+	READ_BYTES(4);
+	m_WaterHeight = READ_BYTES_TO_FLOAT;
 
 	// 4B (float) Masking detail
 	READ_BYTES(4);
@@ -77,8 +86,8 @@ void CTerrain::Load(const string& FileName)
 	READ_BYTES(4);
 	m_MaskingTextureRawData.resize(READ_BYTES_TO_UINT32);
 
-	// Raw data
-	for (SPixelUNorm& Pixel : m_MaskingTextureRawData)
+	// Masking texture raw data
+	for (SPixel32UInt& Pixel : m_MaskingTextureRawData)
 	{
 		// 4B (uint8_t * 4) RGBA (UNORM)
 		READ_BYTES(4);
@@ -89,25 +98,36 @@ void CTerrain::Load(const string& FileName)
 		Pixel.A = ReadBytes[3];
 	}
 
-	// Model data
-	_ReadStaticModelFile(ifs, Model);
+	// 4B (uint32_t) HeightMap texture raw data size
+	READ_BYTES(4);
+	m_HeightMapTextureRawData.resize(READ_BYTES_TO_UINT32);
 
-	Model.bUseMultipleTexturesInSingleMesh = true; // @important
+	// HeightMap texture raw data
+	for (SPixel8UInt& Pixel : m_HeightMapTextureRawData)
+	{
+		// 1B (uint8_t) R (UNORM)
+		READ_BYTES(1);
 
-	m_Object3DTerrain.release();
-	m_Object3DTerrain = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
-	m_Object3DTerrain->Create(Model);
-	m_Object3DTerrain->ShouldTessellate(true); // @important
+		Pixel.R = ReadBytes[0];
+	}
 
-	m_Object2DMaskingTextureRepresentation.release();
-	m_Object2DMaskingTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
-	m_Object2DMaskingTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
+	// 1B (uint8_t) Material count
+	READ_BYTES(1);
+	Model.vMaterials.resize(READ_BYTES_TO_UINT32);
 
+	// Material data
+	_ReadModelMaterials(ifs, Model.vMaterials);
+
+	CreateTerrainObject3D(Model.vMaterials);
+
+	m_Object2DTextureRepresentation.release();
+	m_Object2DTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
+	m_Object2DTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
+
+	CreateHeightMapTexture(false);
 	CreateMaskingTexture(false);
 
 	CreateWater();
-
-	UpdateVertexNormalsTangents();
 }
 
 void CTerrain::Save(const string& FileName)
@@ -131,14 +151,20 @@ void CTerrain::Save(const string& FileName)
 	// 4B (float) Terrain Z Size
 	WRITE_FLOAT_TO_BYTES(m_Size.y);
 
+	// 4B (float) Terrain Height Range
+	WRITE_FLOAT_TO_BYTES(m_cbTerrainData.TerrainHeightRange);
+
+	// 4B (float) Water height
+	WRITE_FLOAT_TO_BYTES(m_WaterHeight);
+
 	// 4B (float) Masking detail
 	WRITE_FLOAT_TO_BYTES(m_MaskingTextureDetail);
 
 	// 4B (uint32_t) Masking texture raw data size
 	WRITE_UINT32_TO_BYTES(m_MaskingTextureRawData.size());
 
-	// Raw data
-	for (const SPixelUNorm& Pixel : m_MaskingTextureRawData)
+	// Masking texture raw data
+	for (const SPixel32UInt& Pixel : m_MaskingTextureRawData)
 	{
 		// 4B (uint8_t * 4) RGBA (UNORM)
 		ofs.write((const char*)&Pixel.R, 1);
@@ -147,10 +173,67 @@ void CTerrain::Save(const string& FileName)
 		ofs.write((const char*)&Pixel.A, 1);
 	}
 
-	// Model data
-	_WriteStaticModelFile(ofs, m_Object3DTerrain->GetModel());
+	// 4B (uint32_t) HeightMap texture raw data size
+	WRITE_UINT32_TO_BYTES(m_HeightMapTextureRawData.size());
+
+	// HeightMap texture raw data
+	for (SPixel8UInt& Pixel : m_HeightMapTextureRawData)
+	{
+		// 1B (uint8_t) R (UNORM)
+		ofs.write((const char*)&Pixel.R, 1);
+	}
+
+	// 1B (uint8_t) Material count
+	// 1B (uint8_t) Material count
+	ofs.put((uint8_t)m_Object3DTerrain->GetModel().vMaterials.size());
+
+	_WriteModelMaterials(ofs, m_Object3DTerrain->GetModel().vMaterials);
 
 	ofs.close();
+}
+
+void CTerrain::CreateTerrainObject3D(vector<CMaterial>& vMaterials)
+{
+	SModel Model{};
+	assert(vMaterials.size());
+
+	Model.vMeshes.clear();
+	Model.vMeshes.emplace_back(GenerateTerrainBase(m_Size));
+	CalculateNormals(Model.vMeshes.back());
+	CalculateTangents(Model.vMeshes.back());
+	Model.vMaterials = vMaterials;
+	Model.bUseMultipleTexturesInSingleMesh = true; // @important
+
+	m_Object3DTerrain.release();
+	m_Object3DTerrain = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	m_Object3DTerrain->Create(Model);
+	m_Object3DTerrain->ShouldTessellate(true); // @important
+}
+
+void CTerrain::CreateHeightMapTexture(bool bShouldClear)
+{
+	m_HeightMapTexture.release();
+	m_HeightMapTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+
+	m_HeightMapTextureSize = m_Size;
+	m_HeightMapTextureSize.x += 1.0f;
+	m_HeightMapTextureSize.y += 1.0f;
+	m_HeightMapTexture->CreateBlankTexture(DXGI_FORMAT_R8_UNORM, m_HeightMapTextureSize);
+	m_HeightMapTexture->SetSlot(0);
+	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
+	m_HeightMapTexture->Use();
+
+	if (bShouldClear)
+	{
+		m_HeightMapTextureRawData.clear();
+		m_HeightMapTextureRawData.resize(static_cast<size_t>(m_HeightMapTextureSize.x)* static_cast<size_t>(m_HeightMapTextureSize.y));
+		for (auto& Data : m_HeightMapTextureRawData)
+		{
+			Data.R = 127;
+		}
+	}
+
+	UpdateHeightMapTexture();
 }
 
 void CTerrain::CreateMaskingTexture(bool bShouldClear)
@@ -167,12 +250,10 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 	if (bShouldClear)
 	{
 		m_MaskingTextureRawData.clear();
-		m_MaskingTextureRawData.resize(static_cast<size_t>(m_MaskingTextureSize.x)* static_cast<size_t>(m_MaskingTextureSize.y));
+		m_MaskingTextureRawData.resize(static_cast<size_t>(m_MaskingTextureSize.x) * static_cast<size_t>(m_MaskingTextureSize.y));
 	}
-	else
-	{
-		UpdateMaskingTexture();
-	}
+
+	UpdateMaskingTexture();
 
 	XMMATRIX Translation{ XMMatrixTranslation(m_Size.x / 2.0f, 0, m_Size.y / 2.0f) };
 	XMMATRIX Scaling{ XMMatrixScaling(1 / m_Size.x, 1.0f, 1 / m_Size.y) };
@@ -205,33 +286,6 @@ void CTerrain::CreateWater()
 	m_WaterDisplacementTexture->Use();
 }
 
-const XMFLOAT2& CTerrain::GetSize() const
-{
-	return m_Size;
-}
-
-int CTerrain::GetMaterialCount() const
-{
-	assert(m_Object3DTerrain);
-	return (int)m_Object3DTerrain->GetMaterialCount();
-}
-
-const XMFLOAT2& CTerrain::GetSelectionRoundUpPosition() const
-{
-	return m_SelectionRoundUpPosition;
-}
-
-float CTerrain::GetMaskingTextureDetail() const
-{
-	return m_MaskingTextureDetail;
-}
-
-const CMaterial& CTerrain::GetMaterial(int Index) const
-{
-	assert(m_Object3DTerrain);
-	return m_Object3DTerrain->GetModel().vMaterials[Index];
-}
-
 void CTerrain::AddMaterial(const CMaterial& Material)
 {
 	assert(m_Object3DTerrain);
@@ -246,6 +300,219 @@ void CTerrain::SetMaterial(int MaterialID, const CMaterial& NewMaterial)
 	assert(MaterialID >= 0 && MaterialID < 4);
 
 	m_Object3DTerrain->SetMaterial(MaterialID, NewMaterial);
+}
+
+const CMaterial& CTerrain::GetMaterial(int Index) const
+{
+	assert(m_Object3DTerrain);
+	return m_Object3DTerrain->GetModel().vMaterials[Index];
+}
+
+void CTerrain::Select(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton)
+{
+	if (m_eEditMode == EEditMode::Masking)
+	{
+		UpdateHoverPosition(PickingRayOrigin, PickingRayDirection);
+
+		if (bShouldEdit)
+		{
+			if (bIsLeftButton)
+			{
+				UpdateMasking(m_eMaskingLayer, m_HoverPosition, m_MaskingRatio, m_MaskingRadius);
+			}
+			else
+			{
+				UpdateMasking(m_eMaskingLayer, m_HoverPosition, 0.0f, m_MaskingRadius, true);
+			}
+		}
+	}
+	else
+	{
+		UpdateSelection(PickingRayOrigin, PickingRayDirection);
+
+		if (bShouldEdit) UpdateHeights(bIsLeftButton);
+	}
+}
+
+void CTerrain::UpdateSelection(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection)
+{
+	// Do not consider World transformation!!
+	// Terrain uses single mesh
+	SMesh& Mesh{ m_Object3DTerrain->GetModel().vMeshes[0] };
+
+	XMVECTOR T{ KVectorGreatest };
+	XMVECTOR PlaneT{};
+	XMVECTOR PointOnPlane{};
+	if (IntersectRayPlane(PickingRayOrigin, PickingRayDirection, XMVectorSet(0, 0, 0, 1), XMVectorSet(0, 1, 0, 0), &PlaneT))
+	{
+		PointOnPlane = PickingRayOrigin + PickingRayDirection * PlaneT;
+
+		m_SelectionPosition.x = XMVectorGetX(PointOnPlane);
+		if (m_SelectionPosition.x > 0) m_SelectionPosition.x += 0.5;
+		if (m_SelectionPosition.x < 0) m_SelectionPosition.x -= 0.5;
+		m_SelectionPosition.x = float((int)m_SelectionPosition.x);
+		m_SelectionPosition.x = min(m_SelectionPosition.x, +m_Size.x / 2.0f);
+		m_SelectionPosition.x = max(m_SelectionPosition.x, -m_Size.x / 2.0f);
+
+		m_SelectionPosition.y = XMVectorGetZ(PointOnPlane);
+		if (m_SelectionPosition.y > 0) m_SelectionPosition.y += 0.5;
+		if (m_SelectionPosition.y < 0) m_SelectionPosition.y -= 0.5;
+		m_SelectionPosition.y = float((int)m_SelectionPosition.y);
+		m_SelectionPosition.y = min(m_SelectionPosition.y, +m_Size.y / 2.0f);
+		m_SelectionPosition.y = max(m_SelectionPosition.y, -m_Size.y / 2.0f);
+
+		for (auto& Triangle : Mesh.vTriangles)
+		{
+			SVertex3D& V0{ Mesh.vVertices[Triangle.I0] };
+			SVertex3D& V1{ Mesh.vVertices[Triangle.I1] };
+			SVertex3D& V2{ Mesh.vVertices[Triangle.I2] };
+			XMVECTOR& V0WorldPosition{ V0.Position };
+			XMVECTOR& V1WorldPosition{ V1.Position };
+			XMVECTOR& V2WorldPosition{ V2.Position };
+
+			float MaxX{ max(max(XMVectorGetX(V0WorldPosition), XMVectorGetX(V1WorldPosition)), XMVectorGetX(V2WorldPosition)) };
+			float MinX{ min(min(XMVectorGetX(V0WorldPosition), XMVectorGetX(V1WorldPosition)), XMVectorGetX(V2WorldPosition)) };
+			float MaxZ{ max(max(XMVectorGetZ(V0WorldPosition), XMVectorGetZ(V1WorldPosition)), XMVectorGetZ(V2WorldPosition)) };
+			float MinZ{ min(min(XMVectorGetZ(V0WorldPosition), XMVectorGetZ(V1WorldPosition)), XMVectorGetZ(V2WorldPosition)) };
+
+			if (MaxX >= m_SelectionPosition.x - m_SelectionHalfSize &&
+				m_SelectionPosition.x + m_SelectionHalfSize >= MinX &&
+				MaxZ >= m_SelectionPosition.y - m_SelectionHalfSize &&
+				m_SelectionPosition.y + m_SelectionHalfSize >= MinZ)
+			{
+				float V0Length{ XMVectorGetX(XMVector3Length(V0.Position -
+					XMVectorSet(m_SelectionPosition.x, XMVectorGetY(V0.Position), m_SelectionPosition.y, 0.0f))) };
+				float V1Length{ XMVectorGetX(XMVector3Length(V1.Position -
+					XMVectorSet(m_SelectionPosition.x, XMVectorGetY(V1.Position), m_SelectionPosition.y, 0.0f))) };
+				float V2Length{ XMVectorGetX(XMVector3Length(V2.Position -
+					XMVectorSet(m_SelectionPosition.x, XMVectorGetY(V2.Position), m_SelectionPosition.y, 0.0f))) };
+
+				V0.TexCoord = XMVectorSetZ(V0.TexCoord, V0Length);
+				V1.TexCoord = XMVectorSetZ(V1.TexCoord, V1Length);
+				V2.TexCoord = XMVectorSetZ(V2.TexCoord, V2Length);
+			}
+			else
+			{
+				V0.TexCoord = XMVectorSetZ(V0.TexCoord, 0.0f);
+				V1.TexCoord = XMVectorSetZ(V1.TexCoord, 0.0f);
+				V2.TexCoord = XMVectorSetZ(V2.TexCoord, 0.0f);
+			}
+		}
+
+		m_Object3DTerrain->UpdateMeshBuffer();
+	}
+}
+
+void CTerrain::ReleaseSelection()
+{
+	// Do not consider World transformation!!
+	// Terrain uses single mesh
+	SMesh& Mesh{ m_Object3DTerrain->GetModel().vMeshes[0] };
+
+	for (auto& Triangle : Mesh.vTriangles)
+	{
+		SVertex3D& V0{ Mesh.vVertices[Triangle.I0] };
+		SVertex3D& V1{ Mesh.vVertices[Triangle.I1] };
+		SVertex3D& V2{ Mesh.vVertices[Triangle.I2] };
+
+		V0.TexCoord = XMVectorSetZ(V0.TexCoord, 0.0f);
+		V1.TexCoord = XMVectorSetZ(V1.TexCoord, 0.0f);
+		V2.TexCoord = XMVectorSetZ(V2.TexCoord, 0.0f);
+	}
+
+	m_Object3DTerrain->UpdateMeshBuffer();
+}
+
+void CTerrain::UpdateHeights(bool bIsLeftButton)
+{
+	if (!m_Object3DTerrain) return;
+
+	int TerrainSizeX{ (int)m_Size.x };
+	int TerrainSizeZ{ (int)m_Size.y };
+	int CenterX{ (int)m_SelectionPosition.x + TerrainSizeX / 2 };
+	int CenterZ{ (int)(-m_SelectionPosition.y) + TerrainSizeZ / 2 };
+
+	int SelectionSize{ (int)(m_SelectionHalfSize * 2.0f) };
+	if (SelectionSize == 1)
+	{
+		size_t iPixel{ CenterZ * (size_t)m_HeightMapTextureSize.x + CenterX };
+		iPixel = min(iPixel, (size_t)((double)m_HeightMapTextureSize.x * m_HeightMapTextureSize.y) - 1);
+
+		UpdateHeight(iPixel, bIsLeftButton);
+	}
+	else
+	{
+		for (int X = (int)(CenterX - m_SelectionHalfSize); X <= (int)(CenterX + m_SelectionHalfSize); ++X)
+		{
+			for (int Z = (int)(CenterZ - m_SelectionHalfSize); Z <= (int)(CenterZ + m_SelectionHalfSize); ++Z)
+			{
+				if (X < 0 || Z < 0) continue;
+				if (X > TerrainSizeX || Z > TerrainSizeZ) continue;
+
+				size_t iPixel{ Z * (size_t)m_HeightMapTextureSize.x + X };
+
+				UpdateHeight(iPixel, bIsLeftButton);
+			}
+		}
+	}
+
+	UpdateHeightMapTexture();
+}
+
+void CTerrain::UpdateHeight(size_t iPixel, bool bIsLeftButton)
+{
+	switch (m_eEditMode)
+	{
+		case EEditMode::SetHeight:
+		{
+			float NewY{ (m_SetHeightValue + KHeightRangeHalf) / KHeightRange };
+			NewY = min(max(NewY, 0.0f), 1.0f);
+
+			m_HeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY * 255);
+		} break;
+		case EEditMode::DeltaHeight:
+		{
+			if (bIsLeftButton)
+			{
+				int NewY{ m_HeightMapTextureRawData[iPixel].R + 1 };
+				NewY = min(NewY, 255);
+				m_HeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY);
+			}
+			else
+			{
+				int NewY{ m_HeightMapTextureRawData[iPixel].R - 1 };
+				NewY = max(NewY, 0);
+				m_HeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY);
+			}
+		} break;
+		default:
+		{
+
+		} break;
+	}
+}
+
+void CTerrain::UpdateHeightMapTexture()
+{
+	m_HeightMapTexture->UpdateTextureRawData(&m_HeightMapTextureRawData[0]);
+}
+
+void CTerrain::UpdateHoverPosition(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection)
+{
+	if (!m_Object3DTerrain) return;
+
+	// Do not consider World transformation!!
+	// Terrain uses single mesh
+	XMVECTOR T{ KVectorGreatest };
+	XMVECTOR PlaneT{};
+	XMVECTOR PointOnPlane{};
+	if (IntersectRayPlane(PickingRayOrigin, PickingRayDirection, XMVectorSet(0, 0, 0, 1), XMVectorSet(0, 1, 0, 0), &PlaneT))
+	{
+		PointOnPlane = PickingRayOrigin + PickingRayDirection * PlaneT;
+
+		m_HoverPosition.x = XMVectorGetX(PointOnPlane);
+		m_HoverPosition.y = XMVectorGetZ(PointOnPlane);
+	}
 }
 
 void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, float Value, float Radius, bool bForceSet)
@@ -317,16 +584,9 @@ void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, flo
 	UpdateMaskingTexture();
 }
 
-void CTerrain::UpdateVertexNormalsTangents()
+void CTerrain::UpdateMaskingTexture()
 {
-	assert(m_Object3DTerrain);
-
-	CalculateNormals(m_Object3DTerrain->GetModel().vMeshes[0]);
-	AverageNormals(m_Object3DTerrain->GetModel().vMeshes[0]);
-	CalculateTangents(m_Object3DTerrain->GetModel().vMeshes[0]);
-	AverageTangents(m_Object3DTerrain->GetModel().vMeshes[0]);
-
-	m_Object3DTerrain->UpdateMeshBuffer();
+	m_MaskingTexture->UpdateTextureRawData(&m_MaskingTextureRawData[0]);
 }
 
 void CTerrain::SetSelectionSize(float& Size)
@@ -335,143 +595,6 @@ void CTerrain::SetSelectionSize(float& Size)
 	Size = max(Size, KSelectionMinSize);
 
 	m_SelectionHalfSize = Size / 2.0f;
-}
-
-void CTerrain::UpdateSelection(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection)
-{
-	// Do not consider World transformation!!
-	// Terrain uses single mesh
-	SMesh& Mesh{ m_Object3DTerrain->GetModel().vMeshes[0] };
-
-	XMVECTOR T{ KVectorGreatest };
-	XMVECTOR PlaneT{};
-	XMVECTOR PointOnPlane{};
-	if (IntersectRayPlane(PickingRayOrigin, PickingRayDirection, XMVectorSet(0, 0, 0, 1), XMVectorSet(0, 1, 0, 0), &PlaneT))
-	{
-		PointOnPlane = PickingRayOrigin + PickingRayDirection * PlaneT;
-
-		m_SelectionRoundUpPosition.x = XMVectorGetX(PointOnPlane);
-		m_SelectionRoundUpPosition.x = static_cast<float>(int(m_SelectionRoundUpPosition.x + 0.5f));
-		m_SelectionRoundUpPosition.y = XMVectorGetZ(PointOnPlane);
-		m_SelectionRoundUpPosition.y = static_cast<float>(int(m_SelectionRoundUpPosition.y + 0.5f));
-
-		for (auto& Triangle : Mesh.vTriangles)
-		{
-			SVertex3D& V0{ Mesh.vVertices[Triangle.I0] };
-			SVertex3D& V1{ Mesh.vVertices[Triangle.I1] };
-			SVertex3D& V2{ Mesh.vVertices[Triangle.I2] };
-			XMVECTOR& V0WorldPosition{ V0.Position };
-			XMVECTOR& V1WorldPosition{ V1.Position };
-			XMVECTOR& V2WorldPosition{ V2.Position };
-
-			float MaxX{ max(max(XMVectorGetX(V0WorldPosition), XMVectorGetX(V1WorldPosition)), XMVectorGetX(V2WorldPosition)) };
-			float MinX{ min(min(XMVectorGetX(V0WorldPosition), XMVectorGetX(V1WorldPosition)), XMVectorGetX(V2WorldPosition)) };
-			float MaxZ{ max(max(XMVectorGetZ(V0WorldPosition), XMVectorGetZ(V1WorldPosition)), XMVectorGetZ(V2WorldPosition)) };
-			float MinZ{ min(min(XMVectorGetZ(V0WorldPosition), XMVectorGetZ(V1WorldPosition)), XMVectorGetZ(V2WorldPosition)) };
-
-			if (MaxX >= m_SelectionRoundUpPosition.x - m_SelectionHalfSize &&
-				m_SelectionRoundUpPosition.x + m_SelectionHalfSize >= MinX &&
-				MaxZ >= m_SelectionRoundUpPosition.y - m_SelectionHalfSize &&
-				m_SelectionRoundUpPosition.y + m_SelectionHalfSize >= MinZ)
-			{
-				float V0Length{ XMVectorGetX(XMVector3Length(V0.Position -
-					XMVectorSet(m_SelectionRoundUpPosition.x, XMVectorGetY(V0.Position), m_SelectionRoundUpPosition.y, 0.0f))) };
-				float V1Length{ XMVectorGetX(XMVector3Length(V1.Position -
-					XMVectorSet(m_SelectionRoundUpPosition.x, XMVectorGetY(V1.Position), m_SelectionRoundUpPosition.y, 0.0f))) };
-				float V2Length{ XMVectorGetX(XMVector3Length(V2.Position -
-					XMVectorSet(m_SelectionRoundUpPosition.x, XMVectorGetY(V2.Position), m_SelectionRoundUpPosition.y, 0.0f))) };
-
-				V0.TexCoord = XMVectorSetZ(V0.TexCoord, V0Length);
-				V1.TexCoord = XMVectorSetZ(V1.TexCoord, V1Length);
-				V2.TexCoord = XMVectorSetZ(V2.TexCoord, V2Length);
-			}
-			else
-			{
-				V0.TexCoord = XMVectorSetZ(V0.TexCoord, 0.0f);
-				V1.TexCoord = XMVectorSetZ(V1.TexCoord, 0.0f);
-				V2.TexCoord = XMVectorSetZ(V2.TexCoord, 0.0f);
-			}
-		}
-
-		m_Object3DTerrain->UpdateMeshBuffer();
-	}
-}
-
-void CTerrain::ReleaseSelection()
-{
-	// Do not consider World transformation!!
-	// Terrain uses single mesh
-	SMesh& Mesh{ m_Object3DTerrain->GetModel().vMeshes[0] };
-
-	for (auto& Triangle : Mesh.vTriangles)
-	{
-		SVertex3D& V0{ Mesh.vVertices[Triangle.I0] };
-		SVertex3D& V1{ Mesh.vVertices[Triangle.I1] };
-		SVertex3D& V2{ Mesh.vVertices[Triangle.I2] };
-
-		V0.TexCoord = XMVectorSetZ(V0.TexCoord, 0.0f);
-		V1.TexCoord = XMVectorSetZ(V1.TexCoord, 0.0f);
-		V2.TexCoord = XMVectorSetZ(V2.TexCoord, 0.0f);
-	}
-
-	m_Object3DTerrain->UpdateMeshBuffer();
-}
-
-void CTerrain::UpdateHoverPosition(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection)
-{
-	if (!m_Object3DTerrain) return;
-
-	// Do not consider World transformation!!
-	// Terrain uses single mesh
-	XMVECTOR T{ KVectorGreatest };
-	XMVECTOR PlaneT{};
-	XMVECTOR PointOnPlane{};
-	if (IntersectRayPlane(PickingRayOrigin, PickingRayDirection, XMVectorSet(0, 0, 0, 1), XMVectorSet(0, 1, 0, 0), &PlaneT))
-	{
-		PointOnPlane = PickingRayOrigin + PickingRayDirection * PlaneT;
-
-		m_HoverPosition.x = XMVectorGetX(PointOnPlane);
-		m_HoverPosition.y = XMVectorGetZ(PointOnPlane);
-	}
-}
-
-void CTerrain::SelectTerrain(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton, float DeltaHeightFactor)
-{
-	if (m_eEditMode == EEditMode::Masking)
-	{
-		UpdateHoverPosition(PickingRayOrigin, PickingRayDirection);
-
-		if (bShouldEdit)
-		{
-			if (bIsLeftButton)
-			{
-				UpdateMasking(m_eMaskingLayer, m_HoverPosition, m_MaskingRatio, m_MaskingRadius);
-			}
-			else
-			{
-				UpdateMasking(m_eMaskingLayer, m_HoverPosition, 0.0f, m_MaskingRadius, true);
-			}
-		}
-	}
-	else
-	{
-		UpdateSelection(PickingRayOrigin, PickingRayDirection);
-
-		if (bShouldEdit) UpdateHeight(bIsLeftButton, DeltaHeightFactor);
-	}
-}
-
-void CTerrain::UpdateMaskingTexture()
-{
-	m_MaskingTexture->UpdateTextureRawData(&m_MaskingTextureRawData[0]);
-}
-
-void CTerrain::ShouldTessellate(bool Value)
-{
-	if (m_Object3DTerrain)
-	{
-		m_Object3DTerrain->ShouldTessellate(Value);
-	}
 }
 
 void CTerrain::SetMaskingLayer(EMaskingLayer eLayer)
@@ -489,18 +612,6 @@ void CTerrain::SetMaskingRadius(float Radius)
 	m_MaskingRadius = Radius;
 }
 
-void CTerrain::SetEditMode(EEditMode Mode)
-{
-	m_eEditMode = Mode;
-
-	if (m_eEditMode == EEditMode::Masking) ReleaseSelection();
-}
-
-CTerrain::EEditMode CTerrain::GetEditMode()
-{
-	return m_eEditMode;
-}
-
 void CTerrain::SetSetHeightValue(float Value)
 {
 	m_SetHeightValue = Value;
@@ -516,6 +627,29 @@ void CTerrain::SetMaskingValue(float Value)
 	m_MaskingRatio = Value;
 }
 
+void CTerrain::ShouldTessellate(bool Value)
+{
+	if (m_Object3DTerrain) m_Object3DTerrain->ShouldTessellate(Value);
+}
+
+bool CTerrain::ShouldTessellate() const
+{
+	if (m_Object3DTerrain) return m_Object3DTerrain->ShouldTessellate();
+	return false;
+}
+
+void CTerrain::SetEditMode(EEditMode Mode)
+{
+	m_eEditMode = Mode;
+
+	if (m_eEditMode == EEditMode::Masking) ReleaseSelection();
+}
+
+CTerrain::EEditMode CTerrain::GetEditMode()
+{
+	return m_eEditMode;
+}
+
 void CTerrain::SetWaterHeight(float Value)
 {
 	m_WaterHeight = Value;
@@ -526,19 +660,42 @@ float CTerrain::GetWaterHeight() const
 	return m_WaterHeight;
 }
 
+const XMFLOAT2& CTerrain::GetSize() const
+{
+	return m_Size;
+}
+
+int CTerrain::GetMaterialCount() const
+{
+	assert(m_Object3DTerrain);
+	return (int)m_Object3DTerrain->GetMaterialCount();
+}
+
+const XMFLOAT2& CTerrain::GetSelectionPosition() const
+{
+	return m_SelectionPosition;
+}
+
+float CTerrain::GetMaskingDetail() const
+{
+	return m_MaskingTextureDetail;
+}
+
 void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
 {
 	if (!m_Object3DTerrain) return;
 
-	CShader* VS{ m_PtrGame->GetBaseShader(EBaseShader::VSBase) };
+	CShader* VS{ m_PtrGame->GetBaseShader(EBaseShader::VSTerrain) };
 	CShader* PS{ m_PtrGame->GetBaseShader(EBaseShader::PSTerrain) };
 	
 	VS->Use();
 	PS->Use();
 	
 	m_PtrGame->UpdateVSSpace(KMatrixIdentity);
-	VS->UpdateConstantBuffer(0);
+	VS->UpdateAllConstantBuffers();
 
+	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
+	m_HeightMapTexture->Use();
 	m_MaskingTexture->Use();
 
 	if (bDrawNormals)
@@ -581,9 +738,29 @@ void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }
 
+void CTerrain::DrawHeightMapTexture()
+{
+	if (!m_Object2DTextureRepresentation) return;
+
+	m_HeightMapTexture->SetShaderType(EShaderType::PixelShader);
+	m_HeightMapTexture->Use();
+
+	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
+
+	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->Use();
+	m_PtrGame->UpdateVS2DSpace(KMatrixIdentity);
+	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(EBaseShader::PSHeightMap2D)->Use();
+
+	m_Object2DTextureRepresentation->Draw();
+
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
+}
+
 void CTerrain::DrawMaskingTexture()
 {
-	if (!m_Object2DMaskingTextureRepresentation) return;
+	if (!m_Object2DTextureRepresentation) return;
 
 	m_MaskingTexture->Use(0);
 
@@ -592,125 +769,10 @@ void CTerrain::DrawMaskingTexture()
 
 	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->Use();
 	m_PtrGame->UpdateVS2DSpace(KMatrixIdentity);
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->UpdateConstantBuffer(0);
+	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
 	m_PtrGame->GetBaseShader(EBaseShader::PSMasking2D)->Use();
 	
-	m_Object2DMaskingTextureRepresentation->Draw();
+	m_Object2DTextureRepresentation->Draw();
 
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
-}
-
-void CTerrain::UpdateHeight(bool bIsLeftButton, float DeltaHeightFactor)
-{
-	if (!m_Object3DTerrain) return;
-
-	SMesh& Mesh{ m_Object3DTerrain->GetModel().vMeshes[0] };
-
-	int VertexCount{ static_cast<int>(m_Size.x * m_Size.y * 4) };
-	const int ZMax{ (int)m_Size.y + 1 };
-	const int XMax{ (int)m_Size.x + 1 };
-	for (int iZ = 0; iZ < ZMax; ++iZ)
-	{
-		for (int iX = 0; iX < XMax; ++iX)
-		{
-			int iVertex0{ iX * 4 + iZ * XMax * 4 };
-			int iVertex1{ iVertex0 + 1 };
-			int iVertex2{ iVertex0 + 2 };
-			int iVertex3{ iVertex0 + 3 };
-
-			if (iVertex0 >= 0 && iVertex0 < VertexCount)
-			{
-				const XMVECTOR& Position{ Mesh.vVertices[iVertex0].Position };
-				float PositionX{ XMVectorGetX(Position) };
-				float PositionZ{ XMVectorGetZ(Position) };
-				if (PositionX >= m_SelectionRoundUpPosition.x - m_SelectionHalfSize &&
-					PositionX <= m_SelectionRoundUpPosition.x + m_SelectionHalfSize &&
-					PositionZ >= m_SelectionRoundUpPosition.y - m_SelectionHalfSize &&
-					PositionZ <= m_SelectionRoundUpPosition.y + m_SelectionHalfSize)
-				{
-					UpdateVertex(Mesh.vVertices[iVertex0], bIsLeftButton, DeltaHeightFactor);
-				}
-			}
-			if (iVertex1 >= 0 && iVertex1 < VertexCount)
-			{
-				const XMVECTOR& Position{ Mesh.vVertices[iVertex1].Position };
-				float PositionX{ XMVectorGetX(Position) };
-				float PositionZ{ XMVectorGetZ(Position) };
-				if (PositionX >= m_SelectionRoundUpPosition.x - m_SelectionHalfSize &&
-					PositionX <= m_SelectionRoundUpPosition.x + m_SelectionHalfSize &&
-					PositionZ >= m_SelectionRoundUpPosition.y - m_SelectionHalfSize &&
-					PositionZ <= m_SelectionRoundUpPosition.y + m_SelectionHalfSize)
-				{
-					UpdateVertex(Mesh.vVertices[iVertex1], bIsLeftButton, DeltaHeightFactor);
-				}
-			}
-			if (iVertex2 >= 0 && iVertex2 < VertexCount)
-			{
-				const XMVECTOR& Position{ Mesh.vVertices[iVertex2].Position };
-				float PositionX{ XMVectorGetX(Position) };
-				float PositionZ{ XMVectorGetZ(Position) };
-				if (PositionX >= m_SelectionRoundUpPosition.x - m_SelectionHalfSize &&
-					PositionX <= m_SelectionRoundUpPosition.x + m_SelectionHalfSize &&
-					PositionZ >= m_SelectionRoundUpPosition.y - m_SelectionHalfSize &&
-					PositionZ <= m_SelectionRoundUpPosition.y + m_SelectionHalfSize)
-				{
-					UpdateVertex(Mesh.vVertices[iVertex2], bIsLeftButton, DeltaHeightFactor);
-				}
-			}
-			if (iVertex3 >= 0 && iVertex3 < VertexCount)
-			{
-				const XMVECTOR& Position{ Mesh.vVertices[iVertex3].Position };
-				float PositionX{ XMVectorGetX(Position) };
-				float PositionZ{ XMVectorGetZ(Position) };
-				if (PositionX >= m_SelectionRoundUpPosition.x - m_SelectionHalfSize &&
-					PositionX <= m_SelectionRoundUpPosition.x + m_SelectionHalfSize &&
-					PositionZ >= m_SelectionRoundUpPosition.y - m_SelectionHalfSize &&
-					PositionZ <= m_SelectionRoundUpPosition.y + m_SelectionHalfSize)
-				{
-					UpdateVertex(Mesh.vVertices[iVertex3], bIsLeftButton, DeltaHeightFactor);
-				}
-			}
-		}
-	}
-
-	m_Object3DTerrain->UpdateMeshBuffer();
-}
-
-void CTerrain::UpdateVertex(SVertex3D& Vertex, bool bIsLeftButton, float DeltaHeightFactor)
-{
-	float Y{ XMVectorGetY(Vertex.Position) };
-
-	switch (m_eEditMode)
-	{
-	case EEditMode::SetHeight:
-	{
-		float NewY{ m_SetHeightValue };
-		NewY = min(NewY, KMaxHeight);
-		NewY = max(NewY, KMinHeight);
-		Vertex.Position = XMVectorSetY(Vertex.Position, NewY);
-	} break;
-	case EEditMode::DeltaHeight:
-		if (bIsLeftButton)
-		{
-			float NewY{ Y + m_DeltaHeightValue * DeltaHeightFactor };
-			NewY = min(NewY, KMaxHeight);
-			NewY = max(NewY, KMinHeight);
-
-			Vertex.Position = XMVectorSetY(Vertex.Position, NewY);
-		}
-		else
-		{
-			float NewY{ Y - m_DeltaHeightValue * DeltaHeightFactor };
-			NewY = min(NewY, KMaxHeight);
-			NewY = max(NewY, KMinHeight);
-
-			Vertex.Position = XMVectorSetY(Vertex.Position, NewY);
-		}
-		break;
-	default:
-		break;
-	}
-
-	// To let you know that this vertex's normal should be recalculated.
-	Vertex.Normal = XMVectorSetW(Vertex.Normal, 1.0f);
 }

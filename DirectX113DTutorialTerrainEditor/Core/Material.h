@@ -2,7 +2,12 @@
 
 #include "SharedHeader.h"
 
-struct alignas(4) SPixelUNorm
+struct SPixel8UInt
+{
+	uint8_t R{};
+};
+
+struct alignas(4) SPixel32UInt
 {
 	uint8_t R{};
 	uint8_t G{};
@@ -33,7 +38,8 @@ public:
 		void SetTextureSize();
 
 	public:
-		void UpdateTextureRawData(const SPixelUNorm* PtrData);
+		void UpdateTextureRawData(const SPixel8UInt* PtrData);
+		void UpdateTextureRawData(const SPixel32UInt* PtrData);
 		void SetSlot(UINT Slot);
 		void SetShaderType(EShaderType eShaderType);
 		void Use(int ForcedSlot = -1) const;
@@ -62,7 +68,6 @@ public:
 	~CMaterial() {}
 
 public:
-	void SetbShouldGenerateAutoMipMap(bool Value);
 	void SetName(const string& Name);
 
 	void SetDiffuseTextureRawData(const vector<uint8_t>& Data);
@@ -93,6 +98,7 @@ public:
 	const string& GetNormalTextureFileName() const { return NormalTextureFileName; }
 	const vector<uint8_t>& GetNormalTextureRawData() const { return vEmbeddedNormalTextureRawData; }
 	
+	void ShouldGenerateAutoMipMap(bool Value) { m_bShouldGenerateAutoMipMap = Value; }
 	bool ShouldGenerateAutoMipMap() const { return m_bShouldGenerateAutoMipMap; }
 
 	const XMFLOAT3& GetAmbientColor() const { return MaterialAmbient; }

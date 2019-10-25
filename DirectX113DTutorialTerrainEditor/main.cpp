@@ -28,8 +28,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	Game.SetAmbientlLight(XMFLOAT3(1, 1, 1), 0.2f);
 	Game.SetDirectionalLight(XMVectorSet(0, 1, 0, 0), XMVectorSet(1, 1, 1, 1));
 
-	Game.SetGameRenderingFlags(CGame::EFlagsRendering::UseLighting | CGame::EFlagsRendering::DrawMiniAxes |
-		CGame::EFlagsRendering::UseTerrainSelector | CGame::EFlagsRendering::DrawTerrainMaskingTexture | CGame::EFlagsRendering::TessellateTerrain);
+	Game.SetGameRenderingFlags(CGame::EFlagsRendering::UseLighting | CGame::EFlagsRendering::DrawMiniAxes | CGame::EFlagsRendering::UseTerrainSelector |
+		CGame::EFlagsRendering::DrawTerrainHeightMapTexture | CGame::EFlagsRendering::DrawTerrainMaskingTexture | CGame::EFlagsRendering::TessellateTerrain);
 
 	CCamera* MainCamera{ Game.AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
 	MainCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
@@ -45,7 +45,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	CMaterial MaterialDefaultGround{};
 	{
 		MaterialDefaultGround.SetName("DefaultGround");
-		MaterialDefaultGround.SetbShouldGenerateAutoMipMap(true);
+		MaterialDefaultGround.ShouldGenerateAutoMipMap(true);
 		MaterialDefaultGround.SetDiffuseTextureFileName("Asset\\ground.png");
 		MaterialDefaultGround.SetNormalTextureFileName("Asset\\ground_normal.png");
 		Game.AddMaterial(MaterialDefaultGround);
@@ -152,11 +152,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			{
 				if ((bLeftButton || bRightButton) && !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
 				{
-					Game.SelectTerrain(true, bLeftButton, DeltaTimeF * 200.0f);
+					Game.SelectTerrain(true, bLeftButton);
 				}
 				else
 				{
-					Game.SelectTerrain(false, false, DeltaTimeF * 200.0f);
+					Game.SelectTerrain(false, false);
 				}
 				
 				if (MouseState.leftButton)
@@ -165,7 +165,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				}
 				if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
 				{
-					Game.SelectTerrain(false, false, DeltaTimeF * 200.0f);
+					Game.SelectTerrain(false, false);
 
 					if (MouseState.middleButton)
 					{
@@ -358,7 +358,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 							const XMFLOAT2& TerrainSize{ Game.GetTerrain()->GetSize() };
 							ImGui::Text(u8"가로 x 세로: %d x %d", (int)TerrainSize.x, (int)TerrainSize.y);
-							ImGui::Text(u8"마스킹 디테일: %d", (int)Game.GetTerrain()->GetMaskingTextureDetail());
+							ImGui::Text(u8"마스킹 디테일: %d", (int)Game.GetTerrain()->GetMaskingDetail());
 
 							ImGui::SetNextItemWidth(100);
 							float WaterHeight{ Terrain->GetWaterHeight() };
@@ -480,12 +480,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 							ImGui::Separator();
 
-							ImGui::Text(u8"현재 선택 위치: (%.0f, %.0f)", Game.GetTerrainSelectionRoundUpPosition().x, Game.GetTerrainSelectionRoundUpPosition().y);
-
-							if (ImGui::Button(u8"전체 법선 재계산"))
-							{
-								Game.RecalculateTerrainNormalsTangents();
-							}
+							ImGui::Text(u8"현재 선택 위치: (%.0f, %.0f)", Game.GetTerrainSelectionPosition().x, Game.GetTerrainSelectionPosition().y);
 
 							ImGui::Separator();
 
@@ -589,7 +584,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 							CMaterial Material{};
 							Material.SetName("Material" + to_string(Count));
-							Material.SetbShouldGenerateAutoMipMap(true);
+							Material.ShouldGenerateAutoMipMap(true);
 
 							Game.AddMaterial(Material);
 						}
