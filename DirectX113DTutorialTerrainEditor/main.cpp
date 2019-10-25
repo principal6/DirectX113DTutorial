@@ -16,8 +16,6 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
 {
-	constexpr float KClearColor[4]{ 0.2f, 0.6f, 0.9f, 1.0f };
-
 	char WorkingDirectory[MAX_PATH]{};
 	GetCurrentDirectoryA(MAX_PATH, WorkingDirectory);
 	
@@ -28,15 +26,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	Game.SetDirectionalLight(XMVectorSet(0, 1, 0, 0), XMVectorSet(1, 1, 1, 1));
 
 	Game.SetGameRenderingFlags(CGame::EFlagsRendering::UseLighting | CGame::EFlagsRendering::DrawMiniAxes |
-		CGame::EFlagsRendering::DrawTerrainHeightMapTexture | CGame::EFlagsRendering::DrawTerrainMaskingTexture | CGame::EFlagsRendering::TessellateTerrain);
+		CGame::EFlagsRendering::DrawTerrainHeightMapTexture | CGame::EFlagsRendering::DrawTerrainMaskingTexture | 
+		CGame::EFlagsRendering::TessellateTerrain);
 
 	CCamera* MainCamera{ Game.AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
 	MainCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
 
 	CGameObject3DLine* goGrid{ Game.AddGameObject3DLine("Grid") };
 	{
-		goGrid->ComponentTransform.Translation = XMVectorSet(0.0f, 0.0f, 0.0f, 0);
-
 		goGrid->ComponentRender.PtrObject3DLine = Game.AddObject3DLine();
 		goGrid->ComponentRender.PtrObject3DLine->Create(Generate3DGrid(0));
 	}
@@ -87,7 +84,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			static steady_clock Clock{};
 			long long TimeNow{ Clock.now().time_since_epoch().count() };
 			static long long TimePrev{ TimeNow };
-			float DeltaTimeF{ (TimeNow - TimePrev) * 0.000'000'001f };
+			float DeltaTimeF{ static_cast<float>((TimeNow - TimePrev) * 0.000'000'001) };
 
 			Game.BeginRendering(Colors::CornflowerBlue);
 
@@ -831,7 +828,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				// ### 조명 편집기 윈도우 ###
 				if (bShowLightEditor)
 				{
-					ImGui::SetNextWindowPos(ImVec2(200, 200), ImGuiCond_Appearing);
+					ImGui::SetNextWindowPos(ImVec2(200, 160), ImGuiCond_Appearing);
 					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(300, 200));
 					if (ImGui::Begin(u8"조명 편집기", &bShowLightEditor, ImGuiWindowFlags_AlwaysAutoResize))
 					{
@@ -840,7 +837,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							XMVectorGetZ(KDirectionalLightDirection) };
 						
 						ImGui::SetNextItemWidth(135);
-						if (ImGui::DragFloat3(u8" Directional Light", DirectionalLightDirection, 0.02f, -1.0f, +1.0f, "%.2f"))
+						if (ImGui::DragFloat3(u8" Directional 위치", DirectionalLightDirection, 0.02f, -1.0f, +1.0f, "%.2f"))
 						{
 							Game.SetDirectionalLight(XMVectorSet(DirectionalLightDirection[0], DirectionalLightDirection[1],
 								DirectionalLightDirection[2], 0.0f));

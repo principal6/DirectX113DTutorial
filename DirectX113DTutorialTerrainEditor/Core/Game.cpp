@@ -98,7 +98,7 @@ void CGame::UpdateVS2DSpace(const XMMATRIX& World)
 	m_cbVS2DSpaceData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
 }
 
-void CGame::UpdateVSBaseMaterial(const CMaterial& Material)
+void CGame::UpdatePSBaseMaterial(const CMaterial& Material)
 {
 	m_cbPSBaseMaterialData.MaterialAmbient = Material.GetAmbientColor();
 	m_cbPSBaseMaterialData.MaterialDiffuse = Material.GetDiffuseColor();
@@ -106,6 +106,8 @@ void CGame::UpdateVSBaseMaterial(const CMaterial& Material)
 	m_cbPSBaseMaterialData.SpecularExponent = Material.GetSpecularExponent();
 	m_cbPSBaseMaterialData.SpecularIntensity = Material.GetSpecularIntensity();
 	m_cbPSBaseMaterialData.bHasTexture = Material.HasTexture();
+
+	m_PSBase->UpdateConstantBuffer(2);
 }
 
 void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices)
@@ -2178,7 +2180,12 @@ Mouse::State CGame::GetMouseState()
 }
 
 
-const char* CGame::GetPickedGameObject3DName()
+const XMFLOAT2& CGame::GetWindowSize() const
+{
+	return m_WindowSize;
+}
+
+const char* CGame::GetPickedGameObject3DName() const
 {
 	if (m_PtrPickedGameObject3D)
 	{
@@ -2187,7 +2194,7 @@ const char* CGame::GetPickedGameObject3DName()
 	return nullptr;
 }
 
-const char* CGame::GetCapturedPickedGameObject3DName()
+const char* CGame::GetCapturedPickedGameObject3DName() const
 {
 	if (m_PtrCapturedPickedGameObject3D)
 	{
@@ -2196,18 +2203,18 @@ const char* CGame::GetCapturedPickedGameObject3DName()
 	return nullptr;
 }
 
-const XMFLOAT2& CGame::GetTerrainSelectionPosition()
+const XMFLOAT2& CGame::GetTerrainSelectionPosition() const
 {
 	assert(m_Terrain);
 	return m_Terrain->GetSelectionPosition();
 }
 
-float CGame::GetSkyTime()
+float CGame::GetSkyTime() const
 {
 	return m_cbPSSkyTimeData.SkyTime;
 }
 
-XMMATRIX CGame::GetTransposedVPMatrix()
+XMMATRIX CGame::GetTransposedVPMatrix() const
 {
 	return XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
 }

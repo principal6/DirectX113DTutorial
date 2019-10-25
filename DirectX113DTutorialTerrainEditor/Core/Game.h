@@ -242,7 +242,7 @@ public:
 public:
 	void UpdateVSSpace(const XMMATRIX& World);
 	void UpdateVS2DSpace(const XMMATRIX& World);
-	void UpdateVSBaseMaterial(const CMaterial& Material);
+	void UpdatePSBaseMaterial(const CMaterial& Material);
 	void UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices);
 	void UpdateVSTerrainData(const SCBVSTerrainData& Data);
 
@@ -338,18 +338,19 @@ public:
 	void EndRendering();
 
 public:
-	HWND GethWnd() { return m_hWnd; }
+	HWND GethWnd() const { return m_hWnd; }
 	ID3D11Device* GetDevicePtr() { return m_Device.Get(); }
 	ID3D11DeviceContext* GetDeviceContextPtr() { return m_DeviceContext.Get(); }
 	Keyboard::State GetKeyState();
 	Mouse::State GetMouseState();
 	SpriteBatch* GetSpriteBatchPtr() { return m_SpriteBatch.get(); }
 	SpriteFont* GetSpriteFontPtr() { return m_SpriteFont.get(); }
-	const char* GetPickedGameObject3DName();
-	const char* GetCapturedPickedGameObject3DName();
-	const XMFLOAT2& GetTerrainSelectionPosition();
-	float GetSkyTime();
-	XMMATRIX GetTransposedVPMatrix();
+	const XMFLOAT2& GetWindowSize() const;
+	const char* GetPickedGameObject3DName() const;
+	const char* GetCapturedPickedGameObject3DName() const;
+	const XMFLOAT2& GetTerrainSelectionPosition() const;
+	float GetSkyTime() const;
+	XMMATRIX GetTransposedVPMatrix() const;
 	ID3D11DepthStencilState* GetDepthStencilStateLessEqualNoWrite() { return m_DepthStencilStateLessEqualNoWrite.Get(); }
 
 private:

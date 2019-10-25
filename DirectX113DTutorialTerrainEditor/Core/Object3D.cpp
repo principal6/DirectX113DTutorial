@@ -323,7 +323,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };
 		const CMaterial& Material{ m_Model.vMaterials[Mesh.MaterialID] };
 
-		m_PtrGame->UpdateVSBaseMaterial(Material);
+		m_PtrGame->UpdatePSBaseMaterial(Material);
 		
 		if (Material.HasTexture() && !bIgnoreOwnTexture)
 		{

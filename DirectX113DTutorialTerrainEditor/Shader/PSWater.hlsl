@@ -30,7 +30,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	// Gamma correction
 	Albedo.xyz *= Albedo.xyz;
 	float4 ResultAlbedo = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
-	ResultAlbedo += CalculateDirectional(Albedo, float4(1, 1, 1, 1), 32.0f, 4.0f,
+	ResultAlbedo += CalculateDirectional(Albedo, float4(1, 1, 1, 1), 64.0f, 1.0f,
 		DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), ResultNormal);
 	ResultAlbedo.a = Albedo.a;
 

@@ -1,6 +1,6 @@
 #include "Header.hlsli"
 
-cbuffer cbColorFactor
+cbuffer cbColorFactor : register(b0)
 {
 	float4 ColorFactor;
 };
