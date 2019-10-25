@@ -12,18 +12,15 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(InputPatch<VS_OUTPUT, 3> Patch, uin
 	const float KTessFactor = 32.0f;
 	float4 CenterPosition = (Patch[0].WorldPosition + Patch[1].WorldPosition + Patch[2].WorldPosition) / 3.0f;
 	float Distance = distance(CenterPosition, EyePosition);
+	float Edge = KTessFactor;
+	float Inside = KTessFactor / Distance;
+	
+	if (Distance >= 75.0f) Edge = Inside = 0.0f;
 
-	float ResultTess = KTessFactor / Distance;
-	if (Distance <= 37.5f) ResultTess = KTessFactor * 0.5f;
-	if (Distance <= 25.0f) ResultTess = KTessFactor * 0.75f;
-	if (Distance <= 12.5f) ResultTess = KTessFactor;
-	if (Distance >= 75.0f) ResultTess = 0.0f;
-
-	Output.EdgeTessFactor[0] = ResultTess;
-	Output.EdgeTessFactor[1] = ResultTess;
-	Output.EdgeTessFactor[2] = ResultTess;
-
-	Output.InsideTessFactor = ResultTess;
+	Output.EdgeTessFactor[0] = Edge;
+	Output.EdgeTessFactor[1] = Edge;
+	Output.EdgeTessFactor[2] = Edge;
+	Output.InsideTessFactor = Inside;
 
 	return Output;
 }
