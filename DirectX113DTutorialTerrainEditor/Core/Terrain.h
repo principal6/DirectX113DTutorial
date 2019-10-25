@@ -92,7 +92,7 @@ public:
 	float GetMaskingDetail() const;
 
 public:
-	void Draw(bool bUseTerrainSelector, bool bDrawNormals);
+	void Draw(bool bDrawNormals);
 	void DrawHeightMapTexture();
 	void DrawMaskingTexture();
 

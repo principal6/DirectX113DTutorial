@@ -681,7 +681,7 @@ float CTerrain::GetMaskingDetail() const
 	return m_MaskingTextureDetail;
 }
 
-void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
+void CTerrain::Draw(bool bDrawNormals)
 {
 	if (!m_Object3DTerrain) return;
 
@@ -709,16 +709,6 @@ void CTerrain::Draw(bool bUseTerrainSelector, bool bDrawNormals)
 	if (bDrawNormals)
 	{
 		m_PtrDeviceContext->GSSetShader(nullptr, nullptr, 0);
-	}
-
-	if (bUseTerrainSelector)
-	{
-		m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->Wireframe());
-		m_PtrDeviceContext->PSSetShaderResources(0, 0, nullptr);
-
-		m_Object3DTerrain->Draw(true);
-
-		m_PtrGame->SetUniversalRasterizerState();
 	}
 
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);

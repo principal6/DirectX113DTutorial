@@ -1266,12 +1266,9 @@ void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
 {
 	if (!m_Terrain) return;
 
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseTerrainSelector))
-	{
-		CastPickingRay();
+	CastPickingRay();
 
-		m_Terrain->Select(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, bShouldEdit, bIsLeftButton);
-	}
+	m_Terrain->Select(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, bShouldEdit, bIsLeftButton);
 }
 
 void CGame::SetTerrainEditMode(CTerrain::EEditMode Mode)
@@ -1715,20 +1712,14 @@ void CGame::DrawTerrain()
 		m_cbDSSpaceData.VP = GetTransposedVPMatrix();
 		m_DSTerrain->UpdateConstantBuffer(0);
 
-		m_Terrain->Draw(
-			EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseTerrainSelector),
-			EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals)
-		);
+		m_Terrain->Draw(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals));
 
 		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
 		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
 	}
 	else
 	{
-		m_Terrain->Draw(
-			EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseTerrainSelector),
-			EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals)
-		);
+		m_Terrain->Draw(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals));
 	}
 	
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainHeightMapTexture))

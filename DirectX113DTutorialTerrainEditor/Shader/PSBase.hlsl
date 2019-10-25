@@ -57,6 +57,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
 		float4 Directional = CalculateDirectional(DiffuseColor, SpecularColor, SpecularExponent, SpecularIntensity,
 			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), normalize(input.WorldNormal));
+
 		// 해나 달의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
 		float Dot = dot(DirectionalLightDirection, float4(0, 1, 0, 0));
 		Directional.xyz *= pow(Dot, 0.6f);

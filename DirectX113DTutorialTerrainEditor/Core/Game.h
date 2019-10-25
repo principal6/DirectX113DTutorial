@@ -201,10 +201,9 @@ public:
 		DrawPickingData = 0x010,
 		DrawBoundingSphere = 0x020,
 		Use3DGizmos = 0x040,
-		UseTerrainSelector = 0x080,
-		TessellateTerrain = 0x100,
-		DrawTerrainHeightMapTexture = 0x200,
-		DrawTerrainMaskingTexture = 0x400
+		TessellateTerrain = 0x080,
+		DrawTerrainHeightMapTexture = 0x100,
+		DrawTerrainMaskingTexture = 0x200
 	};
 
 public:
