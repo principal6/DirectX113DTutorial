@@ -182,7 +182,7 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 
 void CTerrain::CreateWater()
 {
-	const XMVECTOR KWaterColor{ XMVectorSet(0.0f, 0.4f, 0.6f, 0.8f) };
+	const XMVECTOR KWaterColor{ XMVectorSet(0.0f, 0.5f, 0.6f, 0.9f) };
 
 	m_Object3DWater.release();
 	m_Object3DWater = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);

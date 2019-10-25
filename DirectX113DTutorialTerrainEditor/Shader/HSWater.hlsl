@@ -9,11 +9,12 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(InputPatch<VS_OUTPUT, 3> Patch, uin
 {
 	HS_CONSTANT_DATA_OUTPUT Output;
 
-	const float KTessFactor = 32.0f;
+	const float KEdgeMax = 16.0f;
+	const float KInsideMax = 32.0f;
 	float4 CenterPosition = (Patch[0].WorldPosition + Patch[1].WorldPosition + Patch[2].WorldPosition) / 3.0f;
 	float Distance = distance(CenterPosition, EyePosition);
-	float Edge = KTessFactor;
-	float Inside = KTessFactor / Distance;
+	float Edge = KEdgeMax;
+	float Inside = KInsideMax / Distance;
 	
 	if (Distance >= 75.0f) Edge = Inside = 0.0f;
 
