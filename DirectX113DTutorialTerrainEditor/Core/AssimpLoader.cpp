@@ -214,11 +214,16 @@ vector<CMaterial> CAssimpLoader::LoadMaterialsFromFile(const aiScene* Scene, ID3
 			}
 		}
 
+		if (aiAmbient.r == 0.0f && aiAmbient.g == 0.0f && aiAmbient.b == 0.0f)
+		{
+			aiAmbient = aiDiffuse;
+		}
+
 		CurrentMaterial.SetAmbientColor(XMFLOAT3(aiAmbient.r, aiAmbient.g, aiAmbient.b));
 		CurrentMaterial.SetDiffuseColor(XMFLOAT3(aiDiffuse.r, aiDiffuse.g, aiDiffuse.b));
 		CurrentMaterial.SetSpecularColor(XMFLOAT3(aiSpecular.r, aiSpecular.g, aiSpecular.b));
-		CurrentMaterial.SetSpecularExponent(1.0f);
-		CurrentMaterial.SetSpecularIntensity(aiShininess);
+		CurrentMaterial.SetSpecularExponent(aiShininess);
+		CurrentMaterial.SetSpecularIntensity(1.0f);
 	}
 
 	return vMaterials;

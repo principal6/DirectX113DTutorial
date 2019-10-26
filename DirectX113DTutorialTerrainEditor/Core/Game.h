@@ -45,29 +45,6 @@ enum class EBaseShader
 	PSHeightMap2D
 };
 
-enum class ERasterizerState
-{
-	CullNone,
-	CullClockwise,
-	CullCounterClockwise,
-	WireFrame
-};
-
-enum class E3DGizmoMode
-{
-	Translation,
-	Rotation,
-	Scaling
-};
-
-enum class E3DGizmoAxis
-{
-	None,
-	AxisX,
-	AxisY,
-	AxisZ
-};
-
 struct SSkyData
 {
 	struct SSkyObjectData
@@ -199,6 +176,35 @@ public:
 		DrawTerrainMaskingTexture = 0x200
 	};
 
+	enum class ERasterizerState
+	{
+		CullNone,
+		CullClockwise,
+		CullCounterClockwise,
+		WireFrame
+	};
+
+	enum class E3DGizmoMode
+	{
+		Translation,
+		Rotation,
+		Scaling
+	};
+
+	enum class E3DGizmoAxis
+	{
+		None,
+		AxisX,
+		AxisY,
+		AxisZ
+	};
+
+	enum class EEditMode
+	{
+		EditObject,
+		EditTerrain
+	};
+
 public:
 	CGame(HINSTANCE hInstance, const XMFLOAT2& WindowSize) : m_hInstance{ hInstance }, m_WindowSize{ WindowSize } {}
 	~CGame() {}
@@ -311,13 +317,14 @@ public:
 	CMaterial::CTexture* GetMaterialNormalTexture(const string& Name);
 
 public:
+	void SetEditMode(EEditMode Mode);
 	void Pick();
 	void PickObject3D(const string& Name);
-	void ReleasePickedGameObject();
+	void ReleaseCapturedObject3D();
+	const char* GetPickedObject3DName() const;
+	const char* GetCapturedObject3DName() const;
 	bool IsObjectPicked() const { return m_PtrPickedObject3D; };
 	bool IsObjectCaptured() const { return m_PtrCapturedPickedObject3D; }
-	void StartInteraction() { m_bIsInteracting = true; }
-	void EndInteraction() { m_bIsInteracting = false; }
 
 private:
 	void CastPickingRay();
@@ -346,8 +353,6 @@ public:
 	SpriteBatch* GetSpriteBatchPtr() { return m_SpriteBatch.get(); }
 	SpriteFont* GetSpriteFontPtr() { return m_SpriteFont.get(); }
 	const XMFLOAT2& GetWindowSize() const;
-	const char* GetPickedGameObject3DName() const;
-	const char* GetCapturedPickedGameObject3DName() const;
 	const XMFLOAT2& GetTerrainSelectionPosition() const;
 	float GetSkyTime() const;
 	XMMATRIX GetTransposedVPMatrix() const;
@@ -358,9 +363,9 @@ private:
 	void DrawObject3D(CObject3D* PtrObject3D);
 	void DrawObject3DBoundingSphere(CObject3D* PtrObject3D);
 
-	void DrawGameObject3DLines();
+	void DrawObject3DLines();
 
-	void DrawGameObject2Ds();
+	void DrawObject2Ds();
 
 	void DrawMiniAxes();
 
@@ -385,9 +390,9 @@ public:
 	static constexpr float KTranslationUnit{ +0.1f };
 	static constexpr float KRotationMaxLimit{ +XM_2PI };
 	static constexpr float KRotationMinLimit{ -XM_2PI };
-	static constexpr float KRotation360MaxLimit{ +360.0f };
-	static constexpr float KRotation360MinLimit{ -360.0f };
-	static constexpr float KRotation360Unit{ +1.0f };
+	static constexpr int KRotation360MaxLimit{ 360 };
+	static constexpr int KRotation360MinLimit{ 360 };
+	static constexpr int KRotation360Unit{ 1 };
 	static constexpr float KRotation360To2PI{ 1.0f / 360.0f * XM_2PI };
 	static constexpr float KRotation2PITo360{ 1.0f / XM_2PI * 360.0f };
 	static constexpr float KScalingMaxLimit{ +100.0f };
@@ -540,7 +545,7 @@ private:
 	XMVECTOR	m_PickedTriangleV0{};
 	XMVECTOR	m_PickedTriangleV1{};
 	XMVECTOR	m_PickedTriangleV2{};
-	bool		m_bIsInteracting{ false };
+	EEditMode	m_eEditMode{};
 
 private:
 	unique_ptr<CTerrain>	m_Terrain{};

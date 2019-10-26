@@ -93,7 +93,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			}
 			if (KeyState.Escape)
 			{
-				Game.ReleasePickedGameObject();
+				Game.ReleaseCapturedObject3D();
 			}
 			if (!ImGui::IsAnyItemActive())
 			{
@@ -115,15 +115,15 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				}
 				if (KeyState.D1)
 				{
-					Game.Set3DGizmoMode(E3DGizmoMode::Translation);
+					Game.Set3DGizmoMode(CGame::E3DGizmoMode::Translation);
 				}
 				if (KeyState.D2)
 				{
-					Game.Set3DGizmoMode(E3DGizmoMode::Rotation);
+					Game.Set3DGizmoMode(CGame::E3DGizmoMode::Rotation);
 				}
 				if (KeyState.D3)
 				{
-					Game.Set3DGizmoMode(E3DGizmoMode::Scaling);
+					Game.Set3DGizmoMode(CGame::E3DGizmoMode::Scaling);
 				}
 			}
 			
@@ -154,20 +154,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					if (bLeftButton)
 					{
 						Game.Pick();
-						Game.StartInteraction();
 					}
 
 					if (bRightButton)
 					{
-						Game.ReleasePickedGameObject();
-						Game.EndInteraction();
+						Game.ReleaseCapturedObject3D();
 					}
 
-					if (!Game.IsObjectCaptured())
-					{
-						Game.SelectTerrain(true, bLeftButton);
-						Game.StartInteraction();
-					}
+					Game.SelectTerrain(true, bLeftButton);
 				}
 				
 				if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
@@ -194,10 +188,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			ImGui::PushFont(igFont);
 
 			{
-				static bool bShowTerrainEditor{ true };
-				static bool bShowMaterialEditor{ true };
-				static bool bShowCameraEditor{ true };
-				static bool bShowLightEditor{ true };
+				static bool bShowPropertyEditor{ true };
 				static bool bShowSceneEditor{ true };
 				static bool bShowTerrainGenerator{ false };
 				static bool bShowOpenFileDialog{ false };
@@ -244,10 +235,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (ImGui::BeginMenu(u8"창"))
 					{
-						ImGui::MenuItem(u8"지형 편집기", nullptr, &bShowTerrainEditor);
-						ImGui::MenuItem(u8"재질 편집기", nullptr, &bShowMaterialEditor);
-						ImGui::MenuItem(u8"카메라 편집기", nullptr, &bShowCameraEditor);
-						ImGui::MenuItem(u8"조명 편집기", nullptr, &bShowLightEditor);
+						ImGui::MenuItem(u8"속성 편집기", nullptr, &bShowPropertyEditor);
 						ImGui::MenuItem(u8"장면 편집기", nullptr, &bShowSceneEditor);
 						
 						ImGui::EndMenu();
@@ -327,524 +315,566 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				}
 
 
-				// ### 지형 편집기 윈도우 ###
-				if (bShowTerrainEditor)
+				// ### 속성 편집기 윈도우 ###
+				if (bShowPropertyEditor)
 				{
-					ImGui::SetNextWindowPos(ImVec2(500, 22), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(300, 400));
-					if (ImGui::Begin(u8"지형 편집기", &bShowTerrainEditor, ImGuiWindowFlags_AlwaysAutoResize))
+					ImGui::SetNextWindowPos(ImVec2(400, 22), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSizeConstraints(ImVec2(400, 100), ImVec2(400, 600));
+					if (ImGui::Begin(u8"속성 편집기", &bShowPropertyEditor, ImGuiWindowFlags_AlwaysAutoResize))
 					{
-						CTerrain* Terrain{ Game.GetTerrain() };
-						if (Terrain)
+						if (ImGui::BeginTabBar(u8"탭바", ImGuiTabBarFlags_None))
 						{
-							static bool bShouldRecalculateTerrainVertexNormals{ false };
-							static float TerrainSelectionSize{ CTerrain::KSelectionMinSize };
-							static float TerrainSetHeightValue{};
-							static float TerrainDeltaHeightValue{ CTerrain::KHeightUnit };
-							static int TerrainMaskingLayer{};
-							static float TerrainMaskingRadius{ CTerrain::KMaskingDefaultRadius };
-							static float TerrainMaskingRatio{ CTerrain::KMaskingDefaultRatio };
-							static float TerrainMaskingAttenuation{ CTerrain::KMaskingDefaultAttenuation };
-							const char* Lists[]{ u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<마스킹 모드>" };
-							static int iSelectedItem{};
-
-							const XMFLOAT2& TerrainSize{ Game.GetTerrain()->GetSize() };
-							ImGui::Text(u8"가로 x 세로: %d x %d", (int)TerrainSize.x, (int)TerrainSize.y);
-							ImGui::Text(u8"마스킹 디테일: %d", (int)Game.GetTerrain()->GetMaskingDetail());
-
-							ImGui::SetNextItemWidth(100);
-							float WaterHeight{ Terrain->GetWaterHeight() };
-							if (ImGui::DragFloat(u8"물 높이", &WaterHeight, CTerrain::KWaterHeightUnit, 
-								CTerrain::KWaterMinHeight, CTerrain::KWaterMaxHeight, "%.1f"))
+							if (ImGui::BeginTabItem(u8"오브젝트"))
 							{
-								Terrain->SetWaterHeight(WaterHeight);
+								Game.SetEditMode(CGame::EEditMode::EditObject);
+
+								const char* KCapturedObject3DName{ Game.GetCapturedObject3DName() };
+								if (KCapturedObject3DName)
+								{
+									CObject3D* Object3D{ Game.GetObject3D(KCapturedObject3DName) };
+
+									ImGui::Text(u8"선택된 오브젝트: <%s>", KCapturedObject3DName);
+
+									float Translation[3]{ XMVectorGetX(Object3D->ComponentTransform.Translation),
+										XMVectorGetY(Object3D->ComponentTransform.Translation), XMVectorGetZ(Object3D->ComponentTransform.Translation) };
+									if (ImGui::DragFloat3(u8"위치", Translation, CGame::KTranslationUnit,
+										CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.1f"))
+									{
+										Object3D->ComponentTransform.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
+										Object3D->UpdateWorldMatrix();
+									}
+
+									int PitchYawRoll360[3]{ (int)(Object3D->ComponentTransform.Pitch * CGame::KRotation2PITo360),
+										(int)(Object3D->ComponentTransform.Yaw * CGame::KRotation2PITo360), 
+										(int)(Object3D->ComponentTransform.Roll * CGame::KRotation2PITo360) };
+									if (ImGui::DragInt3(u8"회전", PitchYawRoll360, CGame::KRotation360Unit,
+										CGame::KRotation360MinLimit, CGame::KRotation360MaxLimit))
+									{
+										Object3D->ComponentTransform.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
+										Object3D->ComponentTransform.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
+										Object3D->ComponentTransform.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
+										Object3D->UpdateWorldMatrix();
+									}
+
+									float Scaling[3]{ XMVectorGetX(Object3D->ComponentTransform.Scaling),
+										XMVectorGetY(Object3D->ComponentTransform.Scaling), XMVectorGetZ(Object3D->ComponentTransform.Scaling) };
+									if (ImGui::DragFloat3(u8"크기", Scaling, CGame::KScalingUnit,
+										CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.2f"))
+									{
+										Object3D->ComponentTransform.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
+										Object3D->UpdateWorldMatrix();
+									}
+								}
+								else
+								{
+									ImGui::Text(u8"<먼저 오브젝트를 선택하세요.>");
+								}
+
+								ImGui::EndTabItem();
 							}
 
-							ImGui::Separator();
-
-							for (int iListItem = 0; iListItem < ARRAYSIZE(Lists); ++iListItem)
+							if (ImGui::BeginTabItem(u8"지형"))
 							{
-								if (ImGui::Selectable(Lists[iListItem], (iListItem == iSelectedItem) ? true : false))
-								{
-									iSelectedItem = iListItem;
+								Game.SetEditMode(CGame::EEditMode::EditTerrain);
 
-									switch (iSelectedItem)
+								CTerrain* Terrain{ Game.GetTerrain() };
+								if (Terrain)
+								{
+									static bool bShouldRecalculateTerrainVertexNormals{ false };
+									static float TerrainSelectionSize{ CTerrain::KSelectionMinSize };
+									static float TerrainSetHeightValue{};
+									static float TerrainDeltaHeightValue{ CTerrain::KHeightUnit };
+									static int TerrainMaskingLayer{};
+									static float TerrainMaskingRadius{ CTerrain::KMaskingDefaultRadius };
+									static float TerrainMaskingRatio{ CTerrain::KMaskingDefaultRatio };
+									static float TerrainMaskingAttenuation{ CTerrain::KMaskingDefaultAttenuation };
+									const char* Lists[]{ u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<마스킹 모드>" };
+									static int iSelectedItem{};
+
+									const XMFLOAT2& TerrainSize{ Game.GetTerrain()->GetSize() };
+									ImGui::Text(u8"가로 x 세로: %d x %d", (int)TerrainSize.x, (int)TerrainSize.y);
+									ImGui::Text(u8"마스킹 디테일: %d", (int)Game.GetTerrain()->GetMaskingDetail());
+
+									ImGui::SetNextItemWidth(100);
+									float WaterHeight{ Terrain->GetWaterHeight() };
+									if (ImGui::DragFloat(u8"물 높이", &WaterHeight, CTerrain::KWaterHeightUnit,
+										CTerrain::KWaterMinHeight, CTerrain::KWaterMaxHeight, "%.1f"))
 									{
-									case 0:
-										Game.SetTerrainEditMode(CTerrain::EEditMode::SetHeight);
-										break;
-									case 1:
-										Game.SetTerrainEditMode(CTerrain::EEditMode::DeltaHeight);
-										break;
-									case 2:
-										Game.SetTerrainEditMode(CTerrain::EEditMode::Masking);
-										break;
-									default:
-										break;
+										Terrain->SetWaterHeight(WaterHeight);
 									}
-								}
-							}
-
-							if (iSelectedItem == 0)
-							{
-								ImGui::PushItemWidth(100);
-								if (ImGui::DragFloat(u8"지정할 높이", &TerrainSetHeightValue, CTerrain::KHeightUnit,
-									CTerrain::KMinHeight, CTerrain::KMaxHeight, "%.1f"))
-								{
-									Game.GetTerrain()->SetSetHeightValue(TerrainSetHeightValue);
-								}
-								ImGui::PopItemWidth();
-							}
-							else if (iSelectedItem == 2)
-							{
-								ImGui::PushItemWidth(100);
-								if (ImGui::SliderInt(u8"마스킹 레이어", &TerrainMaskingLayer, 0, CTerrain::KMaterialMaxCount - 2))
-								{
-									switch (TerrainMaskingLayer)
-									{
-									case 0:
-										Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerR);
-										break;
-									case 1:
-										Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerG);
-										break;
-									case 2:
-										Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerB);
-										break;
-									case 3:
-										Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerA);
-										break;
-									default:
-										break;
-									}
-								}
-								ImGui::PopItemWidth();
-
-								ImGui::PushItemWidth(100);
-								if (ImGui::DragFloat(u8"마스킹 배합 비율", &TerrainMaskingRatio, CTerrain::KMaskingRatioUnit, 
-									CTerrain::KMaskingMinRatio, CTerrain::KMaskingMaxRatio, "%.3f"))
-								{
-									Game.GetTerrain()->SetMaskingValue(TerrainMaskingRatio);
-								}
-								ImGui::PopItemWidth();
-
-								ImGui::PushItemWidth(100);
-								if (ImGui::DragFloat(u8"마스킹 감쇠", &TerrainMaskingAttenuation, CTerrain::KMaskingAttenuationUnit,
-									CTerrain::KMaskingMinAttenuation, CTerrain::KMaskingMaxAttenuation, "%.3f"))
-								{
-									Game.SetTerrainMaskingAttenuation(TerrainMaskingAttenuation);
-								}
-								ImGui::PopItemWidth();
-							}
-
-							if (iSelectedItem == 2)
-							{
-								ImGui::PushItemWidth(100);
-								if (ImGui::DragFloat(u8"마스킹 반지름", &TerrainMaskingRadius, CTerrain::KMaskingRadiusUnit,
-									CTerrain::KMaskingMinRadius, CTerrain::KMaskingMaxRadius, "%.1f"))
-								{
-									Game.SetTerrainMaskingSize(TerrainMaskingRadius);
-								}
-								if (MouseState.scrollWheelValue)
-								{
-									if (MouseState.scrollWheelValue > 0) TerrainMaskingRadius += CTerrain::KMaskingRadiusUnit;
-									if (MouseState.scrollWheelValue < 0) TerrainMaskingRadius -= CTerrain::KMaskingRadiusUnit;
-									Game.SetTerrainMaskingSize(TerrainMaskingRadius);
-								}
-								ImGui::PopItemWidth();
-							}
-							else
-							{
-								ImGui::PushItemWidth(100);
-								if (ImGui::DragFloat(u8"지형 선택 크기", &TerrainSelectionSize, CTerrain::KSelectionSizeUnit,
-									CTerrain::KSelectionMinSize, CTerrain::KSelectionMaxSize, "%.0f"))
-								{
-									Game.SetTerrainSelectionSize(TerrainSelectionSize);
-								}
-								if (MouseState.scrollWheelValue)
-								{
-									if (MouseState.scrollWheelValue > 0) TerrainSelectionSize += CTerrain::KSelectionSizeUnit;
-									if (MouseState.scrollWheelValue < 0) TerrainSelectionSize -= CTerrain::KSelectionSizeUnit;
-									Game.SetTerrainSelectionSize(TerrainSelectionSize);
-								}
-								ImGui::PopItemWidth();
-							}
-
-							ImGui::Separator();
-
-							ImGui::Text(u8"현재 선택 위치: (%.0f, %.0f)", Game.GetTerrainSelectionPosition().x, Game.GetTerrainSelectionPosition().y);
-
-							ImGui::Separator();
-
-							static bool bShowMaterialSelection{ false };
-							static int iSelectedMaterialID{};
-							if (Game.GetTerrain())
-							{
-								if (ImGui::Button(u8"재질 추가"))
-								{
-									iSelectedMaterialID = -1;
-									ImGui::OpenPopup(u8"재질 선택");
-								}
-
-								for (int iMaterial = 0; iMaterial < Game.GetTerrain()->GetMaterialCount(); ++iMaterial)
-								{
-									ImGui::PushItemWidth(100);
-									ImGui::PushID(iMaterial);
-									if (ImGui::Button(u8"변경"))
-									{
-										iSelectedMaterialID = iMaterial;
-										bShowMaterialSelection = true;
-									}
-									ImGui::PopID();
-									ImGui::PopItemWidth();
-
-									ImGui::SameLine();
-									
-									const CMaterial& Material{ Game.GetTerrain()->GetMaterial(iMaterial) };
-									ImGui::Text(u8"재질[%d] %s", iMaterial, Material.GetName().c_str());
-								}
-							}
-							else
-							{
-								ImGui::Text(u8"텍스쳐: 없음");
-							}
-
-							if (bShowMaterialSelection) ImGui::OpenPopup(u8"재질 선택");
-							if (ImGui::BeginPopup(u8"재질 선택", ImGuiWindowFlags_AlwaysAutoResize))
-							{
-								static int ListIndex{};
-								static const string* SelectedMaterialName{};
-								const auto& mapMaterial{ Game.GetMaterialMap() };
-
-								if (ImGui::ListBoxHeader("", (int)mapMaterial.size()))
-								{
-									int iListItem{};
-									for (const auto& pairMaterial : mapMaterial)
-									{
-										if (ImGui::Selectable(pairMaterial.first.c_str(), (iListItem == ListIndex) ? true : false))
-										{
-											ListIndex = iListItem;
-											SelectedMaterialName = &pairMaterial.first;
-										}
-										++iListItem;
-									}
-									ImGui::ListBoxFooter();
-								}
-
-								if (ImGui::Button(u8"결정"))
-								{
-									if (SelectedMaterialName)
-									{
-										if (iSelectedMaterialID == -1)
-										{
-											Game.AddTerrainMaterial(*Game.GetMaterial(*SelectedMaterialName));
-										}
-										else
-										{
-											Game.SetTerrainMaterial(iSelectedMaterialID, *Game.GetMaterial(*SelectedMaterialName));
-										}
-									}
-
-									ImGui::CloseCurrentPopup();
-								}
-
-								bShowMaterialSelection = false;
-
-								ImGui::EndPopup();
-							}
-						}
-						else
-						{
-							ImGui::Text(u8"<먼저 지형을 만들거나 불러오세요.>");
-						}
-					}
-
-					ImGui::End();
-				}
-
-				// ### 재질 편집기 윈도우 ###
-				if (bShowMaterialEditor)
-				{
-					ImGui::SetNextWindowPos(ImVec2(400, 400), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSizeConstraints(ImVec2(400, 60), ImVec2(400, 400));
-					if (ImGui::Begin(u8"재질 편집기", &bShowMaterialEditor, ImGuiWindowFlags_AlwaysAutoResize))
-					{
-						ImGui::PushID(0);
-						if (ImGui::Button(u8"새 재질 추가"))
-						{
-							size_t Count{ Game.GetMaterialCount() };
-
-							CMaterial Material{};
-							Material.SetName("Material" + to_string(Count));
-							Material.ShouldGenerateAutoMipMap(true);
-
-							Game.AddMaterial(Material);
-						}
-						ImGui::PopID();
-
-						if (ImGui::CollapsingHeader(u8"재질 목록", ImGuiTreeNodeFlags_SpanAvailWidth))
-						{
-							static constexpr float KUniformWidth{ 180.0f };
-							static float AmbientColor[3]{};
-							static float DiffuseColor[3]{};
-							static float SpecularColor[3]{};
-							static float SpecularExponent{};
-							static float SpecularIntensity{};
-							static constexpr const char KLabelAdd[]{ u8"추가" };
-							static constexpr const char KLabelChange[]{ u8"변경" };
-
-							static constexpr size_t KNameMaxLength{ 255 };
-							static char OldName[KNameMaxLength]{};
-							static char NewName[KNameMaxLength]{};
-							static bool bShowMaterialNameChangeWindow{ false };
-							const auto& mapMaterialList{ Game.GetMaterialMap() };
-							for (auto& pairMaterial : mapMaterialList)
-							{
-								CMaterial* Material{ Game.GetMaterial(pairMaterial.first) };
-								
-								if (ImGui::TreeNodeEx(pairMaterial.first.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth))
-								{
-									if (ImGui::Button(u8"이름 변경"))
-									{
-										strcpy_s(OldName, Material->GetName().c_str());
-										strcpy_s(NewName, Material->GetName().c_str());
-
-										bShowMaterialNameChangeWindow = true;
-									}
-
-									ImGui::SetNextItemWidth(KUniformWidth);
-									const XMFLOAT3& AmbientColor3{ Material->GetAmbientColor() };
-									AmbientColor[0] = AmbientColor3.x;
-									AmbientColor[1] = AmbientColor3.y;
-									AmbientColor[2] = AmbientColor3.z;
-									if (ImGui::ColorEdit3(u8"환경광(Ambient)", AmbientColor, ImGuiColorEditFlags_RGB))
-									{
-										Material->SetAmbientColor(XMFLOAT3(AmbientColor[0], AmbientColor[1], AmbientColor[2]));
-									}
-
-									ImGui::SetNextItemWidth(KUniformWidth);
-									const XMFLOAT3& DiffuseColor3{ Material->GetDiffuseColor() };
-									DiffuseColor[0] = DiffuseColor3.x;
-									DiffuseColor[1] = DiffuseColor3.y;
-									DiffuseColor[2] = DiffuseColor3.z;
-									if (ImGui::ColorEdit3(u8"난반사광(Diffuse)", DiffuseColor, ImGuiColorEditFlags_RGB))
-									{
-										Material->SetDiffuseColor(XMFLOAT3(DiffuseColor[0], DiffuseColor[1], DiffuseColor[2]));
-									}
-
-									ImGui::SetNextItemWidth(KUniformWidth);
-									const XMFLOAT3& SpecularColor3{ Material->GetSpecularColor() };
-									SpecularColor[0] = SpecularColor3.x;
-									SpecularColor[1] = SpecularColor3.y;
-									SpecularColor[2] = SpecularColor3.z;
-									if (ImGui::ColorEdit3(u8"정반사광(Specular)", SpecularColor, ImGuiColorEditFlags_RGB))
-									{
-										Material->SetSpecularColor(XMFLOAT3(SpecularColor[0], SpecularColor[1], SpecularColor[2]));
-									}
-
-									ImGui::SetNextItemWidth(KUniformWidth);
-									SpecularExponent = Material->GetSpecularExponent();
-									if (ImGui::DragFloat(u8"정반사광(Specular) 지수", &SpecularExponent, 0.001f, 0.0f, 1.0f, "%.3f"))
-									{
-										Material->SetSpecularExponent(SpecularExponent);
-									}
-
-									ImGui::SetNextItemWidth(KUniformWidth);
-									SpecularIntensity = Material->GetSpecularIntensity();
-									if (ImGui::DragFloat(u8"정반사광(Specular) 강도", &SpecularIntensity, 0.001f, 0.0f, 1.0f, "%.3f"))
-									{
-										Material->SetSpecularIntensity(SpecularIntensity);
-									}
-									
-									static constexpr const char KTextureDialogFilter[]{ "PNG 파일\0*.png\0JPG 파일\0*.jpg\0모든 파일\0*.*\0" };
-									static constexpr const char KTextureDialogTitle[]{ "텍스쳐 불러오기" };
-									
-									// Diffuse texture
-									{
-										const char* PtrDiffuseTextureLabel{ KLabelAdd };
-										if (Material->HasDiffuseTexture())
-										{
-											ImGui::Image(Game.GetMaterialDiffuseTexture(pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
-											ImGui::SameLine();
-											ImGui::SetNextItemWidth(KUniformWidth);
-											ImGui::Text(u8"Diffuse 텍스쳐");
-
-											PtrDiffuseTextureLabel = KLabelChange;
-										}
-										else
-										{
-											ImGui::Image(0, ImVec2(100, 100));
-											ImGui::SameLine();
-											ImGui::SetNextItemWidth(KUniformWidth);
-											ImGui::Text(u8"Diffuse 텍스쳐: 없음");
-
-											PtrDiffuseTextureLabel = KLabelAdd;
-										}
-
-										ImGui::SameLine();
-
-										ImGui::PushID(0);
-										if (ImGui::Button(PtrDiffuseTextureLabel))
-										{
-											if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
-											{
-												Material->SetDiffuseTextureFileName(Game.GetDialogFileNameWithPath());
-												Game.UpdateMaterial(pairMaterial.first);
-											}
-										}
-										ImGui::PopID();
-									}
-									
-									// Normal texture
-									{
-										const char* PtrNormalTextureLabel{ KLabelAdd };
-										if (Material->HasNormalTexture())
-										{
-											ImGui::Image(Game.GetMaterialNormalTexture(pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
-											ImGui::SameLine();
-											ImGui::Text(u8"Normal 텍스쳐");
-
-											PtrNormalTextureLabel = KLabelChange;
-										}
-										else
-										{
-											ImGui::Image(0, ImVec2(100, 100));
-											ImGui::SameLine();
-											ImGui::SetNextItemWidth(KUniformWidth);
-											ImGui::Text(u8"Normal 텍스쳐: 없음");
-
-											PtrNormalTextureLabel = KLabelAdd;
-										}
-
-										ImGui::SameLine();
-
-										ImGui::PushID(1);
-										if (ImGui::Button(PtrNormalTextureLabel))
-										{
-											if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
-											{
-												Material->SetNormalTextureFileName(Game.GetDialogFileNameWithPath());
-												Game.UpdateMaterial(pairMaterial.first);
-											}
-										}
-										ImGui::PopID();
-									}
-
-									ImGui::TreePop();
-								}
-							}
-
-							// ### 재질 이름 변경 윈도우 ###
-							if (bShowMaterialNameChangeWindow) ImGui::OpenPopup(u8"재질 이름 변경");
-							{
-								ImGui::SetNextWindowSize(ImVec2(240, 100), ImGuiCond_Always);
-								if (ImGui::BeginPopupModal(u8"재질 이름 변경", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
-								{
-									ImGui::SetNextItemWidth(160);
-									ImGui::InputText(u8"새 이름", NewName, KNameMaxLength, ImGuiInputTextFlags_EnterReturnsTrue);
 
 									ImGui::Separator();
 
-									if (ImGui::Button(u8"결정") || ImGui::IsKeyDown(VK_RETURN))
+									for (int iListItem = 0; iListItem < ARRAYSIZE(Lists); ++iListItem)
 									{
-										if (mapMaterialList.find(NewName) != mapMaterialList.end())
+										if (ImGui::Selectable(Lists[iListItem], (iListItem == iSelectedItem) ? true : false))
 										{
-											MessageBox(nullptr, "이미 존재하는 이름입니다. 다른 이름을 골라 주세요.",
-												"이름 충돌", MB_OK | MB_ICONWARNING);
-										}
-										else
-										{
-											Game.ChangeMaterialName(OldName, NewName);
+											iSelectedItem = iListItem;
 
+											switch (iSelectedItem)
+											{
+											case 0:
+												Game.SetTerrainEditMode(CTerrain::EEditMode::SetHeight);
+												break;
+											case 1:
+												Game.SetTerrainEditMode(CTerrain::EEditMode::DeltaHeight);
+												break;
+											case 2:
+												Game.SetTerrainEditMode(CTerrain::EEditMode::Masking);
+												break;
+											default:
+												break;
+											}
+										}
+									}
+
+									if (iSelectedItem == 0)
+									{
+										ImGui::PushItemWidth(100);
+										if (ImGui::DragFloat(u8"지정할 높이", &TerrainSetHeightValue, CTerrain::KHeightUnit,
+											CTerrain::KMinHeight, CTerrain::KMaxHeight, "%.1f"))
+										{
+											Game.GetTerrain()->SetSetHeightValue(TerrainSetHeightValue);
+										}
+										ImGui::PopItemWidth();
+									}
+									else if (iSelectedItem == 2)
+									{
+										ImGui::PushItemWidth(100);
+										if (ImGui::SliderInt(u8"마스킹 레이어", &TerrainMaskingLayer, 0, CTerrain::KMaterialMaxCount - 2))
+										{
+											switch (TerrainMaskingLayer)
+											{
+											case 0:
+												Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerR);
+												break;
+											case 1:
+												Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerG);
+												break;
+											case 2:
+												Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerB);
+												break;
+											case 3:
+												Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerA);
+												break;
+											default:
+												break;
+											}
+										}
+										ImGui::PopItemWidth();
+
+										ImGui::PushItemWidth(100);
+										if (ImGui::DragFloat(u8"마스킹 배합 비율", &TerrainMaskingRatio, CTerrain::KMaskingRatioUnit,
+											CTerrain::KMaskingMinRatio, CTerrain::KMaskingMaxRatio, "%.3f"))
+										{
+											Game.GetTerrain()->SetMaskingValue(TerrainMaskingRatio);
+										}
+										ImGui::PopItemWidth();
+
+										ImGui::PushItemWidth(100);
+										if (ImGui::DragFloat(u8"마스킹 감쇠", &TerrainMaskingAttenuation, CTerrain::KMaskingAttenuationUnit,
+											CTerrain::KMaskingMinAttenuation, CTerrain::KMaskingMaxAttenuation, "%.3f"))
+										{
+											Game.SetTerrainMaskingAttenuation(TerrainMaskingAttenuation);
+										}
+										ImGui::PopItemWidth();
+									}
+
+									if (iSelectedItem == 2)
+									{
+										ImGui::PushItemWidth(100);
+										if (ImGui::DragFloat(u8"마스킹 반지름", &TerrainMaskingRadius, CTerrain::KMaskingRadiusUnit,
+											CTerrain::KMaskingMinRadius, CTerrain::KMaskingMaxRadius, "%.1f"))
+										{
+											Game.SetTerrainMaskingSize(TerrainMaskingRadius);
+										}
+										if (MouseState.scrollWheelValue)
+										{
+											if (MouseState.scrollWheelValue > 0) TerrainMaskingRadius += CTerrain::KMaskingRadiusUnit;
+											if (MouseState.scrollWheelValue < 0) TerrainMaskingRadius -= CTerrain::KMaskingRadiusUnit;
+											Game.SetTerrainMaskingSize(TerrainMaskingRadius);
+										}
+										ImGui::PopItemWidth();
+									}
+									else
+									{
+										ImGui::PushItemWidth(100);
+										if (ImGui::DragFloat(u8"지형 선택 크기", &TerrainSelectionSize, CTerrain::KSelectionSizeUnit,
+											CTerrain::KSelectionMinSize, CTerrain::KSelectionMaxSize, "%.0f"))
+										{
+											Game.SetTerrainSelectionSize(TerrainSelectionSize);
+										}
+										if (MouseState.scrollWheelValue)
+										{
+											if (MouseState.scrollWheelValue > 0) TerrainSelectionSize += CTerrain::KSelectionSizeUnit;
+											if (MouseState.scrollWheelValue < 0) TerrainSelectionSize -= CTerrain::KSelectionSizeUnit;
+											Game.SetTerrainSelectionSize(TerrainSelectionSize);
+										}
+										ImGui::PopItemWidth();
+									}
+
+									ImGui::Separator();
+
+									ImGui::Text(u8"현재 선택 위치: (%.0f, %.0f)", Game.GetTerrainSelectionPosition().x, Game.GetTerrainSelectionPosition().y);
+
+									ImGui::Separator();
+
+									static bool bShowMaterialSelection{ false };
+									static int iSelectedMaterialID{};
+									if (Game.GetTerrain())
+									{
+										if (ImGui::Button(u8"재질 추가"))
+										{
+											iSelectedMaterialID = -1;
+											ImGui::OpenPopup(u8"재질 선택");
+										}
+
+										for (int iMaterial = 0; iMaterial < Game.GetTerrain()->GetMaterialCount(); ++iMaterial)
+										{
+											ImGui::PushItemWidth(100);
+											ImGui::PushID(iMaterial);
+											if (ImGui::Button(u8"변경"))
+											{
+												iSelectedMaterialID = iMaterial;
+												bShowMaterialSelection = true;
+											}
+											ImGui::PopID();
+											ImGui::PopItemWidth();
+
+											ImGui::SameLine();
+
+											const CMaterial& Material{ Game.GetTerrain()->GetMaterial(iMaterial) };
+											ImGui::Text(u8"재질[%d] %s", iMaterial, Material.GetName().c_str());
+										}
+									}
+									else
+									{
+										ImGui::Text(u8"텍스쳐: 없음");
+									}
+
+									if (bShowMaterialSelection) ImGui::OpenPopup(u8"재질 선택");
+									if (ImGui::BeginPopup(u8"재질 선택", ImGuiWindowFlags_AlwaysAutoResize))
+									{
+										static int ListIndex{};
+										static const string* SelectedMaterialName{};
+										const auto& mapMaterial{ Game.GetMaterialMap() };
+
+										if (ImGui::ListBoxHeader("", (int)mapMaterial.size()))
+										{
+											int iListItem{};
+											for (const auto& pairMaterial : mapMaterial)
+											{
+												if (ImGui::Selectable(pairMaterial.first.c_str(), (iListItem == ListIndex) ? true : false))
+												{
+													ListIndex = iListItem;
+													SelectedMaterialName = &pairMaterial.first;
+												}
+												++iListItem;
+											}
+											ImGui::ListBoxFooter();
+										}
+
+										if (ImGui::Button(u8"결정"))
+										{
+											if (SelectedMaterialName)
+											{
+												if (iSelectedMaterialID == -1)
+												{
+													Game.AddTerrainMaterial(*Game.GetMaterial(*SelectedMaterialName));
+												}
+												else
+												{
+													Game.SetTerrainMaterial(iSelectedMaterialID, *Game.GetMaterial(*SelectedMaterialName));
+												}
+											}
+
+											ImGui::CloseCurrentPopup();
+										}
+
+										bShowMaterialSelection = false;
+
+										ImGui::EndPopup();
+									}
+								}
+								else
+								{
+									ImGui::Text(u8"<먼저 지형을 만들거나 불러오세요.>");
+								}
+
+								ImGui::EndTabItem();
+							}
+
+							if (ImGui::BeginTabItem(u8"재질"))
+							{
+								ImGui::PushID(0);
+								if (ImGui::Button(u8"새 재질 추가"))
+								{
+									size_t Count{ Game.GetMaterialCount() };
+
+									CMaterial Material{};
+									Material.SetName("Material" + to_string(Count));
+									Material.ShouldGenerateAutoMipMap(true);
+
+									Game.AddMaterial(Material);
+								}
+								ImGui::PopID();
+
+								static constexpr float KUniformWidth{ 180.0f };
+								static float AmbientColor[3]{};
+								static float DiffuseColor[3]{};
+								static float SpecularColor[3]{};
+								static float SpecularExponent{};
+								static float SpecularIntensity{};
+								static constexpr const char KLabelAdd[]{ u8"추가" };
+								static constexpr const char KLabelChange[]{ u8"변경" };
+
+								static constexpr size_t KNameMaxLength{ 255 };
+								static char OldName[KNameMaxLength]{};
+								static char NewName[KNameMaxLength]{};
+								static bool bShowMaterialNameChangeWindow{ false };
+								const auto& mapMaterialList{ Game.GetMaterialMap() };
+								for (auto& pairMaterial : mapMaterialList)
+								{
+									CMaterial* Material{ Game.GetMaterial(pairMaterial.first) };
+
+									if (ImGui::TreeNodeEx(pairMaterial.first.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth))
+									{
+										if (ImGui::Button(u8"이름 변경"))
+										{
+											strcpy_s(OldName, Material->GetName().c_str());
+											strcpy_s(NewName, Material->GetName().c_str());
+
+											bShowMaterialNameChangeWindow = true;
+										}
+
+										ImGui::SetNextItemWidth(KUniformWidth);
+										const XMFLOAT3& AmbientColor3{ Material->GetAmbientColor() };
+										AmbientColor[0] = AmbientColor3.x;
+										AmbientColor[1] = AmbientColor3.y;
+										AmbientColor[2] = AmbientColor3.z;
+										if (ImGui::ColorEdit3(u8"환경광(Ambient)", AmbientColor, ImGuiColorEditFlags_RGB))
+										{
+											Material->SetAmbientColor(XMFLOAT3(AmbientColor[0], AmbientColor[1], AmbientColor[2]));
+										}
+
+										ImGui::SetNextItemWidth(KUniformWidth);
+										const XMFLOAT3& DiffuseColor3{ Material->GetDiffuseColor() };
+										DiffuseColor[0] = DiffuseColor3.x;
+										DiffuseColor[1] = DiffuseColor3.y;
+										DiffuseColor[2] = DiffuseColor3.z;
+										if (ImGui::ColorEdit3(u8"난반사광(Diffuse)", DiffuseColor, ImGuiColorEditFlags_RGB))
+										{
+											Material->SetDiffuseColor(XMFLOAT3(DiffuseColor[0], DiffuseColor[1], DiffuseColor[2]));
+										}
+
+										ImGui::SetNextItemWidth(KUniformWidth);
+										const XMFLOAT3& SpecularColor3{ Material->GetSpecularColor() };
+										SpecularColor[0] = SpecularColor3.x;
+										SpecularColor[1] = SpecularColor3.y;
+										SpecularColor[2] = SpecularColor3.z;
+										if (ImGui::ColorEdit3(u8"정반사광(Specular)", SpecularColor, ImGuiColorEditFlags_RGB))
+										{
+											Material->SetSpecularColor(XMFLOAT3(SpecularColor[0], SpecularColor[1], SpecularColor[2]));
+										}
+
+										ImGui::SetNextItemWidth(KUniformWidth);
+										SpecularExponent = Material->GetSpecularExponent();
+										if (ImGui::DragFloat(u8"정반사광(Specular) 지수", &SpecularExponent, 0.001f, 0.0f, 1.0f, "%.3f"))
+										{
+											Material->SetSpecularExponent(SpecularExponent);
+										}
+
+										ImGui::SetNextItemWidth(KUniformWidth);
+										SpecularIntensity = Material->GetSpecularIntensity();
+										if (ImGui::DragFloat(u8"정반사광(Specular) 강도", &SpecularIntensity, 0.001f, 0.0f, 1.0f, "%.3f"))
+										{
+											Material->SetSpecularIntensity(SpecularIntensity);
+										}
+
+										static constexpr const char KTextureDialogFilter[]{ "PNG 파일\0*.png\0JPG 파일\0*.jpg\0모든 파일\0*.*\0" };
+										static constexpr const char KTextureDialogTitle[]{ "텍스쳐 불러오기" };
+
+										// Diffuse texture
+										{
+											const char* PtrDiffuseTextureLabel{ KLabelAdd };
+											if (Material->HasDiffuseTexture())
+											{
+												ImGui::Image(Game.GetMaterialDiffuseTexture(pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
+												ImGui::SameLine();
+												ImGui::SetNextItemWidth(KUniformWidth);
+												ImGui::Text(u8"Diffuse 텍스쳐");
+
+												PtrDiffuseTextureLabel = KLabelChange;
+											}
+											else
+											{
+												ImGui::Image(0, ImVec2(100, 100));
+												ImGui::SameLine();
+												ImGui::SetNextItemWidth(KUniformWidth);
+												ImGui::Text(u8"Diffuse 텍스쳐: 없음");
+
+												PtrDiffuseTextureLabel = KLabelAdd;
+											}
+
+											ImGui::SameLine();
+
+											ImGui::PushID(0);
+											if (ImGui::Button(PtrDiffuseTextureLabel))
+											{
+												if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
+												{
+													Material->SetDiffuseTextureFileName(Game.GetDialogFileNameWithPath());
+													Game.UpdateMaterial(pairMaterial.first);
+												}
+											}
+											ImGui::PopID();
+										}
+
+										// Normal texture
+										{
+											const char* PtrNormalTextureLabel{ KLabelAdd };
+											if (Material->HasNormalTexture())
+											{
+												ImGui::Image(Game.GetMaterialNormalTexture(pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
+												ImGui::SameLine();
+												ImGui::Text(u8"Normal 텍스쳐");
+
+												PtrNormalTextureLabel = KLabelChange;
+											}
+											else
+											{
+												ImGui::Image(0, ImVec2(100, 100));
+												ImGui::SameLine();
+												ImGui::SetNextItemWidth(KUniformWidth);
+												ImGui::Text(u8"Normal 텍스쳐: 없음");
+
+												PtrNormalTextureLabel = KLabelAdd;
+											}
+
+											ImGui::SameLine();
+
+											ImGui::PushID(1);
+											if (ImGui::Button(PtrNormalTextureLabel))
+											{
+												if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
+												{
+													Material->SetNormalTextureFileName(Game.GetDialogFileNameWithPath());
+													Game.UpdateMaterial(pairMaterial.first);
+												}
+											}
+											ImGui::PopID();
+										}
+
+										ImGui::TreePop();
+									}
+								}
+
+								// ### 재질 이름 변경 윈도우 ###
+								if (bShowMaterialNameChangeWindow) ImGui::OpenPopup(u8"재질 이름 변경");
+								{
+									ImGui::SetNextWindowSize(ImVec2(240, 100), ImGuiCond_Always);
+									if (ImGui::BeginPopupModal(u8"재질 이름 변경", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+									{
+										ImGui::SetNextItemWidth(160);
+										ImGui::InputText(u8"새 이름", NewName, KNameMaxLength, ImGuiInputTextFlags_EnterReturnsTrue);
+
+										ImGui::Separator();
+
+										if (ImGui::Button(u8"결정") || ImGui::IsKeyDown(VK_RETURN))
+										{
+											if (mapMaterialList.find(NewName) != mapMaterialList.end())
+											{
+												MessageBox(nullptr, "이미 존재하는 이름입니다. 다른 이름을 골라 주세요.",
+													"이름 충돌", MB_OK | MB_ICONWARNING);
+											}
+											else
+											{
+												Game.ChangeMaterialName(OldName, NewName);
+
+												ImGui::CloseCurrentPopup();
+												bShowMaterialNameChangeWindow = false;
+											}
+										}
+
+										ImGui::SameLine();
+
+										if (ImGui::Button(u8"닫기") || ImGui::IsKeyDown(VK_ESCAPE))
+										{
 											ImGui::CloseCurrentPopup();
 											bShowMaterialNameChangeWindow = false;
 										}
+
+										ImGui::EndPopup();
 									}
-
-									ImGui::SameLine();
-
-									if (ImGui::Button(u8"닫기") || ImGui::IsKeyDown(VK_ESCAPE))
-									{
-										ImGui::CloseCurrentPopup();
-										bShowMaterialNameChangeWindow = false;
-									}
-
-									ImGui::EndPopup();
 								}
+
+								ImGui::EndTabItem();
 							}
+
+							if (ImGui::BeginTabItem(u8"조명"))
+							{
+								const XMVECTOR& KDirectionalLightDirection{ Game.GetDirectionalLightDirection() };
+								float DirectionalLightDirection[3]{ XMVectorGetX(KDirectionalLightDirection), XMVectorGetY(KDirectionalLightDirection),
+									XMVectorGetZ(KDirectionalLightDirection) };
+
+								ImGui::SetNextItemWidth(180);
+								if (ImGui::DragFloat3(u8" Directional 위치", DirectionalLightDirection, 0.02f, -1.0f, +1.0f, "%.2f"))
+								{
+									Game.SetDirectionalLight(XMVectorSet(DirectionalLightDirection[0], DirectionalLightDirection[1],
+										DirectionalLightDirection[2], 0.0f));
+								}
+
+								const XMFLOAT3& KAmbientLightColor{ Game.GetAmbientLightColor() };
+								float AmbientLightColor[3]{ KAmbientLightColor.x, KAmbientLightColor.y, KAmbientLightColor.z };
+
+								ImGui::SetNextItemWidth(180);
+								if (ImGui::DragFloat3(u8" Ambient 색상", AmbientLightColor, 0.02f, 0.0f, +1.0f, "%.2f"))
+								{
+									Game.SetAmbientlLight(XMFLOAT3(AmbientLightColor[0], AmbientLightColor[1], AmbientLightColor[2]), Game.GetAmbientLightIntensity());
+								}
+
+								float AmbientLightIntensity{ Game.GetAmbientLightIntensity() };
+								ImGui::SetNextItemWidth(180);
+								if (ImGui::DragFloat(u8" Ambient 강도", &AmbientLightIntensity, 0.02f, 0.0f, +1.0f, "%.2f"))
+								{
+									Game.SetAmbientlLight(Game.GetAmbientLightColor(), AmbientLightIntensity);
+								}
+
+								ImGui::EndTabItem();
+							}
+
+							if (ImGui::BeginTabItem(u8"카메라"))
+							{
+								const XMVECTOR& KEyePosition{ MainCamera->GetEyePosition() };
+								float EyePosition[3]{ XMVectorGetX(KEyePosition), XMVectorGetY(KEyePosition), XMVectorGetZ(KEyePosition) };
+								float Pitch{ MainCamera->GetPitch() };
+								float Yaw{ MainCamera->GetYaw() };
+
+								ImGui::SetNextItemWidth(180);
+								if (ImGui::DragFloat3(u8"위치", EyePosition, 0.01f, -10000.0f, +10000.0f, "%.3f"))
+								{
+									MainCamera->SetEyePosition(XMVectorSet(EyePosition[0], EyePosition[1], EyePosition[2], 1.0f));
+								}
+
+								ImGui::SetNextItemWidth(180);
+								if (ImGui::DragFloat(u8"회전 Pitch", &Pitch, 0.01f, -10000.0f, +10000.0f, "%.3f"))
+								{
+									MainCamera->SetPitch(Pitch);
+								}
+
+								ImGui::SetNextItemWidth(180);
+								if (ImGui::DragFloat(u8"회전 Yaw", &Yaw, 0.01f, -10000.0f, +10000.0f, "%.3f"))
+								{
+									MainCamera->SetYaw(Yaw);
+								}
+
+								ImGui::EndTabItem();
+							}
+
+							ImGui::EndTabBar();
 						}
 					}
-					ImGui::End();
-				}
 
-
-				// ### 카메라 편집기 윈도우 ###
-				if (bShowCameraEditor)
-				{
-					ImGui::SetNextWindowPos(ImVec2(200, 22), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(300, 200));
-					if (ImGui::Begin(u8"카메라 편집기", &bShowCameraEditor, ImGuiWindowFlags_AlwaysAutoResize))
-					{
-						const XMVECTOR& KEyePosition{ MainCamera->GetEyePosition() };
-						float EyePosition[3]{ XMVectorGetX(KEyePosition), XMVectorGetY(KEyePosition), XMVectorGetZ(KEyePosition) };
-						float Pitch{ MainCamera->GetPitch() };
-						float Yaw{ MainCamera->GetYaw() };
-
-						ImGui::SetNextItemWidth(180);
-						if (ImGui::DragFloat3(u8"위치", EyePosition, 0.01f, -10000.0f, +10000.0f, "%.3f"))
-						{
-							MainCamera->SetEyePosition(XMVectorSet(EyePosition[0], EyePosition[1], EyePosition[2], 1.0f));
-						}
-
-						ImGui::SetNextItemWidth(180);
-						if (ImGui::DragFloat(u8"회전 Pitch", &Pitch, 0.01f, -10000.0f, +10000.0f, "%.3f"))
-						{
-							MainCamera->SetPitch(Pitch);
-						}
-
-						ImGui::SetNextItemWidth(180);
-						if (ImGui::DragFloat(u8"회전 Yaw", &Yaw, 0.01f, -10000.0f, +10000.0f, "%.3f"))
-						{
-							MainCamera->SetYaw(Yaw);
-						}
-					}
-					ImGui::End();
-				}
-
-				// ### 조명 편집기 윈도우 ###
-				if (bShowLightEditor)
-				{
-					ImGui::SetNextWindowPos(ImVec2(200, 160), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(300, 200));
-					if (ImGui::Begin(u8"조명 편집기", &bShowLightEditor, ImGuiWindowFlags_AlwaysAutoResize))
-					{
-						const XMVECTOR& KDirectionalLightDirection{ Game.GetDirectionalLightDirection() };
-						float DirectionalLightDirection[3]{ XMVectorGetX(KDirectionalLightDirection), XMVectorGetY(KDirectionalLightDirection),
-							XMVectorGetZ(KDirectionalLightDirection) };
-						
-						ImGui::SetNextItemWidth(135);
-						if (ImGui::DragFloat3(u8" Directional 위치", DirectionalLightDirection, 0.02f, -1.0f, +1.0f, "%.2f"))
-						{
-							Game.SetDirectionalLight(XMVectorSet(DirectionalLightDirection[0], DirectionalLightDirection[1],
-								DirectionalLightDirection[2], 0.0f));
-						}
-
-						const XMFLOAT3& KAmbientLightColor{ Game.GetAmbientLightColor() };
-						float AmbientLightColor[3]{ KAmbientLightColor.x, KAmbientLightColor.y, KAmbientLightColor.z };
-
-						ImGui::SetNextItemWidth(135);
-						if (ImGui::DragFloat3(u8" Ambient 색상", AmbientLightColor, 0.02f, 0.0f, +1.0f, "%.2f"))
-						{
-							Game.SetAmbientlLight(XMFLOAT3(AmbientLightColor[0], AmbientLightColor[1], AmbientLightColor[2]), Game.GetAmbientLightIntensity());
-						}
-
-						float AmbientLightIntensity{ Game.GetAmbientLightIntensity() };
-						ImGui::SetNextItemWidth(135);
-						if (ImGui::DragFloat(u8" Ambient 강도", &AmbientLightIntensity, 0.02f, 0.0f, +1.0f, "%.2f"))
-						{
-							Game.SetAmbientlLight(Game.GetAmbientLightColor(), AmbientLightIntensity);
-						}
-					}
 					ImGui::End();
 				}
 
@@ -874,9 +904,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							memset(SelectedObject3DName, 0, CGame::KObject3DNameMaxLength);
 						}
 
-						ImGui::Columns(1, "GameObject3Ds"); // 4-ways, with border
+						ImGui::Columns(1, "Object3Ds");
 						ImGui::Separator();
-						ImGui::Text("Name"); ImGui::NextColumn();
+						ImGui::Text(u8"오브젝트 목록"); ImGui::NextColumn();
 						ImGui::Separator();
 
 						int iPair{};

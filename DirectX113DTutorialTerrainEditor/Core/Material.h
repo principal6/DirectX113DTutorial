@@ -88,11 +88,13 @@ public:
 	const string& GetName() const { return m_Name; }
 	bool HasTexture() const { return bHasTexture; }
 
+	void ClearEmbeddedDiffuseTextureData() { vEmbeddedDiffuseTextureRawData.clear(); }
 	bool HasDiffuseTexture() const { return bHasDiffuseTexture; }
 	bool IsDiffuseTextureEmbedded() const { return (vEmbeddedDiffuseTextureRawData.size()) ? true : false; }
 	const string& GetDiffuseTextureFileName() const { return DiffuseTextureFileName; }
 	const vector<uint8_t>& GetDiffuseTextureRawData() const { return vEmbeddedDiffuseTextureRawData; }
 
+	void ClearEmbeddedNormalTextureData() { vEmbeddedNormalTextureRawData.clear(); }
 	bool HasNormalTexture() const { return bHasNormalTexture; }
 	bool IsNormalTextureEmbedded() const { return (vEmbeddedNormalTextureRawData.size()) ? true : false; }
 	const string& GetNormalTextureFileName() const { return NormalTextureFileName; }

@@ -1135,9 +1135,25 @@ CMaterial::CTexture* CGame::GetMaterialNormalTexture(const string& Name)
 	return m_vMaterialNormalTextures[iMaterial].get();
 }
 
+void CGame::SetEditMode(EEditMode Mode)
+{
+	if (m_eEditMode == Mode) return;
+
+	m_eEditMode = Mode;
+	if (m_eEditMode == EEditMode::EditTerrain)
+	{
+		SetTerrainEditMode(CTerrain::EEditMode::SetHeight);
+		ReleaseCapturedObject3D();
+	}
+	else
+	{
+		SetTerrainEditMode(CTerrain::EEditMode::Masking);
+	}
+}
+
 void CGame::Pick()
 {
-	if (m_bIsInteracting) return;
+	if (m_eEditMode != EEditMode::EditObject) return;
 
 	CastPickingRay();
 
@@ -1155,16 +1171,31 @@ void CGame::Pick()
 
 void CGame::PickObject3D(const string& Name)
 {
+	if (m_eEditMode != EEditMode::EditObject) return;
+
 	m_PtrPickedObject3D = GetObject3D(Name);
+	
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
 	{
 		m_PtrCapturedPickedObject3D = m_PtrPickedObject3D;
 	}
 }
 
-void CGame::ReleasePickedGameObject()
+void CGame::ReleaseCapturedObject3D()
 {
 	m_PtrCapturedPickedObject3D = nullptr;
+}
+
+const char* CGame::GetPickedObject3DName() const
+{
+	if (m_PtrPickedObject3D) return m_PtrPickedObject3D->GetName().c_str();
+	return nullptr;
+}
+
+const char* CGame::GetCapturedObject3DName() const
+{
+	if (m_PtrCapturedPickedObject3D) return m_PtrCapturedPickedObject3D->GetName().c_str();
+	return nullptr;
 }
 
 void CGame::CastPickingRay()
@@ -1268,6 +1299,7 @@ bool CGame::PickTriangle()
 void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
 {
 	if (!m_Terrain) return;
+	if (m_eEditMode != EEditMode::EditTerrain) return;
 
 	CastPickingRay();
 
@@ -1276,21 +1308,25 @@ void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
 
 void CGame::SetTerrainEditMode(CTerrain::EEditMode Mode)
 {
+	if (!m_Terrain) return;
 	m_Terrain->SetEditMode(Mode);
 }
 
 void CGame::SetTerrainMaskingLayer(CTerrain::EMaskingLayer eLayer)
 {
+	if (!m_Terrain) return;
 	m_Terrain->SetMaskingLayer(eLayer);
 }
 
 void CGame::SetTerrainMaskingAttenuation(float Attenuation)
 {
+	if (!m_Terrain) return;
 	m_Terrain->SetMaskingAttenuation(Attenuation);
 }
 
 void CGame::SetTerrainMaskingSize(float Size)
 {
+	if (!m_Terrain) return;
 	m_Terrain->SetMaskingRadius(Size);
 }
 
@@ -1388,9 +1424,9 @@ void CGame::Draw(float DeltaTime)
 
 	DrawTerrain();
 
-	DrawGameObject3DLines();
+	DrawObject3DLines();
 
-	DrawGameObject2Ds();
+	DrawObject2Ds();
 }
 
 void CGame::UpdateObject3D(CObject3D* PtrObject3D)
@@ -1508,7 +1544,7 @@ void CGame::DrawObject3DBoundingSphere(CObject3D* PtrObject3D)
 	SetUniversalRasterizerState();
 }
 
-void CGame::DrawGameObject3DLines()
+void CGame::DrawObject3DLines()
 {
 	m_VSLine->Use();
 	m_PSLine->Use();
@@ -1530,7 +1566,7 @@ void CGame::DrawGameObject3DLines()
 	}
 }
 
-void CGame::DrawGameObject2Ds()
+void CGame::DrawObject2Ds()
 {
 	m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
@@ -2168,28 +2204,9 @@ Mouse::State CGame::GetMouseState()
 	return ResultState;
 }
 
-
 const XMFLOAT2& CGame::GetWindowSize() const
 {
 	return m_WindowSize;
-}
-
-const char* CGame::GetPickedGameObject3DName() const
-{
-	if (m_PtrPickedObject3D)
-	{
-		return m_PtrPickedObject3D->GetName().c_str();
-	}
-	return nullptr;
-}
-
-const char* CGame::GetCapturedPickedGameObject3DName() const
-{
-	if (m_PtrCapturedPickedObject3D)
-	{
-		return m_PtrCapturedPickedObject3D->GetName().c_str();
-	}
-	return nullptr;
 }
 
 const XMFLOAT2& CGame::GetTerrainSelectionPosition() const

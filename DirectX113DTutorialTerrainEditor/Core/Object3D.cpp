@@ -169,6 +169,7 @@ void CObject3D::CreateMaterialTextures()
 				if (Material.IsDiffuseTextureEmbedded())
 				{
 					m_vDiffuseTextures.back()->CreateTextureFromMemory(Material.GetDiffuseTextureRawData());
+					Material.ClearEmbeddedDiffuseTextureData();
 				}
 				else
 				{
@@ -185,6 +186,7 @@ void CObject3D::CreateMaterialTextures()
 				if (Material.IsDiffuseTextureEmbedded())
 				{
 					m_vNormalTextures.back()->CreateTextureFromMemory(Material.GetNormalTextureRawData());
+					Material.ClearEmbeddedNormalTextureData();
 				}
 				else
 				{
