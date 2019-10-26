@@ -206,6 +206,10 @@ public:
 public:
 	void CreateWin32(WNDPROC WndProc, LPCTSTR WindowName, const wstring& FontFileName, bool bWindowed);
 	void Destroy();
+	bool OpenFileDialog(const char* Filter, const char* Title);
+	bool SaveFileDialog(const char* Filter, const char* Title, const char* DefaultExtension);
+	const char* GetDialogFileNameWithPath() const;
+	const char* GetDialogFileNameWithoutPath() const;
 
 private:
 	void CreateWin32Window(WNDPROC WndProc, LPCTSTR WindowName);
@@ -308,7 +312,12 @@ public:
 
 public:
 	void Pick();
+	void PickObject3D(const string& Name);
 	void ReleasePickedGameObject();
+	bool IsObjectPicked() const { return m_PtrPickedObject3D; };
+	bool IsObjectCaptured() const { return m_PtrCapturedPickedObject3D; }
+	void StartInteraction() { m_bIsInteracting = true; }
+	void EndInteraction() { m_bIsInteracting = false; }
 
 private:
 	void CastPickingRay();
@@ -378,12 +387,12 @@ public:
 	static constexpr float KRotationMinLimit{ -XM_2PI };
 	static constexpr float KRotation360MaxLimit{ +360.0f };
 	static constexpr float KRotation360MinLimit{ -360.0f };
-	static constexpr float KRotation360Unit{ 1.0f };
+	static constexpr float KRotation360Unit{ +1.0f };
 	static constexpr float KRotation360To2PI{ 1.0f / 360.0f * XM_2PI };
 	static constexpr float KRotation2PITo360{ 1.0f / XM_2PI * 360.0f };
 	static constexpr float KScalingMaxLimit{ +100.0f };
 	static constexpr float KScalingMinLimit{ +0.01f };
-	static constexpr float KScalingUnit{ +0.1f };
+	static constexpr float KScalingUnit{ +0.01f };
 	static constexpr int KObject3DNameMaxLength{ 100 };
 	
 private:
@@ -505,9 +514,13 @@ private:
 	vector<D3D11_VIEWPORT>	m_vViewports{};
 
 private:
-	HWND		m_hWnd{};
-	HINSTANCE	m_hInstance{};
-	XMFLOAT2	m_WindowSize{};
+	HWND			m_hWnd{};
+	HINSTANCE		m_hInstance{};
+	XMFLOAT2		m_WindowSize{};
+	char			m_WorkingDirectory[MAX_PATH]{};
+	char			m_DialogFileName[MAX_PATH]{};
+	string			m_DialogFileNameWithoutPath{};
+	OPENFILENAME	m_OpenFileName{};
 
 private:
 	XMMATRIX		m_MatrixProjection{};
@@ -527,6 +540,7 @@ private:
 	XMVECTOR	m_PickedTriangleV0{};
 	XMVECTOR	m_PickedTriangleV1{};
 	XMVECTOR	m_PickedTriangleV2{};
+	bool		m_bIsInteracting{ false };
 
 private:
 	unique_ptr<CTerrain>	m_Terrain{};

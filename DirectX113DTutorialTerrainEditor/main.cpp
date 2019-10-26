@@ -16,9 +16,6 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
 {
-	char WorkingDirectory[MAX_PATH]{};
-	GetCurrentDirectoryA(MAX_PATH, WorkingDirectory);
-	
 	CGame Game{ hInstance, XMFLOAT2(800, 600) };
 	Game.CreateWin32(WndProc, TEXT("Game"), L"Asset\\dotumche_10_korean.spritefont", true);
 	
@@ -27,7 +24,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 	Game.SetGameRenderingFlags(CGame::EFlagsRendering::UseLighting | CGame::EFlagsRendering::DrawMiniAxes |
 		CGame::EFlagsRendering::DrawTerrainHeightMapTexture | CGame::EFlagsRendering::DrawTerrainMaskingTexture | 
-		CGame::EFlagsRendering::TessellateTerrain);
+		CGame::EFlagsRendering::TessellateTerrain | CGame::EFlagsRendering::Use3DGizmos | CGame::EFlagsRendering::DrawBoundingSphere);
 
 	CCamera* MainCamera{ Game.AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
 	MainCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
@@ -150,19 +147,29 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			static int PrevMouseY{ MouseState.y };
 			if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
 			{
+				if (bRightButton) ImGui::SetWindowFocus(nullptr);
+
 				if ((bLeftButton || bRightButton) && !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
 				{
-					Game.SelectTerrain(true, bLeftButton);
-				}
-				else
-				{
-					Game.SelectTerrain(false, false);
+					if (bLeftButton)
+					{
+						Game.Pick();
+						Game.StartInteraction();
+					}
+
+					if (bRightButton)
+					{
+						Game.ReleasePickedGameObject();
+						Game.EndInteraction();
+					}
+
+					if (!Game.IsObjectCaptured())
+					{
+						Game.SelectTerrain(true, bLeftButton);
+						Game.StartInteraction();
+					}
 				}
 				
-				if (MouseState.leftButton)
-				{
-					Game.Pick();
-				}
 				if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
 				{
 					Game.SelectTerrain(false, false);
@@ -214,18 +221,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (bShowOpenFileDialog)
 					{
-						char FileName[MAX_PATH]{};
-						OPENFILENAME ofn{};
-						ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
-						ofn.lpstrFilter = "지형 파일(*.terr)\0*.terr\0";
-						ofn.lpstrFile = FileName;
-						ofn.lpstrTitle = "지형 모델 불러오기";
-						ofn.lStructSize = sizeof(OPENFILENAME);
-						ofn.nMaxFile = MAX_PATH;
-						if (GetOpenFileName(&ofn))
+						if (Game.OpenFileDialog("지형 파일(*.terr)\0*.terr\0", "지형 파일 불러오기"))
 						{
-							SetCurrentDirectoryA(WorkingDirectory);
-							Game.LoadTerrain(FileName);
+							Game.LoadTerrain(Game.GetDialogFileNameWithPath());
 						}
 
 						bShowOpenFileDialog = false;
@@ -235,19 +233,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					{
 						if (Game.GetTerrain())
 						{
-							char FileName[MAX_PATH]{};
-							OPENFILENAME ofn{};
-							ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
-							ofn.lpstrDefExt = ".terr";
-							ofn.lpstrFilter = "지형 파일(*.terr)\0*.terr\0";
-							ofn.lpstrFile = FileName;
-							ofn.lpstrTitle = "지형 모델 내보내기";
-							ofn.lStructSize = sizeof(OPENFILENAME);
-							ofn.nMaxFile = MAX_PATH;
-							if (GetSaveFileName(&ofn))
+							if (Game.SaveFileDialog("지형 파일(*.terr)\0*.terr\0", "지형 파일 내보내기", ".terr"))
 							{
-								SetCurrentDirectoryA(WorkingDirectory);
-								Game.SaveTerrain(FileName);
+								Game.SaveTerrain(Game.GetDialogFileNameWithPath());
 							}
 						}
 
@@ -668,15 +656,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										Material->SetSpecularIntensity(SpecularIntensity);
 									}
 									
-									static char FileName[MAX_PATH]{};
-									static OPENFILENAME ofn{};
-									ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
-									ofn.lpstrFilter = "PNG 파일\0*.png\0JPG 파일\0*.jpg\0모든 파일\0*.*\0";
-									ofn.lpstrFile = FileName;
-									ofn.lpstrTitle = "텍스쳐 불러오기";
-									ofn.lStructSize = sizeof(OPENFILENAME);
-									ofn.nMaxFile = MAX_PATH;
-
+									static constexpr const char KTextureDialogFilter[]{ "PNG 파일\0*.png\0JPG 파일\0*.jpg\0모든 파일\0*.*\0" };
+									static constexpr const char KTextureDialogTitle[]{ "텍스쳐 불러오기" };
+									
 									// Diffuse texture
 									{
 										const char* PtrDiffuseTextureLabel{ KLabelAdd };
@@ -704,10 +686,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										ImGui::PushID(0);
 										if (ImGui::Button(PtrDiffuseTextureLabel))
 										{
-											if (GetOpenFileName(&ofn))
+											if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 											{
-												SetCurrentDirectoryA(WorkingDirectory);
-												Material->SetDiffuseTextureFileName(FileName);
+												Material->SetDiffuseTextureFileName(Game.GetDialogFileNameWithPath());
 												Game.UpdateMaterial(pairMaterial.first);
 											}
 										}
@@ -740,10 +721,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										ImGui::PushID(1);
 										if (ImGui::Button(PtrNormalTextureLabel))
 										{
-											if (GetOpenFileName(&ofn))
+											if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 											{
-												SetCurrentDirectoryA(WorkingDirectory);
-												Material->SetNormalTextureFileName(FileName);
+												Material->SetNormalTextureFileName(Game.GetDialogFileNameWithPath());
 												Game.UpdateMaterial(pairMaterial.first);
 											}
 										}
@@ -869,6 +849,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				}
 
 				static bool bShowAddObject3D{ false };
+				static bool bShowLoadModelDialog{ false };
 				// ### 장면 편집기 윈도우 ###
 				if (bShowSceneEditor)
 				{
@@ -877,7 +858,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					const auto& mapObject3D{ Game.GetObject3DMap() };
 
 					ImGui::SetNextWindowPos(ImVec2(0, 122), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(300, 200));
+					ImGui::SetNextWindowSizeConstraints(ImVec2(200, 60), ImVec2(200, 200));
 					if (ImGui::Begin(u8"장면 편집기", &bShowSceneEditor, ImGuiWindowFlags_AlwaysAutoResize))
 					{
 						if (ImGui::Button(u8"추가"))
@@ -905,6 +886,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							{
 								iSelectedObject3D = iPair;
 								strcpy_s(SelectedObject3DName, pairObject3D.first.c_str());
+								Game.PickObject3D(SelectedObject3DName);
 							}
 							ImGui::NextColumn();
 							++iPair;
@@ -913,24 +895,46 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::End();
 				}
 
-				
 				if (bShowAddObject3D) ImGui::OpenPopup(u8"AddObject3D");
 
 				if (ImGui::BeginPopup(u8"AddObject3D"))
 				{
 					static char NewObejct3DName[CGame::KObject3DNameMaxLength]{};
+					static char ModelFileNameWithPath[MAX_PATH]{};
+					static char ModelFileNameWithoutPath[MAX_PATH]{};
 
 					ImGui::SetItemDefaultFocus();
 					ImGui::SetNextItemWidth(140);
 					ImGui::InputText(u8"오브젝트 이름", NewObejct3DName, CGame::KObject3DNameMaxLength);
 
+					ImGui::Text(ModelFileNameWithoutPath);
+					ImGui::SameLine();
+					if (ImGui::Button(u8"모델 불러오기"))
+					{
+						bShowLoadModelDialog = true;
+					}
+					
 					if (ImGui::Button(u8"결정") || KeyState.Enter)
 					{
-						if (NewObejct3DName[0] != 0) Game.InsertObject3D(NewObejct3DName);
-						
-						bShowAddObject3D = false;
-						memset(NewObejct3DName, 0, CGame::KObject3DNameMaxLength);
-						ImGui::CloseCurrentPopup();
+						if (ModelFileNameWithPath[0] == 0)
+						{
+							MessageBox(nullptr, "모델을 불러오세요.", "모델 미지정", MB_OK | MB_ICONEXCLAMATION);
+						}
+						else
+						{
+							if (NewObejct3DName[0] != 0)
+							{
+								Game.InsertObject3D(NewObejct3DName);
+								CObject3D* Object3D{ Game.GetObject3D(NewObejct3DName) };
+								Object3D->CreateFromFile(ModelFileNameWithPath);
+							}
+
+							bShowAddObject3D = false;
+							memset(ModelFileNameWithPath, 0, MAX_PATH);
+							memset(ModelFileNameWithoutPath, 0, MAX_PATH);
+							memset(NewObejct3DName, 0, CGame::KObject3DNameMaxLength);
+							ImGui::CloseCurrentPopup();
+						}
 					}
 					
 					ImGui::SameLine();
@@ -938,8 +942,20 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					if (ImGui::Button(u8"취소"))
 					{
 						bShowAddObject3D = false;
+						memset(ModelFileNameWithPath, 0, MAX_PATH);
+						memset(ModelFileNameWithoutPath, 0, MAX_PATH);
 						memset(NewObejct3DName, 0, CGame::KObject3DNameMaxLength);
 						ImGui::CloseCurrentPopup();
+					}
+
+					if (bShowLoadModelDialog)
+					{
+						if (Game.OpenFileDialog("FBX 파일\0*.fbx\0모든 파일\0*.*\0", "모델 불러오기"))
+						{
+							strcpy_s(ModelFileNameWithPath, Game.GetDialogFileNameWithPath());
+							strcpy_s(ModelFileNameWithoutPath, Game.GetDialogFileNameWithoutPath());
+						}
+						bShowLoadModelDialog = false;
 					}
 
 					ImGui::EndPopup();

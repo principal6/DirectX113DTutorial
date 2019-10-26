@@ -108,6 +108,7 @@ public:
 	CAssimpLoader() {}
 	~CAssimpLoader() {}
 
+	bool IsAnimatedModel(const string& FileName) const;
 	void LoadStaticModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
 	void LoadAnimatedModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
 

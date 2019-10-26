@@ -244,7 +244,7 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 	m_MaskingTexture.release();
 	m_MaskingTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_MaskingTexture->CreateBlankTexture(DXGI_FORMAT_R8G8B8A8_UNORM, m_MaskingTextureSize);
-	m_MaskingTexture->SetSlot(CObject3D::KTerrainMaskingTextureSlot);
+	m_MaskingTexture->SetSlot(KMaskingTextureSlot);
 	m_MaskingTexture->Use();
 
 	if (bShouldClear)

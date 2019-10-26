@@ -1,5 +1,23 @@
 #include "AssimpLoader.h"
 
+bool CAssimpLoader::IsAnimatedModel(const string& FileName) const
+{
+	Assimp::Importer AssimpImporter{};
+	AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
+	const aiScene* Scene{ AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
+		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph |
+		aiProcess_SplitLargeMeshes | aiProcess_ImproveCacheLocality | aiProcess_FixInfacingNormals |
+		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices |
+		aiProcess_RemoveComponent | aiProcess_GenSmoothNormals) };
+
+	assert(Scene);
+	assert(Scene->HasMeshes());
+	assert(Scene->mRootNode);
+
+	if (Scene->mNumAnimations) return true;
+	return false;
+}
+
 void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
 {
 	Assimp::Importer AssimpImporter{};

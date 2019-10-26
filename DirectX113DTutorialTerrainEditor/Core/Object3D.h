@@ -93,9 +93,9 @@ public:
 	void Create(const vector<SMesh>& vMeshes, const vector<CMaterial>& vMaterials);
 	void Create(const SModel& Model);
 
-	void LoadStaticModel(const string& FileName);
-	void LoadAnimatedModel(const string& FileName);
+	void CreateFromFile(const string& FileName);
 
+public:
 	void AddMaterial(const CMaterial& Material);
 	void SetMaterial(size_t Index, const CMaterial& Material);
 	size_t GetMaterialCount() const;
@@ -107,10 +107,12 @@ public:
 	void Animate();
 	void Draw(bool bIgnoreOwnTexture = false) const;
 
+public:
 	bool ShouldTessellate() const { return m_bShouldTesselate; }
 	void ShouldTessellate(bool Value);
 
 public:
+	bool IsCreated() const { return m_bIsCreated; }
 	const SModel& GetModel() const { return m_Model; }
 	SModel& GetModel() { return m_Model; }
 	const string& GetName() const { return m_Name; }
@@ -124,14 +126,14 @@ private:
 	void CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRIX ParentTransform);
 
 public:
-	static constexpr size_t			KTerrainNormalTextureSlotOffset{ 5 };
-	static constexpr size_t			KTerrainMaskingTextureSlot{ 10 };
+	static constexpr size_t			KDiffuseTextureSlotOffset{ 0 };
+	static constexpr size_t			KNormalTextureSlotOffset{ 5 };
 
 public:
-	SComponentTransform	ComponentTransform{};
-	SComponentRender	ComponentRender{};
-	SComponentPhysics	ComponentPhysics{};
-	EFlagsRendering		eFlagsRendering{};
+	SComponentTransform				ComponentTransform{};
+	SComponentRender				ComponentRender{};
+	SComponentPhysics				ComponentPhysics{};
+	EFlagsRendering					eFlagsRendering{};
 
 private:
 	ID3D11Device*					m_PtrDevice{};
@@ -140,6 +142,7 @@ private:
 
 private:
 	string									m_Name{};
+	bool									m_bIsCreated{ false };
 	SModel									m_Model{};
 	vector<SMeshBuffers>					m_vMeshBuffers{};
 	vector<unique_ptr<CMaterial::CTexture>>	m_vDiffuseTextures{};

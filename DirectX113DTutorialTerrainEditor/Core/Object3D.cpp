@@ -13,6 +13,8 @@ void CObject3D::Create(const SMesh& Mesh)
 
 	CreateMeshBuffers();
 	CreateMaterialTextures();
+
+	m_bIsCreated = true;
 }
 
 void CObject3D::Create(const SMesh& Mesh, const CMaterial& Material)
@@ -25,6 +27,8 @@ void CObject3D::Create(const SMesh& Mesh, const CMaterial& Material)
 	
 	CreateMeshBuffers();
 	CreateMaterialTextures();
+
+	m_bIsCreated = true;
 }
 
 void CObject3D::Create(const vector<SMesh>& vMeshes, const vector<CMaterial>& vMaterials)
@@ -34,6 +38,8 @@ void CObject3D::Create(const vector<SMesh>& vMeshes, const vector<CMaterial>& vM
 	
 	CreateMeshBuffers();
 	CreateMaterialTextures();
+
+	m_bIsCreated = true;
 }
 
 void CObject3D::Create(const SModel& Model)
@@ -42,20 +48,27 @@ void CObject3D::Create(const SModel& Model)
 
 	CreateMeshBuffers();
 	CreateMaterialTextures();
+
+	m_bIsCreated = true;
 }
 
-void CObject3D::LoadStaticModel(const string& FileName)
+void CObject3D::CreateFromFile(const string& FileName)
 {
-	ms_AssimpLoader.LoadStaticModelFromFile(FileName, m_Model, m_PtrDevice, m_PtrDeviceContext);
+	if (ms_AssimpLoader.IsAnimatedModel(FileName))
+	{
+		ms_AssimpLoader.LoadAnimatedModelFromFile(FileName, m_Model, m_PtrDevice, m_PtrDeviceContext);
+
+		ComponentRender.PtrVS = m_PtrGame->GetBaseShader(EBaseShader::VSAnimation);
+	}
+	else
+	{
+		ms_AssimpLoader.LoadStaticModelFromFile(FileName, m_Model, m_PtrDevice, m_PtrDeviceContext);
+	}
 	
 	CreateMeshBuffers();
-}
+	CreateMaterialTextures();
 
-void CObject3D::LoadAnimatedModel(const string& FileName)
-{
-	ms_AssimpLoader.LoadAnimatedModelFromFile(FileName, m_Model, m_PtrDevice, m_PtrDeviceContext);
-
-	CreateMeshBuffers();
+	m_bIsCreated = true;
 }
 
 void CObject3D::AddMaterial(const CMaterial& Material)
@@ -162,7 +175,7 @@ void CObject3D::CreateMaterialTextures()
 					m_vDiffuseTextures.back()->CreateTextureFromFile(Material.GetDiffuseTextureFileName(), Material.ShouldGenerateAutoMipMap());
 				}
 
-				m_vDiffuseTextures.back()->SetSlot(static_cast<UINT>(m_vDiffuseTextures.size() - 1));
+				m_vDiffuseTextures.back()->SetSlot(static_cast<UINT>(KDiffuseTextureSlotOffset + m_vDiffuseTextures.size() - 1));
 			}
 
 			if (Material.HasNormalTexture())
@@ -178,7 +191,7 @@ void CObject3D::CreateMaterialTextures()
 					m_vNormalTextures.back()->CreateTextureFromFile(Material.GetNormalTextureFileName(), Material.ShouldGenerateAutoMipMap());
 				}
 
-				m_vNormalTextures.back()->SetSlot(static_cast<UINT>(KTerrainNormalTextureSlotOffset + m_vNormalTextures.size() - 1));
+				m_vNormalTextures.back()->SetSlot(static_cast<UINT>(KNormalTextureSlotOffset + m_vNormalTextures.size() - 1));
 			}
 		}
 	}

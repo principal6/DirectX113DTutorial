@@ -30,11 +30,71 @@ void CGame::CreateWin32(WNDPROC WndProc, LPCTSTR WindowName, const wstring& Font
 	CreateWin32Window(WndProc, WindowName);
 
 	InitializeDirectX(FontFileName, bWindowed);
+
+	GetCurrentDirectoryA(MAX_PATH, m_WorkingDirectory);
 }
 
 void CGame::Destroy()
 {
 	DestroyWindow(m_hWnd);
+}
+
+bool CGame::OpenFileDialog(const char* Filter, const char* Title)
+{
+	m_OpenFileName.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+	m_OpenFileName.lpstrDefExt = nullptr;
+	m_OpenFileName.lpstrFilter = Filter;
+	m_OpenFileName.lpstrFile = m_DialogFileName;
+	m_OpenFileName.lpstrTitle = Title;
+	m_OpenFileName.lStructSize = sizeof(OPENFILENAME);
+	m_OpenFileName.nMaxFile = MAX_PATH;
+	
+	BOOL Result{ GetOpenFileName(&m_OpenFileName) };
+
+	SetCurrentDirectoryA(m_WorkingDirectory);
+	
+	m_DialogFileNameWithoutPath = m_DialogFileName;
+	if (m_DialogFileNameWithoutPath.size())
+	{
+		size_t Found{ m_DialogFileNameWithoutPath.find_last_of('\\') };
+		m_DialogFileNameWithoutPath = m_DialogFileNameWithoutPath.substr(Found + 1);
+	}
+	
+	return Result;
+}
+
+bool CGame::SaveFileDialog(const char* Filter, const char* Title, const char* DefaultExtension)
+{
+	m_OpenFileName.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+	m_OpenFileName.lpstrDefExt = DefaultExtension;
+	m_OpenFileName.lpstrFilter = Filter;
+	m_OpenFileName.lpstrFile = m_DialogFileName;
+	m_OpenFileName.lpstrTitle = Title;
+	m_OpenFileName.lStructSize = sizeof(OPENFILENAME);
+	m_OpenFileName.nMaxFile = MAX_PATH;
+
+	BOOL Result{ GetSaveFileName(&m_OpenFileName) };
+
+	SetCurrentDirectoryA(m_WorkingDirectory);
+
+	m_DialogFileNameWithoutPath = m_DialogFileName;
+	if (m_DialogFileNameWithoutPath.size())
+	{
+		size_t Found{ m_DialogFileNameWithoutPath.find_last_of('\\') };
+		m_DialogFileNameWithoutPath = m_DialogFileNameWithoutPath.substr(Found + 1);
+	}
+
+	return Result;
+}
+
+const char* CGame::GetDialogFileNameWithPath() const
+{
+	return m_DialogFileName;
+}
+
+const char* CGame::GetDialogFileNameWithoutPath() const
+{
+	return m_DialogFileNameWithoutPath.c_str();
 }
 
 void CGame::SetPerspective(float FOV, float NearZ, float FarZ)
@@ -1077,6 +1137,8 @@ CMaterial::CTexture* CGame::GetMaterialNormalTexture(const string& Name)
 
 void CGame::Pick()
 {
+	if (m_bIsInteracting) return;
+
 	CastPickingRay();
 
 	UpdatePickingRay();
@@ -1085,9 +1147,18 @@ void CGame::Pick()
 
 	PickTriangle();
 
-	if (EFLAG_HAS_NO(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
 	{
-		if (m_PtrPickedObject3D) m_PtrCapturedPickedObject3D =  m_PtrPickedObject3D;
+		if (m_PtrPickedObject3D) m_PtrCapturedPickedObject3D = m_PtrPickedObject3D;
+	}
+}
+
+void CGame::PickObject3D(const string& Name)
+{
+	m_PtrPickedObject3D = GetObject3D(Name);
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
+	{
+		m_PtrCapturedPickedObject3D = m_PtrPickedObject3D;
 	}
 }
 
@@ -1738,11 +1809,6 @@ void CGame::Draw3DGizmos()
 		m_bIsGizmoSelected = false;
 	}
 
-	if (MouseState.middleButton)
-	{
-		m_PtrCapturedPickedObject3D = nullptr;
-	}
-
 	if (m_PtrCapturedPickedObject3D)
 	{
 		m_3DGizmoDistanceScalar =
@@ -1938,14 +2004,6 @@ void CGame::Draw3DGizmos()
 				break;
 			}
 			
-		}
-	}
-
-	if (m_PtrPickedObject3D)
-	{
-		if (MouseState.leftButton && !m_bIsGizmoSelected)
-		{
-			m_PtrCapturedPickedObject3D = m_PtrPickedObject3D;
 		}
 	}
 
