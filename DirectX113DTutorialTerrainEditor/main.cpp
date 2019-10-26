@@ -32,10 +32,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	CCamera* MainCamera{ Game.AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
 	MainCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
 
-	CGameObject3DLine* goGrid{ Game.AddGameObject3DLine("Grid") };
+	Game.InsertObject3DLine("Grid");
 	{
-		goGrid->ComponentRender.PtrObject3DLine = Game.AddObject3DLine();
-		goGrid->ComponentRender.PtrObject3DLine->Create(Generate3DGrid(0));
+		CObject3DLine* Grid{ Game.GetObject3DLine("Grid") };
+		Grid->Create(Generate3DGrid(0));
 	}
 
 	CMaterial MaterialDefaultGround{};
@@ -98,34 +98,38 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			{
 				Game.ReleasePickedGameObject();
 			}
-			if (KeyState.W)
+			if (!ImGui::IsAnyItemActive())
 			{
-				MainCamera->Move(CCamera::EMovementDirection::Forward, DeltaTimeF * 10.0f);
+				if (KeyState.W)
+				{
+					MainCamera->Move(CCamera::EMovementDirection::Forward, DeltaTimeF * 10.0f);
+				}
+				if (KeyState.S)
+				{
+					MainCamera->Move(CCamera::EMovementDirection::Backward, DeltaTimeF * 10.0f);
+				}
+				if (KeyState.A)
+				{
+					MainCamera->Move(CCamera::EMovementDirection::Leftward, DeltaTimeF * 10.0f);
+				}
+				if (KeyState.D)
+				{
+					MainCamera->Move(CCamera::EMovementDirection::Rightward, DeltaTimeF * 10.0f);
+				}
+				if (KeyState.D1)
+				{
+					Game.Set3DGizmoMode(E3DGizmoMode::Translation);
+				}
+				if (KeyState.D2)
+				{
+					Game.Set3DGizmoMode(E3DGizmoMode::Rotation);
+				}
+				if (KeyState.D3)
+				{
+					Game.Set3DGizmoMode(E3DGizmoMode::Scaling);
+				}
 			}
-			if (KeyState.S)
-			{
-				MainCamera->Move(CCamera::EMovementDirection::Backward, DeltaTimeF * 10.0f);
-			}
-			if (KeyState.A)
-			{
-				MainCamera->Move(CCamera::EMovementDirection::Leftward, DeltaTimeF * 10.0f);
-			}
-			if (KeyState.D)
-			{
-				MainCamera->Move(CCamera::EMovementDirection::Rightward, DeltaTimeF * 10.0f);
-			}
-			if (KeyState.D1)
-			{
-				Game.Set3DGizmoMode(E3DGizmoMode::Translation);
-			}
-			if (KeyState.D2)
-			{
-				Game.Set3DGizmoMode(E3DGizmoMode::Rotation);
-			}
-			if (KeyState.D3)
-			{
-				Game.Set3DGizmoMode(E3DGizmoMode::Scaling);
-			}
+			
 
 			if (KeyDown == VK_F1)
 			{
@@ -187,6 +191,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				static bool bShowMaterialEditor{ true };
 				static bool bShowCameraEditor{ true };
 				static bool bShowLightEditor{ true };
+				static bool bShowSceneEditor{ true };
 				static bool bShowTerrainGenerator{ false };
 				static bool bShowOpenFileDialog{ false };
 				static bool bShowSaveFileDialog{ false };
@@ -255,6 +260,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						ImGui::MenuItem(u8"재질 편집기", nullptr, &bShowMaterialEditor);
 						ImGui::MenuItem(u8"카메라 편집기", nullptr, &bShowCameraEditor);
 						ImGui::MenuItem(u8"조명 편집기", nullptr, &bShowLightEditor);
+						ImGui::MenuItem(u8"장면 편집기", nullptr, &bShowSceneEditor);
 						
 						ImGui::EndMenu();
 					}
@@ -520,12 +526,12 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							{
 								static int ListIndex{};
 								static const string* SelectedMaterialName{};
-								const auto& mapMaterialList{ Game.GetMaterialListMap() };
+								const auto& mapMaterial{ Game.GetMaterialMap() };
 
-								if (ImGui::ListBoxHeader("", (int)mapMaterialList.size()))
+								if (ImGui::ListBoxHeader("", (int)mapMaterial.size()))
 								{
 									int iListItem{};
-									for (const auto& pairMaterial : mapMaterialList)
+									for (const auto& pairMaterial : mapMaterial)
 									{
 										if (ImGui::Selectable(pairMaterial.first.c_str(), (iListItem == ListIndex) ? true : false))
 										{
@@ -603,7 +609,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							static char OldName[KNameMaxLength]{};
 							static char NewName[KNameMaxLength]{};
 							static bool bShowMaterialNameChangeWindow{ false };
-							const auto& mapMaterialList{ Game.GetMaterialListMap() };
+							const auto& mapMaterialList{ Game.GetMaterialMap() };
 							for (auto& pairMaterial : mapMaterialList)
 							{
 								CMaterial* Material{ Game.GetMaterial(pairMaterial.first) };
@@ -860,6 +866,83 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						}
 					}
 					ImGui::End();
+				}
+
+				static bool bShowAddObject3D{ false };
+				// ### 장면 편집기 윈도우 ###
+				if (bShowSceneEditor)
+				{
+					static char SelectedObject3DName[CGame::KObject3DNameMaxLength]{};
+					static int iSelectedObject3D{ -1 };
+					const auto& mapObject3D{ Game.GetObject3DMap() };
+
+					ImGui::SetNextWindowPos(ImVec2(0, 122), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(300, 200));
+					if (ImGui::Begin(u8"장면 편집기", &bShowSceneEditor, ImGuiWindowFlags_AlwaysAutoResize))
+					{
+						if (ImGui::Button(u8"추가"))
+						{
+							bShowAddObject3D = true;
+						}
+
+						ImGui::SameLine();
+
+						if (ImGui::Button(u8"삭제"))
+						{
+							Game.EraseObject3D(SelectedObject3DName);
+							memset(SelectedObject3DName, 0, CGame::KObject3DNameMaxLength);
+						}
+
+						ImGui::Columns(1, "GameObject3Ds"); // 4-ways, with border
+						ImGui::Separator();
+						ImGui::Text("Name"); ImGui::NextColumn();
+						ImGui::Separator();
+
+						int iPair{};
+						for (const auto& pairObject3D : mapObject3D)
+						{
+							if (ImGui::Selectable(pairObject3D.first.c_str(), iSelectedObject3D == iPair, ImGuiSelectableFlags_SpanAllColumns))
+							{
+								iSelectedObject3D = iPair;
+								strcpy_s(SelectedObject3DName, pairObject3D.first.c_str());
+							}
+							ImGui::NextColumn();
+							++iPair;
+						}
+					}
+					ImGui::End();
+				}
+
+				
+				if (bShowAddObject3D) ImGui::OpenPopup(u8"AddObject3D");
+
+				if (ImGui::BeginPopup(u8"AddObject3D"))
+				{
+					static char NewObejct3DName[CGame::KObject3DNameMaxLength]{};
+
+					ImGui::SetItemDefaultFocus();
+					ImGui::SetNextItemWidth(140);
+					ImGui::InputText(u8"오브젝트 이름", NewObejct3DName, CGame::KObject3DNameMaxLength);
+
+					if (ImGui::Button(u8"결정") || KeyState.Enter)
+					{
+						if (NewObejct3DName[0] != 0) Game.InsertObject3D(NewObejct3DName);
+						
+						bShowAddObject3D = false;
+						memset(NewObejct3DName, 0, CGame::KObject3DNameMaxLength);
+						ImGui::CloseCurrentPopup();
+					}
+					
+					ImGui::SameLine();
+
+					if (ImGui::Button(u8"취소"))
+					{
+						bShowAddObject3D = false;
+						memset(NewObejct3DName, 0, CGame::KObject3DNameMaxLength);
+						ImGui::CloseCurrentPopup();
+					}
+
+					ImGui::EndPopup();
 				}
 			}
 

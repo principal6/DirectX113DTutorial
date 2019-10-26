@@ -1,8 +1,8 @@
 #include "Object3DLine.h"
 
-void CObject3DLine::Create(const vector<SVertex3DLine>& _vVertices)
+void CObject3DLine::Create(const vector<SVertex3DLine>& vVertices)
 {
-	m_vVertices = _vVertices;
+	m_vVertices = vVertices;
 
 	D3D11_BUFFER_DESC BufferDesc{};
 	BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -18,7 +18,7 @@ void CObject3DLine::Create(const vector<SVertex3DLine>& _vVertices)
 	m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, m_VertexBuffer.GetAddressOf());
 }
 
-void CObject3DLine::Update()
+void CObject3DLine::UpdateVertexBuffer()
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_VertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
@@ -27,6 +27,15 @@ void CObject3DLine::Update()
 
 		m_PtrDeviceContext->Unmap(m_VertexBuffer.Get(), 0);
 	}
+}
+
+void CObject3DLine::UpdateWorldMatrix()
+{
+	XMMATRIX Translation{ XMMatrixTranslationFromVector(ComponentTransform.Translation) };
+	XMMATRIX Rotation{ XMMatrixRotationQuaternion(ComponentTransform.RotationQuaternion) };
+	XMMATRIX Scaling{ XMMatrixScalingFromVector(ComponentTransform.Scaling) };
+
+	ComponentTransform.MatrixWorld = Scaling * Rotation * Translation;
 }
 
 void CObject3DLine::Draw() const

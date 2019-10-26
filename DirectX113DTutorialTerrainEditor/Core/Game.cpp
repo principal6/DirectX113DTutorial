@@ -166,54 +166,42 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 
 	m_SkyMaterial.SetDiffuseTextureFileName(m_SkyData.TextureFileName);
 
-	m_Object3DSkySphere = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterial);
+	m_Object3DSkySphere->ComponentRender.PtrVS = m_VSSky.get();
+	m_Object3DSkySphere->ComponentRender.PtrPS = m_PSSky.get();
+	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
+	m_Object3DSkySphere->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
 
-	m_Object3DSun = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DSun = make_unique<CObject3D>("Sun", m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Object3DSun->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
 	m_Object3DSun->UpdateQuadUV(m_SkyData.Sun.UVOffset, m_SkyData.Sun.UVSize);
+	m_Object3DSun->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Sun.WidthHeightRatio, 0);
+	m_Object3DSun->ComponentRender.PtrVS = m_VSSky.get();
+	m_Object3DSun->ComponentRender.PtrPS = m_PSBase.get();
+	m_Object3DSun->ComponentRender.bIsTransparent = true;
+	m_Object3DSun->ComponentPhysics.bIsPickable = false;
+	m_Object3DSun->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
 	
-	m_Object3DMoon = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DMoon = make_unique<CObject3D>("Moon", m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Object3DMoon->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
 	m_Object3DMoon->UpdateQuadUV(m_SkyData.Moon.UVOffset, m_SkyData.Moon.UVSize);
+	m_Object3DMoon->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Moon.WidthHeightRatio, 0);
+	m_Object3DMoon->ComponentRender.PtrVS = m_VSSky.get();
+	m_Object3DMoon->ComponentRender.PtrPS = m_PSBase.get();
+	m_Object3DMoon->ComponentRender.bIsTransparent = true;
+	m_Object3DMoon->ComponentPhysics.bIsPickable = false;
+	m_Object3DMoon->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
 
-	m_Object3DCloud = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DCloud = make_unique<CObject3D>("Cloud", m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Object3DCloud->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
 	m_Object3DCloud->UpdateQuadUV(m_SkyData.Cloud.UVOffset, m_SkyData.Cloud.UVSize);
-
-	m_GameObject3DSkySphere = make_unique<CGameObject3D>("SkySphere");
-	m_GameObject3DSkySphere->ComponentRender.PtrObject3D = m_Object3DSkySphere.get();
-	m_GameObject3DSkySphere->ComponentRender.PtrVS = m_VSSky.get();
-	m_GameObject3DSkySphere->ComponentRender.PtrPS = m_PSSky.get();
-	m_GameObject3DSkySphere->ComponentPhysics.bIsPickable = false;
-	m_GameObject3DSkySphere->eFlagsRendering = CGameObject3D::EFlagsRendering::NoCulling | CGameObject3D::EFlagsRendering::NoLighting;
-
-	m_GameObject3DSun = make_unique<CGameObject3D>("Sun");
-	m_GameObject3DSun->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Sun.WidthHeightRatio, 0);
-	m_GameObject3DSun->ComponentRender.PtrObject3D = m_Object3DSun.get();
-	m_GameObject3DSun->ComponentRender.PtrVS = m_VSSky.get();
-	m_GameObject3DSun->ComponentRender.PtrPS = m_PSBase.get();
-	m_GameObject3DSun->ComponentRender.bIsTransparent = true;
-	m_GameObject3DSun->ComponentPhysics.bIsPickable = false;
-	m_GameObject3DSun->eFlagsRendering = CGameObject3D::EFlagsRendering::NoCulling | CGameObject3D::EFlagsRendering::NoLighting;
-
-	m_GameObject3DMoon = make_unique<CGameObject3D>("Moon");
-	m_GameObject3DMoon->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Moon.WidthHeightRatio, 0);
-	m_GameObject3DMoon->ComponentRender.PtrObject3D = m_Object3DMoon.get();
-	m_GameObject3DMoon->ComponentRender.PtrVS = m_VSSky.get();
-	m_GameObject3DMoon->ComponentRender.PtrPS = m_PSBase.get();
-	m_GameObject3DMoon->ComponentRender.bIsTransparent = true;
-	m_GameObject3DMoon->ComponentPhysics.bIsPickable = false;
-	m_GameObject3DMoon->eFlagsRendering = CGameObject3D::EFlagsRendering::NoCulling | CGameObject3D::EFlagsRendering::NoLighting;
-
-	m_GameObject3DCloud = make_unique<CGameObject3D>("Cloud");
-	m_GameObject3DCloud->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Cloud.WidthHeightRatio, 0);
-	m_GameObject3DCloud->ComponentRender.PtrObject3D = m_Object3DCloud.get();
-	m_GameObject3DCloud->ComponentRender.PtrVS = m_VSSky.get();
-	m_GameObject3DCloud->ComponentRender.PtrPS = m_PSBase.get();
-	m_GameObject3DCloud->ComponentRender.bIsTransparent = true;
-	m_GameObject3DCloud->ComponentPhysics.bIsPickable = false;
-	m_GameObject3DCloud->eFlagsRendering = CGameObject3D::EFlagsRendering::NoCulling | CGameObject3D::EFlagsRendering::NoLighting;
+	m_Object3DCloud->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Cloud.WidthHeightRatio, 0);
+	m_Object3DCloud->ComponentRender.PtrVS = m_VSSky.get();
+	m_Object3DCloud->ComponentRender.PtrPS = m_PSBase.get();
+	m_Object3DCloud->ComponentRender.bIsTransparent = true;
+	m_Object3DCloud->ComponentPhysics.bIsPickable = false;
+	m_Object3DCloud->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
 
 	m_SkyData.bIsDataSet = true;
 
@@ -609,9 +597,9 @@ void CGame::CreateBaseShaders()
 
 void CGame::CreateMiniAxes()
 {
-	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
-	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
-	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
+	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>("AxisX", m_Device.Get(), m_DeviceContext.Get(), this));
+	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>("AxisY", m_Device.Get(), m_DeviceContext.Get(), this));
+	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>("AxisZ", m_Device.Get(), m_DeviceContext.Get(), this));
 
 	SMesh Cone{ GenerateCone(0, 1.0f, 1.0f, 16) };
 	vector<CMaterial> vMaterials{};
@@ -620,39 +608,31 @@ void CGame::CreateMiniAxes()
 	vMaterials[1].SetUniformColor(XMFLOAT3(0, 1, 0));
 	vMaterials[2].SetUniformColor(XMFLOAT3(0, 0, 1));
 	m_vObject3DMiniAxes[0]->Create(Cone, vMaterials[0]);
+	m_vObject3DMiniAxes[0]->ComponentRender.PtrVS = m_VSBase.get();
+	m_vObject3DMiniAxes[0]->ComponentRender.PtrPS = m_PSBase.get();
+	m_vObject3DMiniAxes[0]->ComponentTransform.Roll = -XM_PIDIV2;
+	m_vObject3DMiniAxes[0]->eFlagsRendering = CObject3D::EFlagsRendering::NoLighting;
+
 	m_vObject3DMiniAxes[1]->Create(Cone, vMaterials[1]);
+	m_vObject3DMiniAxes[1]->ComponentRender.PtrVS = m_VSBase.get();
+	m_vObject3DMiniAxes[1]->ComponentRender.PtrPS = m_PSBase.get();
+	m_vObject3DMiniAxes[1]->eFlagsRendering = CObject3D::EFlagsRendering::NoLighting;
+
 	m_vObject3DMiniAxes[2]->Create(Cone, vMaterials[2]);
-
-	m_vGameObject3DMiniAxes.emplace_back(make_unique<CGameObject3D>("AxisX"));
-	m_vGameObject3DMiniAxes.emplace_back(make_unique<CGameObject3D>("AxisY"));
-	m_vGameObject3DMiniAxes.emplace_back(make_unique<CGameObject3D>("AxisZ"));
-
-	m_vGameObject3DMiniAxes[0]->ComponentRender.PtrObject3D = m_vObject3DMiniAxes[0].get();
-	m_vGameObject3DMiniAxes[0]->ComponentRender.PtrVS = m_VSBase.get();
-	m_vGameObject3DMiniAxes[0]->ComponentRender.PtrPS = m_PSBase.get();
-	m_vGameObject3DMiniAxes[0]->ComponentTransform.Roll = -XM_PIDIV2;
-	m_vGameObject3DMiniAxes[0]->eFlagsRendering = CGameObject3D::EFlagsRendering::NoLighting;
-
-	m_vGameObject3DMiniAxes[1]->ComponentRender.PtrObject3D = m_vObject3DMiniAxes[1].get();
-	m_vGameObject3DMiniAxes[1]->ComponentRender.PtrVS = m_VSBase.get();
-	m_vGameObject3DMiniAxes[1]->ComponentRender.PtrPS = m_PSBase.get();
-	m_vGameObject3DMiniAxes[1]->eFlagsRendering = CGameObject3D::EFlagsRendering::NoLighting;
-
-	m_vGameObject3DMiniAxes[2]->ComponentRender.PtrObject3D = m_vObject3DMiniAxes[2].get();
-	m_vGameObject3DMiniAxes[2]->ComponentRender.PtrVS = m_VSBase.get();
-	m_vGameObject3DMiniAxes[2]->ComponentRender.PtrPS = m_PSBase.get();
-	m_vGameObject3DMiniAxes[2]->ComponentTransform.Yaw = -XM_PIDIV2;
-	m_vGameObject3DMiniAxes[2]->ComponentTransform.Roll = -XM_PIDIV2;
-	m_vGameObject3DMiniAxes[2]->eFlagsRendering = CGameObject3D::EFlagsRendering::NoLighting;
-
-	m_vGameObject3DMiniAxes[0]->ComponentTransform.Scaling =
-		m_vGameObject3DMiniAxes[1]->ComponentTransform.Scaling =
-		m_vGameObject3DMiniAxes[2]->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.8f, 0.1f, 0);
+	m_vObject3DMiniAxes[2]->ComponentRender.PtrVS = m_VSBase.get();
+	m_vObject3DMiniAxes[2]->ComponentRender.PtrPS = m_PSBase.get();
+	m_vObject3DMiniAxes[2]->ComponentTransform.Yaw = -XM_PIDIV2;
+	m_vObject3DMiniAxes[2]->ComponentTransform.Roll = -XM_PIDIV2;
+	m_vObject3DMiniAxes[2]->eFlagsRendering = CObject3D::EFlagsRendering::NoLighting;
+	
+	m_vObject3DMiniAxes[0]->ComponentTransform.Scaling =
+		m_vObject3DMiniAxes[1]->ComponentTransform.Scaling =
+		m_vObject3DMiniAxes[2]->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.8f, 0.1f, 0);
 }
 
 void CGame::CreatePickingRay()
 {
-	m_Object3DLinePickingRay = make_unique<CObject3DLine>(m_Device.Get(), m_DeviceContext.Get());
+	m_Object3DLinePickingRay = make_unique<CObject3DLine>("PickingRay", m_Device.Get(), m_DeviceContext.Get());
 
 	vector<SVertex3DLine> Vertices{};
 	Vertices.emplace_back(XMVectorSet(0, 0, 0, 1), XMVectorSet(1, 0, 0, 1));
@@ -663,14 +643,14 @@ void CGame::CreatePickingRay()
 
 void CGame::CreateBoundingSphere()
 {
-	m_Object3DBoundingSphere = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DBoundingSphere = make_unique<CObject3D>("BoundingSphere", m_Device.Get(), m_DeviceContext.Get(), this);
 
 	m_Object3DBoundingSphere->Create(GenerateSphere(16));
 }
 
 void CGame::CreatePickedTriangle()
 {
-	m_Object3DPickedTriangle = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DPickedTriangle = make_unique<CObject3D>("PickedTriangle", m_Device.Get(), m_DeviceContext.Get(), this);
 
 	m_Object3DPickedTriangle->Create(GenerateTriangle(XMVectorSet(0, 0, 1.5f, 1), XMVectorSet(+1.0f, 0, 0, 1), XMVectorSet(-1.0f, 0, 0, 1),
 		XMVectorSet(1.0f, 1.0f, 0.0f, 1.0f)));
@@ -682,52 +662,43 @@ void CGame::Create3DGizmos()
 	const static XMVECTOR ColorY{ XMVectorSet(0.1f, 1.0f, 0.1f, 1) };
 	const static XMVECTOR ColorZ{ XMVectorSet(0.1f, 0.1f, 1.0f, 1) };
 
-	m_Object3D_3DGizmoRotationPitch = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3D_3DGizmoRotationPitch = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
 		SMesh MeshRing{ GenerateTorus(ColorX, 0.05f) };
 		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorX) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		MeshRing = MergeStaticMeshes(MeshRing, MeshAxis);
 		m_Object3D_3DGizmoRotationPitch->Create(MeshRing);
+		m_Object3D_3DGizmoRotationPitch->ComponentTransform.Roll = -XM_PIDIV2;
+		m_Object3D_3DGizmoRotationPitch->ComponentRender.PtrVS = m_VSGizmo.get();
+		m_Object3D_3DGizmoRotationPitch->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 
-	m_Object3D_3DGizmoRotationYaw = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3D_3DGizmoRotationYaw = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
 		SMesh MeshRing{ GenerateTorus(ColorY, 0.05f) };
 		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorY) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		MeshRing = MergeStaticMeshes(MeshRing, MeshAxis);
 		m_Object3D_3DGizmoRotationYaw->Create(MeshRing);
+		m_Object3D_3DGizmoRotationYaw->ComponentRender.PtrVS = m_VSGizmo.get();
+		m_Object3D_3DGizmoRotationYaw->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 
-	m_Object3D_3DGizmoRotationRoll = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3D_3DGizmoRotationRoll = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
 		SMesh MeshRing{ GenerateTorus(ColorZ, 0.05f) };
 		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorZ) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		MeshRing = MergeStaticMeshes(MeshRing, MeshAxis);
 		m_Object3D_3DGizmoRotationRoll->Create(MeshRing);
+		m_Object3D_3DGizmoRotationRoll->ComponentTransform.Pitch = XM_PIDIV2;
+		m_Object3D_3DGizmoRotationRoll->ComponentRender.PtrVS = m_VSGizmo.get();
+		m_Object3D_3DGizmoRotationRoll->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 
-	m_GameObject3D_3DGizmoRotationPitch = make_unique<CGameObject3D>("Gizmo");
-	m_GameObject3D_3DGizmoRotationPitch->ComponentTransform.Roll = -XM_PIDIV2;
-	m_GameObject3D_3DGizmoRotationPitch->ComponentRender.PtrObject3D = m_Object3D_3DGizmoRotationPitch.get();
-	m_GameObject3D_3DGizmoRotationPitch->ComponentRender.PtrVS = m_VSGizmo.get();
-	m_GameObject3D_3DGizmoRotationPitch->ComponentRender.PtrPS = m_PSGizmo.get();
 
-	m_GameObject3D_3DGizmoRotationYaw = make_unique<CGameObject3D>("Gizmo");
-	m_GameObject3D_3DGizmoRotationYaw->ComponentRender.PtrObject3D = m_Object3D_3DGizmoRotationYaw.get();
-	m_GameObject3D_3DGizmoRotationYaw->ComponentRender.PtrVS = m_VSGizmo.get();
-	m_GameObject3D_3DGizmoRotationYaw->ComponentRender.PtrPS = m_PSGizmo.get();
-
-	m_GameObject3D_3DGizmoRotationRoll = make_unique<CGameObject3D>("Gizmo");
-	m_GameObject3D_3DGizmoRotationRoll->ComponentTransform.Pitch = XM_PIDIV2;
-	m_GameObject3D_3DGizmoRotationRoll->ComponentRender.PtrObject3D = m_Object3D_3DGizmoRotationRoll.get();
-	m_GameObject3D_3DGizmoRotationRoll->ComponentRender.PtrVS = m_VSGizmo.get();
-	m_GameObject3D_3DGizmoRotationRoll->ComponentRender.PtrPS = m_PSGizmo.get();
-
-
-	m_Object3D_3DGizmoTranslationX = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3D_3DGizmoTranslationX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
 		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorX) };
 		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorX) };
@@ -735,9 +706,12 @@ void CGame::Create3DGizmos()
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoTranslationX->Create(MeshAxis);
+		m_Object3D_3DGizmoTranslationX->ComponentTransform.Roll = -XM_PIDIV2;
+		m_Object3D_3DGizmoTranslationX->ComponentRender.PtrVS = m_VSGizmo.get();
+		m_Object3D_3DGizmoTranslationX->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 
-	m_Object3D_3DGizmoTranslationY = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3D_3DGizmoTranslationY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
 		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorY) };
 		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorY) };
@@ -745,9 +719,11 @@ void CGame::Create3DGizmos()
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoTranslationY->Create(MeshAxis);
+		m_Object3D_3DGizmoTranslationY->ComponentRender.PtrVS = m_VSGizmo.get();
+		m_Object3D_3DGizmoTranslationY->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 
-	m_Object3D_3DGizmoTranslationZ = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3D_3DGizmoTranslationZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
 		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorZ) };
 		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorZ) };
@@ -755,27 +731,13 @@ void CGame::Create3DGizmos()
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoTranslationZ->Create(MeshAxis);
+		m_Object3D_3DGizmoTranslationZ->ComponentTransform.Pitch = XM_PIDIV2;
+		m_Object3D_3DGizmoTranslationZ->ComponentRender.PtrVS = m_VSGizmo.get();
+		m_Object3D_3DGizmoTranslationZ->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 
-	m_GameObject3D_3DGizmoTranslationX = make_unique<CGameObject3D>("Gizmo");
-	m_GameObject3D_3DGizmoTranslationX->ComponentTransform.Roll = -XM_PIDIV2;
-	m_GameObject3D_3DGizmoTranslationX->ComponentRender.PtrObject3D = m_Object3D_3DGizmoTranslationX.get();
-	m_GameObject3D_3DGizmoTranslationX->ComponentRender.PtrVS = m_VSGizmo.get();
-	m_GameObject3D_3DGizmoTranslationX->ComponentRender.PtrPS = m_PSGizmo.get();
 
-	m_GameObject3D_3DGizmoTranslationY = make_unique<CGameObject3D>("Gizmo");
-	m_GameObject3D_3DGizmoTranslationY->ComponentRender.PtrObject3D = m_Object3D_3DGizmoTranslationY.get();
-	m_GameObject3D_3DGizmoTranslationY->ComponentRender.PtrVS = m_VSGizmo.get();
-	m_GameObject3D_3DGizmoTranslationY->ComponentRender.PtrPS = m_PSGizmo.get();
-
-	m_GameObject3D_3DGizmoTranslationZ = make_unique<CGameObject3D>("Gizmo");
-	m_GameObject3D_3DGizmoTranslationZ->ComponentTransform.Pitch = XM_PIDIV2;
-	m_GameObject3D_3DGizmoTranslationZ->ComponentRender.PtrObject3D = m_Object3D_3DGizmoTranslationZ.get();
-	m_GameObject3D_3DGizmoTranslationZ->ComponentRender.PtrVS = m_VSGizmo.get();
-	m_GameObject3D_3DGizmoTranslationZ->ComponentRender.PtrPS = m_PSGizmo.get();
-
-
-	m_Object3D_3DGizmoScalingX = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3D_3DGizmoScalingX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
 		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorX) };
 		SMesh MeshCube{ GenerateCube(ColorX) };
@@ -784,9 +746,12 @@ void CGame::Create3DGizmos()
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoScalingX->Create(MeshAxis);
+		m_Object3D_3DGizmoScalingX->ComponentTransform.Roll = -XM_PIDIV2;
+		m_Object3D_3DGizmoScalingX->ComponentRender.PtrVS = m_VSGizmo.get();
+		m_Object3D_3DGizmoScalingX->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 
-	m_Object3D_3DGizmoScalingY = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3D_3DGizmoScalingY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
 		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorY) };
 		SMesh MeshCube{ GenerateCube(ColorY) };
@@ -795,9 +760,11 @@ void CGame::Create3DGizmos()
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoScalingY->Create(MeshAxis);
+		m_Object3D_3DGizmoScalingY->ComponentRender.PtrVS = m_VSGizmo.get();
+		m_Object3D_3DGizmoScalingY->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 
-	m_Object3D_3DGizmoScalingZ = make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3D_3DGizmoScalingZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
 		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorZ) };
 		SMesh MeshCube{ GenerateCube(ColorZ) };
@@ -806,24 +773,10 @@ void CGame::Create3DGizmos()
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoScalingZ->Create(MeshAxis);
+		m_Object3D_3DGizmoScalingZ->ComponentTransform.Pitch = XM_PIDIV2;
+		m_Object3D_3DGizmoScalingZ->ComponentRender.PtrVS = m_VSGizmo.get();
+		m_Object3D_3DGizmoScalingZ->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
-
-	m_GameObject3D_3DGizmoScalingX = make_unique<CGameObject3D>("Gizmo");
-	m_GameObject3D_3DGizmoScalingX->ComponentTransform.Roll = -XM_PIDIV2;
-	m_GameObject3D_3DGizmoScalingX->ComponentRender.PtrObject3D = m_Object3D_3DGizmoScalingX.get();
-	m_GameObject3D_3DGizmoScalingX->ComponentRender.PtrVS = m_VSGizmo.get();
-	m_GameObject3D_3DGizmoScalingX->ComponentRender.PtrPS = m_PSGizmo.get();
-
-	m_GameObject3D_3DGizmoScalingY = make_unique<CGameObject3D>("Gizmo");
-	m_GameObject3D_3DGizmoScalingY->ComponentRender.PtrObject3D = m_Object3D_3DGizmoScalingY.get();
-	m_GameObject3D_3DGizmoScalingY->ComponentRender.PtrVS = m_VSGizmo.get();
-	m_GameObject3D_3DGizmoScalingY->ComponentRender.PtrPS = m_PSGizmo.get();
-
-	m_GameObject3D_3DGizmoScalingZ = make_unique<CGameObject3D>("Gizmo");
-	m_GameObject3D_3DGizmoScalingZ->ComponentTransform.Pitch = XM_PIDIV2;
-	m_GameObject3D_3DGizmoScalingZ->ComponentRender.PtrObject3D = m_Object3D_3DGizmoScalingZ.get();
-	m_GameObject3D_3DGizmoScalingZ->ComponentRender.PtrVS = m_VSGizmo.get();
-	m_GameObject3D_3DGizmoScalingZ->ComponentRender.PtrPS = m_PSGizmo.get();
 }
 
 CShader* CGame::AddShader()
@@ -917,40 +870,86 @@ CShader* CGame::GetBaseShader(EBaseShader eShader)
 	return Result;
 }
 
-CObject3D* CGame::AddObject3D()
+void CGame::InsertObject3D(const string& Name)
 {
-	m_vObject3Ds.emplace_back(make_unique<CObject3D>(m_Device.Get(), m_DeviceContext.Get(), this));
-	return m_vObject3Ds.back().get();
+	if (m_mapObject3DNameToIndex.find(Name) != m_mapObject3DNameToIndex.end())
+	{
+		MessageBox(nullptr, string("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "이름 충돌", MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
+
+	if (Name.size() >= KObject3DNameMaxLength)
+	{
+		MessageBox(nullptr, string("이름이 너무 깁니다. (" + Name + ")").c_str(), "이름 길이 제한 초과", MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
+	else if (Name.size() == 0)
+	{
+		MessageBox(nullptr, "이름은 공백일 수 없습니다.", "이름 조건 불일치", MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
+
+	m_vObject3Ds.emplace_back(make_unique<CObject3D>(Name, m_Device.Get(), m_DeviceContext.Get(), this));
+	m_vObject3Ds.back()->ComponentRender.PtrVS = m_VSBase.get();
+	m_vObject3Ds.back()->ComponentRender.PtrPS = m_PSBase.get();
+
+	m_mapObject3DNameToIndex[Name] = m_vObject3Ds.size() - 1;
 }
 
-CObject3D* CGame::GetObject3D(size_t Index)
+void CGame::EraseObject3D(const string& Name)
 {
-	assert(Index < m_vObject3Ds.size());
-	return m_vObject3Ds[Index].get();
+	if (!m_vObject3Ds.size()) return;
+	if (m_mapObject3DNameToIndex.find(Name) == m_mapObject3DNameToIndex.end())
+	{
+		MessageBox(nullptr, string("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "이름 검색 실패", MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
+
+	size_t iObject3D{ m_mapObject3DNameToIndex[Name] };
+	if (iObject3D < m_vObject3Ds.size() - 1) swap(m_vObject3Ds[iObject3D], m_vObject3Ds.back());
+
+	m_vObject3Ds.back().release();
+	m_vObject3Ds.pop_back();
+	m_mapObject3DNameToIndex.erase(Name);
 }
 
-CObject3DLine* CGame::AddObject3DLine()
+CObject3D* CGame::GetObject3D(const string& Name)
 {
-	m_vObject3DLines.emplace_back(make_unique<CObject3DLine>(m_Device.Get(), m_DeviceContext.Get()));
-	return m_vObject3DLines.back().get();
+	if (m_mapObject3DNameToIndex.find(Name) == m_mapObject3DNameToIndex.end())
+	{
+		MessageBox(nullptr, string("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "이름 검색 실패", MB_OK | MB_ICONEXCLAMATION);
+		return nullptr;
+	}
+	return m_vObject3Ds[m_mapObject3DNameToIndex[Name]].get();
 }
 
-CObject3DLine* CGame::GetObject3DLine(size_t Index)
+void CGame::InsertObject3DLine(const string& Name)
 {
-	assert(Index < m_vObject3DLines.size());
-	return m_vObject3DLines[Index].get();
+	assert(m_umapObject3DLineNameToIndex.find(Name) == m_umapObject3DLineNameToIndex.end());
+
+	m_vObject3DLines.emplace_back(make_unique<CObject3DLine>(Name, m_Device.Get(), m_DeviceContext.Get()));
+	
+	m_umapObject3DLineNameToIndex[Name] = m_vObject3DLines.size() - 1;
 }
 
-CObject2D* CGame::AddObject2D()
+CObject3DLine* CGame::GetObject3DLine(const string& Name)
 {
-	m_vObject2Ds.emplace_back(make_unique<CObject2D>(m_Device.Get(), m_DeviceContext.Get()));
-	return m_vObject2Ds.back().get();
+	assert(m_umapObject3DLineNameToIndex.find(Name) != m_umapObject3DLineNameToIndex.end());
+	return m_vObject3DLines[m_umapObject3DLineNameToIndex[Name]].get();
 }
 
-CObject2D* CGame::GetObject2D(size_t Index)
+void CGame::InsertObject2D(const string& Name)
 {
-	assert(Index < m_vObject2Ds.size());
-	return m_vObject2Ds[Index].get();
+	assert(m_umapObject2DNameToIndex.find(Name) == m_umapObject2DNameToIndex.end());
+	m_vObject2Ds.emplace_back(make_unique<CObject2D>(Name, m_Device.Get(), m_DeviceContext.Get()));
+	
+	m_umapObject2DNameToIndex[Name] = m_vObject2Ds.size() - 1;
+}
+
+CObject2D* CGame::GetObject2D(const string& Name)
+{
+	assert(m_umapObject2DNameToIndex.find(Name) != m_umapObject2DNameToIndex.end());
+	return m_vObject2Ds[m_umapObject2DNameToIndex[Name]].get();
 }
 
 CMaterial* CGame::AddMaterial(const CMaterial& Material)
@@ -1076,77 +1075,6 @@ CMaterial::CTexture* CGame::GetMaterialNormalTexture(const string& Name)
 	return m_vMaterialNormalTextures[iMaterial].get();
 }
 
-CGameObject3D* CGame::AddGameObject3D(const string& Name)
-{
-	assert(m_umapGameObject3DNameToIndex.find(Name) == m_umapGameObject3DNameToIndex.end());
-
-	m_vGameObject3Ds.emplace_back(make_unique<CGameObject3D>(Name));
-	m_vGameObject3Ds.back()->ComponentRender.PtrVS = m_VSBase.get();
-	m_vGameObject3Ds.back()->ComponentRender.PtrPS = m_PSBase.get();
-
-	m_umapGameObject3DNameToIndex[Name] = m_vGameObject3Ds.size() - 1;
-
-	return m_vGameObject3Ds.back().get();
-}
-
-CGameObject3D* CGame::GetGameObject3D(const string& Name)
-{
-	assert(m_umapGameObject3DNameToIndex.find(Name) != m_umapGameObject3DNameToIndex.end());
-	return m_vGameObject3Ds[m_umapGameObject3DNameToIndex[Name]].get();
-}
-
-CGameObject3D* CGame::GetGameObject3D(size_t Index)
-{
-	assert(Index < m_vGameObject3Ds.size());
-	return m_vGameObject3Ds[Index].get();
-}
-
-CGameObject3DLine* CGame::AddGameObject3DLine(const string& Name)
-{
-	assert(m_umapGameObject3DLineNameToIndex.find(Name) == m_umapGameObject3DLineNameToIndex.end());
-
-	m_vGameObject3DLines.emplace_back(make_unique<CGameObject3DLine>(Name));
-
-	m_umapGameObject3DLineNameToIndex[Name] = m_vGameObject3DLines.size() - 1;
-
-	return m_vGameObject3DLines.back().get();
-}
-
-CGameObject3DLine* CGame::GetGameObject3DLine(const string& Name)
-{
-	assert(m_umapGameObject3DLineNameToIndex.find(Name) != m_umapGameObject3DLineNameToIndex.end());
-	return m_vGameObject3DLines[m_umapGameObject3DLineNameToIndex[Name]].get();
-}
-
-CGameObject3DLine* CGame::GetGameObject3DLine(size_t Index)
-{
-	assert(Index < m_vGameObject3DLines.size());
-	return m_vGameObject3DLines[Index].get();
-}
-
-CGameObject2D* CGame::AddGameObject2D(const string& Name)
-{
-	assert(m_umapGameObject2DNameToIndex.find(Name) == m_umapGameObject2DNameToIndex.end());
-
-	m_vGameObject2Ds.emplace_back(make_unique<CGameObject2D>(Name));
-
-	m_umapGameObject2DNameToIndex[Name] = m_vGameObject2Ds.size() - 1;
-
-	return m_vGameObject2Ds.back().get();
-}
-
-CGameObject2D* CGame::GetGameObject2D(const string& Name)
-{
-	assert(m_umapGameObject2DNameToIndex.find(Name) != m_umapGameObject2DNameToIndex.end());
-	return m_vGameObject2Ds[m_umapGameObject2DNameToIndex[Name]].get();
-}
-
-CGameObject2D* CGame::GetGameObject2D(size_t Index)
-{
-	assert(Index < m_vGameObject2Ds.size());
-	return m_vGameObject2Ds[Index].get();
-}
-
 void CGame::Pick()
 {
 	CastPickingRay();
@@ -1159,13 +1087,13 @@ void CGame::Pick()
 
 	if (EFLAG_HAS_NO(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
 	{
-		if (m_PtrPickedGameObject3D) m_PtrCapturedPickedGameObject3D =  m_PtrPickedGameObject3D;
+		if (m_PtrPickedObject3D) m_PtrCapturedPickedObject3D =  m_PtrPickedObject3D;
 	}
 }
 
 void CGame::ReleasePickedGameObject()
 {
-	m_PtrCapturedPickedGameObject3D = nullptr;
+	m_PtrCapturedPickedObject3D = nullptr;
 }
 
 void CGame::CastPickingRay()
@@ -1186,17 +1114,17 @@ void CGame::CastPickingRay()
 
 void CGame::PickBoundingSphere()
 {
-	m_PtrPickedGameObject3D = nullptr;
+	m_PtrPickedObject3D = nullptr;
 
 	XMVECTOR T{ KVectorGreatest };
-	for (auto& i : m_vGameObject3Ds)
+	for (auto& i : m_vObject3Ds)
 	{
-		auto* GO3D{ i.get() };
-		if (GO3D->ComponentPhysics.bIsPickable)
+		auto* Object3D{ i.get() };
+		if (Object3D->ComponentPhysics.bIsPickable)
 		{
-			if (GO3D->ComponentPhysics.bIgnoreBoundingSphere)
+			if (Object3D->ComponentPhysics.bIgnoreBoundingSphere)
 			{
-				m_PtrPickedGameObject3D = GO3D;
+				m_PtrPickedObject3D = Object3D;
 
 				if (PickTriangle())
 				{
@@ -1204,19 +1132,19 @@ void CGame::PickBoundingSphere()
 				}
 				else
 				{
-					m_PtrPickedGameObject3D = nullptr;
+					m_PtrPickedObject3D = nullptr;
 				}
 			}
 			else
 			{
 				XMVECTOR NewT{ KVectorGreatest };
 				if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-					GO3D->ComponentPhysics.BoundingSphere.Radius, GO3D->ComponentTransform.Translation + GO3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
+					Object3D->ComponentPhysics.BoundingSphere.Radius, Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
 				{
 					if (XMVector3Less(NewT, T))
 					{
 						T = NewT;
-						m_PtrPickedGameObject3D = GO3D;
+						m_PtrPickedObject3D = Object3D;
 					}
 				}
 			}
@@ -1227,24 +1155,22 @@ void CGame::PickBoundingSphere()
 bool CGame::PickTriangle()
 {
 	XMVECTOR T{ KVectorGreatest };
-	if (m_PtrPickedGameObject3D)
+	if (m_PtrPickedObject3D)
 	{
-		if (!m_PtrPickedGameObject3D->ComponentRender.PtrObject3D) return false;
-
 		// Pick only static models' triangle.
-		if (m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->GetModel().bIsModelAnimated) return false;
+		if (m_PtrPickedObject3D->GetModel().bIsModelAnimated) return false;
 
-		const XMMATRIX& World{ m_PtrPickedGameObject3D->ComponentTransform.MatrixWorld };
-		for (const SMesh& Mesh : m_PtrPickedGameObject3D->ComponentRender.PtrObject3D->GetModel().vMeshes)
+		const XMMATRIX& WorldMatrix{ m_PtrPickedObject3D->ComponentTransform.MatrixWorld };
+		for (const SMesh& Mesh : m_PtrPickedObject3D->GetModel().vMeshes)
 		{
 			for (const STriangle& Triangle : Mesh.vTriangles)
 			{
 				XMVECTOR V0{ Mesh.vVertices[Triangle.I0].Position };
 				XMVECTOR V1{ Mesh.vVertices[Triangle.I1].Position };
 				XMVECTOR V2{ Mesh.vVertices[Triangle.I2].Position };
-				V0 = XMVector3TransformCoord(V0, World);
-				V1 = XMVector3TransformCoord(V1, World);
-				V2 = XMVector3TransformCoord(V2, World);
+				V0 = XMVector3TransformCoord(V0, WorldMatrix);
+				V1 = XMVector3TransformCoord(V1, WorldMatrix);
+				V2 = XMVector3TransformCoord(V2, WorldMatrix);
 
 				XMVECTOR NewT{};
 				if (IntersectRayTriangle(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, V0, V1, V2, &NewT))
@@ -1317,9 +1243,9 @@ void CGame::BeginRendering(const FLOAT* ClearColor)
 
 void CGame::Animate()
 {
-	for (auto& i : m_vGameObject3Ds)
+	for (auto& Object3D : m_vObject3Ds)
 	{
-		if (i->ComponentRender.PtrObject3D) i->ComponentRender.PtrObject3D->Animate();
+		if (Object3D) Object3D->Animate();
 	}
 }
 
@@ -1341,29 +1267,29 @@ void CGame::Draw(float DeltaTime)
 		m_eRasterizerState = ERasterizerState::CullCounterClockwise;
 	}
 
-	for (auto& i : m_vGameObject3Ds)
+	for (auto& Object3D : m_vObject3Ds)
 	{
-		if (i->ComponentRender.bIsTransparent) continue;
+		if (Object3D->ComponentRender.bIsTransparent) continue;
 
-		UpdateGameObject3D(i.get());
-		DrawGameObject3D(i.get());
+		UpdateObject3D(Object3D.get());
+		DrawObject3D(Object3D.get());
 
 		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
 		{
-			DrawGameObject3DBoundingSphere(i.get());
+			DrawObject3DBoundingSphere(Object3D.get());
 		}
 	}
 
-	for (auto& i : m_vGameObject3Ds)
+	for (auto& Object3D : m_vObject3Ds)
 	{
-		if (!i->ComponentRender.bIsTransparent) continue;
+		if (!Object3D->ComponentRender.bIsTransparent) continue;
 
-		UpdateGameObject3D(i.get());
-		DrawGameObject3D(i.get());
+		UpdateObject3D(Object3D.get());
+		DrawObject3D(Object3D.get());
 		
 		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
 		{
-			DrawGameObject3DBoundingSphere(i.get());
+			DrawObject3DBoundingSphere(Object3D.get());
 		}
 	}
 
@@ -1396,32 +1322,31 @@ void CGame::Draw(float DeltaTime)
 	DrawGameObject2Ds();
 }
 
-void CGame::UpdateGameObject3D(CGameObject3D* PtrGO)
+void CGame::UpdateObject3D(CObject3D* PtrObject3D)
 {
-	if (!PtrGO) return;
+	if (!PtrObject3D) return;
 
-	assert(PtrGO->ComponentRender.PtrVS);
-	assert(PtrGO->ComponentRender.PtrPS);
+	assert(PtrObject3D->ComponentRender.PtrVS);
+	assert(PtrObject3D->ComponentRender.PtrPS);
+	CShader* VS{ PtrObject3D->ComponentRender.PtrVS };
+	CShader* PS{ PtrObject3D->ComponentRender.PtrPS };
 
-	CShader* VS{ PtrGO->ComponentRender.PtrVS };
-	CShader* PS{ PtrGO->ComponentRender.PtrPS };
+	m_cbVSSpaceData.World = XMMatrixTranspose(PtrObject3D->ComponentTransform.MatrixWorld);
+	m_cbVSSpaceData.WVP = XMMatrixTranspose(PtrObject3D->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
+	PtrObject3D->UpdateWorldMatrix();
 
-	m_cbVSSpaceData.World = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld);
-	m_cbVSSpaceData.WVP = XMMatrixTranspose(PtrGO->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
-	PtrGO->UpdateWorldMatrix();
-
-	if (EFLAG_HAS(PtrGO->eFlagsRendering, CGameObject3D::EFlagsRendering::UseRawVertexColor))
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::UseRawVertexColor))
 	{
 		PS = m_PSVertexColor.get();
 	}
 
 	SetUniversalbUseLighiting();
-	if (EFLAG_HAS(PtrGO->eFlagsRendering, CGameObject3D::EFlagsRendering::NoLighting))
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoLighting))
 	{
 		m_cbPSBaseFlagsData.bUseLighting = FALSE;
 	}
 
-	if (EFLAG_HAS(PtrGO->eFlagsRendering, CGameObject3D::EFlagsRendering::NoTexture))
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoTexture))
 	{
 		m_cbPSBaseFlagsData.bUseTexture = FALSE;
 	}
@@ -1437,12 +1362,11 @@ void CGame::UpdateGameObject3D(CGameObject3D* PtrGO)
 	PS->UpdateAllConstantBuffers();
 }
 
-void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
+void CGame::DrawObject3D(CObject3D* PtrObject3D)
 {
-	if (!PtrGO) return;
-	if (!PtrGO->ComponentRender.PtrObject3D) return;
+	if (!PtrObject3D) return;
 
-	if (PtrGO->ComponentRender.PtrObject3D->ShouldTessellate())
+	if (PtrObject3D->ShouldTessellate())
 	{
 		m_HSTerrain->Use();
 		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
@@ -1458,7 +1382,7 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
 	}
 
-	if (EFLAG_HAS(PtrGO->eFlagsRendering, CGameObject3D::EFlagsRendering::NoCulling))
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoCulling))
 	{
 		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
 	}
@@ -1467,7 +1391,7 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 		SetUniversalRasterizerState();
 	}
 
-	if (EFLAG_HAS(PtrGO->eFlagsRendering, CGameObject3D::EFlagsRendering::NoDepthComparison))
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoDepthComparison))
 	{
 		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 	}
@@ -1483,23 +1407,24 @@ void CGame::DrawGameObject3D(CGameObject3D* PtrGO)
 		m_GSNormal->Use();
 		m_GSNormal->UpdateAllConstantBuffers();
 		
-		PtrGO->ComponentRender.PtrObject3D->Draw();
+		PtrObject3D->Draw();
 
 		m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
 	}
 	else
 	{
-		PtrGO->ComponentRender.PtrObject3D->Draw();
+		PtrObject3D->Draw();
 	}
 }
 
-void CGame::DrawGameObject3DBoundingSphere(CGameObject3D* PtrGO)
+void CGame::DrawObject3DBoundingSphere(CObject3D* PtrObject3D)
 {
 	m_VSBase->Use();
 
-	XMMATRIX Translation{ XMMatrixTranslationFromVector(PtrGO->ComponentTransform.Translation + PtrGO->ComponentPhysics.BoundingSphere.CenterOffset) };
-	XMMATRIX Scaling{ XMMatrixScaling(PtrGO->ComponentPhysics.BoundingSphere.Radius,
-		PtrGO->ComponentPhysics.BoundingSphere.Radius, PtrGO->ComponentPhysics.BoundingSphere.Radius) };
+	XMMATRIX Translation{ XMMatrixTranslationFromVector(PtrObject3D->ComponentTransform.Translation + 
+		PtrObject3D->ComponentPhysics.BoundingSphere.CenterOffset) };
+	XMMATRIX Scaling{ XMMatrixScaling(PtrObject3D->ComponentPhysics.BoundingSphere.Radius,
+		PtrObject3D->ComponentPhysics.BoundingSphere.Radius, PtrObject3D->ComponentPhysics.BoundingSphere.Radius) };
 	XMMATRIX World{ Scaling * Translation };
 	m_cbVSSpaceData.World = XMMatrixTranspose(World);
 	m_cbVSSpaceData.WVP = XMMatrixTranspose(World * m_MatrixView * m_MatrixProjection);
@@ -1517,21 +1442,19 @@ void CGame::DrawGameObject3DLines()
 	m_VSLine->Use();
 	m_PSLine->Use();
 
-	for (auto& i : m_vGameObject3DLines)
+	for (auto& Object3DLine : m_vObject3DLines)
 	{
-		CGameObject3DLine* GOLine{ i.get() };
-
-		if (GOLine->ComponentRender.PtrObject3DLine)
+		if (Object3DLine)
 		{
-			if (!GOLine->bIsVisible) continue;
+			if (!Object3DLine->bIsVisible) continue;
 
-			GOLine->UpdateWorldMatrix();
+			Object3DLine->UpdateWorldMatrix();
 
-			m_cbVSSpaceData.World = XMMatrixTranspose(GOLine->ComponentTransform.MatrixWorld);
-			m_cbVSSpaceData.WVP = XMMatrixTranspose(GOLine->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
+			m_cbVSSpaceData.World = XMMatrixTranspose(Object3DLine->ComponentTransform.MatrixWorld);
+			m_cbVSSpaceData.WVP = XMMatrixTranspose(Object3DLine->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
 			m_VSLine->UpdateConstantBuffer(0);
 
-			GOLine->ComponentRender.PtrObject3DLine->Draw();
+			Object3DLine->Draw();
 		}
 	}
 }
@@ -1546,16 +1469,14 @@ void CGame::DrawGameObject2Ds()
 	m_VSBase2D->Use();
 	m_PSBase2D->Use();
 
-	for (auto& i : m_vGameObject2Ds)
+	for (auto& Object2D : m_vObject2Ds)
 	{
-		CGameObject2D* GO2D{ i.get() };
-
-		if (GO2D->ComponentRender.PtrObject2D)
+		if (Object2D)
 		{
-			if (!GO2D->bIsVisible) continue;
+			if (!Object2D->bIsVisible) continue;
 
-			GO2D->UpdateWorldMatrix();
-			m_cbVS2DSpaceData.World = XMMatrixTranspose(GO2D->ComponentTransform.MatrixWorld);
+			Object2D->UpdateWorldMatrix();
+			m_cbVS2DSpaceData.World = XMMatrixTranspose(Object2D->ComponentTransform.MatrixWorld);
 			m_VSBase2D->UpdateConstantBuffer(0);
 
 			/*
@@ -1572,7 +1493,7 @@ void CGame::DrawGameObject2Ds()
 			}
 			*/
 
-			GO2D->ComponentRender.PtrObject2D->Draw();
+			Object2D->Draw();
 		}
 	}
 
@@ -1583,16 +1504,16 @@ void CGame::DrawMiniAxes()
 {
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[1]);
 
-	for (auto& i : m_vGameObject3DMiniAxes)
+	for (auto& Object3D : m_vObject3DMiniAxes)
 	{
-		UpdateGameObject3D(i.get());
-		DrawGameObject3D(i.get());
+		UpdateObject3D(Object3D.get());
+		DrawObject3D(Object3D.get());
 
-		i->ComponentTransform.Translation = 
+		Object3D->ComponentTransform.Translation = 
 			m_vCameras[m_CurrentCameraIndex].GetEyePosition() +
 			m_vCameras[m_CurrentCameraIndex].GetForward();
 
-		i->UpdateWorldMatrix();
+		Object3D->UpdateWorldMatrix();
 	}
 
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
@@ -1602,7 +1523,7 @@ void CGame::UpdatePickingRay()
 {
 	m_Object3DLinePickingRay->GetVertices().at(0).Position = m_PickingRayWorldSpaceOrigin;
 	m_Object3DLinePickingRay->GetVertices().at(1).Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
-	m_Object3DLinePickingRay->Update();
+	m_Object3DLinePickingRay->UpdateVertexBuffer();
 }
 
 void CGame::DrawPickingRay()
@@ -1663,46 +1584,46 @@ void CGame::DrawSky(float DeltaTime)
 
 	// SkySphere
 	{
-		m_GameObject3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
-		m_GameObject3DSkySphere->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
+		m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
+		m_Object3DSkySphere->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
 	}
 
 	// Sun
 	{
 		float SunRoll{ XM_2PI * m_cbPSSkyTimeData.SkyTime - XM_PIDIV2 };
 		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, SunRoll)) };
-		m_GameObject3DSun->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
-		m_GameObject3DSun->ComponentTransform.Roll = SunRoll;
+		m_Object3DSun->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
+		m_Object3DSun->ComponentTransform.Roll = SunRoll;
 	}
 
 	// Moon
 	{
 		float MoonRoll{ XM_2PI * m_cbPSSkyTimeData.SkyTime + XM_PIDIV2 };
 		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, MoonRoll)) };
-		m_GameObject3DMoon->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
-		m_GameObject3DMoon->ComponentTransform.Roll = (MoonRoll > XM_2PI) ? (MoonRoll - XM_2PI) : MoonRoll;
+		m_Object3DMoon->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
+		m_Object3DMoon->ComponentTransform.Roll = (MoonRoll > XM_2PI) ? (MoonRoll - XM_2PI) : MoonRoll;
 	}
 
 	// Cloud
 	{
 		float CloudYaw{ XM_2PI * m_cbPSSkyTimeData.SkyTime };
 		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, CloudYaw, XM_PIDIV4)) };
-		m_GameObject3DCloud->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
-		m_GameObject3DCloud->ComponentTransform.Yaw = CloudYaw;
-		m_GameObject3DCloud->ComponentTransform.Roll = XM_PIDIV4;
+		m_Object3DCloud->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
+		m_Object3DCloud->ComponentTransform.Yaw = CloudYaw;
+		m_Object3DCloud->ComponentTransform.Roll = XM_PIDIV4;
 	}
 
-	UpdateGameObject3D(m_GameObject3DSkySphere.get());
-	DrawGameObject3D(m_GameObject3DSkySphere.get());
+	UpdateObject3D(m_Object3DSkySphere.get());
+	DrawObject3D(m_Object3DSkySphere.get());
 
-	UpdateGameObject3D(m_GameObject3DSun.get());
-	DrawGameObject3D(m_GameObject3DSun.get());
+	UpdateObject3D(m_Object3DSun.get());
+	DrawObject3D(m_Object3DSun.get());
 
-	UpdateGameObject3D(m_GameObject3DMoon.get());
-	DrawGameObject3D(m_GameObject3DMoon.get());
+	UpdateObject3D(m_Object3DMoon.get());
+	DrawObject3D(m_Object3DMoon.get());
 
-	UpdateGameObject3D(m_GameObject3DCloud.get());
-	DrawGameObject3D(m_GameObject3DCloud.get());
+	UpdateObject3D(m_Object3DCloud.get());
+	DrawObject3D(m_Object3DCloud.get());
 }
 
 void CGame::DrawTerrain()
@@ -1744,7 +1665,7 @@ void CGame::DrawTerrain()
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 }
 
-bool CGame::ShouldSelectRotationGizmo(CGameObject3D* Gizmo, E3DGizmoAxis Axis)
+bool CGame::ShouldSelectRotationGizmo(CObject3D* Gizmo, E3DGizmoAxis Axis)
 {
 	XMVECTOR PlaneNormal{};
 	switch (Axis)
@@ -1780,7 +1701,7 @@ bool CGame::ShouldSelectRotationGizmo(CGameObject3D* Gizmo, E3DGizmoAxis Axis)
 	return false;
 }
 
-bool CGame::ShouldSelectTranslationScalingGizmo(CGameObject3D* Gizmo, E3DGizmoAxis Axis)
+bool CGame::ShouldSelectTranslationScalingGizmo(CObject3D* Gizmo, E3DGizmoAxis Axis)
 {
 	XMVECTOR Center{};
 	switch (Axis)
@@ -1819,14 +1740,14 @@ void CGame::Draw3DGizmos()
 
 	if (MouseState.middleButton)
 	{
-		m_PtrCapturedPickedGameObject3D = nullptr;
+		m_PtrCapturedPickedObject3D = nullptr;
 	}
 
-	if (m_PtrCapturedPickedGameObject3D)
+	if (m_PtrCapturedPickedObject3D)
 	{
 		m_3DGizmoDistanceScalar =
-			XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].GetEyePosition() -
-				m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation)) * 0.1f;
+			XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].GetEyePosition() - 
+				m_PtrCapturedPickedObject3D->ComponentTransform.Translation)) * 0.1f;
 		m_3DGizmoDistanceScalar = pow(m_3DGizmoDistanceScalar, 0.7f);
 
 		if (m_bIsGizmoSelected)
@@ -1838,13 +1759,13 @@ void CGame::Draw3DGizmos()
 
 				int DeltaSum{ DeltaX + DeltaY };
 
-				float TranslationX{ XMVectorGetX(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation) };
-				float TranslationY{ XMVectorGetY(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation) };
-				float TranslationZ{ XMVectorGetZ(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation) };
+				float TranslationX{ XMVectorGetX(m_PtrCapturedPickedObject3D->ComponentTransform.Translation) };
+				float TranslationY{ XMVectorGetY(m_PtrCapturedPickedObject3D->ComponentTransform.Translation) };
+				float TranslationZ{ XMVectorGetZ(m_PtrCapturedPickedObject3D->ComponentTransform.Translation) };
 
-				float ScalingX{ XMVectorGetX(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling) };
-				float ScalingY{ XMVectorGetY(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling) };
-				float ScalingZ{ XMVectorGetZ(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling) };
+				float ScalingX{ XMVectorGetX(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling) };
+				float ScalingY{ XMVectorGetY(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling) };
+				float ScalingZ{ XMVectorGetZ(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling) };
 
 				switch (m_e3DGizmoMode)
 				{
@@ -1852,16 +1773,16 @@ void CGame::Draw3DGizmos()
 					switch (m_e3DGizmoSelectedAxis)
 					{
 					case E3DGizmoAxis::AxisX:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation =
-							XMVectorSetX(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation, TranslationX - DeltaSum * CGame::KTranslationUnit);
+						m_PtrCapturedPickedObject3D->ComponentTransform.Translation =
+							XMVectorSetX(m_PtrCapturedPickedObject3D->ComponentTransform.Translation, TranslationX - DeltaSum * CGame::KTranslationUnit);
 						break;
 					case E3DGizmoAxis::AxisY:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation =
-							XMVectorSetY(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation, TranslationY - DeltaSum * CGame::KTranslationUnit);
+						m_PtrCapturedPickedObject3D->ComponentTransform.Translation =
+							XMVectorSetY(m_PtrCapturedPickedObject3D->ComponentTransform.Translation, TranslationY - DeltaSum * CGame::KTranslationUnit);
 						break;
 					case E3DGizmoAxis::AxisZ:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation =
-							XMVectorSetZ(m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation, TranslationZ - DeltaSum * CGame::KTranslationUnit);
+						m_PtrCapturedPickedObject3D->ComponentTransform.Translation =
+							XMVectorSetZ(m_PtrCapturedPickedObject3D->ComponentTransform.Translation, TranslationZ - DeltaSum * CGame::KTranslationUnit);
 						break;
 					default:
 						break;
@@ -1874,13 +1795,13 @@ void CGame::Draw3DGizmos()
 					switch (m_e3DGizmoSelectedAxis)
 					{
 					case E3DGizmoAxis::AxisX:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Pitch -= DeltaSum * CGame::KRotation360To2PI;
+						m_PtrCapturedPickedObject3D->ComponentTransform.Pitch -= DeltaSum * CGame::KRotation360To2PI;
 						break;
 					case E3DGizmoAxis::AxisY:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Yaw -= DeltaSum * CGame::KRotation360To2PI;
+						m_PtrCapturedPickedObject3D->ComponentTransform.Yaw -= DeltaSum * CGame::KRotation360To2PI;
 						break;
 					case E3DGizmoAxis::AxisZ:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Roll -= DeltaSum * CGame::KRotation360To2PI;
+						m_PtrCapturedPickedObject3D->ComponentTransform.Roll -= DeltaSum * CGame::KRotation360To2PI;
 						break;
 					default:
 						break;
@@ -1892,26 +1813,26 @@ void CGame::Draw3DGizmos()
 					switch (m_e3DGizmoSelectedAxis)
 					{
 					case E3DGizmoAxis::AxisX:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling =
-							XMVectorSetX(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling, ScalingX - DeltaSum * CGame::KScalingUnit);
+						m_PtrCapturedPickedObject3D->ComponentTransform.Scaling =
+							XMVectorSetX(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling, ScalingX - DeltaSum * CGame::KScalingUnit);
 						break;
 					case E3DGizmoAxis::AxisY:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling =
-							XMVectorSetY(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling, ScalingY - DeltaSum * CGame::KScalingUnit);
+						m_PtrCapturedPickedObject3D->ComponentTransform.Scaling =
+							XMVectorSetY(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling, ScalingY - DeltaSum * CGame::KScalingUnit);
 						break;
 					case E3DGizmoAxis::AxisZ:
-						m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling =
-							XMVectorSetZ(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling, ScalingZ - DeltaSum * CGame::KScalingUnit);
+						m_PtrCapturedPickedObject3D->ComponentTransform.Scaling =
+							XMVectorSetZ(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling, ScalingZ - DeltaSum * CGame::KScalingUnit);
 						break;
 					default:
 						break;
 					}
 
-					ScalingX = XMVectorGetX(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling);
-					ScalingY = XMVectorGetY(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling);
-					ScalingZ = XMVectorGetZ(m_PtrCapturedPickedGameObject3D->ComponentTransform.Scaling);
+					ScalingX = XMVectorGetX(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling);
+					ScalingY = XMVectorGetY(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling);
+					ScalingZ = XMVectorGetZ(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling);
 
-					m_PtrCapturedPickedGameObject3D->ComponentPhysics.BoundingSphere.Radius = 
+					m_PtrCapturedPickedObject3D->ComponentPhysics.BoundingSphere.Radius =
 						max(max(ScalingX, ScalingY), ScalingZ);
 
 					Draw3DGizmoScalings(m_e3DGizmoSelectedAxis);
@@ -1930,22 +1851,22 @@ void CGame::Draw3DGizmos()
 			switch (m_e3DGizmoMode)
 			{
 			case E3DGizmoMode::Translation:
-				m_GameObject3D_3DGizmoTranslationX->ComponentTransform.Translation =
-					m_GameObject3D_3DGizmoTranslationY->ComponentTransform.Translation =
-					m_GameObject3D_3DGizmoTranslationZ->ComponentTransform.Translation = m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation;
+				m_Object3D_3DGizmoTranslationX->ComponentTransform.Translation =
+					m_Object3D_3DGizmoTranslationY->ComponentTransform.Translation =
+					m_Object3D_3DGizmoTranslationZ->ComponentTransform.Translation = m_PtrCapturedPickedObject3D->ComponentTransform.Translation;
 
 				m_bIsGizmoSelected = true;
-				if (ShouldSelectTranslationScalingGizmo(m_GameObject3D_3DGizmoTranslationX.get(), E3DGizmoAxis::AxisX))
+				if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationX.get(), E3DGizmoAxis::AxisX))
 				{
 					Draw3DGizmoTranslations(E3DGizmoAxis::AxisX);
 					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
 				}
-				else if (ShouldSelectTranslationScalingGizmo(m_GameObject3D_3DGizmoTranslationY.get(), E3DGizmoAxis::AxisY))
+				else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationY.get(), E3DGizmoAxis::AxisY))
 				{
 					Draw3DGizmoTranslations(E3DGizmoAxis::AxisY);
 					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
 				}
-				else if (ShouldSelectTranslationScalingGizmo(m_GameObject3D_3DGizmoTranslationZ.get(), E3DGizmoAxis::AxisZ))
+				else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationZ.get(), E3DGizmoAxis::AxisZ))
 				{
 					Draw3DGizmoTranslations(E3DGizmoAxis::AxisZ);
 					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
@@ -1958,22 +1879,22 @@ void CGame::Draw3DGizmos()
 
 				break;
 			case E3DGizmoMode::Rotation:
-				m_GameObject3D_3DGizmoRotationPitch->ComponentTransform.Translation =
-					m_GameObject3D_3DGizmoRotationYaw->ComponentTransform.Translation =
-					m_GameObject3D_3DGizmoRotationRoll->ComponentTransform.Translation = m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation;
+				m_Object3D_3DGizmoRotationPitch->ComponentTransform.Translation =
+					m_Object3D_3DGizmoRotationYaw->ComponentTransform.Translation =
+					m_Object3D_3DGizmoRotationRoll->ComponentTransform.Translation = m_PtrCapturedPickedObject3D->ComponentTransform.Translation;
 
 				m_bIsGizmoSelected = true;
-				if (ShouldSelectRotationGizmo(m_GameObject3D_3DGizmoRotationPitch.get(), E3DGizmoAxis::AxisX))
+				if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationPitch.get(), E3DGizmoAxis::AxisX))
 				{
 					Draw3DGizmoRotations(E3DGizmoAxis::AxisX);
 					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
 				}
-				else if (ShouldSelectRotationGizmo(m_GameObject3D_3DGizmoRotationYaw.get(), E3DGizmoAxis::AxisY))
+				else if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationYaw.get(), E3DGizmoAxis::AxisY))
 				{
 					Draw3DGizmoRotations(E3DGizmoAxis::AxisY);
 					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
 				}
-				else if (ShouldSelectRotationGizmo(m_GameObject3D_3DGizmoRotationRoll.get(), E3DGizmoAxis::AxisZ))
+				else if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationRoll.get(), E3DGizmoAxis::AxisZ))
 				{
 					Draw3DGizmoRotations(E3DGizmoAxis::AxisZ);
 					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
@@ -1986,22 +1907,22 @@ void CGame::Draw3DGizmos()
 
 				break;
 			case E3DGizmoMode::Scaling:
-				m_GameObject3D_3DGizmoScalingX->ComponentTransform.Translation =
-					m_GameObject3D_3DGizmoScalingY->ComponentTransform.Translation =
-					m_GameObject3D_3DGizmoScalingZ->ComponentTransform.Translation = m_PtrCapturedPickedGameObject3D->ComponentTransform.Translation;
+				m_Object3D_3DGizmoScalingX->ComponentTransform.Translation =
+					m_Object3D_3DGizmoScalingY->ComponentTransform.Translation =
+					m_Object3D_3DGizmoScalingZ->ComponentTransform.Translation = m_PtrCapturedPickedObject3D->ComponentTransform.Translation;
 
 				m_bIsGizmoSelected = true;
-				if (ShouldSelectTranslationScalingGizmo(m_GameObject3D_3DGizmoScalingX.get(), E3DGizmoAxis::AxisX))
+				if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingX.get(), E3DGizmoAxis::AxisX))
 				{
 					Draw3DGizmoScalings(E3DGizmoAxis::AxisX);
 					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
 				}
-				else if (ShouldSelectTranslationScalingGizmo(m_GameObject3D_3DGizmoScalingY.get(), E3DGizmoAxis::AxisY))
+				else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingY.get(), E3DGizmoAxis::AxisY))
 				{
 					Draw3DGizmoScalings(E3DGizmoAxis::AxisY);
 					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
 				}
-				else if (ShouldSelectTranslationScalingGizmo(m_GameObject3D_3DGizmoScalingZ.get(), E3DGizmoAxis::AxisZ))
+				else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingZ.get(), E3DGizmoAxis::AxisZ))
 				{
 					Draw3DGizmoScalings(E3DGizmoAxis::AxisZ);
 					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
@@ -2020,11 +1941,11 @@ void CGame::Draw3DGizmos()
 		}
 	}
 
-	if (m_PtrPickedGameObject3D)
+	if (m_PtrPickedObject3D)
 	{
 		if (MouseState.leftButton && !m_bIsGizmoSelected)
 		{
-			m_PtrCapturedPickedGameObject3D = m_PtrPickedGameObject3D;
+			m_PtrCapturedPickedObject3D = m_PtrPickedObject3D;
 		}
 	}
 
@@ -2055,9 +1976,9 @@ void CGame::Draw3DGizmoRotations(E3DGizmoAxis Axis)
 		break;
 	}
 
-	Draw3DGizmo(m_GameObject3D_3DGizmoRotationPitch.get(), bHighlightX);
-	Draw3DGizmo(m_GameObject3D_3DGizmoRotationYaw.get(), bHighlightY);
-	Draw3DGizmo(m_GameObject3D_3DGizmoRotationRoll.get(), bHighlightZ);
+	Draw3DGizmo(m_Object3D_3DGizmoRotationPitch.get(), bHighlightX);
+	Draw3DGizmo(m_Object3D_3DGizmoRotationYaw.get(), bHighlightY);
+	Draw3DGizmo(m_Object3D_3DGizmoRotationRoll.get(), bHighlightZ);
 }
 
 void CGame::Draw3DGizmoTranslations(E3DGizmoAxis Axis)
@@ -2081,9 +2002,9 @@ void CGame::Draw3DGizmoTranslations(E3DGizmoAxis Axis)
 		break;
 	}
 
-	Draw3DGizmo(m_GameObject3D_3DGizmoTranslationX.get(), bHighlightX);
-	Draw3DGizmo(m_GameObject3D_3DGizmoTranslationY.get(), bHighlightY);
-	Draw3DGizmo(m_GameObject3D_3DGizmoTranslationZ.get(), bHighlightZ);
+	Draw3DGizmo(m_Object3D_3DGizmoTranslationX.get(), bHighlightX);
+	Draw3DGizmo(m_Object3D_3DGizmoTranslationY.get(), bHighlightY);
+	Draw3DGizmo(m_Object3D_3DGizmoTranslationZ.get(), bHighlightZ);
 }
 
 void CGame::Draw3DGizmoScalings(E3DGizmoAxis Axis)
@@ -2107,12 +2028,12 @@ void CGame::Draw3DGizmoScalings(E3DGizmoAxis Axis)
 		break;
 	}
 
-	Draw3DGizmo(m_GameObject3D_3DGizmoScalingX.get(), bHighlightX);
-	Draw3DGizmo(m_GameObject3D_3DGizmoScalingY.get(), bHighlightY);
-	Draw3DGizmo(m_GameObject3D_3DGizmoScalingZ.get(), bHighlightZ);
+	Draw3DGizmo(m_Object3D_3DGizmoScalingX.get(), bHighlightX);
+	Draw3DGizmo(m_Object3D_3DGizmoScalingY.get(), bHighlightY);
+	Draw3DGizmo(m_Object3D_3DGizmoScalingZ.get(), bHighlightZ);
 }
 
-void CGame::Draw3DGizmo(CGameObject3D* Gizmo, bool bShouldHighlight)
+void CGame::Draw3DGizmo(CObject3D* Gizmo, bool bShouldHighlight)
 {
 	CShader* VS{ Gizmo->ComponentRender.PtrVS };
 	CShader* PS{ Gizmo->ComponentRender.PtrPS };
@@ -2138,7 +2059,7 @@ void CGame::Draw3DGizmo(CGameObject3D* Gizmo, bool bShouldHighlight)
 	PS->UpdateConstantBuffer(0);
 	PS->Use();
 
-	Gizmo->ComponentRender.PtrObject3D->Draw();
+	Gizmo->Draw();
 }
 
 void CGame::SetUniversalRasterizerState()
@@ -2197,18 +2118,18 @@ const XMFLOAT2& CGame::GetWindowSize() const
 
 const char* CGame::GetPickedGameObject3DName() const
 {
-	if (m_PtrPickedGameObject3D)
+	if (m_PtrPickedObject3D)
 	{
-		return m_PtrPickedGameObject3D->GetName().c_str();
+		return m_PtrPickedObject3D->GetName().c_str();
 	}
 	return nullptr;
 }
 
 const char* CGame::GetCapturedPickedGameObject3DName() const
 {
-	if (m_PtrCapturedPickedGameObject3D)
+	if (m_PtrCapturedPickedObject3D)
 	{
-		return m_PtrCapturedPickedGameObject3D->GetName().c_str();
+		return m_PtrCapturedPickedObject3D->GetName().c_str();
 	}
 	return nullptr;
 }

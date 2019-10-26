@@ -51,19 +51,10 @@
     <ClCompile Include="Core\Object2D.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Core\GameObject2D.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="TinyXml2\tinyxml2.cpp">
       <Filter>TinyXml2</Filter>
     </ClCompile>
-    <ClCompile Include="Core\GameObject3D.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="Core\Object3DLine.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Core\GameObject3DLine.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="ImGui\imgui.cpp">
@@ -404,19 +395,10 @@
     <ClInclude Include="Core\Object2D.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\GameObject2D.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="TinyXml2\tinyxml2.h">
       <Filter>TinyXml2</Filter>
     </ClInclude>
-    <ClInclude Include="Core\GameObject3D.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Core\Object3DLine.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\GameObject3DLine.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="ImGui\imconfig.h">

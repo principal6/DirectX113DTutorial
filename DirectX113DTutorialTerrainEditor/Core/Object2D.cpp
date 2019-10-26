@@ -69,7 +69,16 @@ void CObject2D::UpdateVertexBuffer()
 	}
 }
 
-void CObject2D::Draw()
+void CObject2D::UpdateWorldMatrix()
+{
+	XMMATRIX Translation{ XMMatrixTranslationFromVector(ComponentTransform.Translation) };
+	XMMATRIX Rotation{ XMMatrixRotationQuaternion(ComponentTransform.RotationQuaternion) };
+	XMMATRIX Scaling{ XMMatrixScalingFromVector(ComponentTransform.Scaling) };
+
+	ComponentTransform.MatrixWorld = Scaling * Rotation * Translation;
+}
+
+void CObject2D::Draw() const
 {
 	m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_VertexBuffer.GetAddressOf(), &m_VertexBufferStride, &m_VertexBufferOffset);
 	m_PtrDeviceContext->IASetIndexBuffer(m_IndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);

@@ -13,8 +13,17 @@ struct SVertex3DLine
 
 class CObject3DLine
 {
+	struct SComponentTransform
+	{
+		XMVECTOR		Translation{};
+		XMVECTOR		RotationQuaternion{};
+		XMVECTOR		Scaling{ XMVectorSet(1, 1, 1, 0) };
+		XMMATRIX		MatrixWorld{ XMMatrixIdentity() };
+	};
+
 public:
-	CObject3DLine(ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext) : m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
+	CObject3DLine(const string& Name, ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext) : 
+		m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
 	{
 		assert(m_PtrDevice);
 		assert(m_PtrDeviceContext);
@@ -22,19 +31,36 @@ public:
 	~CObject3DLine() {}
 
 public:
-	void Create(const vector<SVertex3DLine>& _vVertices);
-	void Update();
+	void* operator new(size_t Size)
+	{
+		return _aligned_malloc(Size, 16);
+	}
+
+	void operator delete(void* Pointer)
+	{
+		_aligned_free(Pointer);
+	}
+
+public:
+	void Create(const vector<SVertex3DLine>& vVertices);
+	void UpdateVertexBuffer();
+	void UpdateWorldMatrix();
 	void Draw() const;
 
 public:
 	vector<SVertex3DLine>& GetVertices() { return m_vVertices; }
 	const vector<SVertex3DLine>& GetVertices() const { return m_vVertices; }
 
+public:
+	SComponentTransform		ComponentTransform{};
+	bool					bIsVisible{ true };
+
 private:
 	ID3D11Device*			m_PtrDevice{};
 	ID3D11DeviceContext*	m_PtrDeviceContext{};
 
 private:
+	string					m_Name{};
 	vector<SVertex3DLine>	m_vVertices{};
 
 	ComPtr<ID3D11Buffer>	m_VertexBuffer{};

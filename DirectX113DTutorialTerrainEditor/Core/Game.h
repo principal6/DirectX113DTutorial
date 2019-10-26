@@ -11,9 +11,6 @@
 #include "Object3DLine.h"
 #include "Object2D.h"
 #include "PrimitiveGenerator.h"
-#include "GameObject3D.h"
-#include "GameObject3DLine.h"
-#include "GameObject2D.h"
 #include "TinyXml2/tinyxml2.h"
 #include "Terrain.h"
 
@@ -284,14 +281,16 @@ public:
 	CShader* GetShader(size_t Index);
 	CShader* GetBaseShader(EBaseShader eShader);
 
-	CObject3D* AddObject3D();
-	CObject3D* GetObject3D(size_t Index);
+	void InsertObject3D(const string& Name);
+	void EraseObject3D(const string& Name);
+	CObject3D* GetObject3D(const string& Name);
+	const map<string, size_t>& GetObject3DMap() { return m_mapObject3DNameToIndex; }
 
-	CObject3DLine* AddObject3DLine();
-	CObject3DLine* GetObject3DLine(size_t Index);
+	void InsertObject3DLine(const string& Name);
+	CObject3DLine* GetObject3DLine(const string& Name);
 
-	CObject2D* AddObject2D();
-	CObject2D* GetObject2D(size_t Index);
+	void InsertObject2D(const string& Name);
+	CObject2D* GetObject2D(const string& Name);
 
 	CMaterial* AddMaterial(const CMaterial& Material);
 	CMaterial* GetMaterial(const string& Name);
@@ -299,25 +298,13 @@ public:
 	size_t GetMaterialCount();
 	void ChangeMaterialName(const string& OldName, const string& NewName);
 	void UpdateMaterial(const string& Name);
-	const map<string, size_t>& GetMaterialListMap() { return m_mapMaterialNameToIndex; }
+	const map<string, size_t>& GetMaterialMap() { return m_mapMaterialNameToIndex; }
 
 	CMaterial::CTexture* AddMaterialDiffuseTexture(const string& Name);
 	CMaterial::CTexture* GetMaterialDiffuseTexture(const string& Name);
 	
 	CMaterial::CTexture* AddMaterialNormalTexture(const string& Name);
 	CMaterial::CTexture* GetMaterialNormalTexture(const string& Name);
-
-	CGameObject3D* AddGameObject3D(const string& Name);
-	CGameObject3D* GetGameObject3D(const string& Name);
-	CGameObject3D* GetGameObject3D(size_t Index);
-
-	CGameObject3DLine* AddGameObject3DLine(const string& Name);
-	CGameObject3DLine* GetGameObject3DLine(const string& Name);
-	CGameObject3DLine* GetGameObject3DLine(size_t Index);
-
-	CGameObject2D* AddGameObject2D(const string& Name);
-	CGameObject2D* GetGameObject2D(const string& Name);
-	CGameObject2D* GetGameObject2D(size_t Index);
 
 public:
 	void Pick();
@@ -358,9 +345,9 @@ public:
 	ID3D11DepthStencilState* GetDepthStencilStateLessEqualNoWrite() { return m_DepthStencilStateLessEqualNoWrite.Get(); }
 
 private:
-	void UpdateGameObject3D(CGameObject3D* PtrGO);
-	void DrawGameObject3D(CGameObject3D* PtrGO);
-	void DrawGameObject3DBoundingSphere(CGameObject3D* PtrGO);
+	void UpdateObject3D(CObject3D* PtrObject3D);
+	void DrawObject3D(CObject3D* PtrObject3D);
+	void DrawObject3DBoundingSphere(CObject3D* PtrObject3D);
 
 	void DrawGameObject3DLines();
 
@@ -375,13 +362,13 @@ private:
 	void DrawSky(float DeltaTime);
 	void DrawTerrain();
 
-	bool ShouldSelectRotationGizmo(CGameObject3D* Gizmo, E3DGizmoAxis Axis);
-	bool ShouldSelectTranslationScalingGizmo(CGameObject3D* Gizmo, E3DGizmoAxis Axis);
+	bool ShouldSelectRotationGizmo(CObject3D* Gizmo, E3DGizmoAxis Axis);
+	bool ShouldSelectTranslationScalingGizmo(CObject3D* Gizmo, E3DGizmoAxis Axis);
 	void Draw3DGizmos();
 	void Draw3DGizmoRotations(E3DGizmoAxis Axis);
 	void Draw3DGizmoTranslations(E3DGizmoAxis Axis);
 	void Draw3DGizmoScalings(E3DGizmoAxis Axis);
-	void Draw3DGizmo(CGameObject3D* Gizmo, bool bShouldHighlight);
+	void Draw3DGizmo(CObject3D* Gizmo, bool bShouldHighlight);
 
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
@@ -397,6 +384,7 @@ public:
 	static constexpr float KScalingMaxLimit{ +100.0f };
 	static constexpr float KScalingMinLimit{ +0.01f };
 	static constexpr float KScalingUnit{ +0.1f };
+	static constexpr int KObject3DNameMaxLength{ 100 };
 	
 private:
 	static constexpr float KDefaultFOV{ 50.0f / 360.0f * XM_2PI };
@@ -475,9 +463,6 @@ private:
 	vector<unique_ptr<CMaterial>>			m_vMaterials{};
 	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialDiffuseTextures{};
 	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialNormalTextures{};
-	vector<unique_ptr<CGameObject3D>>		m_vGameObject3Ds{};
-	vector<unique_ptr<CGameObject3DLine>>	m_vGameObject3DLines{};
-	vector<unique_ptr<CGameObject2D>>		m_vGameObject2Ds{};
 
 	unique_ptr<CObject3DLine>				m_Object3DLinePickingRay{};
 	unique_ptr<CObject3D>					m_Object3DPickedTriangle{};
@@ -485,7 +470,6 @@ private:
 	unique_ptr<CObject3D>					m_Object3DBoundingSphere{};
 
 	vector<unique_ptr<CObject3D>>			m_vObject3DMiniAxes{};
-	vector<unique_ptr<CGameObject3D>>		m_vGameObject3DMiniAxes{};
 
 	SSkyData								m_SkyData{};
 	CMaterial								m_SkyMaterial{};
@@ -493,37 +477,24 @@ private:
 	unique_ptr<CObject3D>					m_Object3DSun{};
 	unique_ptr<CObject3D>					m_Object3DMoon{};
 	unique_ptr<CObject3D>					m_Object3DCloud{};
-	unique_ptr<CGameObject3D>				m_GameObject3DSkySphere{};
-	unique_ptr<CGameObject3D>				m_GameObject3DSun{};
-	unique_ptr<CGameObject3D>				m_GameObject3DMoon{};
-	unique_ptr<CGameObject3D>				m_GameObject3DCloud{};
 
 	map<string, size_t>						m_mapMaterialNameToIndex{};
-	unordered_map<string, size_t>			m_umapGameObject3DNameToIndex{};
-	unordered_map<string, size_t>			m_umapGameObject3DLineNameToIndex{};
-	unordered_map<string, size_t>			m_umapGameObject2DNameToIndex{};
+	map<string, size_t>						m_mapObject3DNameToIndex{};
+	unordered_map<string, size_t>			m_umapObject3DLineNameToIndex{};
+	unordered_map<string, size_t>			m_umapObject2DNameToIndex{};
 
 private:
 	unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationPitch{};
 	unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationYaw{};
 	unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationRoll{};
-	unique_ptr<CGameObject3D>	m_GameObject3D_3DGizmoRotationPitch{};
-	unique_ptr<CGameObject3D>	m_GameObject3D_3DGizmoRotationYaw{};
-	unique_ptr<CGameObject3D>	m_GameObject3D_3DGizmoRotationRoll{};
 
 	unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationX{};
 	unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationY{};
 	unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationZ{};
-	unique_ptr<CGameObject3D>	m_GameObject3D_3DGizmoTranslationX{};
-	unique_ptr<CGameObject3D>	m_GameObject3D_3DGizmoTranslationY{};
-	unique_ptr<CGameObject3D>	m_GameObject3D_3DGizmoTranslationZ{};
 
 	unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingX{};
 	unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingY{};
 	unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingZ{};
-	unique_ptr<CGameObject3D>	m_GameObject3D_3DGizmoScalingX{};
-	unique_ptr<CGameObject3D>	m_GameObject3D_3DGizmoScalingY{};
-	unique_ptr<CGameObject3D>	m_GameObject3D_3DGizmoScalingZ{};
 
 	bool						m_bIsGizmoSelected{ false };
 	E3DGizmoAxis				m_e3DGizmoSelectedAxis{};
@@ -549,13 +520,13 @@ private:
 	size_t			m_CurrentCameraIndex{};
 	
 private:
-	XMVECTOR		m_PickingRayWorldSpaceOrigin{};
-	XMVECTOR		m_PickingRayWorldSpaceDirection{};
-	CGameObject3D*	m_PtrPickedGameObject3D{};
-	CGameObject3D*	m_PtrCapturedPickedGameObject3D{};
-	XMVECTOR		m_PickedTriangleV0{};
-	XMVECTOR		m_PickedTriangleV1{};
-	XMVECTOR		m_PickedTriangleV2{};
+	XMVECTOR	m_PickingRayWorldSpaceOrigin{};
+	XMVECTOR	m_PickingRayWorldSpaceDirection{};
+	CObject3D*	m_PtrPickedObject3D{};
+	CObject3D*	m_PtrCapturedPickedObject3D{};
+	XMVECTOR	m_PickedTriangleV0{};
+	XMVECTOR	m_PickedTriangleV1{};
+	XMVECTOR	m_PickedTriangleV2{};
 
 private:
 	unique_ptr<CTerrain>	m_Terrain{};

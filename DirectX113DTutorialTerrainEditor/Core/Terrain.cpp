@@ -37,7 +37,7 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, fl
 	CreateTerrainObject3D(vMaterials);
 
 	m_Object2DTextureRepresentation.release();
-	m_Object2DTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
+	m_Object2DTextureRepresentation = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
 	m_Object2DTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
 
 	CreateHeightMapTexture(true);
@@ -121,7 +121,7 @@ void CTerrain::Load(const string& FileName)
 	CreateTerrainObject3D(Model.vMaterials);
 
 	m_Object2DTextureRepresentation.release();
-	m_Object2DTextureRepresentation = make_unique<CObject2D>(m_PtrDevice, m_PtrDeviceContext);
+	m_Object2DTextureRepresentation = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
 	m_Object2DTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
 
 	CreateHeightMapTexture(false);
@@ -205,7 +205,7 @@ void CTerrain::CreateTerrainObject3D(vector<CMaterial>& vMaterials)
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
 
 	m_Object3DTerrain.release();
-	m_Object3DTerrain = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	m_Object3DTerrain = make_unique<CObject3D>("Terrain", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3DTerrain->Create(Model);
 	m_Object3DTerrain->ShouldTessellate(true); // @important
 }
@@ -266,7 +266,7 @@ void CTerrain::CreateWater()
 	constexpr XMVECTOR KWaterColor{ 0.0f, 0.5f, 0.625f, 0.8125f };
 
 	m_Object3DWater.release();
-	m_Object3DWater = make_unique<CObject3D>(m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	m_Object3DWater = make_unique<CObject3D>("Water", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 
 	SMesh WaterMesh{ GenerateTerrainBase(m_Size, false, KWaterColor) };
 	m_Object3DWater->Create(WaterMesh);

@@ -127,10 +127,7 @@
   <ItemGroup>
     <ClCompile Include="Core\AssimpLoader.cpp" />
     <ClCompile Include="Core\Camera.cpp" />
-    <ClCompile Include="Core\GameObject3D.cpp" />
     <ClCompile Include="Core\Game.cpp" />
-    <ClCompile Include="Core\GameObject2D.cpp" />
-    <ClCompile Include="Core\GameObject3DLine.cpp" />
     <ClCompile Include="Core\Object2D.cpp" />
     <ClCompile Include="Core\Object3D.cpp" />
     <ClCompile Include="Core\Object3DLine.cpp" />
@@ -222,10 +219,7 @@
     <ClInclude Include="Assimp\ZipArchiveIOSystem.h" />
     <ClInclude Include="Core\AssimpLoader.h" />
     <ClInclude Include="Core\Camera.h" />
-    <ClInclude Include="Core\GameObject3D.h" />
     <ClInclude Include="Core\Game.h" />
-    <ClInclude Include="Core\GameObject2D.h" />
-    <ClInclude Include="Core\GameObject3DLine.h" />
     <ClInclude Include="Core\Math.h" />
     <ClInclude Include="Core\ModelPorter.h" />
     <ClInclude Include="Core\Object2D.h" />

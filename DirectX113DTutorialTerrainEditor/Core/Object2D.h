@@ -15,6 +15,14 @@ struct SVertex2D
 
 class CObject2D
 {
+	struct SComponentTransform
+	{
+		XMVECTOR	Translation{};
+		XMVECTOR	RotationQuaternion{};
+		XMVECTOR	Scaling{ XMVectorSet(1, 1, 1, 0) };
+		XMMATRIX	MatrixWorld{ XMMatrixIdentity() };
+	};
+
 public:
 	struct SData
 	{
@@ -23,8 +31,8 @@ public:
 	};
 
 public:
-	CObject2D(ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext) : 
-		m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
+	CObject2D(const string& Name, ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext) :
+		m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
 	{
 		assert(m_PtrDevice);
 		assert(m_PtrDeviceContext);
@@ -32,12 +40,24 @@ public:
 	~CObject2D() {}
 
 public:
+	void* operator new(size_t Size)
+	{
+		return _aligned_malloc(Size, 16);
+	}
+
+	void operator delete(void* Pointer)
+	{
+		_aligned_free(Pointer);
+	}
+
+public:
 	void CreateStatic(const SData& Data);
 	void CreateDynamic(const SData& Data);
 
 	void UpdateVertexBuffer();
+	void UpdateWorldMatrix();
 
-	void Draw();
+	void Draw() const;
 
 public:
 	SData& GetData() { return m_Data; }
@@ -46,11 +66,16 @@ public:
 private:
 	void CreateIndexBuffer();
 
+public:
+	SComponentTransform		ComponentTransform{};
+	bool					bIsVisible{ true };
+
 private:
 	ID3D11Device*			m_PtrDevice{};
 	ID3D11DeviceContext*	m_PtrDeviceContext{};
 
 private:
+	string					m_Name{};
 	SData					m_Data{};
 
 	ComPtr<ID3D11Buffer>	m_VertexBuffer{};
