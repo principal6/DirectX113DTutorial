@@ -89,7 +89,9 @@ void CMaterial::CTexture::UpdateTextureRawData(const SPixel8UInt* PtrData)
 		size_t SrcRowPixelCount{ (size_t)m_TextureSize.x };
 		uint8_t* PtrDest{ (uint8_t*)MappedSubresource.pData };
 
-		UINT RowCount{ MappedSubresource.DepthPitch / MappedSubresource.RowPitch };
+		UINT RowCount{ (MappedSubresource.DepthPitch) ?
+			MappedSubresource.DepthPitch / MappedSubresource.RowPitch :
+			static_cast<UINT>(SrcRowPixelCount) };
 		for (UINT iRow = 0; iRow < RowCount; ++iRow)
 		{
 			memcpy(PtrDest + (static_cast<size_t>(iRow)* MappedSubresource.RowPitch),
@@ -109,7 +111,9 @@ void CMaterial::CTexture::UpdateTextureRawData(const SPixel32UInt* PtrData)
 		size_t SrcRowPixelCount{ (size_t)m_TextureSize.x };
 		uint8_t* PtrDest{ (uint8_t*)MappedSubresource.pData };
 
-		UINT RowCount{ MappedSubresource.DepthPitch / MappedSubresource.RowPitch };
+		UINT RowCount{ (MappedSubresource.DepthPitch) ?
+			MappedSubresource.DepthPitch / MappedSubresource.RowPitch : 
+			static_cast<UINT>(SrcRowPixelCount) };
 		for (UINT iRow = 0; iRow < RowCount; ++iRow)
 		{
 			memcpy(PtrDest + (static_cast<size_t>(iRow) * MappedSubresource.RowPitch), 
