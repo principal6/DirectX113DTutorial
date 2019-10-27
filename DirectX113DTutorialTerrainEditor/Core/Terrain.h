@@ -85,6 +85,8 @@ public:
 	CTerrain::EEditMode GetEditMode();
 	void SetWaterHeight(float Value);
 	float GetWaterHeight() const;
+	void SetTessFactor(float Value);
+	float GetTessFactor() const;
 
 	const XMFLOAT2& GetSize() const;
 	int GetMaterialCount() const;
@@ -104,6 +106,9 @@ public:
 	static constexpr float KMinHeight{ -5.0f };
 	static constexpr float KHeightRange{ KMaxHeight - KMinHeight };
 	static constexpr float KHeightRangeHalf{ KHeightRange / 2.0f };
+
+	static constexpr float KTessFactorMin{ 2.0f };
+	static constexpr float KTessFactorMax{ 64.0f };
 
 	static constexpr float KSelectionSizeUnit{ 1.0f };
 	static constexpr float KSelectionMinSize{ 1.0f };
@@ -150,6 +155,7 @@ private:
 	unique_ptr<CMaterial::CTexture>	m_HeightMapTexture{};
 	vector<SPixel8UInt>				m_HeightMapTextureRawData{};
 	SCBVSTerrainData				m_cbTerrainData{};
+	float							m_TessFactor{ KTessFactorMin };
 
 	XMFLOAT2						m_MaskingTextureSize{};
 	unique_ptr<CMaterial::CTexture>	m_MaskingTexture{};

@@ -154,11 +154,13 @@ void CObject3D::CreateMaterialTextures()
 {
 	m_vDiffuseTextures.clear();
 	m_vNormalTextures.clear();
+	m_vDisplacementTextures.clear();
 
 	for (CMaterial& Material : m_Model.vMaterials)
 	{
 		m_vDiffuseTextures.emplace_back();
 		m_vNormalTextures.emplace_back();
+		m_vDisplacementTextures.emplace_back();
 
 		if (Material.HasTexture())
 		{
@@ -194,6 +196,24 @@ void CObject3D::CreateMaterialTextures()
 				}
 
 				m_vNormalTextures.back()->SetSlot(static_cast<UINT>(KNormalTextureSlotOffset + m_vNormalTextures.size() - 1));
+			}
+
+			if (Material.HasDisplacementTexture())
+			{
+				m_vDisplacementTextures.back() = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+
+				if (Material.IsDiffuseTextureEmbedded())
+				{
+					m_vDisplacementTextures.back()->CreateTextureFromMemory(Material.GetDisplacementTextureRawData());
+					Material.ClearEmbeddedDisplacementTextureData();
+				}
+				else
+				{
+					m_vDisplacementTextures.back()->CreateTextureFromFile(Material.GetDisplacementTextureFileName(), Material.ShouldGenerateAutoMipMap());
+				}
+
+				m_vDisplacementTextures.back()->SetShaderType(EShaderType::DomainShader); // @important
+				m_vDisplacementTextures.back()->SetSlot(static_cast<UINT>(KDisplacementTextureSlotOffset));
 			}
 		}
 	}
@@ -383,6 +403,11 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 			{
 				if (m_vDiffuseTextures[Mesh.MaterialID]) m_vDiffuseTextures[Mesh.MaterialID]->Use();
 				if (m_vNormalTextures[Mesh.MaterialID]) m_vNormalTextures[Mesh.MaterialID]->Use();
+			}
+
+			if (m_vDisplacementTextures.size())
+			{
+				m_vDisplacementTextures.front()->Use();
 			}
 		}
 

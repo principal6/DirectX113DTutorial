@@ -660,6 +660,16 @@ float CTerrain::GetWaterHeight() const
 	return m_WaterHeight;
 }
 
+void CTerrain::SetTessFactor(float Value)
+{
+	m_TessFactor = Value;
+}
+
+float CTerrain::GetTessFactor() const
+{
+	return m_TessFactor;
+}
+
 const XMFLOAT2& CTerrain::GetSize() const
 {
 	return m_Size;

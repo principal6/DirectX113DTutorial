@@ -19,6 +19,12 @@ void CMaterial::CTexture::CreateTextureFromFile(const string& TextureFileName, b
 		ComPtr<ID3D11Texture2D> NonMipMappedTexture{};
 		CreateWICTextureFromFile(m_PtrDevice, wFileName.c_str(), (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
 
+		if (!NonMipMappedTexture)
+		{
+			MessageBox(nullptr, ("텍스처를 찾을 수 없습니다." + m_TextureFileName).c_str(), "파일 열기 오류", MB_OK | MB_ICONEXCLAMATION);
+			return;
+		}
+
 		D3D11_TEXTURE2D_DESC Texture2DDesc{};
 		NonMipMappedTexture->GetDesc(&Texture2DDesc);
 		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
@@ -201,6 +207,24 @@ void CMaterial::SetNormalTextureFileName(const string& FileName)
 	NormalTextureFileName = FileName;
 
 	vEmbeddedNormalTextureRawData.clear();
+}
+
+void CMaterial::SetDisplacementTextureRawData(const vector<uint8_t>& Data)
+{
+	bHasTexture = true;
+	bHasDisplacementTexture = true;
+
+	vEmbeddedDisplacementTextureRawData = Data;
+}
+
+void CMaterial::SetDisplacementTextureFileName(const string& FileName)
+{
+	bHasTexture = true;
+	bHasDisplacementTexture = true;
+
+	DisplacementTextureFileName = FileName;
+
+	vEmbeddedDisplacementTextureRawData.clear();
 }
 
 void CMaterial::SetUniformColor(const XMFLOAT3& Color)

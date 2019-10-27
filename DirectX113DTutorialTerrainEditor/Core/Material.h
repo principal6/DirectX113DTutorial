@@ -76,6 +76,9 @@ public:
 	void SetNormalTextureRawData(const vector<uint8_t>& Data);
 	void SetNormalTextureFileName(const string& FileName);
 
+	void SetDisplacementTextureRawData(const vector<uint8_t>& Data);
+	void SetDisplacementTextureFileName(const string& FileName);
+
 public:
 	void SetUniformColor(const XMFLOAT3& Color);
 	void SetAmbientColor(const XMFLOAT3& Color);
@@ -99,6 +102,12 @@ public:
 	bool IsNormalTextureEmbedded() const { return (vEmbeddedNormalTextureRawData.size()) ? true : false; }
 	const string& GetNormalTextureFileName() const { return NormalTextureFileName; }
 	const vector<uint8_t>& GetNormalTextureRawData() const { return vEmbeddedNormalTextureRawData; }
+
+	void ClearEmbeddedDisplacementTextureData() { vEmbeddedDisplacementTextureRawData.clear(); }
+	bool HasDisplacementTexture() const { return bHasDisplacementTexture; }
+	bool IsDisplacementTextureEmbedded() const { return (vEmbeddedDisplacementTextureRawData.size()) ? true : false; }
+	const string& GetDisplacementTextureFileName() const { return DisplacementTextureFileName; }
+	const vector<uint8_t>& GetDisplacementTextureRawData() const { return vEmbeddedDisplacementTextureRawData; }
 	
 	void ShouldGenerateAutoMipMap(bool Value) { m_bShouldGenerateAutoMipMap = Value; }
 	bool ShouldGenerateAutoMipMap() const { return m_bShouldGenerateAutoMipMap; }
@@ -128,6 +137,10 @@ private:
 	bool			bHasNormalTexture{ false };
 	string			NormalTextureFileName{};
 	vector<uint8_t>	vEmbeddedNormalTextureRawData{};
+
+	bool			bHasDisplacementTexture{ false };
+	string			DisplacementTextureFileName{};
+	vector<uint8_t>	vEmbeddedDisplacementTextureRawData{};
 	
 	bool			m_bShouldGenerateAutoMipMap{};
 };

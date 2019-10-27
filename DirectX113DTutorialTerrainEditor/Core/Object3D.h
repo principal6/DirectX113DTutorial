@@ -128,6 +128,7 @@ private:
 public:
 	static constexpr size_t			KDiffuseTextureSlotOffset{ 0 };
 	static constexpr size_t			KNormalTextureSlotOffset{ 5 };
+	static constexpr size_t			KDisplacementTextureSlotOffset{ 0 };
 
 public:
 	SComponentTransform				ComponentTransform{};
@@ -145,8 +146,9 @@ private:
 	bool									m_bIsCreated{ false };
 	SModel									m_Model{};
 	vector<SMeshBuffers>					m_vMeshBuffers{};
-	vector<unique_ptr<CMaterial::CTexture>>	m_vDiffuseTextures{};
+	vector<unique_ptr<CMaterial::CTexture>>	m_vDiffuseTextures{}; // Each texture is for each material of this Object3D
 	vector<unique_ptr<CMaterial::CTexture>>	m_vNormalTextures{};
+	vector<unique_ptr<CMaterial::CTexture>>	m_vDisplacementTextures{};
 
 	XMMATRIX								m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
 	size_t									m_CurrentAnimationIndex{};

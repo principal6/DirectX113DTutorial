@@ -120,6 +120,50 @@ void CGame::Set3DGizmoMode(E3DGizmoMode Mode)
 	m_e3DGizmoMode = Mode;
 }
 
+void CGame::UpdateVSSpace(const XMMATRIX& World)
+{
+	m_cbVSSpaceData.World = XMMatrixTranspose(World);
+	m_cbVSSpaceData.WVP = XMMatrixTranspose(World * m_MatrixView * m_MatrixProjection);
+}
+
+void CGame::UpdateVS2DSpace(const XMMATRIX& World)
+{
+	m_cbVS2DSpaceData.World = XMMatrixTranspose(World);
+	m_cbVS2DSpaceData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
+}
+
+void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices)
+{
+	memcpy(m_cbVSAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBVSAnimationBonesData));
+}
+
+void CGame::UpdateVSTerrainData(const SCBVSTerrainData& Data)
+{
+	m_cbVSTerrainData = Data;
+}
+
+void CGame::UpdateGSSpace()
+{
+	m_cbGSSpaceData.VP = GetTransposedVPMatrix();
+}
+
+void CGame::UpdatePSBaseMaterial(const CMaterial& Material)
+{
+	m_cbPSBaseMaterialData.MaterialAmbient = Material.GetAmbientColor();
+	m_cbPSBaseMaterialData.MaterialDiffuse = Material.GetDiffuseColor();
+	m_cbPSBaseMaterialData.MaterialSpecular = Material.GetSpecularColor();
+	m_cbPSBaseMaterialData.SpecularExponent = Material.GetSpecularExponent();
+	m_cbPSBaseMaterialData.SpecularIntensity = Material.GetSpecularIntensity();
+	m_cbPSBaseMaterialData.bHasTexture = Material.HasTexture();
+
+	m_PSBase->UpdateConstantBuffer(2);
+}
+
+void CGame::UpdatePSTerrainSpace(const XMMATRIX& Matrix)
+{
+	m_cbPSTerrainSpaceData.Matrix = XMMatrixTranspose(Matrix);
+}
+
 void CGame::UpdatePSBase2DFlagOn(EFlagPSBase2D Flag)
 {
 	switch (Flag)
@@ -144,50 +188,6 @@ void CGame::UpdatePSBase2DFlagOff(EFlagPSBase2D Flag)
 		break;
 	}
 	m_PSBase2D->UpdateConstantBuffer(0);
-}
-
-void CGame::UpdateVSSpace(const XMMATRIX& World)
-{
-	m_cbVSSpaceData.World = XMMatrixTranspose(World);
-	m_cbVSSpaceData.WVP = XMMatrixTranspose(World * m_MatrixView * m_MatrixProjection);
-}
-
-void CGame::UpdateVS2DSpace(const XMMATRIX& World)
-{
-	m_cbVS2DSpaceData.World = XMMatrixTranspose(World);
-	m_cbVS2DSpaceData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
-}
-
-void CGame::UpdatePSBaseMaterial(const CMaterial& Material)
-{
-	m_cbPSBaseMaterialData.MaterialAmbient = Material.GetAmbientColor();
-	m_cbPSBaseMaterialData.MaterialDiffuse = Material.GetDiffuseColor();
-	m_cbPSBaseMaterialData.MaterialSpecular = Material.GetSpecularColor();
-	m_cbPSBaseMaterialData.SpecularExponent = Material.GetSpecularExponent();
-	m_cbPSBaseMaterialData.SpecularIntensity = Material.GetSpecularIntensity();
-	m_cbPSBaseMaterialData.bHasTexture = Material.HasTexture();
-
-	m_PSBase->UpdateConstantBuffer(2);
-}
-
-void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices)
-{
-	memcpy(m_cbVSAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBVSAnimationBonesData));
-}
-
-void CGame::UpdateVSTerrainData(const SCBVSTerrainData& Data)
-{
-	m_cbVSTerrainData = Data;
-}
-
-void CGame::UpdateGSSpace()
-{
-	m_cbGSSpaceData.VP = GetTransposedVPMatrix();
-}
-
-void CGame::UpdatePSTerrainSpace(const XMMATRIX& Matrix)
-{
-	m_cbPSTerrainSpaceData.Matrix = XMMatrixTranspose(Matrix);
 }
 
 void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
@@ -596,6 +596,7 @@ void CGame::CreateBaseShaders()
 	m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSTerrain->Create(EShaderType::HullShader, L"Shader\\HSTerrain.hlsl", "main");
 	m_HSTerrain->AddConstantBuffer(&m_cbHSCameraData, sizeof(SCBHSCameraData));
+	m_HSTerrain->AddConstantBuffer(&m_cbHSTessFactorData, sizeof(SCBHSTessFactorData));
 
 	m_HSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSWater->Create(EShaderType::HullShader, L"Shader\\HSWater.hlsl", "main");
@@ -1020,6 +1021,7 @@ CMaterial* CGame::AddMaterial(const CMaterial& Material)
 	
 	m_vMaterialDiffuseTextures.resize(m_vMaterials.size());
 	m_vMaterialNormalTextures.resize(m_vMaterials.size());
+	m_vMaterialDisplacementTextures.resize(m_vMaterials.size());
 
 	m_mapMaterialNameToIndex[Material.GetName()] = m_vMaterials.size() - 1;
 
@@ -1095,6 +1097,21 @@ void CGame::UpdateMaterial(const string& Name)
 		else
 		{
 			m_vMaterialNormalTextures[iMaterial]->CreateTextureFromFile(Material->GetNormalTextureFileName(), Material->ShouldGenerateAutoMipMap());
+		}
+	}
+
+	if (Material->HasDisplacementTexture())
+	{
+		m_vMaterialDisplacementTextures[iMaterial].release();
+		m_vMaterialDisplacementTextures[iMaterial] = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
+
+		if (Material->IsDisplacementTextureEmbedded())
+		{
+			m_vMaterialDisplacementTextures[iMaterial]->CreateTextureFromMemory(Material->GetDisplacementTextureRawData());
+		}
+		else
+		{
+			m_vMaterialDisplacementTextures[iMaterial]->CreateTextureFromFile(Material->GetDisplacementTextureFileName(), Material->ShouldGenerateAutoMipMap());
 		}
 	}
 }
@@ -1337,7 +1354,7 @@ void CGame::BeginRendering(const FLOAT* ClearColor)
 
 	ID3D11SamplerState* SamplerState{ m_CommonStates->LinearWrap() };
 	m_DeviceContext->PSSetSamplers(0, 1, &SamplerState);
-	m_DeviceContext->DSSetSamplers(0, 1, &SamplerState);
+	m_DeviceContext->DSSetSamplers(0, 1, &SamplerState); // @important: in order to use displacement mapping
 
 	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
 
@@ -1739,13 +1756,14 @@ void CGame::DrawTerrain()
 
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain))
 	{
-		m_HSTerrain->Use();
 		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
-		m_HSTerrain->UpdateConstantBuffer(0);
+		m_cbHSTessFactorData.TessFactor = m_Terrain->GetTessFactor();
+		m_HSTerrain->UpdateAllConstantBuffers();
+		m_HSTerrain->Use();
 
-		m_DSTerrain->Use();
 		m_cbDSSpaceData.VP = GetTransposedVPMatrix();
-		m_DSTerrain->UpdateConstantBuffer(0);
+		m_DSTerrain->UpdateAllConstantBuffers();
+		m_DSTerrain->Use();
 
 		m_Terrain->Draw(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals));
 

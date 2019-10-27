@@ -35,13 +35,33 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		Grid->Create(Generate3DGrid(0));
 	}
 
+	CMaterial MaterialTest{};
+	{
+		MaterialTest.SetName("Test");
+		MaterialTest.ShouldGenerateAutoMipMap(true);
+		MaterialTest.SetDiffuseTextureFileName("Asset\\test.jpg");
+		MaterialTest.SetNormalTextureFileName("Asset\\test_normal.jpg");
+		MaterialTest.SetDisplacementTextureFileName("Asset\\test_displacement.jpg");
+		Game.AddMaterial(MaterialTest);
+	}
+
 	CMaterial MaterialDefaultGround{};
 	{
 		MaterialDefaultGround.SetName("DefaultGround");
 		MaterialDefaultGround.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround.SetDiffuseTextureFileName("Asset\\ground.png");
-		MaterialDefaultGround.SetNormalTextureFileName("Asset\\ground_normal.png");
+		MaterialDefaultGround.SetDiffuseTextureFileName("Asset\\ground2.jpg");
+		MaterialDefaultGround.SetNormalTextureFileName("Asset\\ground2_normal.jpg");
+		MaterialDefaultGround.SetDisplacementTextureFileName("Asset\\ground2_displacement.jpg");
 		Game.AddMaterial(MaterialDefaultGround);
+	}
+
+	CMaterial MaterialDefaultGrass{};
+	{
+		MaterialDefaultGrass.SetName("DefaultGrass");
+		MaterialDefaultGrass.ShouldGenerateAutoMipMap(true);
+		MaterialDefaultGrass.SetDiffuseTextureFileName("Asset\\grass.jpg");
+		MaterialDefaultGrass.SetNormalTextureFileName("Asset\\grass_normal.jpg");
+		Game.AddMaterial(MaterialDefaultGrass);
 	}
 
 	IMGUI_CHECKVERSION();
@@ -391,9 +411,16 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									const char* Lists[]{ u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<마스킹 모드>" };
 									static int iSelectedItem{};
 
-									const XMFLOAT2& TerrainSize{ Game.GetTerrain()->GetSize() };
+									const XMFLOAT2& TerrainSize{ Terrain->GetSize() };
 									ImGui::Text(u8"가로 x 세로: %d x %d", (int)TerrainSize.x, (int)TerrainSize.y);
 									ImGui::Text(u8"마스킹 디테일: %d", (int)Game.GetTerrain()->GetMaskingDetail());
+
+									ImGui::SetNextItemWidth(100);
+									float TessFactor{ Terrain->GetTessFactor() };
+									if (ImGui::DragFloat(u8"테셀레이션 계수", &TessFactor, 0.1f, CTerrain::KTessFactorMin, CTerrain::KTessFactorMax, "%.1f"))
+									{
+										Terrain->SetTessFactor(TessFactor);
+									}
 
 									ImGui::SetNextItemWidth(100);
 									float WaterHeight{ Terrain->GetWaterHeight() };
@@ -434,7 +461,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										if (ImGui::DragFloat(u8"지정할 높이", &TerrainSetHeightValue, CTerrain::KHeightUnit,
 											CTerrain::KMinHeight, CTerrain::KMaxHeight, "%.1f"))
 										{
-											Game.GetTerrain()->SetSetHeightValue(TerrainSetHeightValue);
+											Terrain->SetSetHeightValue(TerrainSetHeightValue);
 										}
 										ImGui::PopItemWidth();
 									}
@@ -467,7 +494,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										if (ImGui::DragFloat(u8"마스킹 배합 비율", &TerrainMaskingRatio, CTerrain::KMaskingRatioUnit,
 											CTerrain::KMaskingMinRatio, CTerrain::KMaskingMaxRatio, "%.3f"))
 										{
-											Game.GetTerrain()->SetMaskingValue(TerrainMaskingRatio);
+											Terrain->SetMaskingValue(TerrainMaskingRatio);
 										}
 										ImGui::PopItemWidth();
 
@@ -521,7 +548,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 									static bool bShowMaterialSelection{ false };
 									static int iSelectedMaterialID{};
-									if (Game.GetTerrain())
+									if (Terrain)
 									{
 										if (ImGui::Button(u8"재질 추가"))
 										{
@@ -529,7 +556,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 											ImGui::OpenPopup(u8"재질 선택");
 										}
 
-										for (int iMaterial = 0; iMaterial < Game.GetTerrain()->GetMaterialCount(); ++iMaterial)
+										for (int iMaterial = 0; iMaterial < Terrain->GetMaterialCount(); ++iMaterial)
 										{
 											ImGui::PushItemWidth(100);
 											ImGui::PushID(iMaterial);
@@ -543,7 +570,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 											ImGui::SameLine();
 
-											const CMaterial& Material{ Game.GetTerrain()->GetMaterial(iMaterial) };
+											const CMaterial& Material{ Terrain->GetMaterial(iMaterial) };
 											ImGui::Text(u8"재질[%d] %s", iMaterial, Material.GetName().c_str());
 										}
 									}

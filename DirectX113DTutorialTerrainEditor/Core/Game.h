@@ -89,6 +89,12 @@ struct SCBHSCameraData
 	XMVECTOR	EyePosition{};
 };
 
+struct SCBHSTessFactorData
+{
+	float		TessFactor{};
+	float		Pads[3]{};
+};
+
 struct SCBDSSpaceData
 {
 	XMMATRIX	VP{};
@@ -249,15 +255,15 @@ public:
 public:
 	void UpdateVSSpace(const XMMATRIX& World);
 	void UpdateVS2DSpace(const XMMATRIX& World);
-	void UpdatePSBaseMaterial(const CMaterial& Material);
 	void UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices);
 	void UpdateVSTerrainData(const SCBVSTerrainData& Data);
 
 	void UpdateGSSpace();
 
+	void UpdatePSBaseMaterial(const CMaterial& Material);
+	void UpdatePSTerrainSpace(const XMMATRIX& Matrix);
 	void UpdatePSBase2DFlagOn(EFlagPSBase2D Flag);
 	void UpdatePSBase2DFlagOff(EFlagPSBase2D Flag);
-	void UpdatePSTerrainSpace(const XMMATRIX& Matrix);
 
 public:
 	void SetSky(const string& SkyDataFileName, float ScalingFactor);
@@ -454,6 +460,7 @@ private:
 	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
 
 	SCBHSCameraData				m_cbHSCameraData{};
+	SCBHSTessFactorData			m_cbHSTessFactorData{};
 
 	SCBDSSpaceData				m_cbDSSpaceData{};
 
@@ -477,6 +484,7 @@ private:
 	vector<unique_ptr<CMaterial>>			m_vMaterials{};
 	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialDiffuseTextures{};
 	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialNormalTextures{};
+	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialDisplacementTextures{};
 
 	unique_ptr<CObject3DLine>				m_Object3DLinePickingRay{};
 	unique_ptr<CObject3D>					m_Object3DPickedTriangle{};
