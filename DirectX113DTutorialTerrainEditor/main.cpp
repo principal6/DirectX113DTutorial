@@ -45,14 +45,44 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		Game.AddMaterial(MaterialTest);
 	}
 
-	CMaterial MaterialDefaultGround{};
+	CMaterial MaterialDefaultGround0{};
 	{
-		MaterialDefaultGround.SetName("DefaultGround");
-		MaterialDefaultGround.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround.SetDiffuseTextureFileName("Asset\\ground2.jpg");
-		MaterialDefaultGround.SetNormalTextureFileName("Asset\\ground2_normal.jpg");
-		MaterialDefaultGround.SetDisplacementTextureFileName("Asset\\ground2_displacement.jpg");
-		Game.AddMaterial(MaterialDefaultGround);
+		MaterialDefaultGround0.SetName("DefaultGround0");
+		MaterialDefaultGround0.ShouldGenerateAutoMipMap(true);
+		MaterialDefaultGround0.SetDiffuseTextureFileName("Asset\\ground0.jpg");
+		MaterialDefaultGround0.SetNormalTextureFileName("Asset\\ground0_normal.jpg");
+		MaterialDefaultGround0.SetDisplacementTextureFileName("Asset\\ground0_displacement.jpg");
+		Game.AddMaterial(MaterialDefaultGround0);
+	}
+
+	CMaterial MaterialDefaultGround1{};
+	{
+		MaterialDefaultGround1.SetName("DefaultGround1");
+		MaterialDefaultGround1.ShouldGenerateAutoMipMap(true);
+		MaterialDefaultGround1.SetDiffuseTextureFileName("Asset\\ground1.jpg");
+		MaterialDefaultGround1.SetNormalTextureFileName("Asset\\ground1_normal.jpg");
+		MaterialDefaultGround1.SetDisplacementTextureFileName("Asset\\ground1_displacement.jpg");
+		Game.AddMaterial(MaterialDefaultGround1);
+	}
+
+	CMaterial MaterialDefaultGround2{};
+	{
+		MaterialDefaultGround2.SetName("DefaultGround2");
+		MaterialDefaultGround2.ShouldGenerateAutoMipMap(true);
+		MaterialDefaultGround2.SetDiffuseTextureFileName("Asset\\ground2.jpg");
+		MaterialDefaultGround2.SetNormalTextureFileName("Asset\\ground2_normal.jpg");
+		MaterialDefaultGround2.SetDisplacementTextureFileName("Asset\\ground2_displacement.jpg");
+		Game.AddMaterial(MaterialDefaultGround2);
+	}
+
+	CMaterial MaterialDefaultGround3{};
+	{
+		MaterialDefaultGround3.SetName("DefaultGround3");
+		MaterialDefaultGround3.ShouldGenerateAutoMipMap(true);
+		MaterialDefaultGround3.SetDiffuseTextureFileName("Asset\\ground3.jpg");
+		MaterialDefaultGround3.SetNormalTextureFileName("Asset\\ground3_normal.jpg");
+		MaterialDefaultGround3.SetDisplacementTextureFileName("Asset\\ground3_displacement.jpg");
+		Game.AddMaterial(MaterialDefaultGround3);
 	}
 
 	CMaterial MaterialDefaultGrass{};
@@ -309,7 +339,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						if (Game.GetTerrain()) eEditMode = Game.GetTerrain()->GetEditMode();
 
 						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
-						Game.CreateTerrain(TerrainSize, MaterialDefaultGround, MaskingDetail);
+						Game.CreateTerrain(TerrainSize, MaterialDefaultGround0, MaskingDetail);
 
 						SizeX = CTerrain::KDefaultSize;
 						SizeZ = CTerrain::KDefaultSize;
@@ -339,7 +369,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				if (bShowPropertyEditor)
 				{
 					ImGui::SetNextWindowPos(ImVec2(400, 22), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSizeConstraints(ImVec2(400, 100), ImVec2(400, 600));
+					ImGui::SetNextWindowSizeConstraints(ImVec2(400, 100), ImVec2(400, 578));
 					if (ImGui::Begin(u8"속성 편집기", &bShowPropertyEditor, ImGuiWindowFlags_AlwaysAutoResize))
 					{
 						if (ImGui::BeginTabBar(u8"탭바", ImGuiTabBarFlags_None))

@@ -126,9 +126,9 @@ private:
 	void CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRIX ParentTransform);
 
 public:
-	static constexpr size_t			KDiffuseTextureSlotOffset{ 0 };
-	static constexpr size_t			KNormalTextureSlotOffset{ 5 };
-	static constexpr size_t			KDisplacementTextureSlotOffset{ 0 };
+	static constexpr UINT			KDiffuseTextureSlotOffset{ 0 };
+	static constexpr UINT			KNormalTextureSlotOffset{ 5 };
+	static constexpr UINT			KDisplacementTextureSlotOffset{ 0 };
 
 public:
 	SComponentTransform				ComponentTransform{};

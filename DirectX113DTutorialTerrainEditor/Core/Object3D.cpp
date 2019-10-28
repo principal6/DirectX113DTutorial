@@ -213,7 +213,7 @@ void CObject3D::CreateMaterialTextures()
 				}
 
 				m_vDisplacementTextures.back()->SetShaderType(EShaderType::DomainShader); // @important
-				m_vDisplacementTextures.back()->SetSlot(static_cast<UINT>(KDisplacementTextureSlotOffset));
+				m_vDisplacementTextures.back()->SetSlot(KDisplacementTextureSlotOffset);
 			}
 		}
 	}
@@ -407,7 +407,15 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 
 			if (m_vDisplacementTextures.size())
 			{
-				m_vDisplacementTextures.front()->Use();
+				if (m_vDisplacementTextures.front())
+				{
+					m_PtrGame->UpdateDSDisplacementData(true);
+					m_vDisplacementTextures.front()->Use();
+				}
+				else
+				{
+					m_PtrGame->UpdateDSDisplacementData(false);
+				}
 			}
 		}
 

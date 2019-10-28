@@ -142,6 +142,13 @@ void CGame::UpdateVSTerrainData(const SCBVSTerrainData& Data)
 	m_cbVSTerrainData = Data;
 }
 
+void CGame::UpdateDSDisplacementData(bool bUseDisplacement)
+{
+	m_cbDSDisplacementData.bUseDisplacement = bUseDisplacement;
+
+	m_DSTerrain->UpdateAllConstantBuffers();
+}
+
 void CGame::UpdateGSSpace()
 {
 	m_cbGSSpaceData.VP = GetTransposedVPMatrix();
@@ -605,6 +612,7 @@ void CGame::CreateBaseShaders()
 	m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSTerrain->Create(EShaderType::DomainShader, L"Shader\\DSTerrain.hlsl", "main");
 	m_DSTerrain->AddConstantBuffer(&m_cbDSSpaceData, sizeof(SCBDSSpaceData));
+	m_DSTerrain->AddConstantBuffer(&m_cbDSDisplacementData, sizeof(SCBDSDisplacementData));
 
 	m_DSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSWater->Create(EShaderType::DomainShader, L"Shader\\DSWater.hlsl", "main");

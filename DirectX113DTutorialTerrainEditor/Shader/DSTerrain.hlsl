@@ -5,6 +5,12 @@ cbuffer cbSpace : register(b0)
 	float4x4 VP;
 }
 
+cbuffer cbDisplacement : register(b1)
+{
+	bool UseDisplacement;
+	float3 Pads;
+}
+
 SamplerState CurrentSampler : register(s0);
 Texture2D DisplacementTexture : register(t0);
 
@@ -30,9 +36,13 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 
 	const float KDisplacementFactor = 0.1f;
 	float4 Bezier = GetBezier(P1, P2, P3, N1, N2, N3, Domain);
-	float Displacement = DisplacementTexture.SampleLevel(CurrentSampler, Output.UV.xy, 3).r;
-	Bezier += Output.WorldNormal * Displacement * KDisplacementFactor;
-	Bezier.y -= KDisplacementFactor;
+	
+	if (UseDisplacement)
+	{
+		float Displacement = DisplacementTexture.SampleLevel(CurrentSampler, Output.UV.xy, 3).r;
+		Bezier += Output.WorldNormal * Displacement * KDisplacementFactor;
+		Bezier.y -= KDisplacementFactor;
+	}
 
 	Output.Position = Output.WorldPosition = Bezier;
 

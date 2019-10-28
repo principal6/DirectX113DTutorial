@@ -100,6 +100,12 @@ struct SCBDSSpaceData
 	XMMATRIX	VP{};
 };
 
+struct SCBDSDisplacementData
+{
+	BOOL		bUseDisplacement{};
+	float		Pads[3]{};
+};
+
 struct SCBGSSpaceData
 {
 	XMMATRIX	VP{};
@@ -257,6 +263,8 @@ public:
 	void UpdateVS2DSpace(const XMMATRIX& World);
 	void UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices);
 	void UpdateVSTerrainData(const SCBVSTerrainData& Data);
+
+	void UpdateDSDisplacementData(bool bUseDisplacement);
 
 	void UpdateGSSpace();
 
@@ -463,6 +471,7 @@ private:
 	SCBHSTessFactorData			m_cbHSTessFactorData{};
 
 	SCBDSSpaceData				m_cbDSSpaceData{};
+	SCBDSDisplacementData		m_cbDSDisplacementData{};
 
 	SCBGSSpaceData				m_cbGSSpaceData{};
 
