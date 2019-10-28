@@ -71,11 +71,14 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	}
 
 	// Gamma correction
-	//Albedo.xyz *= Albedo.xyz;
 	float4 ResultAlbedo = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
-	ResultAlbedo += CalculateDirectional(Albedo, Albedo, 1, 0,
+	float4 Directional = CalculateDirectional(Albedo, Albedo, 1, 0,
 		DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), ResultNormal);
-	ResultAlbedo.a = Albedo.a;
+	// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
+	float Dot = dot(DirectionalLightDirection, KUpDirection);
+	Directional.xyz *= pow(Dot, 0.6f);
+
+	ResultAlbedo.xyz += Directional.xyz;
 
 	// For normal & tangent drawing
 	if (input.bUseVertexColor != 0)

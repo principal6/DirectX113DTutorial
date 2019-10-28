@@ -39,7 +39,7 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 	
 	if (UseDisplacement)
 	{
-		float Displacement = DisplacementTexture.SampleLevel(CurrentSampler, Output.UV.xy, 3).r;
+		float Displacement = DisplacementTexture.SampleLevel(CurrentSampler, Output.UV.xy, 0).r;
 		Bezier += Output.WorldNormal * Displacement * KDisplacementFactor;
 		Bezier.y -= KDisplacementFactor;
 	}

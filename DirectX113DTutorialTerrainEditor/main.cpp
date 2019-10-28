@@ -29,6 +29,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	CCamera* MainCamera{ Game.AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
 	MainCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
 
+	Game.SetSky("Asset\\Sky.xml", 10.0f);
+
 	Game.InsertObject3DLine("Grid");
 	{
 		CObject3DLine* Grid{ Game.GetObject3DLine("Grid") };

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Sky>
+  <Texture>Asset\\Sky.png</Texture>
+  <Sun>
+    <UVOffset U="0.0f" V="0.5f"/>
+    <UVSize U="0.5f" V="0.25f"/>
+    <WidthHeightRatio>2.7f</WidthHeightRatio>
+  </Sun>
+  <Moon>
+    <UVOffset U="0.0f" V="0.75f"/>
+    <UVSize U="0.5f" V="0.25f"/>
+    <WidthHeightRatio>2.7f</WidthHeightRatio>
+  </Moon>
+  <Cloud>
+    <UVOffset U="0.0f" V="0.25f"/>
+    <UVSize U="0.5f" V="0.25f"/>
+    <WidthHeightRatio>2.7f</WidthHeightRatio>
+  </Cloud>
+</Sky>

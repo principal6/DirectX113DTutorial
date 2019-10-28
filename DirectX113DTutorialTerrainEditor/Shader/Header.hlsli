@@ -1,5 +1,10 @@
 static const float4x4 KMatrixIdentity = float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 static const int KBoneMatrixMaxCount = 60;
+static const float4 KUpDirection = float4(0, 1, 0, 0);
+static const float KPIDIV2 = 1.57079f;
+static const float KPI = 3.14159f;
+static const float K2PI = 6.28318f;
+static const float K4PI = 12.56637f;
 
 struct VS_INPUT
 {

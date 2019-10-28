@@ -210,7 +210,11 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	assert(Extension == "XML");
 	
 	tinyxml2::XMLDocument xmlDocument{};
-	assert(xmlDocument.LoadFile(SkyDataFileName.c_str()) == XML_SUCCESS);
+	if (xmlDocument.LoadFile(SkyDataFileName.c_str()) != XML_SUCCESS)
+	{
+		MessageBox(nullptr, ("Sky 설정 파일을 찾을 수 없습니다. (" + SkyDataFileName + ")").c_str(), "Sky 설정 불러오기 실패", MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
 	
 	XMLElement* xmlRoot{ xmlDocument.FirstChildElement() };
 	XMLElement* xmlTexture{ xmlRoot->FirstChildElement() };
