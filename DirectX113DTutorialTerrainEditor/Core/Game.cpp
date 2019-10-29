@@ -25,6 +25,13 @@ static constexpr D3D11_INPUT_ELEMENT_DESC KVS2DBaseInputLayout[]
 	{ "TEXCOORD"	, 0, DXGI_FORMAT_R32G32_FLOAT		, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 };
 
+static constexpr D3D11_INPUT_ELEMENT_DESC KParticleInputElementDescs[]
+{
+	{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "ROTATION", 0, DXGI_FORMAT_R32_FLOAT			, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "SCALING"	, 0, DXGI_FORMAT_R32G32_FLOAT		, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+};
+
 void CGame::CreateWin32(WNDPROC WndProc, LPCTSTR WindowName, const wstring& FontFileName, bool bWindowed)
 {
 	CreateWin32Window(WndProc, WindowName);
@@ -273,6 +280,12 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	m_Object3DCloud->ComponentRender.bIsTransparent = true;
 	m_Object3DCloud->ComponentPhysics.bIsPickable = false;
 	m_Object3DCloud->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
+
+	m_CloudParticlePool = make_unique<CParticlePool>(m_Device.Get(), m_DeviceContext.Get());
+	m_CloudParticlePool->Create(1'000);
+	m_CloudParticlePool->SetSpawningInterval(0.01f);
+	m_CloudParticlePool->SetSphericalPositionConstraints(CParticlePool::SSphericalPositionConstraints(5.0f));
+	m_CloudParticlePool->SetParticleRotationSpeedFactor(0.1f);
 
 	m_SkyData.bIsDataSet = true;
 
@@ -600,6 +613,10 @@ void CGame::CreateBaseShaders()
 	m_VSTerrain->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
 	m_VSTerrain->AddConstantBuffer(&m_cbVSTerrainData, sizeof(SCBVSTerrainData));
 
+	m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_VSParticle->Create(EShaderType::VertexShader, L"Shader\\VSParticle.hlsl", "main", KParticleInputElementDescs, ARRAYSIZE(KParticleInputElementDescs));
+	m_VSParticle->AddConstantBuffer(&m_cbVSParticleSpaceData, sizeof(SCBVSParticleSpaceData));
+
 	m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSBase2D->Create(EShaderType::VertexShader, L"Shader\\VSBase2D.hlsl", "main", KVS2DBaseInputLayout, ARRAYSIZE(KVS2DBaseInputLayout));
 	m_VSBase2D->AddConstantBuffer(&m_cbVS2DSpaceData, sizeof(SCBVS2DSpaceData));
@@ -656,6 +673,9 @@ void CGame::CreateBaseShaders()
 	m_PSWater->Create(EShaderType::PixelShader, L"Shader\\PSWater.hlsl", "main");
 	m_PSWater->AddConstantBuffer(&m_cbWaterTimeData, sizeof(SCBWaterTimeData));
 	m_PSWater->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
+
+	m_PSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSParticle->Create(EShaderType::PixelShader, L"Shader\\PSParticle.hlsl", "main");
 
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
@@ -1444,6 +1464,18 @@ void CGame::Draw(float DeltaTime)
 	if (m_SkyData.bIsDataSet)
 	{
 		DrawSky(DeltaTime);
+	}
+
+	if (m_CloudParticlePool)
+	{
+		m_cbVSParticleSpaceData.VP = GetTransposedVPMatrix();
+		m_VSParticle->UpdateAllConstantBuffers();
+		m_VSParticle->Use();
+
+		m_PSParticle->Use();
+
+		m_CloudParticlePool->Update(DeltaTime);
+		m_CloudParticlePool->Draw();
 	}
 
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))

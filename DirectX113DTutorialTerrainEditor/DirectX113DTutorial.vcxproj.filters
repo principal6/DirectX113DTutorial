@@ -84,6 +84,9 @@
     <ClCompile Include="Core\AssimpLoader.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Core\ParticlePool.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTK\Audio.h">
@@ -437,6 +440,9 @@
     <ClInclude Include="Core\Serializer.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\ParticlePool.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Library Include="DirectXTK\DirectXTK.lib">
@@ -552,6 +558,12 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\DSTerrain.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\VSParticle.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PSParticle.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

@@ -10,9 +10,10 @@
 #include "Object3D.h"
 #include "Object3DLine.h"
 #include "Object2D.h"
+#include "ParticlePool.h"
 #include "PrimitiveGenerator.h"
-#include "TinyXml2/tinyxml2.h"
 #include "Terrain.h"
+#include "TinyXml2/tinyxml2.h"
 
 enum class EBaseShader
 {
@@ -22,6 +23,7 @@ enum class EBaseShader
 	VSLine,
 	VSGizmo,
 	VSTerrain,
+	VSParticle,
 	VSBase2D,
 
 	HSTerrain,
@@ -39,6 +41,7 @@ enum class EBaseShader
 	PSGizmo,
 	PSTerrain,
 	PSWater,
+	PSParticle,
 
 	PSBase2D,
 	PSMasking2D,
@@ -77,6 +80,11 @@ struct SCBVSSpaceData
 {
 	XMMATRIX	WVP{};
 	XMMATRIX	World{};
+};
+
+struct SCBVSParticleSpaceData
+{
+	XMMATRIX	VP{};
 };
 
 struct SCBVSAnimationBonesData
@@ -437,6 +445,7 @@ private:
 	unique_ptr<CShader>	m_VSLine{};
 	unique_ptr<CShader>	m_VSGizmo{};
 	unique_ptr<CShader>	m_VSTerrain{};
+	unique_ptr<CShader>	m_VSParticle{};
 
 	unique_ptr<CShader>	m_VSBase2D{};
 
@@ -455,6 +464,7 @@ private:
 	unique_ptr<CShader>	m_PSGizmo{};
 	unique_ptr<CShader>	m_PSTerrain{};
 	unique_ptr<CShader>	m_PSWater{};
+	unique_ptr<CShader>	m_PSParticle{};
 
 	unique_ptr<CShader>	m_PSBase2D{};
 	unique_ptr<CShader>	m_PSMasking2D{};
@@ -464,6 +474,7 @@ private:
 	SCBVSSpaceData				m_cbVSSpaceData{};
 	SCBVSAnimationBonesData		m_cbVSAnimationBonesData{};
 	SCBVSTerrainData			m_cbVSTerrainData{};
+	SCBVSParticleSpaceData		m_cbVSParticleSpaceData{};
 
 	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
 
@@ -531,6 +542,9 @@ private:
 	E3DGizmoAxis				m_e3DGizmoSelectedAxis{};
 	E3DGizmoMode				m_e3DGizmoMode{};
 	float						m_3DGizmoDistanceScalar{};
+
+private:
+	unique_ptr<CParticlePool>	m_CloudParticlePool{};
 
 private:
 	vector<D3D11_VIEWPORT>	m_vViewports{};

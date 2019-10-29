@@ -33,6 +33,13 @@ struct VS_LINE_INPUT
 	float4	Color		: COLOR;
 };
 
+struct VS_PARTICLE_INPUT
+{
+	float4	Position	: POSITION;
+	float	Rotation	: ROTATION;
+	float2	Scaling		: SCALING;
+};
+
 struct VS_OUTPUT
 {
 	float4	Position		: SV_POSITION;
@@ -49,6 +56,13 @@ struct VS_LINE_OUTPUT
 {
 	float4 Position			: SV_POSITION;
 	float4 Color			: COLOR;
+};
+
+struct VS_PARTICLE_OUTPUT
+{
+	float4	Position	: SV_POSITION;
+	float	Rotation	: ROTATION;
+	float2	Scaling		: SCALING;
 };
 
 #define HS_OUTPUT VS_OUTPUT
