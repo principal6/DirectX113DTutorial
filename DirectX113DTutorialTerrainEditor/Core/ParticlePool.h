@@ -7,7 +7,14 @@ class CParticlePool
 public:
 	struct SVertexParticle
 	{
+		union UTexColor
+		{
+			XMVECTOR TexCoord;
+			XMVECTOR Color{ 1, 1, 1, 1 };
+		};
+
 		XMVECTOR Position{};
+		UTexColor TexColor{};
 		float Rotation{};
 		XMFLOAT2 ScalingFactor{};
 	};
@@ -15,7 +22,7 @@ public:
 	struct SParticleData
 	{
 		bool bShouldCollide{ false };
-		float Duration{ 100.0f };
+		float Duration{ 10.0f };
 		float Elapsed{};
 		XMVECTOR Acceleration{};
 		XMVECTOR Velocity{}; // (SphericalConstraings) Signed speeds for spherical rotation

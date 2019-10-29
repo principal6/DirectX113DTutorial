@@ -36,6 +36,7 @@ struct VS_LINE_INPUT
 struct VS_PARTICLE_INPUT
 {
 	float4	Position	: POSITION;
+	float4	TexColor	: TEXCOLOR;
 	float	Rotation	: ROTATION;
 	float2	Scaling		: SCALING;
 };
@@ -61,6 +62,7 @@ struct VS_LINE_OUTPUT
 struct VS_PARTICLE_OUTPUT
 {
 	float4	Position	: SV_POSITION;
+	float4	TexColor	: TEXCOLOR;
 	float	Rotation	: ROTATION;
 	float2	Scaling		: SCALING;
 };

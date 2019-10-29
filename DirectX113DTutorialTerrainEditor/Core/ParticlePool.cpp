@@ -12,7 +12,7 @@ static float GetRandom(float Min, float Max)
 	int IntRange{ (int)(KFreedom * Range) };
 	int IntRangeHalf{ (int)(IntRange / 2) };
 
-	return static_cast<float>((rand() % (IntRange + 1) - IntRangeHalf) / KFreedom);
+	return static_cast<float>((rand() % (IntRange + 1) / KFreedom) + Min);
 }
 
 void CParticlePool::Create(size_t MaxParticleCount)
@@ -67,6 +67,11 @@ void CParticlePool::Update(float DeltaTime)
 
 			m_vVertexParticles.back().Position = XMVectorSet(X, Y, Z, 1) + m_SphericalPositionConstraints.Center;
 		}
+
+		float R{ GetRandom(0.0f, 1.0f) };
+		float G{ GetRandom(0.0f, 1.0f) };
+		float B{ GetRandom(0.0f, 1.0f) };
+		m_vVertexParticles.back().TexColor.Color = XMVectorSet(R, G, B, 1);
 		
 		float RandomX{ GetRandom(-1.0f, +1.0f) };
 		float RandomY{ GetRandom(-1.0f, +1.0f) };
