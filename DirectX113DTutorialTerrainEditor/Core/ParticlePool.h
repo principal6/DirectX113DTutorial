@@ -1,10 +1,11 @@
 #pragma once
 
 #include "SharedHeader.h"
+#include "Material.h"
 
 class CParticlePool
 {
-public:
+protected:
 	struct SVertexParticle
 	{
 		union UTexColor
@@ -16,26 +17,16 @@ public:
 		XMVECTOR Position{};
 		UTexColor TexColor{};
 		float Rotation{};
-		XMFLOAT2 ScalingFactor{};
+		XMFLOAT2 ScalingFactor{ 1.0f, 1.0f };
 	};
 
 	struct SParticleData
 	{
 		bool bShouldCollide{ false };
-		float Duration{ 10.0f };
+		float Duration{};
 		float Elapsed{};
 		XMVECTOR Acceleration{};
 		XMVECTOR Velocity{}; // (SphericalConstraings) Signed speeds for spherical rotation
-	};
-
-	struct SSphericalPositionConstraints
-	{
-		SSphericalPositionConstraints() {}
-		SSphericalPositionConstraints(float _Radius) : Radius{ _Radius } {}
-		SSphericalPositionConstraints(float _Radius, const XMVECTOR& _Center) : Radius{ _Radius }, Center{ _Center } {}
-
-		float Radius{};
-		XMVECTOR Center{ 0, 0, 0, 1 };
 	};
 
 public:
@@ -45,43 +36,49 @@ public:
 		assert(m_PtrDevice);
 		assert(m_PtrDeviceContext);
 	}
-	~CParticlePool() {}
+	virtual ~CParticlePool() {}
 
-	void Create(size_t MaxParticleCount);
+public:
+	virtual void Create(size_t MaxParticleCount);
 
-	void SetSpawningInterval(float Value);
-	void SetSphericalPositionConstraints(const SSphericalPositionConstraints& Constraints);
-	void SetParticleRotationSpeedFactor(float Value);
+	virtual void SetSpawningInterval(float Value);
+	virtual void SetTexture(const string& FileName);
+	virtual void SetUniversalScalingFactor(const XMFLOAT2& Factor);
+	virtual void SetUniversalDuration(float Value);
 
-	void Update(float DeltaTime);
+	virtual void SpawnParticle();
+	virtual void Update(float DeltaTime);
+	virtual void Draw() const;
 
-	void Draw() const;
+protected:
+	virtual void CreateVertexBuffer();
+	virtual void UpdateVertexBuffer();
+	virtual void SetLastParticleTexColor();
+	virtual void SetLastParticleScalingFactor();
 
-private:
-	void CreateVertexBuffer();
-	void UpdateVertexBuffer();
-
-private:
+protected:
 	static constexpr float	KSpawningIntervalDefault{ 1.0f };
-	static constexpr float	KParticleRotationSpeedFactorDefault{ 1.0f };
 
-private:
+protected:
 	ID3D11Device*			m_PtrDevice{};
 	ID3D11DeviceContext*	m_PtrDeviceContext{};
 
-private:
+protected:
 	ComPtr<ID3D11Buffer>	m_VertexBuffer{};
 	UINT					m_VertexBufferStride{ sizeof(SVertexParticle) };
 	UINT					m_VertexBufferOffset{};
 
-private:
+protected:
 	size_t							m_MaxParticleCount{};
 	float							m_SpawningInterval{ KSpawningIntervalDefault };
 	float							m_SpawningTimer{};
-	SSphericalPositionConstraints	m_SphericalPositionConstraints{};
-	bool							m_bIsSphericalPositionConstraintsSet{ false };
-	float							m_ParticleRotationSpeedFactor{ KParticleRotationSpeedFactorDefault };
 
 	vector<SVertexParticle>			m_vVertexParticles{};
 	vector<SParticleData>			m_vParticleData{};
+
+	bool							m_bUseTexture{ false };
+	unique_ptr<CMaterial::CTexture>	m_ParticleTexture{};
+
+	XMFLOAT2						m_ParticleScalingFactor{ 1.0f, 1.0f };
+	float							m_ParticleDuration{ 1.0f };
 };

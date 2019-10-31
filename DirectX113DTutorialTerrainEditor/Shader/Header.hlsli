@@ -61,10 +61,11 @@ struct VS_LINE_OUTPUT
 
 struct VS_PARTICLE_OUTPUT
 {
-	float4	Position	: SV_POSITION;
-	float4	TexColor	: TEXCOLOR;
-	float	Rotation	: ROTATION;
-	float2	Scaling		: SCALING;
+	float4	Position		: SV_POSITION;
+	float4	WorldPosition	: POSITION;
+	float4	TexColor		: TEXCOLOR;
+	float	Rotation		: ROTATION;
+	float2	Scaling			: SCALING;
 };
 
 #define HS_OUTPUT VS_OUTPUT

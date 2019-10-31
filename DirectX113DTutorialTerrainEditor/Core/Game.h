@@ -10,7 +10,6 @@
 #include "Object3D.h"
 #include "Object3DLine.h"
 #include "Object2D.h"
-#include "ParticlePool.h"
 #include "PrimitiveGenerator.h"
 #include "Terrain.h"
 #include "TinyXml2/tinyxml2.h"
@@ -33,6 +32,7 @@ enum class EBaseShader
 	DSWater,
 
 	GSNormal,
+	GSParticle,
 
 	PSBase,
 	PSVertexColor,
@@ -245,7 +245,7 @@ private:
 	void CreateSwapChain(bool bWindowed);
 	void CreateSetViews();
 	void SetViewports();
-	void CreateDepthStencilState();
+	void CreateDepthStencilStates();
 	void CreateInputDevices();
 	void CreateBaseShaders();
 	void CreateMiniAxes();
@@ -426,7 +426,7 @@ private:
 	static constexpr float KDefaultFOV{ 50.0f / 360.0f * XM_2PI };
 	static constexpr float KDefaultNearZ{ 0.1f };
 	static constexpr float KDefaultFarZ{ 1000.0f };
-	static constexpr float KSkyDistance{ 30.0f };
+	static constexpr float KSkyDistance{ 100.0f };
 	static constexpr float KSkyTimeFactorAbsolute{ 0.04f };
 	static constexpr float KPickingRayLength{ 1000.0f };
 	static constexpr uint32_t KSkySphereSegmentCount{ 32 };
@@ -456,6 +456,7 @@ private:
 	unique_ptr<CShader>	m_DSWater{};
 
 	unique_ptr<CShader>	m_GSNormal{};
+	unique_ptr<CShader>	m_GSParticle{};
 
 	unique_ptr<CShader>	m_PSBase{};
 	unique_ptr<CShader>	m_PSVertexColor{};
@@ -544,9 +545,6 @@ private:
 	float						m_3DGizmoDistanceScalar{};
 
 private:
-	unique_ptr<CParticlePool>	m_CloudParticlePool{};
-
-private:
 	vector<D3D11_VIEWPORT>	m_vViewports{};
 
 private:
@@ -593,6 +591,7 @@ private:
 	ComPtr<ID3D11DepthStencilView>	m_DepthStencilView{};
 	ComPtr<ID3D11Texture2D>			m_DepthStencilBuffer{};
 	ComPtr<ID3D11DepthStencilState>	m_DepthStencilStateLessEqualNoWrite{};
+	ComPtr<ID3D11DepthStencilState>	m_DepthStencilStateAlways{};
 
 	unique_ptr<Keyboard>			m_Keyboard{};
 	unique_ptr<Mouse>				m_Mouse{};

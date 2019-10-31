@@ -247,6 +247,7 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterial);
+	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
 	m_Object3DSkySphere->ComponentRender.PtrVS = m_VSSky.get();
 	m_Object3DSkySphere->ComponentRender.PtrPS = m_PSSky.get();
 	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
@@ -281,12 +282,6 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	m_Object3DCloud->ComponentRender.bIsTransparent = true;
 	m_Object3DCloud->ComponentPhysics.bIsPickable = false;
 	m_Object3DCloud->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
-
-	m_CloudParticlePool = make_unique<CParticlePool>(m_Device.Get(), m_DeviceContext.Get());
-	m_CloudParticlePool->Create(1'000);
-	m_CloudParticlePool->SetSpawningInterval(0.01f);
-	m_CloudParticlePool->SetSphericalPositionConstraints(CParticlePool::SSphericalPositionConstraints(5.0f));
-	m_CloudParticlePool->SetParticleRotationSpeedFactor(0.1f);
 
 	m_SkyData.bIsDataSet = true;
 
@@ -443,7 +438,7 @@ void CGame::InitializeDirectX(const wstring& FontFileName, bool bWindowed)
 
 	SetViewports();
 
-	CreateDepthStencilState();
+	CreateDepthStencilStates();
 
 	SetPerspective(KDefaultFOV, KDefaultNearZ, KDefaultFarZ);
 
@@ -566,7 +561,7 @@ void CGame::SetViewports()
 	}
 }
 
-void CGame::CreateDepthStencilState()
+void CGame::CreateDepthStencilStates()
 {
 	D3D11_DEPTH_STENCIL_DESC DepthStencilDesc{};
 	DepthStencilDesc.DepthEnable = TRUE;
@@ -575,6 +570,11 @@ void CGame::CreateDepthStencilState()
 	DepthStencilDesc.StencilEnable = FALSE;
 
 	assert(SUCCEEDED(m_Device->CreateDepthStencilState(&DepthStencilDesc, m_DepthStencilStateLessEqualNoWrite.GetAddressOf())));
+
+	DepthStencilDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	DepthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+
+	assert(SUCCEEDED(m_Device->CreateDepthStencilState(&DepthStencilDesc, m_DepthStencilStateAlways.GetAddressOf())));
 }
 
 void CGame::CreateInputDevices()
@@ -616,7 +616,6 @@ void CGame::CreateBaseShaders()
 
 	m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSParticle->Create(EShaderType::VertexShader, L"Shader\\VSParticle.hlsl", "main", KParticleInputElementDescs, ARRAYSIZE(KParticleInputElementDescs));
-	m_VSParticle->AddConstantBuffer(&m_cbVSParticleSpaceData, sizeof(SCBVSParticleSpaceData));
 
 	m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSBase2D->Create(EShaderType::VertexShader, L"Shader\\VSBase2D.hlsl", "main", KVS2DBaseInputLayout, ARRAYSIZE(KVS2DBaseInputLayout));
@@ -644,6 +643,10 @@ void CGame::CreateBaseShaders()
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSNormal->Create(EShaderType::GeometryShader, L"Shader\\GSNormal.hlsl", "main");
 	m_GSNormal->AddConstantBuffer(&m_cbGSSpaceData, sizeof(SCBGSSpaceData));
+
+	m_GSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_GSParticle->Create(EShaderType::GeometryShader, L"Shader\\GSParticle.hlsl", "main");
+	m_GSParticle->AddConstantBuffer(&m_cbGSSpaceData, sizeof(SCBGSSpaceData));
 
 	m_PSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase->Create(EShaderType::PixelShader, L"Shader\\PSBase.hlsl", "main");
@@ -1467,18 +1470,6 @@ void CGame::Draw(float DeltaTime)
 		DrawSky(DeltaTime);
 	}
 
-	if (m_CloudParticlePool)
-	{
-		m_cbVSParticleSpaceData.VP = GetTransposedVPMatrix();
-		m_VSParticle->UpdateAllConstantBuffers();
-		m_VSParticle->Use();
-
-		m_PSParticle->Use();
-
-		m_CloudParticlePool->Update(DeltaTime);
-		m_CloudParticlePool->Draw();
-	}
-
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
 	{
 		Draw3DGizmos();
@@ -1753,7 +1744,6 @@ void CGame::DrawSky(float DeltaTime)
 
 	// SkySphere
 	{
-		m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
 		m_Object3DSkySphere->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
 	}
 

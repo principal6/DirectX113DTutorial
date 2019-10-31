@@ -1,19 +1,5 @@
 #include "ParticlePool.h"
-
-static int GetRandom(int Min, int Max)
-{
-	return (rand() % (Max - Min + 1)) + Min;
-}
-
-static float GetRandom(float Min, float Max)
-{
-	constexpr float KFreedom{ 100.0f };
-	float Range{ Max - Min };
-	int IntRange{ (int)(KFreedom * Range) };
-	int IntRangeHalf{ (int)(IntRange / 2) };
-
-	return static_cast<float>((rand() % (IntRange + 1) / KFreedom) + Min);
-}
+#include "Math.h"
 
 void CParticlePool::Create(size_t MaxParticleCount)
 {
@@ -32,63 +18,61 @@ void CParticlePool::SetSpawningInterval(float Value)
 	m_SpawningInterval = Value;
 }
 
-void CParticlePool::SetSphericalPositionConstraints(const SSphericalPositionConstraints& Constraints)
+void CParticlePool::SetTexture(const string& FileName)
 {
-	m_SphericalPositionConstraints = Constraints;
-	m_bIsSphericalPositionConstraintsSet = true;
+	m_ParticleTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_ParticleTexture->CreateTextureFromFile(FileName, false);
+	m_ParticleTexture->SetSlot(0);
+
+	m_bUseTexture = true;
 }
 
-void CParticlePool::SetParticleRotationSpeedFactor(float Value)
+void CParticlePool::SetUniversalScalingFactor(const XMFLOAT2& Factor)
 {
-	m_ParticleRotationSpeedFactor = Value;
+	m_ParticleScalingFactor = Factor;
+}
+
+void CParticlePool::SetUniversalDuration(float Value)
+{
+	m_ParticleDuration = Value;
+}
+
+void CParticlePool::SpawnParticle()
+{
+	m_vVertexParticles.emplace_back();
+	m_vParticleData.emplace_back();
+
+	m_vParticleData.back().Duration = m_ParticleDuration;
+
+	SetLastParticleTexColor();
+	SetLastParticleScalingFactor();
 }
 
 void CParticlePool::Update(float DeltaTime)
 {
+	// Spawn particle
 	const float KSpawningInterval{ m_SpawningInterval };
 	m_SpawningTimer = min(KSpawningInterval, m_SpawningTimer + DeltaTime);
 	if (m_SpawningTimer >= KSpawningInterval && m_vVertexParticles.size() < m_MaxParticleCount)
 	{
-		m_vVertexParticles.emplace_back();
-		m_vParticleData.emplace_back();
-
-		if (m_bIsSphericalPositionConstraintsSet)
-		{
-			const float& KRadius{ m_SphericalPositionConstraints.Radius };
-
-			float X{ GetRandom(-KRadius, +KRadius) };
-			
-			float YZRadius{ sin(acos(X / KRadius)) * KRadius };
-			float Y{ GetRandom(-YZRadius, +YZRadius) };
-
-			float Z{ cos(asin(Y / YZRadius)) * YZRadius };
-			int Sign{ GetRandom(0, 1) };
-			if (Sign == 1) Z *= -1.0f;
-
-			m_vVertexParticles.back().Position = XMVectorSet(X, Y, Z, 1) + m_SphericalPositionConstraints.Center;
-		}
-
-		float R{ GetRandom(0.0f, 1.0f) };
-		float G{ GetRandom(0.0f, 1.0f) };
-		float B{ GetRandom(0.0f, 1.0f) };
-		m_vVertexParticles.back().TexColor.Color = XMVectorSet(R, G, B, 1);
-		
-		float RandomX{ GetRandom(-1.0f, +1.0f) };
-		float RandomY{ GetRandom(-1.0f, +1.0f) };
-		float RandomZ{ GetRandom(-1.0f, +1.0f) };
-		m_vParticleData.back().Velocity = XMVectorSet(RandomX, RandomY, RandomZ, 0);
+		SpawnParticle();
 
 		m_SpawningTimer = 0.0f;
 	}
 
+	// Elapse time and destroy particle
 	int64_t ParticleCount{ static_cast<int64_t>(m_vVertexParticles.size()) };
-
 	for (int64_t iParticle = 0; iParticle < ParticleCount; ++iParticle)
 	{
 		SVertexParticle& VertexParticle{ m_vVertexParticles[iParticle] };
 		SParticleData& ParticleData{ m_vParticleData[iParticle] };
 
 		ParticleData.Elapsed += DeltaTime;
+
+		float NormalizedElapsed{ ParticleData.Elapsed / ParticleData.Duration };
+		NormalizedElapsed = max(min(NormalizedElapsed, 1.0f), 0.0f);
+		VertexParticle.TexColor.TexCoord = XMVectorSetZ(VertexParticle.TexColor.TexCoord, sin(NormalizedElapsed * XM_PI));
+
 		if (ParticleData.Elapsed >= ParticleData.Duration)
 		{
 			int64_t iLastParticle{ ParticleCount - 1 };
@@ -106,18 +90,7 @@ void CParticlePool::Update(float DeltaTime)
 		}
 
 		ParticleData.Velocity += ParticleData.Acceleration * DeltaTime;
-
-		if (m_bIsSphericalPositionConstraintsSet)
-		{
-			XMVECTOR PositionFromOrigin{ VertexParticle.Position - m_SphericalPositionConstraints.Center };
-			XMMATRIX RotationMatrix{ XMMatrixRotationRollPitchYawFromVector((ParticleData.Velocity * XM_PI) * DeltaTime * m_ParticleRotationSpeedFactor) };
-			PositionFromOrigin = XMVector3TransformCoord(PositionFromOrigin, RotationMatrix);
-			VertexParticle.Position = PositionFromOrigin + m_SphericalPositionConstraints.Center;
-		}
-		else
-		{
-			VertexParticle.Position += ParticleData.Velocity * DeltaTime;
-		}
+		VertexParticle.Position += ParticleData.Velocity * DeltaTime;
 	}
 
 	UpdateVertexBuffer();
@@ -125,7 +98,12 @@ void CParticlePool::Update(float DeltaTime)
 
 void CParticlePool::Draw() const
 {
-	m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+	if (m_bUseTexture)
+	{
+		if (m_ParticleTexture) m_ParticleTexture->Use();
+	}
+
+	m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_VertexBuffer.GetAddressOf(), &m_VertexBufferStride, &m_VertexBufferOffset);
 	
 	m_PtrDeviceContext->Draw(static_cast<UINT>(m_vVertexParticles.size()), 0);
@@ -160,4 +138,24 @@ void CParticlePool::UpdateVertexBuffer()
 
 		m_PtrDeviceContext->Unmap(m_VertexBuffer.Get(), 0);
 	}
+}
+
+void CParticlePool::SetLastParticleTexColor()
+{
+	if (!m_bUseTexture)
+	{
+		float R{ GetRandom(0.0f, 1.0f) };
+		float G{ GetRandom(0.0f, 1.0f) };
+		float B{ GetRandom(0.0f, 1.0f) };
+		m_vVertexParticles.back().TexColor.Color = XMVectorSet(R, G, B, 1);
+	}
+	else
+	{
+		m_vVertexParticles.back().TexColor.TexCoord = XMVectorSet(0, 0, 1, -1);
+	}
+}
+
+void CParticlePool::SetLastParticleScalingFactor()
+{
+	m_vVertexParticles.back().ScalingFactor = m_ParticleScalingFactor;
 }

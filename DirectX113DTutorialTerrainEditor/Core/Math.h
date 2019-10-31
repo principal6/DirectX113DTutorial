@@ -5,6 +5,34 @@
 static const XMVECTOR KVectorZero{ XMVectorZero() };
 static const XMVECTOR KVectorGreatest{ XMVectorSet(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX) };
 
+static int GetRandom(int Min, int Max);
+static float GetRandom(float Min, float Max);
+static bool IntersectRaySphere(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, float Radius, const XMVECTOR& Center, XMVECTOR* OutPtrT) noexcept;
+static XMVECTOR CalculateTriangleNormal(const XMVECTOR& TriangleV0, const XMVECTOR& TriangleV1, const XMVECTOR& TriangleV2);
+static bool IsPointInTriangle(const XMVECTOR& Point, const XMVECTOR& TriangleV0, const XMVECTOR& TriangleV1, const XMVECTOR& TriangleV2);
+static bool IntersectRayPlane(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, const XMVECTOR& PlaneP, const XMVECTOR& PlaneN, XMVECTOR* OutPtrT);
+static bool IntersectRayTriangle(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection,
+	const XMVECTOR& TriangleV0, const XMVECTOR& TriangleV1, const XMVECTOR& TriangleV2, XMVECTOR* OutPtrT);
+
+static int GetRandom(int Min, int Max)
+{
+	if (Min >= Max) return Min;
+
+	return (rand() % (Max - Min + 1)) + Min;
+}
+
+static float GetRandom(float Min, float Max)
+{
+	if (Min >= Max) return Min;
+
+	constexpr float KFreedom{ 100.0f };
+	float Range{ Max - Min };
+	int IntRange{ (int)(KFreedom * Range) };
+	int IntRangeHalf{ (int)(IntRange / 2) };
+
+	return static_cast<float>((rand() % (IntRange + 1) / KFreedom) + Min);
+}
+
 static bool IntersectRaySphere(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, float Radius, const XMVECTOR& Center, XMVECTOR* OutPtrT) noexcept
 {
 	XMVECTOR r{ XMVectorSet(Radius, Radius, Radius, 1.0f) };
