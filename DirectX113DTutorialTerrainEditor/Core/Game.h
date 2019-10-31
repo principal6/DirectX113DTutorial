@@ -37,6 +37,7 @@ enum class EBaseShader
 	PSBase,
 	PSVertexColor,
 	PSSky,
+	PSCloud,
 	PSLine,
 	PSGizmo,
 	PSTerrain,
@@ -461,6 +462,7 @@ private:
 	unique_ptr<CShader>	m_PSBase{};
 	unique_ptr<CShader>	m_PSVertexColor{};
 	unique_ptr<CShader>	m_PSSky{};
+	unique_ptr<CShader>	m_PSCloud{};
 	unique_ptr<CShader>	m_PSLine{};
 	unique_ptr<CShader>	m_PSGizmo{};
 	unique_ptr<CShader>	m_PSTerrain{};

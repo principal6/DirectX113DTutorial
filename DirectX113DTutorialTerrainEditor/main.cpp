@@ -454,6 +454,12 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										Terrain->SetTessFactor(TessFactor);
 									}
 
+									bool bDrawWater{ Terrain->ShouldDrawWater() };
+									if (ImGui::Checkbox(u8"물 그리기", &bDrawWater))
+									{
+										Terrain->ShouldDrawWater(bDrawWater);
+									}
+
 									ImGui::SetNextItemWidth(100);
 									float WaterHeight{ Terrain->GetWaterHeight() };
 									if (ImGui::DragFloat(u8"물 높이", &WaterHeight, CTerrain::KWaterHeightUnit,

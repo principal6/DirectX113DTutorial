@@ -74,6 +74,14 @@ void CTerrain::Load(const string& FileName)
 	m_cbTerrainData.TerrainHeightRange = READ_BYTES_TO_FLOAT;
 	m_PtrGame->UpdateVSTerrainData(m_cbTerrainData);
 
+	// 4B (float) Terrain tessellation factor
+	READ_BYTES(4);
+	m_TessFactor = READ_BYTES_TO_FLOAT;
+
+	// 1B (bool) Should draw water
+	READ_BYTES(1);
+	m_bShouldDrawWater = (ReadBytes[0] != 0) ? true : false;
+
 	// 4B (float) Water height
 	READ_BYTES(4);
 	m_WaterHeight = READ_BYTES_TO_FLOAT;
@@ -138,6 +146,7 @@ void CTerrain::Save(const string& FileName)
 	ofs.open(FileName, std::ofstream::binary);
 	assert(ofs.is_open());
 
+	char BoolByte{};
 	char FloatBytes[4]{};
 	char Uint32Bytes[4]{};
 	char XMFLOAT4Bytes[16]{};
@@ -154,6 +163,13 @@ void CTerrain::Save(const string& FileName)
 	// 4B (float) Terrain Height Range
 	WRITE_FLOAT_TO_BYTES(m_cbTerrainData.TerrainHeightRange);
 
+	// 4B (float) Terrain tessellation factor
+	WRITE_FLOAT_TO_BYTES(m_TessFactor);
+
+	// 1B (bool) Should draw water
+	WRITE_BOOL_TO_BYTE(m_bShouldDrawWater);
+	//ofs.write((const char*)m_bShouldDrawWater, 1);
+	
 	// 4B (float) Water height
 	WRITE_FLOAT_TO_BYTES(m_WaterHeight);
 
@@ -183,7 +199,6 @@ void CTerrain::Save(const string& FileName)
 		ofs.write((const char*)&Pixel.R, 1);
 	}
 
-	// 1B (uint8_t) Material count
 	// 1B (uint8_t) Material count
 	ofs.put((uint8_t)m_Object3DTerrain->GetModel().vMaterials.size());
 
@@ -638,6 +653,16 @@ bool CTerrain::ShouldTessellate() const
 	return false;
 }
 
+void CTerrain::ShouldDrawWater(bool Value)
+{
+	m_bShouldDrawWater = Value;
+}
+
+bool CTerrain::ShouldDrawWater() const
+{
+	return m_bShouldDrawWater;
+}
+
 void CTerrain::SetEditMode(EEditMode Mode)
 {
 	m_eEditMode = Mode;
@@ -723,20 +748,10 @@ void CTerrain::Draw(bool bDrawNormals)
 		m_PtrDeviceContext->GSSetShader(nullptr, nullptr, 0);
 	}
 
-	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
-	m_PtrGame->UpdateVSSpace(XMMatrixTranslation(0, m_WaterHeight, 0));
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(EBaseShader::HSWater)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::HSWater)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(EBaseShader::DSWater)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::DSWater)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(EBaseShader::PSWater)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::PSWater)->UpdateAllConstantBuffers();
-	m_WaterNormalTexture->Use();
-	m_WaterDisplacementTexture->Use();
-	m_Object3DWater->Draw();
-	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
+	if (m_bShouldDrawWater)
+	{
+		DrawWater();
+	}
 }
 
 void CTerrain::DrawHeightMapTexture()
@@ -775,5 +790,23 @@ void CTerrain::DrawMaskingTexture()
 	
 	m_Object2DTextureRepresentation->Draw();
 
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
+}
+
+void CTerrain::DrawWater()
+{
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
+	m_PtrGame->UpdateVSSpace(XMMatrixTranslation(0, m_WaterHeight, 0));
+	m_PtrGame->GetBaseShader(EBaseShader::VSBase)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::VSBase)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(EBaseShader::HSWater)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::HSWater)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(EBaseShader::DSWater)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::DSWater)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(EBaseShader::PSWater)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::PSWater)->UpdateAllConstantBuffers();
+	m_WaterNormalTexture->Use();
+	m_WaterDisplacementTexture->Use();
+	m_Object3DWater->Draw();
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }

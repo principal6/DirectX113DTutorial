@@ -48,11 +48,12 @@
 #define READ_BYTES_TO_XMFLOAT4 GetXMFLOAT4FromBtyes(ReadBytes)
 #define READ_BYTES_TO_XMVECTOR GetXMVECTORFromBtyes(ReadBytes)
 
+#define WRITE_BOOL_TO_BYTE(Value) GetByteFromBool((bool)Value, BoolByte); ofs.write(&BoolByte, sizeof(BoolByte))
 #define WRITE_UINT32_TO_BYTES(Value) GetBytesFromUint32((uint32_t)Value, Uint32Bytes); ofs.write(Uint32Bytes, sizeof(Uint32Bytes))
 #define WRITE_FLOAT_TO_BYTES(Value) GetBytesFromFloat((float)Value, FloatBytes); ofs.write(FloatBytes, sizeof(FloatBytes))
 #define WRITE_XMFLOAT3_TO_BYTES(Value) GetBytesFromXMFLOAT3(Value, XMFLOAT3Bytes); ofs.write(XMFLOAT3Bytes, sizeof(XMFLOAT3Bytes))
 #define WRITE_XMFLOAT4_TO_BYTES(Value) GetBytesFromXMFLOAT4(Value, XMFLOAT4Bytes); ofs.write(XMFLOAT4Bytes, sizeof(XMFLOAT4Bytes))
-#define WRITE_XMVECTOR_TO_BYTES(Value) GeBytesFromtXMVECTOR(Value, XMVECTORBytes); ofs.write(XMVECTORBytes, sizeof(XMVECTORBytes))
+#define WRITE_XMVECTOR_TO_BYTES(Value) GeBytesFromXMVECTOR(Value, XMVECTORBytes); ofs.write(XMVECTORBytes, sizeof(XMVECTORBytes))
 
 static SModel ImportStaticModel(const string& FileName);
 static void _ReadStaticModelFile(std::ifstream& ifs, SModel& Model);
@@ -60,6 +61,13 @@ static void _ReadModelMaterials(std::ifstream& ifs, vector<CMaterial>& vMaterial
 static void ExportStaticModel(const SModel& Model, const string& FileName);
 static void _WriteStaticModelFile(std::ofstream& ofs, const SModel& Model);
 static void _WriteModelMaterials(std::ofstream& ofs, const vector<CMaterial>& vMaterials);
+
+static void GetByteFromBool(bool Value, char& Bytes)
+{
+	constexpr size_t KSize{ sizeof(char) * 1 };
+	memset(&Bytes, 0, KSize);
+	memcpy(&Bytes, &Value, KSize);
+}
 
 static void GetBytesFromUint32(uint32_t Value, char(&Bytes)[4])
 {
@@ -89,7 +97,7 @@ static void GetBytesFromXMFLOAT4(const XMFLOAT4& Value, char(&Bytes)[16])
 	memcpy(&Bytes[0], &Value.x, KSize);
 }
 
-static void GeBytesFromtXMVECTOR(const XMVECTOR& Value, char(&Bytes)[16])
+static void GeBytesFromXMVECTOR(const XMVECTOR& Value, char(&Bytes)[16])
 {
 	constexpr size_t KSizePerDigit{ sizeof(char) * 4 };
 	float X{ XMVectorGetX(Value) };
@@ -314,6 +322,7 @@ static void ExportStaticModel(const SModel& Model, const string& FileName)
 
 static void _WriteStaticModelFile(std::ofstream& ofs, const SModel& Model)
 {
+	char BoolByte{};
 	char StringBytes[512]{};
 	char Uint32Bytes[4]{};
 	char FloatBytes[4]{};
@@ -385,6 +394,7 @@ static void _WriteStaticModelFile(std::ofstream& ofs, const SModel& Model)
 
 static void _WriteModelMaterials(std::ofstream& ofs, const vector<CMaterial>& vMaterials)
 {
+	char BoolByte{};
 	char StringBytes[512]{};
 	char Uint32Bytes[4]{};
 	char FloatBytes[4]{};

@@ -272,16 +272,23 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	m_Object3DMoon->ComponentRender.bIsTransparent = true;
 	m_Object3DMoon->ComponentPhysics.bIsPickable = false;
 	m_Object3DMoon->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
+	
+	/*
+	SModel CloudModel{};
+	CloudModel.vMeshes.emplace_back(GenerateSphere(64));
+	CloudModel.vMaterials.resize(1);
+	CloudModel.vMaterials[0].SetDiffuseTextureFileName("Asset\\earth_clouds.png");
 
 	m_Object3DCloud = make_unique<CObject3D>("Cloud", m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DCloud->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
-	m_Object3DCloud->UpdateQuadUV(m_SkyData.Cloud.UVOffset, m_SkyData.Cloud.UVSize);
-	m_Object3DCloud->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Cloud.WidthHeightRatio, 0);
+	m_Object3DCloud->Create(CloudModel);
+	m_Object3DCloud->ComponentTransform.Scaling = XMVectorSet(KSkyDistance * 2, KSkyDistance * 4, KSkyDistance * 2, 0);
+	m_Object3DCloud->ComponentTransform.Roll = -XM_PIDIV2;
 	m_Object3DCloud->ComponentRender.PtrVS = m_VSSky.get();
-	m_Object3DCloud->ComponentRender.PtrPS = m_PSBase.get();
+	m_Object3DCloud->ComponentRender.PtrPS = m_PSCloud.get();
 	m_Object3DCloud->ComponentRender.bIsTransparent = true;
 	m_Object3DCloud->ComponentPhysics.bIsPickable = false;
 	m_Object3DCloud->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
+	*/
 
 	m_SkyData.bIsDataSet = true;
 
@@ -661,6 +668,10 @@ void CGame::CreateBaseShaders()
 	m_PSSky->Create(EShaderType::PixelShader, L"Shader\\PSSky.hlsl", "main");
 	m_PSSky->AddConstantBuffer(&m_cbPSSkyTimeData, sizeof(SCBPSSkyTimeData));
 
+	m_PSCloud = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSCloud->Create(EShaderType::PixelShader, L"Shader\\PSCloud.hlsl", "main");
+	m_PSCloud->AddConstantBuffer(&m_cbPSSkyTimeData, sizeof(SCBPSSkyTimeData));
+
 	m_PSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSLine->Create(EShaderType::PixelShader, L"Shader\\PSLine.hlsl", "main");
 
@@ -937,6 +948,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader)
 		break;
 	case EBaseShader::PSSky:
 		Result = m_PSSky.get();
+		break;
+	case EBaseShader::PSCloud:
+		Result = m_PSCloud.get();
 		break;
 	case EBaseShader::PSLine:
 		Result = m_PSLine.get();
@@ -1721,7 +1735,7 @@ void CGame::DrawPickedTriangle()
 
 void CGame::DrawSky(float DeltaTime)
 {
-	// Elapse SkyTime
+	// Elapse SkyTime [0.0f, 1.0f]
 	m_cbPSSkyTimeData.SkyTime += KSkyTimeFactorAbsolute * DeltaTime;
 	if (m_cbPSSkyTimeData.SkyTime > 1.0f) m_cbPSSkyTimeData.SkyTime = 0.0f;
 
@@ -1763,15 +1777,6 @@ void CGame::DrawSky(float DeltaTime)
 		m_Object3DMoon->ComponentTransform.Roll = (MoonRoll > XM_2PI) ? (MoonRoll - XM_2PI) : MoonRoll;
 	}
 
-	// Cloud
-	{
-		float CloudYaw{ XM_2PI * m_cbPSSkyTimeData.SkyTime };
-		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, CloudYaw, XM_PIDIV4)) };
-		m_Object3DCloud->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
-		m_Object3DCloud->ComponentTransform.Yaw = CloudYaw;
-		m_Object3DCloud->ComponentTransform.Roll = XM_PIDIV4;
-	}
-
 	UpdateObject3D(m_Object3DSkySphere.get());
 	DrawObject3D(m_Object3DSkySphere.get());
 
@@ -1780,14 +1785,13 @@ void CGame::DrawSky(float DeltaTime)
 
 	UpdateObject3D(m_Object3DMoon.get());
 	DrawObject3D(m_Object3DMoon.get());
-
-	UpdateObject3D(m_Object3DCloud.get());
-	DrawObject3D(m_Object3DCloud.get());
 }
 
 void CGame::DrawTerrain()
 {
 	if (!m_Terrain) return;
+	
+	SetUniversalRasterizerState();
 
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain))
 	{

@@ -81,6 +81,10 @@ public:
 
 	void ShouldTessellate(bool Value);
 	bool ShouldTessellate() const;
+
+	void ShouldDrawWater(bool Value);
+	bool ShouldDrawWater() const;
+
 	void SetEditMode(EEditMode Mode);
 	CTerrain::EEditMode GetEditMode();
 	void SetWaterHeight(float Value);
@@ -97,6 +101,9 @@ public:
 	void Draw(bool bDrawNormals);
 	void DrawHeightMapTexture();
 	void DrawMaskingTexture();
+
+private:
+	void DrawWater();
 
 public:
 	static constexpr int KMaterialMaxCount{ 5 }; // It includes 1 main texture + 4 layer textures
@@ -167,6 +174,7 @@ private:
 	unique_ptr<CMaterial::CTexture>	m_WaterNormalTexture{};
 	unique_ptr<CMaterial::CTexture>	m_WaterDisplacementTexture{};
 	float							m_WaterHeight{};
+	bool							m_bShouldDrawWater{ true };
 
 private:
 	float			m_SelectionHalfSize{ KSelectionMinSize / 2.0f };
