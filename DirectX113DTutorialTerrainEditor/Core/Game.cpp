@@ -47,6 +47,216 @@ void CGame::Destroy()
 	DestroyWindow(m_hWnd);
 }
 
+void CGame::LoadScene(const string& FileName)
+{
+	using namespace tinyxml2;
+
+	tinyxml2::XMLDocument xmlDocument{};
+	xmlDocument.LoadFile(FileName.c_str());
+
+	XMLElement* xmlScene{ xmlDocument.FirstChildElement() };
+	vector<XMLElement*> vxmlSceneChildren{};
+	XMLElement* xmlSceneChild{ xmlScene->FirstChildElement() };
+	while (xmlSceneChild)
+	{
+		vxmlSceneChildren.emplace_back(xmlSceneChild);
+		xmlSceneChild = xmlSceneChild->NextSiblingElement();
+	}
+
+	for (const auto& xmlSceneChild : vxmlSceneChildren)
+	{
+		const char* ID{ xmlSceneChild->Attribute("ID") };
+
+		if (strcmp(ID, "ObjectList") == 0)
+		{
+			vector<XMLElement*> vxmlObjects{};
+			XMLElement* xmlObject{ xmlSceneChild->FirstChildElement() };
+			while (xmlObject)
+			{
+				vxmlObjects.emplace_back(xmlObject);
+				xmlObject = xmlObject->NextSiblingElement();
+			}
+
+			ClearObject3Ds();
+			m_vObject3Ds.reserve(vxmlObjects.size());
+			for (const auto& xmlObject : vxmlObjects)
+			{
+				const char* ObjectName{ xmlObject->Attribute("Name") };
+				
+				InsertObject3D(ObjectName);
+				CObject3D* Object3D{ GetObject3D(ObjectName) };
+				
+
+				vector<XMLElement*> vxmlObjectChildren{};
+				XMLElement* xmlObjectChild{ xmlObject->FirstChildElement() };
+				while (xmlObjectChild)
+				{
+					vxmlObjectChildren.emplace_back(xmlObjectChild);
+					xmlObjectChild = xmlObjectChild->NextSiblingElement();
+				}
+
+				for (const auto& xmlObjectChild : vxmlObjectChildren)
+				{
+					const char* ID{ xmlObjectChild->Attribute("ID") };
+
+					if (strcmp(ID, "Model") == 0)
+					{
+						const char* ModelFileName{ xmlObjectChild->Attribute("FileName") };
+						Object3D->CreateFromFile(ModelFileName);
+					}
+
+					if (strcmp(ID, "Translation") == 0)
+					{
+						float x{ xmlObjectChild->FloatAttribute("x") };
+						float y{ xmlObjectChild->FloatAttribute("y") };
+						float z{ xmlObjectChild->FloatAttribute("z") };
+						Object3D->ComponentTransform.Translation = XMVectorSet(x, y, z, 1.0f);
+					}
+
+					if (strcmp(ID, "Rotation") == 0)
+					{
+						float Pitch{ xmlObjectChild->FloatAttribute("Pitch") };
+						float Yaw{ xmlObjectChild->FloatAttribute("Yaw") };
+						float Roll{ xmlObjectChild->FloatAttribute("Roll") };
+						Object3D->ComponentTransform.Pitch = Pitch;
+						Object3D->ComponentTransform.Yaw = Yaw;
+						Object3D->ComponentTransform.Roll = Roll;
+					}
+
+					if (strcmp(ID, "Scaling") == 0)
+					{
+						float x{ xmlObjectChild->FloatAttribute("x") };
+						float y{ xmlObjectChild->FloatAttribute("y") };
+						float z{ xmlObjectChild->FloatAttribute("z") };
+						Object3D->ComponentTransform.Scaling = XMVectorSet(x, y, z, 1.0f);
+					}
+
+					if (strcmp(ID, "BSCenterOffset") == 0)
+					{
+						float x{ xmlObjectChild->FloatAttribute("x") };
+						float y{ xmlObjectChild->FloatAttribute("y") };
+						float z{ xmlObjectChild->FloatAttribute("z") };
+						Object3D->ComponentPhysics.BoundingSphere.CenterOffset = XMVectorSet(x, y, z, 1.0f);
+					}
+
+					if (strcmp(ID, "BSRadius") == 0)
+					{
+						float Radius{ xmlObjectChild->FloatAttribute("Value") };
+						Object3D->ComponentPhysics.BoundingSphere.Radius = Radius;
+					}
+				}
+			}
+		}
+
+		if (strcmp(ID, "Terrain") == 0)
+		{
+			const char* TerrainFileName{ xmlSceneChild->Attribute("FileName") };
+			LoadTerrain(TerrainFileName);
+		}
+	}
+}
+
+void CGame::SaveScene(const string& FileName)
+{
+	using namespace tinyxml2;
+
+	if (m_Terrain)
+	{
+		if (m_Terrain->GetFileName().size() == 0)
+		{
+			MessageBox(nullptr, "지형이 존재하지만 저장되지 않았습니다.\n먼저 지형을 저장해 주세요.", "지형 저장", MB_OK | MB_ICONEXCLAMATION);
+			return;
+		}
+	}
+
+	tinyxml2::XMLDocument xmlDocument{};
+	XMLElement* xmlRoot{ xmlDocument.NewElement("Scene") };
+	{
+		XMLElement* xmlObjectList{ xmlDocument.NewElement("ObjectList") };
+		xmlObjectList->SetAttribute("ID", "ObjectList");
+		{
+			for (const auto& Object3D : m_vObject3Ds)
+			{
+				XMLElement* xmlObject{ xmlDocument.NewElement("Object") };
+				xmlObject->SetAttribute("Name", Object3D->GetName().c_str());
+
+				XMLElement* xmlModelFileName{ xmlDocument.NewElement("Model") };
+				{
+					xmlModelFileName->SetAttribute("ID", "Model");
+					xmlModelFileName->SetAttribute("FileName", Object3D->GetModelFileName().c_str());
+					xmlObject->InsertEndChild(xmlModelFileName);
+				}
+				
+				XMLElement* xmlTranslation{ xmlDocument.NewElement("Translation") };
+				{
+					xmlTranslation->SetAttribute("ID", "Translation");
+					XMFLOAT4 Translation{};
+					XMStoreFloat4(&Translation, Object3D->ComponentTransform.Translation);
+					xmlTranslation->SetAttribute("x", Translation.x);
+					xmlTranslation->SetAttribute("y", Translation.y);
+					xmlTranslation->SetAttribute("z", Translation.z);
+					xmlObject->InsertEndChild(xmlTranslation);
+				}
+				
+				XMLElement* xmlRotation{ xmlDocument.NewElement("Rotation") };
+				{
+					xmlRotation->SetAttribute("ID", "Rotation");
+					xmlRotation->SetAttribute("Pitch", Object3D->ComponentTransform.Pitch);
+					xmlRotation->SetAttribute("Yaw", Object3D->ComponentTransform.Yaw);
+					xmlRotation->SetAttribute("Roll", Object3D->ComponentTransform.Roll);
+					xmlObject->InsertEndChild(xmlRotation);
+				}
+
+				XMLElement* xmlScaling{ xmlDocument.NewElement("Scaling") };
+				{
+					xmlScaling->SetAttribute("ID", "Scaling");
+					XMFLOAT4 Scaling{};
+					XMStoreFloat4(&Scaling, Object3D->ComponentTransform.Scaling);
+					xmlScaling->SetAttribute("x", Scaling.x);
+					xmlScaling->SetAttribute("y", Scaling.y);
+					xmlScaling->SetAttribute("z", Scaling.z);
+					xmlObject->InsertEndChild(xmlScaling);
+				}
+
+				XMLElement* xmlBSCenterOffset{ xmlDocument.NewElement("BSCenterOffset") };
+				{
+					xmlBSCenterOffset->SetAttribute("ID", "BSCenterOffset");
+					XMFLOAT4 BSCenterOffset{};
+					XMStoreFloat4(&BSCenterOffset, Object3D->ComponentPhysics.BoundingSphere.CenterOffset);
+					xmlBSCenterOffset->SetAttribute("x", BSCenterOffset.x);
+					xmlBSCenterOffset->SetAttribute("y", BSCenterOffset.y);
+					xmlBSCenterOffset->SetAttribute("z", BSCenterOffset.z);
+					xmlObject->InsertEndChild(xmlBSCenterOffset);
+				}
+
+				XMLElement* xmlBSRadius{ xmlDocument.NewElement("BSRadius") };
+				{
+					xmlBSRadius->SetAttribute("ID", "BSRadius");
+					xmlBSRadius->SetAttribute("Value", Object3D->ComponentPhysics.BoundingSphere.Radius);
+					xmlObject->InsertEndChild(xmlBSRadius);
+				}
+
+				xmlObjectList->InsertEndChild(xmlObject);
+			}
+			xmlRoot->InsertEndChild(xmlObjectList);
+		}
+
+		XMLElement* xmlTerrain{ xmlDocument.NewElement("Terrain") };
+		xmlTerrain->SetAttribute("ID", "Terrain");
+		{
+			if (m_Terrain)
+			{
+				xmlTerrain->SetAttribute("FileName", m_Terrain->GetFileName().c_str());
+			}
+
+			xmlRoot->InsertEndChild(xmlTerrain);
+		}
+	}
+	xmlDocument.InsertEndChild(xmlRoot);
+
+	xmlDocument.SaveFile(FileName.c_str());
+}
+
 bool CGame::OpenFileDialog(const char* Filter, const char* Title)
 {
 	m_OpenFileName.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
@@ -169,7 +379,10 @@ void CGame::UpdatePSBaseMaterial(const CMaterial& Material)
 	m_cbPSBaseMaterialData.MaterialSpecular = Material.GetSpecularColor();
 	m_cbPSBaseMaterialData.SpecularExponent = Material.GetSpecularExponent();
 	m_cbPSBaseMaterialData.SpecularIntensity = Material.GetSpecularIntensity();
-	m_cbPSBaseMaterialData.bHasTexture = Material.HasTexture();
+
+	m_cbPSBaseMaterialData.bHasDiffuseTexture = Material.HasTexture(CMaterial::CTexture::EType::DiffuseTexture);
+	m_cbPSBaseMaterialData.bHasNormalTexture = Material.HasTexture(CMaterial::CTexture::EType::NormalTexture);
+	m_cbPSBaseMaterialData.bHasOpacityTexture = Material.HasTexture(CMaterial::CTexture::EType::OpacityTexture);
 
 	m_PSBase->UpdateConstantBuffer(2);
 }
@@ -243,7 +456,7 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 		LoadSkyObjectData(xmlCloud, m_SkyData.Cloud);
 	}
 
-	m_SkyMaterial.SetDiffuseTextureFileName(m_SkyData.TextureFileName);
+	m_SkyMaterial.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, m_SkyData.TextureFileName);
 
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterial);
@@ -1019,9 +1232,25 @@ void CGame::EraseObject3D(const string& Name)
 	size_t iObject3D{ m_mapObject3DNameToIndex[Name] };
 	if (iObject3D < m_vObject3Ds.size() - 1) swap(m_vObject3Ds[iObject3D], m_vObject3Ds.back());
 
+	const string& CapturedObject3DName{ m_PtrCapturedPickedObject3D->GetName() };
+	if (Name == CapturedObject3DName)
+	{
+		m_PtrPickedObject3D = nullptr;
+		m_PtrCapturedPickedObject3D = nullptr;
+	}
+
 	m_vObject3Ds.back().release();
 	m_vObject3Ds.pop_back();
 	m_mapObject3DNameToIndex.erase(Name);
+}
+
+void CGame::ClearObject3Ds()
+{
+	m_mapObject3DNameToIndex.clear();
+	m_vObject3Ds.clear();
+
+	m_PtrPickedObject3D = nullptr;
+	m_PtrCapturedPickedObject3D = nullptr;
 }
 
 CObject3D* CGame::GetObject3D(const string& Name)
@@ -1075,7 +1304,7 @@ CMaterial* CGame::AddMaterial(const CMaterial& Material)
 
 	m_mapMaterialNameToIndex[Material.GetName()] = m_vMaterials.size() - 1;
 
-	UpdateMaterial(Material.GetName());
+	LoadMaterial(Material.GetName());
 
 	return m_vMaterials.back().get();
 }
@@ -1095,7 +1324,7 @@ void CGame::ClearMaterials()
 	m_mapMaterialNameToIndex.clear();
 }
 
-size_t CGame::GetMaterialCount()
+size_t CGame::GetMaterialCount() const
 {
 	return m_vMaterials.size();
 }
@@ -1112,94 +1341,87 @@ void CGame::ChangeMaterialName(const string& OldName, const string& NewName)
 	Material->SetName(NewName);
 }
 
-void CGame::UpdateMaterial(const string& Name)
+void CGame::LoadMaterial(const string& Name)
 {
 	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end()) return;
 
 	size_t iMaterial{ m_mapMaterialNameToIndex[Name] };
-	const CMaterial* Material{ m_vMaterials[iMaterial].get() };
+	CMaterial* Material{ m_vMaterials[iMaterial].get() };
 	if (!Material->HasTexture()) return;
 
-	if (Material->HasDiffuseTexture())
-	{
-		m_vMaterialDiffuseTextures[iMaterial].release();
-		m_vMaterialDiffuseTextures[iMaterial] = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
-
-		if (Material->IsDiffuseTextureEmbedded())
-		{
-			m_vMaterialDiffuseTextures[iMaterial]->CreateTextureFromMemory(Material->GetDiffuseTextureRawData());
-		}
-		else
-		{
-			m_vMaterialDiffuseTextures[iMaterial]->CreateTextureFromFile(Material->GetDiffuseTextureFileName(), Material->ShouldGenerateAutoMipMap());
-		}
-	}
-
-	if (Material->HasNormalTexture())
-	{
-		m_vMaterialNormalTextures[iMaterial].release();
-		m_vMaterialNormalTextures[iMaterial] = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
-
-		if (Material->IsNormalTextureEmbedded())
-		{
-			m_vMaterialNormalTextures[iMaterial]->CreateTextureFromMemory(Material->GetNormalTextureRawData());
-		}
-		else
-		{
-			m_vMaterialNormalTextures[iMaterial]->CreateTextureFromFile(Material->GetNormalTextureFileName(), Material->ShouldGenerateAutoMipMap());
-		}
-	}
-
-	if (Material->HasDisplacementTexture())
-	{
-		m_vMaterialDisplacementTextures[iMaterial].release();
-		m_vMaterialDisplacementTextures[iMaterial] = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
-
-		if (Material->IsDisplacementTextureEmbedded())
-		{
-			m_vMaterialDisplacementTextures[iMaterial]->CreateTextureFromMemory(Material->GetDisplacementTextureRawData());
-		}
-		else
-		{
-			m_vMaterialDisplacementTextures[iMaterial]->CreateTextureFromFile(Material->GetDisplacementTextureFileName(), Material->ShouldGenerateAutoMipMap());
-		}
-	}
+	CreateMaterialTexture(CMaterial::CTexture::EType::DiffuseTexture, *Material);
+	CreateMaterialTexture(CMaterial::CTexture::EType::NormalTexture, *Material);
+	CreateMaterialTexture(CMaterial::CTexture::EType::DisplacementTexture, *Material);
+	CreateMaterialTexture(CMaterial::CTexture::EType::OpacityTexture, *Material);
 }
 
-CMaterial::CTexture* CGame::AddMaterialDiffuseTexture(const string& Name)
+void CGame::CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& Material)
 {
-	if (m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end()) return nullptr;
+	if (Material.HasTexture(eType))
+	{
+		CMaterial::CTexture* PtrTexture{};
+		size_t iTexture{};
 
-	m_vMaterialDiffuseTextures.emplace_back(make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get()));
+		switch (eType)
+		{
+		case CMaterial::CTexture::EType::DiffuseTexture:
+			m_vMaterialDiffuseTextures.back() = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
+			PtrTexture = m_vMaterialDiffuseTextures.back().get();
+			iTexture = m_vMaterialDiffuseTextures.size() - 1;
+			break;
+		case CMaterial::CTexture::EType::NormalTexture:
+			m_vMaterialNormalTextures.back() = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
+			PtrTexture = m_vMaterialNormalTextures.back().get();
+			iTexture = m_vMaterialNormalTextures.size() - 1;
+			break;
+		case CMaterial::CTexture::EType::DisplacementTexture:
+			m_vMaterialDisplacementTextures.back() = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
+			PtrTexture = m_vMaterialDisplacementTextures.back().get();
+			iTexture = m_vMaterialDisplacementTextures.size() - 1;
+			break;
+		case CMaterial::CTexture::EType::OpacityTexture:
+			m_vMaterialOpacityTextures.back() = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
+			PtrTexture = m_vMaterialOpacityTextures.back().get();
+			iTexture = m_vMaterialOpacityTextures.size() - 1;
+			break;
+		default:
+			break;
+		}
 
-	return m_vMaterialDiffuseTextures.back().get();
+		if (Material.IsTextureEmbedded(eType))
+		{
+			PtrTexture->CreateTextureFromMemory(Material.GetTextureRawData(eType));
+			Material.ClearEmbeddedTextureData(eType);
+		}
+		else
+		{
+			PtrTexture->CreateTextureFromFile(Material.GetTextureFileName(eType), Material.ShouldGenerateAutoMipMap());
+		}
+	}
 }
 
-CMaterial::CTexture* CGame::GetMaterialDiffuseTexture(const string& Name)
+CMaterial::CTexture* CGame::GetMaterialTexture(CMaterial::CTexture::EType eType, const string& Name)
 {
 	assert(m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end());
 	size_t iMaterial{ m_mapMaterialNameToIndex[Name] };
-	if (m_vMaterialDiffuseTextures.size() <= iMaterial) return nullptr;
 
-	return m_vMaterialDiffuseTextures[iMaterial].get();
-}
-
-CMaterial::CTexture* CGame::AddMaterialNormalTexture(const string& Name)
-{
-	if (m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end()) return nullptr;
-
-	m_vMaterialNormalTextures.emplace_back(make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get()));
-
-	return m_vMaterialNormalTextures.back().get();
-}
-
-CMaterial::CTexture* CGame::GetMaterialNormalTexture(const string& Name)
-{
-	assert(m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end());
-	size_t iMaterial{ m_mapMaterialNameToIndex[Name] };
-	if (m_vMaterialNormalTextures.size() <= iMaterial) return nullptr;
-
-	return m_vMaterialNormalTextures[iMaterial].get();
+	switch (eType)
+	{
+	case CMaterial::CTexture::EType::DiffuseTexture:
+		if (m_vMaterialDiffuseTextures.size() <= iMaterial) return nullptr;
+		return m_vMaterialDiffuseTextures[iMaterial].get();
+	case CMaterial::CTexture::EType::NormalTexture:
+		if (m_vMaterialNormalTextures.size() <= iMaterial) return nullptr;
+		return m_vMaterialNormalTextures[iMaterial].get();
+	case CMaterial::CTexture::EType::DisplacementTexture:
+		if (m_vMaterialDisplacementTextures.size() <= iMaterial) return nullptr;
+		return m_vMaterialDisplacementTextures[iMaterial].get();
+	case CMaterial::CTexture::EType::OpacityTexture:
+		if (m_vMaterialOpacityTextures.size() <= iMaterial) return nullptr;
+		return m_vMaterialOpacityTextures[iMaterial].get();
+	default:
+		return nullptr;
+	}
 }
 
 void CGame::SetEditMode(EEditMode Mode)
@@ -1441,32 +1663,6 @@ void CGame::Draw(float DeltaTime)
 		m_eRasterizerState = ERasterizerState::CullCounterClockwise;
 	}
 
-	for (auto& Object3D : m_vObject3Ds)
-	{
-		if (Object3D->ComponentRender.bIsTransparent) continue;
-
-		UpdateObject3D(Object3D.get());
-		DrawObject3D(Object3D.get());
-
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
-		{
-			DrawObject3DBoundingSphere(Object3D.get());
-		}
-	}
-
-	for (auto& Object3D : m_vObject3Ds)
-	{
-		if (!Object3D->ComponentRender.bIsTransparent) continue;
-
-		UpdateObject3D(Object3D.get());
-		DrawObject3D(Object3D.get());
-		
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
-		{
-			DrawObject3DBoundingSphere(Object3D.get());
-		}
-	}
-
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawMiniAxes))
 	{
 		DrawMiniAxes();
@@ -1490,6 +1686,32 @@ void CGame::Draw(float DeltaTime)
 	}
 
 	DrawTerrain();
+
+	for (auto& Object3D : m_vObject3Ds)
+	{
+		if (Object3D->ComponentRender.bIsTransparent) continue;
+
+		UpdateObject3D(Object3D.get());
+		DrawObject3D(Object3D.get());
+
+		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
+		{
+			DrawObject3DBoundingSphere(Object3D.get());
+		}
+	}
+
+	for (auto& Object3D : m_vObject3Ds)
+	{
+		if (!Object3D->ComponentRender.bIsTransparent) continue;
+
+		UpdateObject3D(Object3D.get());
+		DrawObject3D(Object3D.get());
+
+		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
+		{
+			DrawObject3DBoundingSphere(Object3D.get());
+		}
+	}
 
 	DrawObject3DLines();
 

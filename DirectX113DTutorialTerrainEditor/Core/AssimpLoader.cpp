@@ -1,65 +1,60 @@
 #include "AssimpLoader.h"
 
-bool CAssimpLoader::IsAnimatedModel(const string& FileName) const
+bool CAssimpLoader::IsAnimatedModel(const string& FileName)
 {
-	Assimp::Importer AssimpImporter{};
-	AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
-	const aiScene* Scene{ AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
+	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
 		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph |
-		aiProcess_SplitLargeMeshes | aiProcess_ImproveCacheLocality | aiProcess_FixInfacingNormals |
-		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices |
-		aiProcess_RemoveComponent | aiProcess_GenSmoothNormals) };
+		aiProcess_SplitLargeMeshes | aiProcess_FixInfacingNormals |
+		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices );
+	
+	assert(m_Scene);
+	assert(m_Scene->HasMeshes());
+	assert(m_Scene->mRootNode);
 
-	assert(Scene);
-	assert(Scene->HasMeshes());
-	assert(Scene->mRootNode);
-
-	if (Scene->mNumAnimations) return true;
+	if (m_Scene->mNumAnimations) return true;
 	return false;
 }
 
 void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
 {
-	Assimp::Importer AssimpImporter{};
-	AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
-	const aiScene* Scene{ AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded | aiProcess_PreTransformVertices |
-		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes |
-		aiProcess_SplitLargeMeshes | aiProcess_ImproveCacheLocality | aiProcess_FixInfacingNormals |
-		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices |
-		aiProcess_RemoveComponent | aiProcess_GenSmoothNormals) };
+	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded | 
+		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes | aiProcess_PreTransformVertices |
+		aiProcess_SplitLargeMeshes | aiProcess_FixInfacingNormals |
+		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices);
 
-	assert(Scene);
-	assert(Scene->HasMeshes());
-	assert(Scene->mRootNode);
+	assert(m_Scene);
+	assert(m_Scene->HasMeshes());
+	assert(m_Scene->mRootNode);
 
-	Model.vMeshes = LoadMeshesFromFile(Scene);
-	Model.vMaterials = LoadMaterialsFromFile(Scene, Device, DeviceContext);
+	Model.vMeshes = LoadMeshesFromFile(m_Scene);
+	Model.vMaterials = LoadMaterialsFromFile(m_Scene, Device, DeviceContext);
 }
 
 void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
 {
-	Assimp::Importer AssimpImporter{};
-	AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
-	const aiScene* Scene{ AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
+	/*
+	m_AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
+	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
 		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph |
 		aiProcess_SplitLargeMeshes | aiProcess_ImproveCacheLocality | aiProcess_FixInfacingNormals |
 		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices |
-		aiProcess_RemoveComponent | aiProcess_GenSmoothNormals) };
+		aiProcess_RemoveComponent | aiProcess_GenSmoothNormals);
+	*/
 
-	assert(Scene);
-	assert(Scene->HasMeshes());
-	assert(Scene->mRootNode);
+	assert(m_Scene);
+	assert(m_Scene->HasMeshes());
+	assert(m_Scene->mRootNode);
 
-	Model.vMeshes = LoadMeshesFromFile(Scene);
+	Model.vMeshes = LoadMeshesFromFile(m_Scene);
 	for (auto& Mesh : Model.vMeshes)
 	{
 		Mesh.vVerticesAnimation.resize(Mesh.vVertices.size());
 	}
 
-	Model.vMaterials = LoadMaterialsFromFile(Scene, Device, DeviceContext);
+	Model.vMaterials = LoadMaterialsFromFile(m_Scene, Device, DeviceContext);
 
 	// Scene에서 재귀적으로 Node의 Tree를 만든다.
-	LoadNodes(Scene, Scene->mRootNode, -1, Model);
+	LoadNodes(m_Scene, m_Scene->mRootNode, -1, Model);
 
 	// Node의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다.
 	for (auto& Node : Model.vNodes)
@@ -68,13 +63,13 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 	}
 
 	// Scene에서 각 Mesh에 연결된 Bone들을 불러온다.
-	LoadBones(Scene, Model);
+	LoadBones(m_Scene, Model);
 
 	// 각 Mesh의 Vertex에 각 Bone의 BlendWeights를 저장한다.
 	MatchWeightsAndVertices(Model);
 
 	// Scene에서 Animation을 불러온다.
-	LoadAnimations(Scene, Model);
+	LoadAnimations(m_Scene, Model);
 
 	// Animation의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다. 
 	for (auto& Animation : Model.vAnimations)
@@ -183,35 +178,23 @@ vector<CMaterial> CAssimpLoader::LoadMaterialsFromFile(const aiScene* Scene, ID3
 		aiGetMaterialColor(aiCurrentMaterial, AI_MATKEY_COLOR_DIFFUSE, &aiDiffuse);
 		aiGetMaterialColor(aiCurrentMaterial, AI_MATKEY_COLOR_SPECULAR, &aiSpecular);
 		aiGetMaterialFloat(aiCurrentMaterial, AI_MATKEY_SHININESS, &aiShininess);
-
+		
 		if (Scene->HasTextures())
 		{
-			aiString TextureFileName{};
-			aiGetMaterialTexture(aiCurrentMaterial, aiTextureType_DIFFUSE, 0, &TextureFileName);
+			aiString DiffuseTextureFileName{};
+			aiString NormalTextureFileName{};
+			aiString DisplacementTextureFileName{};
+			aiString OpacityTextureFileName{};
 
-			auto aiTexture{ Scene->GetEmbeddedTexture(TextureFileName.C_Str()) };
-			if (aiTexture)
-			{
-				unsigned int TexelCount{ aiTexture->mWidth / 4 };
-				if (aiTexture->mHeight) TexelCount *= aiTexture->mHeight;
+			aiGetMaterialTexture(aiCurrentMaterial, aiTextureType_DIFFUSE, 0, &DiffuseTextureFileName);
+			aiGetMaterialTexture(aiCurrentMaterial, aiTextureType_NORMALS, 0, &NormalTextureFileName);
+			aiGetMaterialTexture(aiCurrentMaterial, aiTextureType_DISPLACEMENT, 0, &DisplacementTextureFileName);
+			aiGetMaterialTexture(aiCurrentMaterial, aiTextureType_OPACITY, 0, &OpacityTextureFileName);
 
-				vector<uint8_t> vEmbeddedTextureRawData{};
-				vEmbeddedTextureRawData.reserve(aiTexture->mWidth);
-				for (unsigned int iTexel = 0; iTexel < TexelCount; ++iTexel)
-				{
-					aiTexel& Texel{ aiTexture->pcData[iTexel] };
-					vEmbeddedTextureRawData.emplace_back((uint8_t)Texel.b);
-					vEmbeddedTextureRawData.emplace_back((uint8_t)Texel.g);
-					vEmbeddedTextureRawData.emplace_back((uint8_t)Texel.r);
-					vEmbeddedTextureRawData.emplace_back((uint8_t)Texel.a);
-				}
-
-				CurrentMaterial.SetDiffuseTextureRawData(vEmbeddedTextureRawData);
-			}
-			else
-			{
-				CurrentMaterial.SetDiffuseTextureFileName(TextureFileName.C_Str());
-			}
+			LoadTextureData(Scene, DiffuseTextureFileName, CurrentMaterial, CMaterial::CTexture::EType::DiffuseTexture);
+			LoadTextureData(Scene, NormalTextureFileName, CurrentMaterial, CMaterial::CTexture::EType::NormalTexture);
+			LoadTextureData(Scene, DisplacementTextureFileName, CurrentMaterial, CMaterial::CTexture::EType::DisplacementTexture);
+			LoadTextureData(Scene, OpacityTextureFileName, CurrentMaterial, CMaterial::CTexture::EType::OpacityTexture);
 		}
 
 		if (aiAmbient.r == 0.0f && aiAmbient.g == 0.0f && aiAmbient.b == 0.0f)
@@ -227,6 +210,35 @@ vector<CMaterial> CAssimpLoader::LoadMaterialsFromFile(const aiScene* Scene, ID3
 	}
 
 	return vMaterials;
+}
+
+void CAssimpLoader::LoadTextureData(const aiScene* Scene, const aiString& TextureFileName, CMaterial& Material, CMaterial::CTexture::EType eTextureType)
+{
+	if (TextureFileName.length == 0) return;
+
+	const aiTexture* _aiTexture{ Scene->GetEmbeddedTexture(TextureFileName.C_Str()) };
+	if (_aiTexture)
+	{
+		unsigned int TexelCount{ _aiTexture->mWidth / 4 };
+		if (_aiTexture->mHeight) TexelCount *= _aiTexture->mHeight;
+
+		vector<uint8_t> vEmbeddedTextureRawData{};
+		vEmbeddedTextureRawData.reserve(_aiTexture->mWidth);
+		for (unsigned int iTexel = 0; iTexel < TexelCount; ++iTexel)
+		{
+			const aiTexel& _aiTexel{ _aiTexture->pcData[iTexel] };
+			vEmbeddedTextureRawData.emplace_back((uint8_t)_aiTexel.b);
+			vEmbeddedTextureRawData.emplace_back((uint8_t)_aiTexel.g);
+			vEmbeddedTextureRawData.emplace_back((uint8_t)_aiTexel.r);
+			vEmbeddedTextureRawData.emplace_back((uint8_t)_aiTexel.a);
+		}
+
+		Material.SetTextureRawData(eTextureType, vEmbeddedTextureRawData);
+	}
+	else
+	{
+		Material.SetTextureFileName(eTextureType, TextureFileName.C_Str());
+	}
 }
 
 void CAssimpLoader::LoadNodes(const aiScene* Scene, aiNode* aiCurrentNode, int32_t ParentNodeIndex, SModel& Model)

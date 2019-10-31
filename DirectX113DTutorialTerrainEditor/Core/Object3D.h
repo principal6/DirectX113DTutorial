@@ -116,19 +116,22 @@ public:
 	const SModel& GetModel() const { return m_Model; }
 	SModel& GetModel() { return m_Model; }
 	const string& GetName() const { return m_Name; }
+	const string& GetModelFileName() const { return m_ModelFileName; }
 
 private:
 	void CreateMeshBuffers();
 	void CreateMeshBuffer(size_t MeshIndex, bool IsAnimated);
 
 	void CreateMaterialTextures();
+	void CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& Material);
 
 	void CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRIX ParentTransform);
 
 public:
-	static constexpr UINT			KDiffuseTextureSlotOffset{ 0 };
-	static constexpr UINT			KNormalTextureSlotOffset{ 5 };
-	static constexpr UINT			KDisplacementTextureSlotOffset{ 0 };
+	static constexpr UINT			KDiffuseTextureSlotOffset{ 0 }; // PS
+	static constexpr UINT			KNormalTextureSlotOffset{ 5 }; // PS
+	static constexpr UINT			KOpacityTextureSlotOffset{ 10 }; // PS
+	static constexpr UINT			KDisplacementTextureSlotOffset{ 0 }; // DS
 
 public:
 	SComponentTransform				ComponentTransform{};
@@ -143,12 +146,14 @@ private:
 
 private:
 	string									m_Name{};
+	string									m_ModelFileName{};
 	bool									m_bIsCreated{ false };
 	SModel									m_Model{};
 	vector<SMeshBuffers>					m_vMeshBuffers{};
 	vector<unique_ptr<CMaterial::CTexture>>	m_vDiffuseTextures{}; // Each texture is for each material of this Object3D
 	vector<unique_ptr<CMaterial::CTexture>>	m_vNormalTextures{};
 	vector<unique_ptr<CMaterial::CTexture>>	m_vDisplacementTextures{};
+	vector<unique_ptr<CMaterial::CTexture>>	m_vOpacityTextures{};
 
 	XMMATRIX								m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
 	size_t									m_CurrentAnimationIndex{};

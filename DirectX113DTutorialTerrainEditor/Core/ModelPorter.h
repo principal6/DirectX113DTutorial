@@ -295,13 +295,13 @@ static void _ReadModelMaterials(std::ifstream& ifs, vector<CMaterial>& vMaterial
 		READ_BYTES(1);
 		Material.ShouldGenerateAutoMipMap(READ_BYTES_TO_BOOL);
 
-		// # 512B (string, MAX) diffuse texture file name
+		// # 512B (string, MAX) Diffuse texture file name
 		READ_BYTES(512);
-		Material.SetDiffuseTextureFileName(ReadBytes);
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, ReadBytes);
 
-		// # 512B (string, MAX) normal texture file name
+		// # 512B (string, MAX) Normal texture file name
 		READ_BYTES(512);
-		Material.SetNormalTextureFileName(ReadBytes);
+		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, ReadBytes);
 	}
 }
 
@@ -434,14 +434,16 @@ static void _WriteModelMaterials(std::ofstream& ofs, const vector<CMaterial>& vM
 		// 1B (bool) bShouldGenerateAutoMipMap
 		ofs.put(Material.ShouldGenerateAutoMipMap());
 
-		// 512B (string, MAX) diffuse texture file name
+		// 512B (string, MAX) Diffuse texture file name
 		memset(StringBytes, 0, 512);
-		memcpy(StringBytes, Material.GetDiffuseTextureFileName().data(), min(Material.GetDiffuseTextureFileName().size(), (size_t)512));
+		const string& DiffuseTextureFileName{ Material.GetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture) };
+		memcpy(StringBytes, DiffuseTextureFileName.data(), min(DiffuseTextureFileName.size(), (size_t)512));
 		ofs.write(StringBytes, 512);
 
-		// 512B (string, MAX) normal texture file name
+		// 512B (string, MAX) Normal texture file name
 		memset(StringBytes, 0, 512);
-		memcpy(StringBytes, Material.GetNormalTextureFileName().data(), min(Material.GetNormalTextureFileName().size(), (size_t)512));
+		const string& NormalTextureFileName{ Material.GetTextureFileName(CMaterial::CTexture::EType::NormalTexture) };
+		memcpy(StringBytes, NormalTextureFileName.data(), min(NormalTextureFileName.size(), (size_t)512));
 		ofs.write(StringBytes, 512);
 
 		++iMaterial;

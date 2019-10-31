@@ -1,0 +1,13 @@
+<Scene>
+    <ObjectList ID="ObjectList">
+        <Object Name="farmhouse">
+            <Model ID="Model" FileName="C:\Users\jesus\Documents\GitHub\DirectX113DTutorial\DirectX113DTutorialTerrainEditor\Asset\farmhouse.FBX"/>
+            <Translation ID="Translation" x="-18.400011" y="0" z="0"/>
+            <Rotation ID="Rotation" Pitch="0" Yaw="1.5707965" Roll="0"/>
+            <Scaling ID="Scaling" x="0.1" y="0.1" z="0.1"/>
+            <BSCenterOffset ID="BSCenterOffset" x="-0.30000001" y="0" z="0"/>
+            <BSRadius ID="BSRadius" Value="1.2"/>
+        </Object>
+    </ObjectList>
+    <Terrain ID="Terrain" FileName="C:\Users\jesus\Documents\GitHub\DirectX113DTutorial\DirectX113DTutorialTerrainEditor\Asset\medium.terr"/>
+</Scene>

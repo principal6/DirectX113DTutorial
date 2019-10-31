@@ -16,7 +16,7 @@ void CShader::CConstantBuffer::Create(EShaderType ShaderType, const void* PtrDat
 	BufferDesc.StructureByteStride = 0;
 	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 
-	m_PtrDevice->CreateBuffer(&BufferDesc, nullptr, m_ConstantBuffer.GetAddressOf());
+	assert(SUCCEEDED(m_PtrDevice->CreateBuffer(&BufferDesc, nullptr, m_ConstantBuffer.GetAddressOf())));
 }
 
 void CShader::CConstantBuffer::Update()

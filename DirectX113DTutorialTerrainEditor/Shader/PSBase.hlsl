@@ -1,7 +1,9 @@
 #include "Header.hlsli"
 
 SamplerState CurrentSampler : register(s0);
-Texture2D CurrentTexture2D : register(t0);
+Texture2D DiffuseTexture : register(t0);
+//Texture2D NormalTexture : register(t5);
+Texture2D OpacityTexture : register(t10);
 
 cbuffer cbFlags : register(b0)
 {
@@ -26,7 +28,11 @@ cbuffer cbMaterial : register(b2)
 	float3	MaterialDiffuse;
 	float	SpecularIntensity;
 	float3	MaterialSpecular;
-	bool	bHasTexture;
+	bool	bHasDiffuseTexture;
+
+	bool	bHasNormalTexture;
+	bool	bHasOpacityTexture;
+	bool2	Pad;
 }
 
 float4 main(VS_OUTPUT input) : SV_TARGET
@@ -34,10 +40,19 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	float4 AmbientColor = float4(MaterialAmbient, 1);
 	float4 DiffuseColor = float4(MaterialDiffuse, 1);
 	float4 SpecularColor = float4(MaterialSpecular, 1);
+	float Opacity = 1.0f;
 	
-	if (UseTexture == true && bHasTexture == true)
+	if (UseTexture == true)
 	{
-		AmbientColor = DiffuseColor = SpecularColor = CurrentTexture2D.Sample(CurrentSampler, input.UV.xy);
+		if (bHasDiffuseTexture == true)
+		{
+			AmbientColor = DiffuseColor = SpecularColor = DiffuseTexture.Sample(CurrentSampler, input.UV.xy);
+		}
+		
+		if (bHasOpacityTexture == true)
+		{
+			Opacity = OpacityTexture.Sample(CurrentSampler, input.UV.xy).r;
+		}
 	}
 	DiffuseColor.xyz *= DiffuseColor.xyz;
 
@@ -59,6 +74,11 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	if (input.bUseVertexColor != 0)
 	{
 		return input.Color;
+	}
+
+	if (bHasOpacityTexture == true)
+	{
+		Result.a *= (1.0f - Opacity);
 	}
 
 	return Result;

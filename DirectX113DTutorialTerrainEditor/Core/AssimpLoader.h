@@ -108,7 +108,7 @@ public:
 	CAssimpLoader() {}
 	~CAssimpLoader() {}
 
-	bool IsAnimatedModel(const string& FileName) const;
+	bool IsAnimatedModel(const string& FileName);
 	void LoadStaticModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
 	void LoadAnimatedModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
 
@@ -120,8 +120,16 @@ private:
 	vector<SMesh> LoadMeshesFromFile(const aiScene* Scene);
 	vector<CMaterial> LoadMaterialsFromFile(const aiScene* Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
 
+private:
+	void LoadTextureData(const aiScene* Scene, const aiString& TextureFileName, CMaterial& Material, CMaterial::CTexture::EType eTextureType);
+
+private:
 	void LoadNodes(const aiScene* Scene, aiNode* aiCurrentNode, int32_t ParentNodeIndex, SModel& Model);
 	void LoadBones(const aiScene* Scene, SModel& Model);
 	void MatchWeightsAndVertices(SModel& Model);
 	void LoadAnimations(const aiScene* Scene, SModel& Model);
+
+private:
+	Assimp::Importer	m_AssimpImporter{};
+	const aiScene*		m_Scene{};
 };

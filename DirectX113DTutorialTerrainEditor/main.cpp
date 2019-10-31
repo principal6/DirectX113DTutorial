@@ -24,7 +24,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 	Game.SetGameRenderingFlags(CGame::EFlagsRendering::UseLighting | CGame::EFlagsRendering::DrawMiniAxes |
 		CGame::EFlagsRendering::DrawTerrainHeightMapTexture | CGame::EFlagsRendering::DrawTerrainMaskingTexture | 
-		CGame::EFlagsRendering::TessellateTerrain | CGame::EFlagsRendering::Use3DGizmos | CGame::EFlagsRendering::DrawBoundingSphere);
+		CGame::EFlagsRendering::TessellateTerrain | CGame::EFlagsRendering::Use3DGizmos);
 
 	CCamera* MainCamera{ Game.AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
 	MainCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
@@ -41,9 +41,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	{
 		MaterialTest.SetName("Test");
 		MaterialTest.ShouldGenerateAutoMipMap(true);
-		MaterialTest.SetDiffuseTextureFileName("Asset\\test.jpg");
-		MaterialTest.SetNormalTextureFileName("Asset\\test_normal.jpg");
-		MaterialTest.SetDisplacementTextureFileName("Asset\\test_displacement.jpg");
+		MaterialTest.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\test.jpg");
+		MaterialTest.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\test_normal.jpg");
+		MaterialTest.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\test_displacement.jpg");
 		Game.AddMaterial(MaterialTest);
 	}
 
@@ -51,9 +51,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	{
 		MaterialDefaultGround0.SetName("DefaultGround0");
 		MaterialDefaultGround0.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround0.SetDiffuseTextureFileName("Asset\\ground0.jpg");
-		MaterialDefaultGround0.SetNormalTextureFileName("Asset\\ground0_normal.jpg");
-		MaterialDefaultGround0.SetDisplacementTextureFileName("Asset\\ground0_displacement.jpg");
+		MaterialDefaultGround0.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\ground0.jpg");
+		MaterialDefaultGround0.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\ground0_normal.jpg");
+		MaterialDefaultGround0.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\ground0_displacement.jpg");
 		Game.AddMaterial(MaterialDefaultGround0);
 	}
 
@@ -61,9 +61,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	{
 		MaterialDefaultGround1.SetName("DefaultGround1");
 		MaterialDefaultGround1.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround1.SetDiffuseTextureFileName("Asset\\ground1.jpg");
-		MaterialDefaultGround1.SetNormalTextureFileName("Asset\\ground1_normal.jpg");
-		MaterialDefaultGround1.SetDisplacementTextureFileName("Asset\\ground1_displacement.jpg");
+		MaterialDefaultGround1.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\ground1.jpg");
+		MaterialDefaultGround1.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\ground1_normal.jpg");
+		MaterialDefaultGround1.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\ground1_displacement.jpg");
 		Game.AddMaterial(MaterialDefaultGround1);
 	}
 
@@ -71,9 +71,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	{
 		MaterialDefaultGround2.SetName("DefaultGround2");
 		MaterialDefaultGround2.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround2.SetDiffuseTextureFileName("Asset\\ground2.jpg");
-		MaterialDefaultGround2.SetNormalTextureFileName("Asset\\ground2_normal.jpg");
-		MaterialDefaultGround2.SetDisplacementTextureFileName("Asset\\ground2_displacement.jpg");
+		MaterialDefaultGround2.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\ground2.jpg");
+		MaterialDefaultGround2.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\ground2_normal.jpg");
+		MaterialDefaultGround2.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\ground2_displacement.jpg");
 		Game.AddMaterial(MaterialDefaultGround2);
 	}
 
@@ -81,9 +81,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	{
 		MaterialDefaultGround3.SetName("DefaultGround3");
 		MaterialDefaultGround3.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround3.SetDiffuseTextureFileName("Asset\\ground3.jpg");
-		MaterialDefaultGround3.SetNormalTextureFileName("Asset\\ground3_normal.jpg");
-		MaterialDefaultGround3.SetDisplacementTextureFileName("Asset\\ground3_displacement.jpg");
+		MaterialDefaultGround3.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\ground3.jpg");
+		MaterialDefaultGround3.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\ground3_normal.jpg");
+		MaterialDefaultGround3.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\ground3_displacement.jpg");
 		Game.AddMaterial(MaterialDefaultGround3);
 	}
 
@@ -91,8 +91,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	{
 		MaterialDefaultGrass.SetName("DefaultGrass");
 		MaterialDefaultGrass.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGrass.SetDiffuseTextureFileName("Asset\\grass.jpg");
-		MaterialDefaultGrass.SetNormalTextureFileName("Asset\\grass_normal.jpg");
+		MaterialDefaultGrass.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\grass.jpg");
+		MaterialDefaultGrass.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\grass_normal.jpg");
 		Game.AddMaterial(MaterialDefaultGrass);
 	}
 
@@ -191,6 +191,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			if (KeyDown == VK_F3)
 			{
 				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawMiniAxes);
+			}
+			if (KeyDown == VK_F4)
+			{
+				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawBoundingSphere);
 			}
 
 			// Mouse input
@@ -411,11 +415,30 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									float Scaling[3]{ XMVectorGetX(Object3D->ComponentTransform.Scaling),
 										XMVectorGetY(Object3D->ComponentTransform.Scaling), XMVectorGetZ(Object3D->ComponentTransform.Scaling) };
 									if (ImGui::DragFloat3(u8"크기", Scaling, CGame::KScalingUnit,
-										CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.2f"))
+										CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.3f"))
 									{
 										Object3D->ComponentTransform.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
 										Object3D->UpdateWorldMatrix();
 									}
+
+									float BSCenterOffset[3]{
+										XMVectorGetX(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
+										XMVectorGetY(Object3D->ComponentPhysics.BoundingSphere.CenterOffset), 
+										XMVectorGetZ(Object3D->ComponentPhysics.BoundingSphere.CenterOffset) };
+									if (ImGui::DragFloat3(u8"Bounding Sphere 중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
+										CGame::KBSCenterOffsetMinLimit, CGame::KBSCenterOffsetMaxLimit, "%.2f"))
+									{
+										Object3D->ComponentPhysics.BoundingSphere.CenterOffset =
+											XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f);
+									}
+
+									float BSRadius{ Object3D->ComponentPhysics.BoundingSphere.Radius };
+									if (ImGui::DragFloat(u8"Bounding Sphere 반지름", &BSRadius, CGame::KBSRadiusUnit,
+										CGame::KBSRadiusMinLimit, CGame::KBSRadiusMaxLimit, "%.2f"))
+									{
+										Object3D->ComponentPhysics.BoundingSphere.Radius = BSRadius;
+									}
+
 								}
 								else
 								{
@@ -762,9 +785,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										// Diffuse texture
 										{
 											const char* PtrDiffuseTextureLabel{ KLabelAdd };
-											if (Material->HasDiffuseTexture())
+											if (Material->HasTexture(CMaterial::CTexture::EType::DiffuseTexture))
 											{
-												ImGui::Image(Game.GetMaterialDiffuseTexture(pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
+												ImGui::Image(Game.GetMaterialTexture(CMaterial::CTexture::EType::DiffuseTexture,
+													pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
 												ImGui::SameLine();
 												ImGui::SetNextItemWidth(KUniformWidth);
 												ImGui::Text(u8"Diffuse 텍스쳐");
@@ -788,8 +812,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 											{
 												if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 												{
-													Material->SetDiffuseTextureFileName(Game.GetDialogFileNameWithPath());
-													Game.UpdateMaterial(pairMaterial.first);
+													Material->SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, Game.GetDialogFileNameWithPath());
+													Game.LoadMaterial(pairMaterial.first);
 												}
 											}
 											ImGui::PopID();
@@ -798,9 +822,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										// Normal texture
 										{
 											const char* PtrNormalTextureLabel{ KLabelAdd };
-											if (Material->HasNormalTexture())
+											if (Material->HasTexture(CMaterial::CTexture::EType::NormalTexture))
 											{
-												ImGui::Image(Game.GetMaterialNormalTexture(pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
+												ImGui::Image(Game.GetMaterialTexture(CMaterial::CTexture::EType::NormalTexture,
+													pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
 												ImGui::SameLine();
 												ImGui::Text(u8"Normal 텍스쳐");
 
@@ -823,8 +848,44 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 											{
 												if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 												{
-													Material->SetNormalTextureFileName(Game.GetDialogFileNameWithPath());
-													Game.UpdateMaterial(pairMaterial.first);
+													Material->SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, Game.GetDialogFileNameWithPath());
+													Game.LoadMaterial(pairMaterial.first);
+												}
+											}
+											ImGui::PopID();
+										}
+
+										// Displacement texture
+										{
+											const char* PtrDisplacementTextureLabel{ KLabelAdd };
+											if (Material->HasTexture(CMaterial::CTexture::EType::DisplacementTexture))
+											{
+												ImGui::Image(Game.GetMaterialTexture(CMaterial::CTexture::EType::DisplacementTexture,
+													pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
+												ImGui::SameLine();
+												ImGui::Text(u8"Displacement 텍스쳐");
+
+												PtrDisplacementTextureLabel = KLabelChange;
+											}
+											else
+											{
+												ImGui::Image(0, ImVec2(100, 100));
+												ImGui::SameLine();
+												ImGui::SetNextItemWidth(KUniformWidth);
+												ImGui::Text(u8"Displacement 텍스쳐: 없음");
+
+												PtrDisplacementTextureLabel = KLabelAdd;
+											}
+
+											ImGui::SameLine();
+
+											ImGui::PushID(1);
+											if (ImGui::Button(PtrDisplacementTextureLabel))
+											{
+												if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
+												{
+													Material->SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, Game.GetDialogFileNameWithPath());
+													Game.LoadMaterial(pairMaterial.first);
 												}
 											}
 											ImGui::PopID();
@@ -967,6 +1028,20 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						{
 							Game.EraseObject3D(SelectedObject3DName);
 							memset(SelectedObject3DName, 0, CGame::KObject3DNameMaxLength);
+						}
+
+						ImGui::SameLine();
+
+						if (ImGui::Button(u8"저장"))
+						{
+							Game.SaveScene("Asset\\Scene.xml");
+						}
+
+						ImGui::SameLine();
+
+						if (ImGui::Button(u8"열기"))
+						{
+							Game.LoadScene("Asset\\Scene.xml");
 						}
 
 						ImGui::Columns(1, "Object3Ds");

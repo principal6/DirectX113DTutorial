@@ -54,6 +54,8 @@ void CObject3D::Create(const SModel& Model)
 
 void CObject3D::CreateFromFile(const string& FileName)
 {
+	m_ModelFileName = FileName;
+
 	if (ms_AssimpLoader.IsAnimatedModel(FileName))
 	{
 		ms_AssimpLoader.LoadAnimatedModelFromFile(FileName, m_Model, m_PtrDevice, m_PtrDeviceContext);
@@ -155,66 +157,94 @@ void CObject3D::CreateMaterialTextures()
 	m_vDiffuseTextures.clear();
 	m_vNormalTextures.clear();
 	m_vDisplacementTextures.clear();
+	m_vOpacityTextures.clear();
 
 	for (CMaterial& Material : m_Model.vMaterials)
 	{
 		m_vDiffuseTextures.emplace_back();
 		m_vNormalTextures.emplace_back();
 		m_vDisplacementTextures.emplace_back();
+		m_vOpacityTextures.emplace_back();
 
 		if (Material.HasTexture())
 		{
-			if (Material.HasDiffuseTexture())
-			{
-				m_vDiffuseTextures.back() = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+			CreateMaterialTexture(CMaterial::CTexture::EType::DiffuseTexture, Material);
+			CreateMaterialTexture(CMaterial::CTexture::EType::NormalTexture, Material);
+			CreateMaterialTexture(CMaterial::CTexture::EType::DisplacementTexture, Material);
+			CreateMaterialTexture(CMaterial::CTexture::EType::OpacityTexture, Material);
+		}
+	}
+}
 
-				if (Material.IsDiffuseTextureEmbedded())
-				{
-					m_vDiffuseTextures.back()->CreateTextureFromMemory(Material.GetDiffuseTextureRawData());
-					Material.ClearEmbeddedDiffuseTextureData();
-				}
-				else
-				{
-					m_vDiffuseTextures.back()->CreateTextureFromFile(Material.GetDiffuseTextureFileName(), Material.ShouldGenerateAutoMipMap());
-				}
+void CObject3D::CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& Material)
+{
+	if (Material.HasTexture(eType))
+	{
+		CMaterial::CTexture* PtrTexture{};
+		size_t iTexture{};
 
-				m_vDiffuseTextures.back()->SetSlot(static_cast<UINT>(KDiffuseTextureSlotOffset + m_vDiffuseTextures.size() - 1));
-			}
+		switch (eType)
+		{
+		case CMaterial::CTexture::EType::DiffuseTexture:
+			m_vDiffuseTextures.back() = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+			PtrTexture = m_vDiffuseTextures.back().get();
+			iTexture = m_vDiffuseTextures.size() - 1;
+			break;
+		case CMaterial::CTexture::EType::NormalTexture:
+			m_vNormalTextures.back() = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+			PtrTexture = m_vNormalTextures.back().get();
+			iTexture = m_vNormalTextures.size() - 1;
+			break;
+		case CMaterial::CTexture::EType::DisplacementTexture:
+			m_vDisplacementTextures.back() = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+			PtrTexture = m_vDisplacementTextures.back().get();
+			iTexture = m_vDisplacementTextures.size() - 1;
+			break;
+		case CMaterial::CTexture::EType::OpacityTexture:
+			m_vOpacityTextures.back() = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+			PtrTexture = m_vOpacityTextures.back().get();
+			iTexture = m_vOpacityTextures.size() - 1;
+			break;
+		default:
+			break;
+		}
 
-			if (Material.HasNormalTexture())
-			{
-				m_vNormalTextures.back() = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+		if (Material.IsTextureEmbedded(eType))
+		{
+			PtrTexture->CreateTextureFromMemory(Material.GetTextureRawData(eType));
+			Material.ClearEmbeddedTextureData(eType);
+		}
+		else
+		{
+			PtrTexture->CreateTextureFromFile(Material.GetTextureFileName(eType), Material.ShouldGenerateAutoMipMap());
+		}
 
-				if (Material.IsDiffuseTextureEmbedded())
-				{
-					m_vNormalTextures.back()->CreateTextureFromMemory(Material.GetNormalTextureRawData());
-					Material.ClearEmbeddedNormalTextureData();
-				}
-				else
-				{
-					m_vNormalTextures.back()->CreateTextureFromFile(Material.GetNormalTextureFileName(), Material.ShouldGenerateAutoMipMap());
-				}
-
-				m_vNormalTextures.back()->SetSlot(static_cast<UINT>(KNormalTextureSlotOffset + m_vNormalTextures.size() - 1));
-			}
-
-			if (Material.HasDisplacementTexture())
-			{
-				m_vDisplacementTextures.back() = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
-
-				if (Material.IsDiffuseTextureEmbedded())
-				{
-					m_vDisplacementTextures.back()->CreateTextureFromMemory(Material.GetDisplacementTextureRawData());
-					Material.ClearEmbeddedDisplacementTextureData();
-				}
-				else
-				{
-					m_vDisplacementTextures.back()->CreateTextureFromFile(Material.GetDisplacementTextureFileName(), Material.ShouldGenerateAutoMipMap());
-				}
-
-				m_vDisplacementTextures.back()->SetShaderType(EShaderType::DomainShader); // @important
-				m_vDisplacementTextures.back()->SetSlot(KDisplacementTextureSlotOffset);
-			}
+		UINT Offset{};
+		switch (eType)
+		{
+		case CMaterial::CTexture::EType::DiffuseTexture:
+			Offset = KDiffuseTextureSlotOffset;
+			break;
+		case CMaterial::CTexture::EType::NormalTexture:
+			Offset = KNormalTextureSlotOffset;
+			break;
+		case CMaterial::CTexture::EType::DisplacementTexture:
+			Offset = KDisplacementTextureSlotOffset;
+			PtrTexture->SetShaderType(EShaderType::DomainShader);
+			break;
+		case CMaterial::CTexture::EType::OpacityTexture:
+			Offset = KOpacityTextureSlotOffset;
+			break;
+		default:
+			break;
+		}
+		if (m_Model.bUseMultipleTexturesInSingleMesh)
+		{
+			PtrTexture->SetSlot(static_cast<UINT>(Offset + iTexture));
+		}
+		else
+		{
+			PtrTexture->SetSlot(static_cast<UINT>(Offset));
 		}
 	}
 }
@@ -398,11 +428,16 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 				{
 					if (NormalTexture) NormalTexture->Use();
 				}
+				for (const auto& OpacityTexture : m_vOpacityTextures)
+				{
+					if (OpacityTexture) OpacityTexture->Use();
+				}
 			}
 			else
 			{
 				if (m_vDiffuseTextures[Mesh.MaterialID]) m_vDiffuseTextures[Mesh.MaterialID]->Use();
 				if (m_vNormalTextures[Mesh.MaterialID]) m_vNormalTextures[Mesh.MaterialID]->Use();
+				if (m_vOpacityTextures[Mesh.MaterialID]) m_vOpacityTextures[Mesh.MaterialID]->Use();
 			}
 
 			if (m_vDisplacementTextures.size())

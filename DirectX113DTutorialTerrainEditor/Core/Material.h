@@ -21,6 +21,15 @@ public:
 	class CTexture
 	{
 	public:
+		enum class EType
+		{
+			DiffuseTexture,
+			NormalTexture,
+			DisplacementTexture,
+			OpacityTexture
+		};
+
+	public:
 		CTexture(ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext) :
 			m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
 		{
@@ -70,14 +79,8 @@ public:
 public:
 	void SetName(const string& Name);
 
-	void SetDiffuseTextureRawData(const vector<uint8_t>& Data);
-	void SetDiffuseTextureFileName(const string& FileName);
-
-	void SetNormalTextureRawData(const vector<uint8_t>& Data);
-	void SetNormalTextureFileName(const string& FileName);
-
-	void SetDisplacementTextureRawData(const vector<uint8_t>& Data);
-	void SetDisplacementTextureFileName(const string& FileName);
+	void SetTextureRawData(CTexture::EType eType, const vector<uint8_t>& Data);
+	void SetTextureFileName(CTexture::EType eType, const string& FileName);
 
 public:
 	void SetUniformColor(const XMFLOAT3& Color);
@@ -91,24 +94,12 @@ public:
 	const string& GetName() const { return m_Name; }
 	bool HasTexture() const { return bHasTexture; }
 
-	void ClearEmbeddedDiffuseTextureData() { vEmbeddedDiffuseTextureRawData.clear(); }
-	bool HasDiffuseTexture() const { return bHasDiffuseTexture; }
-	bool IsDiffuseTextureEmbedded() const { return (vEmbeddedDiffuseTextureRawData.size()) ? true : false; }
-	const string& GetDiffuseTextureFileName() const { return DiffuseTextureFileName; }
-	const vector<uint8_t>& GetDiffuseTextureRawData() const { return vEmbeddedDiffuseTextureRawData; }
+	void ClearEmbeddedTextureData(CTexture::EType eType);
+	bool HasTexture(CTexture::EType eType) const;
+	bool IsTextureEmbedded(CTexture::EType eType) const;
+	const string& GetTextureFileName(CTexture::EType eType) const;
+	const vector<uint8_t>& GetTextureRawData(CTexture::EType eType) const;
 
-	void ClearEmbeddedNormalTextureData() { vEmbeddedNormalTextureRawData.clear(); }
-	bool HasNormalTexture() const { return bHasNormalTexture; }
-	bool IsNormalTextureEmbedded() const { return (vEmbeddedNormalTextureRawData.size()) ? true : false; }
-	const string& GetNormalTextureFileName() const { return NormalTextureFileName; }
-	const vector<uint8_t>& GetNormalTextureRawData() const { return vEmbeddedNormalTextureRawData; }
-
-	void ClearEmbeddedDisplacementTextureData() { vEmbeddedDisplacementTextureRawData.clear(); }
-	bool HasDisplacementTexture() const { return bHasDisplacementTexture; }
-	bool IsDisplacementTextureEmbedded() const { return (vEmbeddedDisplacementTextureRawData.size()) ? true : false; }
-	const string& GetDisplacementTextureFileName() const { return DisplacementTextureFileName; }
-	const vector<uint8_t>& GetDisplacementTextureRawData() const { return vEmbeddedDisplacementTextureRawData; }
-	
 	void ShouldGenerateAutoMipMap(bool Value) { m_bShouldGenerateAutoMipMap = Value; }
 	bool ShouldGenerateAutoMipMap() const { return m_bShouldGenerateAutoMipMap; }
 
@@ -141,6 +132,10 @@ private:
 	bool			bHasDisplacementTexture{ false };
 	string			DisplacementTextureFileName{};
 	vector<uint8_t>	vEmbeddedDisplacementTextureRawData{};
+
+	bool			bHasOpacityTexture{ false };
+	string			OpacityTextureFileName{};
+	vector<uint8_t>	vEmbeddedOpacityTextureRawData{};
 	
 	bool			m_bShouldGenerateAutoMipMap{};
 };

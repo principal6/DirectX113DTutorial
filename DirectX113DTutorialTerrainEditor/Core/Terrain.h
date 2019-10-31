@@ -97,6 +97,8 @@ public:
 	const XMFLOAT2& GetSelectionPosition() const;
 	float GetMaskingDetail() const;
 
+	const string& GetFileName() const;
+
 public:
 	void Draw(bool bDrawNormals);
 	void DrawHeightMapTexture();
@@ -190,4 +192,6 @@ private:
 	float			m_MaskingRadius{ KMaskingDefaultRadius };
 	float			m_MaskingAttenuation{ KMaskingMinAttenuation };
 	float			m_MaskingTextureDetail{ KMaskingDefaultDetail };
+
+	string			m_FileName{};
 };

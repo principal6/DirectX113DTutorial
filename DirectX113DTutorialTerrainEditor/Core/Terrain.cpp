@@ -48,6 +48,8 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, fl
 
 void CTerrain::Load(const string& FileName)
 {
+	m_FileName = FileName;
+
 	SModel Model{};
 	
 	std::ifstream ifs{};
@@ -141,6 +143,8 @@ void CTerrain::Load(const string& FileName)
 void CTerrain::Save(const string& FileName)
 {
 	if (!m_Object3DTerrain) return;
+
+	m_FileName = FileName;
 
 	std::ofstream ofs{};
 	ofs.open(FileName, std::ofstream::binary);
@@ -714,6 +718,11 @@ const XMFLOAT2& CTerrain::GetSelectionPosition() const
 float CTerrain::GetMaskingDetail() const
 {
 	return m_MaskingTextureDetail;
+}
+
+const string& CTerrain::GetFileName() const
+{
+	return m_FileName;
 }
 
 void CTerrain::Draw(bool bDrawNormals)

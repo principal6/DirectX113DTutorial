@@ -71,12 +71,6 @@ struct SCBVS2DSpaceData
 	XMMATRIX	World{};
 };
 
-struct SCBPS2DFlagsData
-{
-	BOOL		bUseTexture{};
-	BOOL		Pad[3]{};
-};
-
 struct SCBVSSpaceData
 {
 	XMMATRIX	WVP{};
@@ -120,12 +114,6 @@ struct SCBGSSpaceData
 	XMMATRIX	VP{};
 };
 
-enum class EFlagPSBase
-{
-	UseTexture,
-	UseLighting
-};
-
 enum class EFlagPSBase2D
 {
 	UseTexture
@@ -135,7 +123,7 @@ struct SCBPSBaseFlagsData
 {
 	BOOL		bUseTexture{};
 	BOOL		bUseLighting{};
-	BOOL		Pad[2]{};
+	BOOL		Pads[2]{};
 };
 
 struct SCBPSLightsData
@@ -154,7 +142,11 @@ struct SCBPSBaseMaterialData
 	XMFLOAT3	MaterialDiffuse{};
 	float		SpecularIntensity{ 0 };
 	XMFLOAT3	MaterialSpecular{};
-	BOOL		bHasTexture{};
+	BOOL		bHasDiffuseTexture{};
+
+	BOOL		bHasNormalTexture{};
+	BOOL		bHasOpacityTexture{};
+	BOOL		Pad[2]{};
 };
 
 struct SCBPSSkyTimeData
@@ -171,6 +163,12 @@ struct SCBPSGizmoColorFactorData
 struct SCBPSTerrainSpaceData
 {
 	XMMATRIX	Matrix{};
+};
+
+struct SCBPS2DFlagsData
+{
+	BOOL		bUseTexture{};
+	BOOL		Pad[3]{};
 };
 
 struct SCBWaterTimeData
@@ -233,6 +231,10 @@ public:
 public:
 	void CreateWin32(WNDPROC WndProc, LPCTSTR WindowName, const wstring& FontFileName, bool bWindowed);
 	void Destroy();
+
+	void LoadScene(const string& FileName);
+	void SaveScene(const string& FileName);
+
 	bool OpenFileDialog(const char* Filter, const char* Title);
 	bool SaveFileDialog(const char* Filter, const char* Title, const char* DefaultExtension);
 	const char* GetDialogFileNameWithPath() const;
@@ -316,6 +318,7 @@ public:
 
 	void InsertObject3D(const string& Name);
 	void EraseObject3D(const string& Name);
+	void ClearObject3Ds();
 	CObject3D* GetObject3D(const string& Name);
 	const map<string, size_t>& GetObject3DMap() { return m_mapObject3DNameToIndex; }
 
@@ -328,16 +331,14 @@ public:
 	CMaterial* AddMaterial(const CMaterial& Material);
 	CMaterial* GetMaterial(const string& Name);
 	void ClearMaterials();
-	size_t GetMaterialCount();
+	size_t GetMaterialCount() const;
 	void ChangeMaterialName(const string& OldName, const string& NewName);
-	void UpdateMaterial(const string& Name);
-	const map<string, size_t>& GetMaterialMap() { return m_mapMaterialNameToIndex; }
+	void LoadMaterial(const string& Name);
+	const map<string, size_t>& GetMaterialMap() const { return m_mapMaterialNameToIndex; }
+	CMaterial::CTexture* GetMaterialTexture(CMaterial::CTexture::EType eType, const string& Name);
 
-	CMaterial::CTexture* AddMaterialDiffuseTexture(const string& Name);
-	CMaterial::CTexture* GetMaterialDiffuseTexture(const string& Name);
-	
-	CMaterial::CTexture* AddMaterialNormalTexture(const string& Name);
-	CMaterial::CTexture* GetMaterialNormalTexture(const string& Name);
+private:
+	void CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& Material);
 
 public:
 	void SetEditMode(EEditMode Mode);
@@ -419,8 +420,14 @@ public:
 	static constexpr float KRotation360To2PI{ 1.0f / 360.0f * XM_2PI };
 	static constexpr float KRotation2PITo360{ 1.0f / XM_2PI * 360.0f };
 	static constexpr float KScalingMaxLimit{ +100.0f };
-	static constexpr float KScalingMinLimit{ +0.01f };
-	static constexpr float KScalingUnit{ +0.01f };
+	static constexpr float KScalingMinLimit{ +0.001f };
+	static constexpr float KScalingUnit{ +0.001f };
+	static constexpr float KBSCenterOffsetUnit{ +0.01f };
+	static constexpr float KBSCenterOffsetMinLimit{ -10.0f };
+	static constexpr float KBSCenterOffsetMaxLimit{ +10.0f };
+	static constexpr float KBSRadiusUnit{ +0.01f };
+	static constexpr float KBSRadiusMinLimit{ 0.001f };
+	static constexpr float KBSRadiusMaxLimit{ 10.0f };
 	static constexpr int KObject3DNameMaxLength{ 100 };
 	
 private:
@@ -508,6 +515,7 @@ private:
 	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialDiffuseTextures{};
 	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialNormalTextures{};
 	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialDisplacementTextures{};
+	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialOpacityTextures{};
 
 	unique_ptr<CObject3DLine>				m_Object3DLinePickingRay{};
 	unique_ptr<CObject3D>					m_Object3DPickedTriangle{};
