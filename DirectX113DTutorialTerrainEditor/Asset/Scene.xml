@@ -16,6 +16,14 @@
             <BSCenterOffset ID="BSCenterOffset" x="0" y="0" z="0"/>
             <BSRadius ID="BSRadius" Value="1"/>
         </Object>
+        <Object Name="temple">
+            <Model ID="Model" FileName="C:\Users\jesus\Documents\GitHub\DirectX113DTutorial\DirectX113DTutorialTerrainEditor\Asset\temple.FBX"/>
+            <Translation ID="Translation" x="-15.9" y="0.60000002" z="0"/>
+            <Rotation ID="Rotation" Pitch="0" Yaw="-1.5707965" Roll="0"/>
+            <Scaling ID="Scaling" x="0.0020000001" y="0.0020000001" z="0.0020000001"/>
+            <BSCenterOffset ID="BSCenterOffset" x="5.3099999" y="-0.72000003" z="-2.6400001"/>
+            <BSRadius ID="BSRadius" Value="7.9400001"/>
+        </Object>
     </ObjectList>
     <Terrain ID="Terrain" FileName="C:\Users\jesus\Documents\GitHub\DirectX113DTutorial\DirectX113DTutorialTerrainEditor\Asset\medium.terr"/>
 </Scene>

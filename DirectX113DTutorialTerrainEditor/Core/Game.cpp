@@ -1234,7 +1234,13 @@ void CGame::EraseObject3D(const string& Name)
 	}
 
 	size_t iObject3D{ m_mapObject3DNameToIndex[Name] };
-	if (iObject3D < m_vObject3Ds.size() - 1) swap(m_vObject3Ds[iObject3D], m_vObject3Ds.back());
+	if (iObject3D < m_vObject3Ds.size() - 1)
+	{
+		const string& SwappedName{ m_vObject3Ds.back()->GetName() };
+		swap(m_vObject3Ds[iObject3D], m_vObject3Ds.back());
+
+		m_mapObject3DNameToIndex[SwappedName] = iObject3D;
+	}
 
 	if (m_PtrCapturedPickedObject3D)
 	{
