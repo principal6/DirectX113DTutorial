@@ -22,7 +22,7 @@ class CObject3DLine
 	};
 
 public:
-	CObject3DLine(const string& Name, ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext) : 
+	CObject3DLine(const string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
 		m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
 	{
 		assert(m_PtrDevice);
@@ -52,18 +52,18 @@ public:
 	const vector<SVertex3DLine>& GetVertices() const { return m_vVertices; }
 
 public:
-	SComponentTransform		ComponentTransform{};
-	bool					bIsVisible{ true };
+	SComponentTransform			ComponentTransform{};
+	bool						bIsVisible{ true };
 
 private:
-	ID3D11Device*			m_PtrDevice{};
-	ID3D11DeviceContext*	m_PtrDeviceContext{};
+	ID3D11Device* const			m_PtrDevice{};
+	ID3D11DeviceContext* const	m_PtrDeviceContext{};
 
 private:
-	string					m_Name{};
-	vector<SVertex3DLine>	m_vVertices{};
+	string						m_Name{};
+	vector<SVertex3DLine>		m_vVertices{};
 
-	ComPtr<ID3D11Buffer>	m_VertexBuffer{};
-	UINT					m_VertexBufferStride{ sizeof(SVertex3DLine) };
-	UINT					m_VertexBufferOffset{};
+	ComPtr<ID3D11Buffer>		m_VertexBuffer{};
+	UINT						m_VertexBufferStride{ sizeof(SVertex3DLine) };
+	UINT						m_VertexBufferOffset{};
 };

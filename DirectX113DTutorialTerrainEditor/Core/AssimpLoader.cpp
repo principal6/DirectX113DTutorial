@@ -104,7 +104,7 @@ XMMATRIX CAssimpLoader::ConvertaiMatrix4x4ToXMMATRIX(const aiMatrix4x4& Matrix)
 	));
 }
 
-vector<SMesh> CAssimpLoader::LoadMeshesFromFile(const aiScene* Scene)
+vector<SMesh> CAssimpLoader::LoadMeshesFromFile(const aiScene* const Scene)
 {
 	vector<SMesh> vMeshes{};
 	unsigned int MeshCount{ Scene->mNumMeshes };
@@ -160,7 +160,7 @@ vector<SMesh> CAssimpLoader::LoadMeshesFromFile(const aiScene* Scene)
 	return vMeshes;
 }
 
-vector<CMaterial> CAssimpLoader::LoadMaterialsFromFile(const aiScene* Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
+vector<CMaterial> CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
 {
 	unsigned int MaterialCount{ Scene->mNumMaterials };
 
@@ -212,7 +212,7 @@ vector<CMaterial> CAssimpLoader::LoadMaterialsFromFile(const aiScene* Scene, ID3
 	return vMaterials;
 }
 
-void CAssimpLoader::LoadTextureData(const aiScene* Scene, const aiString& TextureFileName, CMaterial& Material, CMaterial::CTexture::EType eTextureType)
+void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString& TextureFileName, CMaterial& Material, CMaterial::CTexture::EType eTextureType)
 {
 	if (TextureFileName.length == 0) return;
 
@@ -241,7 +241,7 @@ void CAssimpLoader::LoadTextureData(const aiScene* Scene, const aiString& Textur
 	}
 }
 
-void CAssimpLoader::LoadNodes(const aiScene* Scene, aiNode* aiCurrentNode, int32_t ParentNodeIndex, SModel& Model)
+void CAssimpLoader::LoadNodes(const aiScene* const Scene, aiNode* const aiCurrentNode, int32_t ParentNodeIndex, SModel& Model)
 {
 	Model.vNodes.emplace_back();
 	SModel::SNode& Node{ Model.vNodes.back() };
@@ -269,7 +269,7 @@ void CAssimpLoader::LoadNodes(const aiScene* Scene, aiNode* aiCurrentNode, int32
 	}
 }
 
-void CAssimpLoader::LoadBones(const aiScene* Scene, SModel& Model)
+void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel& Model)
 {
 	unordered_map<string, uint32_t> mapBones{};
 
@@ -343,7 +343,7 @@ void CAssimpLoader::MatchWeightsAndVertices(SModel& Model)
 	}
 }
 
-void CAssimpLoader::LoadAnimations(const aiScene* Scene, SModel& Model)
+void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel& Model)
 {
 	if (Scene->mNumAnimations)
 	{

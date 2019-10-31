@@ -33,7 +33,7 @@ public:
 	};
 
 public:
-	CTerrain(ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext, CGame* PtrGame) :
+	CTerrain(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext, CGame* const PtrGame) :
 		m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }, m_PtrGame{ PtrGame }
 	{
 		assert(m_PtrDevice);
@@ -151,9 +151,9 @@ public:
 	static constexpr float KWaterMaxHeight{ KMaxHeight };
 
 private:
-	ID3D11Device*			m_PtrDevice{};
-	ID3D11DeviceContext*	m_PtrDeviceContext{};
-	CGame*					m_PtrGame{};
+	ID3D11Device* const			m_PtrDevice{};
+	ID3D11DeviceContext* const	m_PtrDeviceContext{};
+	CGame* const				m_PtrGame{};
 
 private:
 	unique_ptr<CObject2D>			m_Object2DTextureRepresentation{};

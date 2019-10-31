@@ -229,19 +229,19 @@ public:
 	~CGame() {}
 
 public:
-	void CreateWin32(WNDPROC WndProc, LPCTSTR WindowName, const wstring& FontFileName, bool bWindowed);
+	void CreateWin32(WNDPROC const WndProc, LPCTSTR const WindowName, const wstring& FontFileName, bool bWindowed);
 	void Destroy();
 
 	void LoadScene(const string& FileName);
 	void SaveScene(const string& FileName);
 
-	bool OpenFileDialog(const char* Filter, const char* Title);
-	bool SaveFileDialog(const char* Filter, const char* Title, const char* DefaultExtension);
+	bool OpenFileDialog(const char* const Filter, const char* const Title);
+	bool SaveFileDialog(const char* const Filter, const char* const Title, const char* const DefaultExtension);
 	const char* GetDialogFileNameWithPath() const;
 	const char* GetDialogFileNameWithoutPath() const;
 
 private:
-	void CreateWin32Window(WNDPROC WndProc, LPCTSTR WindowName);
+	void CreateWin32Window(WNDPROC const WndProc, LPCTSTR const WindowName);
 	void InitializeDirectX(const wstring& FontFileName, bool bWindowed);
 
 private:
@@ -272,7 +272,7 @@ public:
 public:
 	void UpdateVSSpace(const XMMATRIX& World);
 	void UpdateVS2DSpace(const XMMATRIX& World);
-	void UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices);
+	void UpdateVSAnimationBoneMatrices(const XMMATRIX* const BoneMatrices);
 	void UpdateVSTerrainData(const SCBVSTerrainData& Data);
 
 	void UpdateDSDisplacementData(bool bUseDisplacement);
@@ -301,11 +301,11 @@ public:
 	void SaveTerrain(const string& TerrainFileName);
 	void AddTerrainMaterial(const CMaterial& Material);
 	void SetTerrainMaterial(int MaterialID, const CMaterial& Material);
-	CTerrain* GetTerrain() { return m_Terrain.get(); }
+	CTerrain* GetTerrain() const { return m_Terrain.get(); }
 	void SetTerrainSelectionSize(float& Size);
 
 private:
-	void LoadSkyObjectData(tinyxml2::XMLElement* xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
+	void LoadSkyObjectData(const tinyxml2::XMLElement* const xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
 
 // Object pool
 public:
@@ -313,29 +313,29 @@ public:
 	CCamera* GetCamera(size_t Index);
 
 	CShader* AddShader();
-	CShader* GetShader(size_t Index);
-	CShader* GetBaseShader(EBaseShader eShader);
+	CShader* GetShader(size_t Index) const;
+	CShader* GetBaseShader(EBaseShader eShader) const;
 
 	void InsertObject3D(const string& Name);
 	void EraseObject3D(const string& Name);
 	void ClearObject3Ds();
-	CObject3D* GetObject3D(const string& Name);
-	const map<string, size_t>& GetObject3DMap() { return m_mapObject3DNameToIndex; }
+	CObject3D* GetObject3D(const string& Name) const;
+	const map<string, size_t>& GetObject3DMap() const { return m_mapObject3DNameToIndex; }
 
 	void InsertObject3DLine(const string& Name);
-	CObject3DLine* GetObject3DLine(const string& Name);
+	CObject3DLine* GetObject3DLine(const string& Name) const;
 
 	void InsertObject2D(const string& Name);
-	CObject2D* GetObject2D(const string& Name);
+	CObject2D* GetObject2D(const string& Name) const;
 
 	CMaterial* AddMaterial(const CMaterial& Material);
-	CMaterial* GetMaterial(const string& Name);
+	CMaterial* GetMaterial(const string& Name) const;
 	void ClearMaterials();
 	size_t GetMaterialCount() const;
 	void ChangeMaterialName(const string& OldName, const string& NewName);
 	void LoadMaterial(const string& Name);
 	const map<string, size_t>& GetMaterialMap() const { return m_mapMaterialNameToIndex; }
-	CMaterial::CTexture* GetMaterialTexture(CMaterial::CTexture::EType eType, const string& Name);
+	CMaterial::CTexture* GetMaterialTexture(CMaterial::CTexture::EType eType, const string& Name) const;
 
 private:
 	void CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& Material);
@@ -370,22 +370,22 @@ public:
 
 public:
 	HWND GethWnd() const { return m_hWnd; }
-	ID3D11Device* GetDevicePtr() { return m_Device.Get(); }
-	ID3D11DeviceContext* GetDeviceContextPtr() { return m_DeviceContext.Get(); }
-	Keyboard::State GetKeyState();
-	Mouse::State GetMouseState();
-	SpriteBatch* GetSpriteBatchPtr() { return m_SpriteBatch.get(); }
-	SpriteFont* GetSpriteFontPtr() { return m_SpriteFont.get(); }
+	ID3D11Device* GetDevicePtr() const { return m_Device.Get(); }
+	ID3D11DeviceContext* GetDeviceContextPtr() const { return m_DeviceContext.Get(); }
+	Keyboard::State GetKeyState() const;
+	Mouse::State GetMouseState() const;
+	SpriteBatch* GetSpriteBatchPtr() const { return m_SpriteBatch.get(); }
+	SpriteFont* GetSpriteFontPtr() const { return m_SpriteFont.get(); }
 	const XMFLOAT2& GetWindowSize() const;
 	const XMFLOAT2& GetTerrainSelectionPosition() const;
 	float GetSkyTime() const;
 	XMMATRIX GetTransposedVPMatrix() const;
-	ID3D11DepthStencilState* GetDepthStencilStateLessEqualNoWrite() { return m_DepthStencilStateLessEqualNoWrite.Get(); }
+	ID3D11DepthStencilState* GetDepthStencilStateLessEqualNoWrite() const { return m_DepthStencilStateLessEqualNoWrite.Get(); }
 
 private:
-	void UpdateObject3D(CObject3D* PtrObject3D);
-	void DrawObject3D(CObject3D* PtrObject3D);
-	void DrawObject3DBoundingSphere(CObject3D* PtrObject3D);
+	void UpdateObject3D(CObject3D* const PtrObject3D);
+	void DrawObject3D(const CObject3D* const PtrObject3D);
+	void DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D);
 
 	void DrawObject3DLines();
 
@@ -400,13 +400,13 @@ private:
 	void DrawSky(float DeltaTime);
 	void DrawTerrain();
 
-	bool ShouldSelectRotationGizmo(CObject3D* Gizmo, E3DGizmoAxis Axis);
-	bool ShouldSelectTranslationScalingGizmo(CObject3D* Gizmo, E3DGizmoAxis Axis);
+	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
+	bool ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
 	void Draw3DGizmos();
 	void Draw3DGizmoRotations(E3DGizmoAxis Axis);
 	void Draw3DGizmoTranslations(E3DGizmoAxis Axis);
 	void Draw3DGizmoScalings(E3DGizmoAxis Axis);
-	void Draw3DGizmo(CObject3D* Gizmo, bool bShouldHighlight);
+	void Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight);
 
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };

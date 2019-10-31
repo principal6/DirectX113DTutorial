@@ -128,6 +128,12 @@ void CTerrain::Load(const string& FileName)
 	// Material data
 	_ReadModelMaterials(ifs, Model.vMaterials);
 
+	// @important
+	for (size_t iMaterial = 0; iMaterial < Model.vMaterials.size(); ++iMaterial)
+	{
+		Model.vMaterials[iMaterial].SetIndex(iMaterial);
+	}
+
 	CreateTerrainObject3D(Model.vMaterials);
 
 	m_Object2DTextureRepresentation.release();

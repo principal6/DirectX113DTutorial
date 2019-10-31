@@ -20,8 +20,9 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(InputPatch<VS_OUTPUT, 3> Patch, uin
 	const float KInsideMax = 1.0f * TessFactor;
 	float4 CenterPosition = (Patch[0].WorldPosition + Patch[1].WorldPosition + Patch[2].WorldPosition) / 3.0f;
 	float Distance = distance(CenterPosition, EyePosition);
+	float ThresholdDistance = max(Distance - KDistanceThreshold, 1.0f);
 	float Edge = KEdgeMax;
-	float Inside = KInsideMax / (Distance - KDistanceThreshold);
+	float Inside = KInsideMax / ThresholdDistance;
 	if (Distance <= KDistanceThreshold) Inside = KInsideMax;
 
 	Output.EdgeTessFactor[0] = Edge;

@@ -67,7 +67,7 @@ private:
 	};
 
 public:
-	CObject3D(const string& Name, ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext, CGame* PtrGame) :
+	CObject3D(const string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext, CGame* const PtrGame) :
 		m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }, m_PtrGame{ PtrGame }
 	{
 		assert(m_PtrDevice);
@@ -123,45 +123,34 @@ private:
 	void CreateMeshBuffer(size_t MeshIndex, bool IsAnimated);
 
 	void CreateMaterialTextures();
-	void CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& Material);
 
 	void CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRIX ParentTransform);
 
 public:
-	static constexpr UINT			KDiffuseTextureSlotOffset{ 0 }; // PS
-	static constexpr UINT			KNormalTextureSlotOffset{ 5 }; // PS
-	static constexpr UINT			KOpacityTextureSlotOffset{ 10 }; // PS
-	static constexpr UINT			KDisplacementTextureSlotOffset{ 0 }; // DS
-
-public:
-	SComponentTransform				ComponentTransform{};
-	SComponentRender				ComponentRender{};
-	SComponentPhysics				ComponentPhysics{};
-	EFlagsRendering					eFlagsRendering{};
+	SComponentTransform			ComponentTransform{};
+	SComponentRender			ComponentRender{};
+	SComponentPhysics			ComponentPhysics{};
+	EFlagsRendering				eFlagsRendering{};
 
 private:
-	ID3D11Device*					m_PtrDevice{};
-	ID3D11DeviceContext*			m_PtrDeviceContext{};
-	CGame*							m_PtrGame{};
+	ID3D11Device* const			m_PtrDevice{};
+	ID3D11DeviceContext* const	m_PtrDeviceContext{};
+	CGame* const				m_PtrGame{};
 
 private:
-	string									m_Name{};
-	string									m_ModelFileName{};
-	bool									m_bIsCreated{ false };
-	SModel									m_Model{};
-	vector<SMeshBuffers>					m_vMeshBuffers{};
-	vector<unique_ptr<CMaterial::CTexture>>	m_vDiffuseTextures{}; // Each texture is for each material of this Object3D
-	vector<unique_ptr<CMaterial::CTexture>>	m_vNormalTextures{};
-	vector<unique_ptr<CMaterial::CTexture>>	m_vDisplacementTextures{};
-	vector<unique_ptr<CMaterial::CTexture>>	m_vOpacityTextures{};
+	string						m_Name{};
+	string						m_ModelFileName{};
+	bool						m_bIsCreated{ false };
+	SModel						m_Model{};
+	vector<SMeshBuffers>		m_vMeshBuffers{};
 
-	XMMATRIX								m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
-	size_t									m_CurrentAnimationIndex{};
-	float									m_CurrentAnimationTick{};
-	bool									m_bShouldTesselate{ false };
+	XMMATRIX					m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
+	size_t						m_CurrentAnimationIndex{};
+	float						m_CurrentAnimationTick{};
+	bool						m_bShouldTesselate{ false };
 
 private:
-	static CAssimpLoader					ms_AssimpLoader;
+	static CAssimpLoader		ms_AssimpLoader;
 };
 
 ENUM_CLASS_FLAG(CObject3D::EFlagsRendering)

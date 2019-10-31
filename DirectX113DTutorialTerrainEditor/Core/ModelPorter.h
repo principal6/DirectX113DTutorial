@@ -302,6 +302,14 @@ static void _ReadModelMaterials(std::ifstream& ifs, vector<CMaterial>& vMaterial
 		// # 512B (string, MAX) Normal texture file name
 		READ_BYTES(512);
 		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, ReadBytes);
+
+		// # 512B (string, MAX) Displacement texture file name
+		READ_BYTES(512);
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, ReadBytes);
+
+		// # 512B (string, MAX) Opacity texture file name
+		READ_BYTES(512);
+		Material.SetTextureFileName(CMaterial::CTexture::EType::OpacityTexture, ReadBytes);
 	}
 }
 
@@ -444,6 +452,18 @@ static void _WriteModelMaterials(std::ofstream& ofs, const vector<CMaterial>& vM
 		memset(StringBytes, 0, 512);
 		const string& NormalTextureFileName{ Material.GetTextureFileName(CMaterial::CTexture::EType::NormalTexture) };
 		memcpy(StringBytes, NormalTextureFileName.data(), min(NormalTextureFileName.size(), (size_t)512));
+		ofs.write(StringBytes, 512);
+
+		// 512B (string, MAX) Displacement texture file name
+		memset(StringBytes, 0, 512);
+		const string& DisplacementTextureFileName{ Material.GetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture) };
+		memcpy(StringBytes, DisplacementTextureFileName.data(), min(DisplacementTextureFileName.size(), (size_t)512));
+		ofs.write(StringBytes, 512);
+
+		// 512B (string, MAX) Opacity texture file name
+		memset(StringBytes, 0, 512);
+		const string& OpacityTextureFileName{ Material.GetTextureFileName(CMaterial::CTexture::EType::OpacityTexture) };
+		memcpy(StringBytes, OpacityTextureFileName.data(), min(OpacityTextureFileName.size(), (size_t)512));
 		ofs.write(StringBytes, 512);
 
 		++iMaterial;

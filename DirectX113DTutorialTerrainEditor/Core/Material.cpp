@@ -87,7 +87,7 @@ void CMaterial::CTexture::SetTextureSize()
 	m_TextureSize.x = static_cast<float>(Texture2DDesc.Height);
 }
 
-void CMaterial::CTexture::UpdateTextureRawData(const SPixel8UInt* PtrData)
+void CMaterial::CTexture::UpdateTextureRawData(const SPixel8UInt* const PtrData)
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
@@ -109,7 +109,7 @@ void CMaterial::CTexture::UpdateTextureRawData(const SPixel8UInt* PtrData)
 	}
 }
 
-void CMaterial::CTexture::UpdateTextureRawData(const SPixel32UInt* PtrData)
+void CMaterial::CTexture::UpdateTextureRawData(const SPixel32UInt* const PtrData)
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
@@ -173,27 +173,32 @@ void CMaterial::SetName(const string& Name)
 	m_Name = Name;
 }
 
+void CMaterial::SetIndex(size_t Index)
+{
+	m_Index = Index;
+}
+
 void CMaterial::SetTextureRawData(CTexture::EType eType, const vector<uint8_t>& Data)
 {
-	if (!bHasTexture) bHasTexture = true;
+	if (!m_bHasTexture) m_bHasTexture = true;
 
 	switch (eType)
 	{
 	case CMaterial::CTexture::EType::DiffuseTexture:
-		bHasDiffuseTexture = true;
-		vEmbeddedDiffuseTextureRawData = Data;
+		m_bHasDiffuseTexture = true;
+		m_vEmbeddedDiffuseTextureRawData = Data;
 		break;
 	case CMaterial::CTexture::EType::NormalTexture:
-		bHasNormalTexture = true;
-		vEmbeddedNormalTextureRawData = Data;
+		m_bHasNormalTexture = true;
+		m_vEmbeddedNormalTextureRawData = Data;
 		break;
 	case CMaterial::CTexture::EType::DisplacementTexture:
-		bHasDisplacementTexture = true;
-		vEmbeddedDisplacementTextureRawData = Data;
+		m_bHasDisplacementTexture = true;
+		m_vEmbeddedDisplacementTextureRawData = Data;
 		break;
 	case CMaterial::CTexture::EType::OpacityTexture:
-		bHasOpacityTexture = true;
-		vEmbeddedOpacityTextureRawData = Data;
+		m_bHasOpacityTexture = true;
+		m_vEmbeddedOpacityTextureRawData = Data;
 		break;
 	default:
 		break;
@@ -202,32 +207,111 @@ void CMaterial::SetTextureRawData(CTexture::EType eType, const vector<uint8_t>& 
 
 void CMaterial::SetTextureFileName(CTexture::EType eType, const string& FileName)
 {
-	if (!bHasTexture) bHasTexture = true;
+	if (FileName.size() == 0) return;
+	if (!m_bHasTexture) m_bHasTexture = true;
 
 	switch (eType)
 	{
 	case CMaterial::CTexture::EType::DiffuseTexture:
-		bHasDiffuseTexture = true;
-		DiffuseTextureFileName = FileName;
-		vEmbeddedDiffuseTextureRawData.clear();
+		m_bHasDiffuseTexture = true;
+		m_DiffuseTextureFileName = FileName;
+		m_vEmbeddedDiffuseTextureRawData.clear();
 		break;
 	case CMaterial::CTexture::EType::NormalTexture:
-		bHasNormalTexture = true;
-		NormalTextureFileName = FileName;
-		vEmbeddedNormalTextureRawData.clear();
+		m_bHasNormalTexture = true;
+		m_NormalTextureFileName = FileName;
+		m_vEmbeddedNormalTextureRawData.clear();
 		break;
 	case CMaterial::CTexture::EType::DisplacementTexture:
-		bHasDisplacementTexture = true;
-		DisplacementTextureFileName = FileName;
-		vEmbeddedDisplacementTextureRawData.clear();
+		m_bHasDisplacementTexture = true;
+		m_DisplacementTextureFileName = FileName;
+		m_vEmbeddedDisplacementTextureRawData.clear();
 		break;
 	case CMaterial::CTexture::EType::OpacityTexture:
-		bHasOpacityTexture = true;
-		OpacityTextureFileName = FileName;
-		vEmbeddedOpacityTextureRawData.clear();
+		m_bHasOpacityTexture = true;
+		m_OpacityTextureFileName = FileName;
+		m_vEmbeddedOpacityTextureRawData.clear();
 		break;
 	default:
 		break;
+	}
+}
+
+void CMaterial::CreateTextures(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext)
+{
+	CreateTexture(CTexture::EType::DiffuseTexture, PtrDevice, PtrDeviceContext);
+	CreateTexture(CTexture::EType::NormalTexture, PtrDevice, PtrDeviceContext);
+	CreateTexture(CTexture::EType::DisplacementTexture, PtrDevice, PtrDeviceContext);
+	CreateTexture(CTexture::EType::OpacityTexture, PtrDevice, PtrDeviceContext);
+}
+
+void CMaterial::UseTextures() const
+{
+	if (m_DiffuseTexture) m_DiffuseTexture->Use();
+	if (m_NormalTexture) m_NormalTexture->Use();
+	if (m_DisplacementTexture) m_DisplacementTexture->Use();
+	if (m_OpacityTexture) m_OpacityTexture->Use();
+}
+
+void CMaterial::CreateTexture(CMaterial::CTexture::EType eType, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext)
+{
+	if (HasTexture(eType))
+	{
+		CMaterial::CTexture* PtrTexture{};
+
+		switch (eType)
+		{
+		case CMaterial::CTexture::EType::DiffuseTexture:
+			m_DiffuseTexture = make_unique<CMaterial::CTexture>(PtrDevice, PtrDeviceContext);
+			PtrTexture = m_DiffuseTexture.get();
+			break;
+		case CMaterial::CTexture::EType::NormalTexture:
+			m_NormalTexture = make_unique<CMaterial::CTexture>(PtrDevice, PtrDeviceContext);
+			PtrTexture = m_NormalTexture.get();
+			break;
+		case CMaterial::CTexture::EType::DisplacementTexture:
+			m_DisplacementTexture = make_unique<CMaterial::CTexture>(PtrDevice, PtrDeviceContext);
+			PtrTexture = m_DisplacementTexture.get();
+			break;
+		case CMaterial::CTexture::EType::OpacityTexture:
+			m_OpacityTexture = make_unique<CMaterial::CTexture>(PtrDevice, PtrDeviceContext);
+			PtrTexture = m_OpacityTexture.get();
+			break;
+		default:
+			break;
+		}
+
+		if (IsTextureEmbedded(eType))
+		{
+			PtrTexture->CreateTextureFromMemory(GetTextureRawData(eType));
+			ClearEmbeddedTextureData(eType);
+		}
+		else
+		{
+			PtrTexture->CreateTextureFromFile(GetTextureFileName(eType), ShouldGenerateAutoMipMap());
+		}
+
+		UINT Offset{};
+		switch (eType)
+		{
+		case CMaterial::CTexture::EType::DiffuseTexture:
+			Offset = KDiffuseTextureSlotOffset;
+			break;
+		case CMaterial::CTexture::EType::NormalTexture:
+			Offset = KNormalTextureSlotOffset;
+			break;
+		case CMaterial::CTexture::EType::DisplacementTexture:
+			Offset = KDisplacementTextureSlotOffset;
+			PtrTexture->SetShaderType(EShaderType::DomainShader);
+			break;
+		case CMaterial::CTexture::EType::OpacityTexture:
+			Offset = KOpacityTextureSlotOffset;
+			break;
+		default:
+			break;
+		}
+
+		PtrTexture->SetSlot(static_cast<UINT>(Offset + m_Index));
 	}
 }
 
@@ -240,27 +324,27 @@ void CMaterial::SetUniformColor(const XMFLOAT3& Color)
 
 void CMaterial::SetAmbientColor(const XMFLOAT3& Color)
 {
-	MaterialAmbient = Color;
+	m_MaterialAmbient = Color;
 }
 
 void CMaterial::SetDiffuseColor(const XMFLOAT3& Color)
 {
-	MaterialDiffuse = Color;
+	m_MaterialDiffuse = Color;
 }
 
 void CMaterial::SetSpecularColor(const XMFLOAT3& Color)
 {
-	MaterialSpecular = Color;
+	m_MaterialSpecular = Color;
 }
 
 void CMaterial::SetSpecularExponent(float Exponent)
 {
-	SpecularExponent = Exponent;
+	m_SpecularExponent = Exponent;
 }
 
 void CMaterial::SetSpecularIntensity(float Intensity)
 {
-	SpecularIntensity = Intensity;
+	m_SpecularIntensity = Intensity;
 }
 
 void CMaterial::ClearEmbeddedTextureData(CTexture::EType eType)
@@ -268,16 +352,16 @@ void CMaterial::ClearEmbeddedTextureData(CTexture::EType eType)
 	switch (eType)
 	{
 	case CMaterial::CTexture::EType::DiffuseTexture:
-		vEmbeddedDiffuseTextureRawData.clear();
+		m_vEmbeddedDiffuseTextureRawData.clear();
 		break;
 	case CMaterial::CTexture::EType::NormalTexture:
-		vEmbeddedNormalTextureRawData.clear();
+		m_vEmbeddedNormalTextureRawData.clear();
 		break;
 	case CMaterial::CTexture::EType::DisplacementTexture:
-		vEmbeddedDisplacementTextureRawData.clear();
+		m_vEmbeddedDisplacementTextureRawData.clear();
 		break;
 	case CMaterial::CTexture::EType::OpacityTexture:
-		vEmbeddedOpacityTextureRawData.clear();
+		m_vEmbeddedOpacityTextureRawData.clear();
 		break;
 	default:
 		break;
@@ -289,13 +373,13 @@ bool CMaterial::HasTexture(CTexture::EType eType) const
 	switch (eType)
 	{
 	case CMaterial::CTexture::EType::DiffuseTexture:
-		return bHasDiffuseTexture;
+		return m_bHasDiffuseTexture;
 	case CMaterial::CTexture::EType::NormalTexture:
-		return bHasNormalTexture;
+		return m_bHasNormalTexture;
 	case CMaterial::CTexture::EType::DisplacementTexture:
-		return bHasDisplacementTexture;
+		return m_bHasDisplacementTexture;
 	case CMaterial::CTexture::EType::OpacityTexture:
-		return bHasOpacityTexture;
+		return m_bHasOpacityTexture;
 	default:
 		return false;
 	}
@@ -306,13 +390,13 @@ bool CMaterial::IsTextureEmbedded(CTexture::EType eType) const
 	switch (eType)
 	{
 	case CMaterial::CTexture::EType::DiffuseTexture:
-		return (vEmbeddedDiffuseTextureRawData.size()) ? true : false;
+		return (m_vEmbeddedDiffuseTextureRawData.size()) ? true : false;
 	case CMaterial::CTexture::EType::NormalTexture:
-		return (vEmbeddedNormalTextureRawData.size()) ? true : false;
+		return (m_vEmbeddedNormalTextureRawData.size()) ? true : false;
 	case CMaterial::CTexture::EType::DisplacementTexture:
-		return (vEmbeddedDisplacementTextureRawData.size()) ? true : false;
+		return (m_vEmbeddedDisplacementTextureRawData.size()) ? true : false;
 	case CMaterial::CTexture::EType::OpacityTexture:
-		return (vEmbeddedOpacityTextureRawData.size()) ? true : false;
+		return (m_vEmbeddedOpacityTextureRawData.size()) ? true : false;
 	default:
 		return false;
 	}
@@ -323,15 +407,15 @@ const string& CMaterial::GetTextureFileName(CTexture::EType eType) const
 	switch (eType)
 	{
 	case CMaterial::CTexture::EType::DiffuseTexture:
-		return DiffuseTextureFileName;
+		return m_DiffuseTextureFileName;
 	case CMaterial::CTexture::EType::NormalTexture:
-		return NormalTextureFileName;
+		return m_NormalTextureFileName;
 	case CMaterial::CTexture::EType::DisplacementTexture:
-		return DisplacementTextureFileName;
+		return m_DisplacementTextureFileName;
 	case CMaterial::CTexture::EType::OpacityTexture:
-		return OpacityTextureFileName;
+		return m_OpacityTextureFileName;
 	default:
-		return DiffuseTextureFileName;
+		return m_DiffuseTextureFileName;
 	}
 }
 
@@ -340,14 +424,14 @@ const vector<uint8_t>& CMaterial::GetTextureRawData(CTexture::EType eType) const
 	switch (eType)
 	{
 	case CMaterial::CTexture::EType::DiffuseTexture:
-		return vEmbeddedDiffuseTextureRawData;
+		return m_vEmbeddedDiffuseTextureRawData;
 	case CMaterial::CTexture::EType::NormalTexture:
-		return vEmbeddedNormalTextureRawData;
+		return m_vEmbeddedNormalTextureRawData;
 	case CMaterial::CTexture::EType::DisplacementTexture:
-		return vEmbeddedDisplacementTextureRawData;
+		return m_vEmbeddedDisplacementTextureRawData;
 	case CMaterial::CTexture::EType::OpacityTexture:
-		return vEmbeddedOpacityTextureRawData;
+		return m_vEmbeddedOpacityTextureRawData;
 	default:
-		return vEmbeddedDiffuseTextureRawData;
+		return m_vEmbeddedDiffuseTextureRawData;
 	}
 }

@@ -117,17 +117,17 @@ private:
 	XMVECTOR ConvertaiQuaternionToXMVECTOR(const aiQuaternion& Quaternion);
 	XMMATRIX ConvertaiMatrix4x4ToXMMATRIX(const aiMatrix4x4& Matrix);
 
-	vector<SMesh> LoadMeshesFromFile(const aiScene* Scene);
-	vector<CMaterial> LoadMaterialsFromFile(const aiScene* Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
+	vector<SMesh> LoadMeshesFromFile(const aiScene* const Scene);
+	vector<CMaterial> LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
 
 private:
-	void LoadTextureData(const aiScene* Scene, const aiString& TextureFileName, CMaterial& Material, CMaterial::CTexture::EType eTextureType);
+	void LoadTextureData(const aiScene* const Scene, const aiString& TextureFileName, CMaterial& Material, CMaterial::CTexture::EType eTextureType);
 
 private:
-	void LoadNodes(const aiScene* Scene, aiNode* aiCurrentNode, int32_t ParentNodeIndex, SModel& Model);
-	void LoadBones(const aiScene* Scene, SModel& Model);
+	void LoadNodes(const aiScene* const Scene, aiNode* const aiCurrentNode, int32_t ParentNodeIndex, SModel& Model);
+	void LoadBones(const aiScene* const Scene, SModel& Model);
 	void MatchWeightsAndVertices(SModel& Model);
-	void LoadAnimations(const aiScene* Scene, SModel& Model);
+	void LoadAnimations(const aiScene* const Scene, SModel& Model);
 
 private:
 	Assimp::Importer	m_AssimpImporter{};

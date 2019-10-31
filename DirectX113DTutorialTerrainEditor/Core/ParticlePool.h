@@ -30,7 +30,7 @@ protected:
 	};
 
 public:
-	CParticlePool(ID3D11Device* PtrDevice, ID3D11DeviceContext* PtrDeviceContext) :
+	CParticlePool(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
 		m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
 	{
 		assert(m_PtrDevice);
@@ -57,16 +57,16 @@ protected:
 	virtual void SetLastParticleScalingFactor();
 
 protected:
-	static constexpr float	KSpawningIntervalDefault{ 1.0f };
+	static constexpr float			KSpawningIntervalDefault{ 1.0f };
 
 protected:
-	ID3D11Device*			m_PtrDevice{};
-	ID3D11DeviceContext*	m_PtrDeviceContext{};
+	ID3D11Device* const				m_PtrDevice{};
+	ID3D11DeviceContext* const		m_PtrDeviceContext{};
 
 protected:
-	ComPtr<ID3D11Buffer>	m_VertexBuffer{};
-	UINT					m_VertexBufferStride{ sizeof(SVertexParticle) };
-	UINT					m_VertexBufferOffset{};
+	ComPtr<ID3D11Buffer>			m_VertexBuffer{};
+	UINT							m_VertexBufferStride{ sizeof(SVertexParticle) };
+	UINT							m_VertexBufferOffset{};
 
 protected:
 	size_t							m_MaxParticleCount{};

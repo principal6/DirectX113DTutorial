@@ -33,7 +33,7 @@ static constexpr D3D11_INPUT_ELEMENT_DESC KParticleInputElementDescs[]
 	{ "SCALING"	, 0, DXGI_FORMAT_R32G32_FLOAT		, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 };
 
-void CGame::CreateWin32(WNDPROC WndProc, LPCTSTR WindowName, const wstring& FontFileName, bool bWindowed)
+void CGame::CreateWin32(WNDPROC const WndProc, LPCTSTR const WindowName, const wstring& FontFileName, bool bWindowed)
 {
 	CreateWin32Window(WndProc, WindowName);
 
@@ -167,6 +167,10 @@ void CGame::SaveScene(const string& FileName)
 			MessageBox(nullptr, "지형이 존재하지만 저장되지 않았습니다.\n먼저 지형을 저장해 주세요.", "지형 저장", MB_OK | MB_ICONEXCLAMATION);
 			return;
 		}
+		else
+		{
+			m_Terrain->Save(m_Terrain->GetFileName());
+		}
 	}
 
 	tinyxml2::XMLDocument xmlDocument{};
@@ -257,7 +261,7 @@ void CGame::SaveScene(const string& FileName)
 	xmlDocument.SaveFile(FileName.c_str());
 }
 
-bool CGame::OpenFileDialog(const char* Filter, const char* Title)
+bool CGame::OpenFileDialog(const char* const Filter, const char* const Title)
 {
 	m_OpenFileName.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
 	m_OpenFileName.lpstrDefExt = nullptr;
@@ -281,7 +285,7 @@ bool CGame::OpenFileDialog(const char* Filter, const char* Title)
 	return Result;
 }
 
-bool CGame::SaveFileDialog(const char* Filter, const char* Title, const char* DefaultExtension)
+bool CGame::SaveFileDialog(const char* const Filter, const char* const Title, const char* const DefaultExtension)
 {
 	m_OpenFileName.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
 	m_OpenFileName.lpstrDefExt = DefaultExtension;
@@ -350,7 +354,7 @@ void CGame::UpdateVS2DSpace(const XMMATRIX& World)
 	m_cbVS2DSpaceData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
 }
 
-void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* BoneMatrices)
+void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* const BoneMatrices)
 {
 	memcpy(m_cbVSAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBVSAnimationBonesData));
 }
@@ -508,19 +512,19 @@ void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 	return;
 }
 
-void CGame::LoadSkyObjectData(tinyxml2::XMLElement* xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData)
+void CGame::LoadSkyObjectData(const tinyxml2::XMLElement* const xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData)
 {
 	using namespace tinyxml2;
 
-	XMLElement* xmlUVOffset{ xmlSkyObject->FirstChildElement() };
+	const XMLElement* xmlUVOffset{ xmlSkyObject->FirstChildElement() };
 	SkyObjectData.UVOffset.x = xmlUVOffset->FloatAttribute("U");
 	SkyObjectData.UVOffset.y = xmlUVOffset->FloatAttribute("V");
 
-	XMLElement* xmlUVSize{ xmlUVOffset->NextSiblingElement() };
+	const XMLElement* xmlUVSize{ xmlUVOffset->NextSiblingElement() };
 	SkyObjectData.UVSize.x = xmlUVSize->FloatAttribute("U");
 	SkyObjectData.UVSize.y = xmlUVSize->FloatAttribute("V");
 
-	XMLElement* xmlWidthHeightRatio{ xmlUVSize->NextSiblingElement() };
+	const XMLElement* xmlWidthHeightRatio{ xmlUVSize->NextSiblingElement() };
 	SkyObjectData.WidthHeightRatio = stof(xmlWidthHeightRatio->GetText());
 }
 
@@ -618,7 +622,7 @@ CCamera* CGame::GetCamera(size_t Index)
 	return &m_vCameras[Index];
 }
 
-void CGame::CreateWin32Window(WNDPROC WndProc, LPCTSTR WindowName)
+void CGame::CreateWin32Window(WNDPROC const WndProc, LPCTSTR const WindowName)
 {
 	assert(!m_hWnd);
 
@@ -1106,13 +1110,13 @@ CShader* CGame::AddShader()
 	return m_vShaders.back().get();
 }
 
-CShader* CGame::GetShader(size_t Index)
+CShader* CGame::GetShader(size_t Index) const
 {
 	assert(Index < m_vShaders.size());
 	return m_vShaders[Index].get();
 }
 
-CShader* CGame::GetBaseShader(EBaseShader eShader)
+CShader* CGame::GetBaseShader(EBaseShader eShader) const
 {
 	CShader* Result{};
 	switch (eShader)
@@ -1232,11 +1236,14 @@ void CGame::EraseObject3D(const string& Name)
 	size_t iObject3D{ m_mapObject3DNameToIndex[Name] };
 	if (iObject3D < m_vObject3Ds.size() - 1) swap(m_vObject3Ds[iObject3D], m_vObject3Ds.back());
 
-	const string& CapturedObject3DName{ m_PtrCapturedPickedObject3D->GetName() };
-	if (Name == CapturedObject3DName)
+	if (m_PtrCapturedPickedObject3D)
 	{
-		m_PtrPickedObject3D = nullptr;
-		m_PtrCapturedPickedObject3D = nullptr;
+		const string& CapturedObject3DName{ m_PtrCapturedPickedObject3D->GetName() };
+		if (Name == CapturedObject3DName)
+		{
+			m_PtrPickedObject3D = nullptr;
+			m_PtrCapturedPickedObject3D = nullptr;
+		}
 	}
 
 	m_vObject3Ds.back().release();
@@ -1253,14 +1260,14 @@ void CGame::ClearObject3Ds()
 	m_PtrCapturedPickedObject3D = nullptr;
 }
 
-CObject3D* CGame::GetObject3D(const string& Name)
+CObject3D* CGame::GetObject3D(const string& Name) const
 {
 	if (m_mapObject3DNameToIndex.find(Name) == m_mapObject3DNameToIndex.end())
 	{
 		MessageBox(nullptr, string("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "이름 검색 실패", MB_OK | MB_ICONEXCLAMATION);
 		return nullptr;
 	}
-	return m_vObject3Ds[m_mapObject3DNameToIndex[Name]].get();
+	return m_vObject3Ds[m_mapObject3DNameToIndex.at(Name)].get();
 }
 
 void CGame::InsertObject3DLine(const string& Name)
@@ -1272,10 +1279,10 @@ void CGame::InsertObject3DLine(const string& Name)
 	m_umapObject3DLineNameToIndex[Name] = m_vObject3DLines.size() - 1;
 }
 
-CObject3DLine* CGame::GetObject3DLine(const string& Name)
+CObject3DLine* CGame::GetObject3DLine(const string& Name) const
 {
 	assert(m_umapObject3DLineNameToIndex.find(Name) != m_umapObject3DLineNameToIndex.end());
-	return m_vObject3DLines[m_umapObject3DLineNameToIndex[Name]].get();
+	return m_vObject3DLines[m_umapObject3DLineNameToIndex.at(Name)].get();
 }
 
 void CGame::InsertObject2D(const string& Name)
@@ -1286,10 +1293,10 @@ void CGame::InsertObject2D(const string& Name)
 	m_umapObject2DNameToIndex[Name] = m_vObject2Ds.size() - 1;
 }
 
-CObject2D* CGame::GetObject2D(const string& Name)
+CObject2D* CGame::GetObject2D(const string& Name) const
 {
 	assert(m_umapObject2DNameToIndex.find(Name) != m_umapObject2DNameToIndex.end());
-	return m_vObject2Ds[m_umapObject2DNameToIndex[Name]].get();
+	return m_vObject2Ds[m_umapObject2DNameToIndex.at(Name)].get();
 }
 
 CMaterial* CGame::AddMaterial(const CMaterial& Material)
@@ -1309,11 +1316,11 @@ CMaterial* CGame::AddMaterial(const CMaterial& Material)
 	return m_vMaterials.back().get();
 }
 
-CMaterial* CGame::GetMaterial(const string& Name)
+CMaterial* CGame::GetMaterial(const string& Name) const
 {
 	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end()) return nullptr;
 
-	return m_vMaterials[m_mapMaterialNameToIndex[Name]].get();
+	return m_vMaterials[m_mapMaterialNameToIndex.at(Name)].get();
 }
 
 void CGame::ClearMaterials()
@@ -1400,10 +1407,10 @@ void CGame::CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& M
 	}
 }
 
-CMaterial::CTexture* CGame::GetMaterialTexture(CMaterial::CTexture::EType eType, const string& Name)
+CMaterial::CTexture* CGame::GetMaterialTexture(CMaterial::CTexture::EType eType, const string& Name) const
 {
 	assert(m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end());
-	size_t iMaterial{ m_mapMaterialNameToIndex[Name] };
+	size_t iMaterial{ m_mapMaterialNameToIndex.at(Name) };
 
 	switch (eType)
 	{
@@ -1718,7 +1725,7 @@ void CGame::Draw(float DeltaTime)
 	DrawObject2Ds();
 }
 
-void CGame::UpdateObject3D(CObject3D* PtrObject3D)
+void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
 {
 	if (!PtrObject3D) return;
 
@@ -1758,7 +1765,7 @@ void CGame::UpdateObject3D(CObject3D* PtrObject3D)
 	PS->UpdateAllConstantBuffers();
 }
 
-void CGame::DrawObject3D(CObject3D* PtrObject3D)
+void CGame::DrawObject3D(const CObject3D* const PtrObject3D)
 {
 	if (!PtrObject3D) return;
 
@@ -1813,7 +1820,7 @@ void CGame::DrawObject3D(CObject3D* PtrObject3D)
 	}
 }
 
-void CGame::DrawObject3DBoundingSphere(CObject3D* PtrObject3D)
+void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
 {
 	m_VSBase->Use();
 
@@ -2051,7 +2058,7 @@ void CGame::DrawTerrain()
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 }
 
-bool CGame::ShouldSelectRotationGizmo(CObject3D* Gizmo, E3DGizmoAxis Axis)
+bool CGame::ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis)
 {
 	XMVECTOR PlaneNormal{};
 	switch (Axis)
@@ -2087,7 +2094,7 @@ bool CGame::ShouldSelectRotationGizmo(CObject3D* Gizmo, E3DGizmoAxis Axis)
 	return false;
 }
 
-bool CGame::ShouldSelectTranslationScalingGizmo(CObject3D* Gizmo, E3DGizmoAxis Axis)
+bool CGame::ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis)
 {
 	XMVECTOR Center{};
 	switch (Axis)
@@ -2406,7 +2413,7 @@ void CGame::Draw3DGizmoScalings(E3DGizmoAxis Axis)
 	Draw3DGizmo(m_Object3D_3DGizmoScalingZ.get(), bHighlightZ);
 }
 
-void CGame::Draw3DGizmo(CObject3D* Gizmo, bool bShouldHighlight)
+void CGame::Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight)
 {
 	CShader* VS{ Gizmo->ComponentRender.PtrVS };
 	CShader* PS{ Gizmo->ComponentRender.PtrPS };
@@ -2469,12 +2476,12 @@ void CGame::EndRendering()
 	m_SwapChain->Present(0, 0);
 }
 
-Keyboard::State CGame::GetKeyState()
+Keyboard::State CGame::GetKeyState() const
 {
 	return m_Keyboard->GetState();
 }
 
-Mouse::State CGame::GetMouseState()
+Mouse::State CGame::GetMouseState() const
 { 
 	Mouse::State ResultState{ m_Mouse->GetState() };
 	

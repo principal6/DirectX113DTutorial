@@ -1,6 +1,6 @@
 #include "Shader.h"
 
-void CShader::CConstantBuffer::Create(EShaderType ShaderType, const void* PtrData, size_t DataByteWidth)
+void CShader::CConstantBuffer::Create(EShaderType ShaderType, const void* const PtrData, size_t DataByteWidth)
 {
 	assert(PtrData);
 
@@ -103,7 +103,7 @@ void CShader::Create(EShaderType Type, const wstring& FileName, const string& En
 	}
 }
 
-void CShader::AddConstantBuffer(const void* PtrData, size_t DataByteWidth)
+void CShader::AddConstantBuffer(const void* const PtrData, size_t DataByteWidth)
 {
 	m_vConstantBuffers.emplace_back(make_unique<CConstantBuffer>(m_PtrDevice, m_PtrDeviceContext));
 	m_vConstantBuffers.back()->Create(m_ShaderType, PtrData, DataByteWidth);
