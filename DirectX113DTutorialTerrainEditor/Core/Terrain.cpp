@@ -224,8 +224,6 @@ void CTerrain::CreateTerrainObject3D(vector<CMaterial>& vMaterials)
 
 	Model.vMeshes.clear();
 	Model.vMeshes.emplace_back(GenerateTerrainBase(m_Size));
-	CalculateNormals(Model.vMeshes.back());
-	CalculateTangents(Model.vMeshes.back());
 	Model.vMaterials = vMaterials;
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
 

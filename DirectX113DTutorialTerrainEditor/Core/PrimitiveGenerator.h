@@ -339,8 +339,6 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord, 
 
 	CalculateNormals(Mesh);
 
-	AverageNormals(Mesh);
-
 	CalculateTangents(Mesh);
 
 	TranslateMesh(Mesh, XMVectorSet(static_cast<float>(-SizeX / 2), 0, static_cast<float>(SizeZ / 2), 1));
