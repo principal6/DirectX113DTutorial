@@ -86,7 +86,6 @@ void CGame::LoadScene(const string& FileName)
 				InsertObject3D(ObjectName);
 				CObject3D* Object3D{ GetObject3D(ObjectName) };
 				
-
 				vector<XMLElement*> vxmlObjectChildren{};
 				XMLElement* xmlObjectChild{ xmlObject->FirstChildElement() };
 				while (xmlObjectChild)

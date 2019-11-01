@@ -2,10 +2,7 @@
 
 bool CAssimpLoader::IsAnimatedModel(const string& FileName)
 {
-	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
-		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph |
-		aiProcess_SplitLargeMeshes | aiProcess_FixInfacingNormals |
-		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices );
+	m_Scene = m_AssimpImporter.ReadFile(FileName, 0);
 	
 	assert(m_Scene);
 	assert(m_Scene->HasMeshes());
@@ -20,7 +17,7 @@ void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel& Mode
 	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded | 
 		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes | aiProcess_PreTransformVertices |
 		aiProcess_SplitLargeMeshes | aiProcess_FixInfacingNormals |
-		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices);
+		aiProcess_Triangulate | aiProcess_JoinIdenticalVertices);
 
 	assert(m_Scene);
 	assert(m_Scene->HasMeshes());
@@ -32,14 +29,12 @@ void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel& Mode
 
 void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
 {
-	/*
 	m_AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
 	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
 		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph |
 		aiProcess_SplitLargeMeshes | aiProcess_ImproveCacheLocality | aiProcess_FixInfacingNormals |
 		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices |
 		aiProcess_RemoveComponent | aiProcess_GenSmoothNormals);
-	*/
 
 	assert(m_Scene);
 	assert(m_Scene->HasMeshes());
