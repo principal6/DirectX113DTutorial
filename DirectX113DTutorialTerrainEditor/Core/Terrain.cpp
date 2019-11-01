@@ -78,7 +78,7 @@ void CTerrain::Load(const string& FileName)
 
 	// 4B (float) Terrain tessellation factor
 	READ_BYTES(4);
-	m_TessFactor = READ_BYTES_TO_FLOAT;
+	m_TerrainTessFactor = READ_BYTES_TO_FLOAT;
 
 	// 1B (bool) Should draw water
 	READ_BYTES(1);
@@ -87,6 +87,10 @@ void CTerrain::Load(const string& FileName)
 	// 4B (float) Water height
 	READ_BYTES(4);
 	m_WaterHeight = READ_BYTES_TO_FLOAT;
+
+	// 4B (float) Water tessellation factor
+	READ_BYTES(4);
+	m_WaterTessFactor = READ_BYTES_TO_FLOAT;
 
 	// 4B (float) Masking detail
 	READ_BYTES(4);
@@ -174,14 +178,16 @@ void CTerrain::Save(const string& FileName)
 	WRITE_FLOAT_TO_BYTES(m_cbTerrainData.TerrainHeightRange);
 
 	// 4B (float) Terrain tessellation factor
-	WRITE_FLOAT_TO_BYTES(m_TessFactor);
+	WRITE_FLOAT_TO_BYTES(m_TerrainTessFactor);
 
 	// 1B (bool) Should draw water
 	WRITE_BOOL_TO_BYTE(m_bShouldDrawWater);
-	//ofs.write((const char*)m_bShouldDrawWater, 1);
 	
 	// 4B (float) Water height
 	WRITE_FLOAT_TO_BYTES(m_WaterHeight);
+
+	// 4B (float) Water tessellation factor
+	WRITE_FLOAT_TO_BYTES(m_WaterTessFactor);
 
 	// 4B (float) Masking detail
 	WRITE_FLOAT_TO_BYTES(m_MaskingTextureDetail);
@@ -333,96 +339,54 @@ const CMaterial& CTerrain::GetMaterial(int Index) const
 
 void CTerrain::Select(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton)
 {
-	if (m_eEditMode == EEditMode::Masking)
-	{
-		UpdateHoverPosition(PickingRayOrigin, PickingRayDirection);
+	UpdateSelection(PickingRayOrigin, PickingRayDirection);
 
-		if (bShouldEdit)
+	if (bShouldEdit)
+	{
+		if (m_eEditMode == EEditMode::Masking)
 		{
 			if (bIsLeftButton)
 			{
-				UpdateMasking(m_eMaskingLayer, m_HoverPosition, m_MaskingRatio, m_MaskingRadius);
+				UpdateMasking(m_eMaskingLayer, m_cbPSTerrainSelectionData.AnaloguePosition, m_MaskingRatio, m_MaskingRadius);
 			}
 			else
 			{
-				UpdateMasking(m_eMaskingLayer, m_HoverPosition, 0.0f, m_MaskingRadius, true);
+				UpdateMasking(m_eMaskingLayer, m_cbPSTerrainSelectionData.AnaloguePosition, 0.0f, m_MaskingRadius, true);
 			}
 		}
-	}
-	else
-	{
-		UpdateSelection(PickingRayOrigin, PickingRayDirection);
-
-		if (bShouldEdit) UpdateHeights(bIsLeftButton);
+		else
+		{
+			UpdateHeights(bIsLeftButton);
+		}
 	}
 }
 
 void CTerrain::UpdateSelection(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection)
 {
-	// Do not consider World transformation!!
-	// Terrain uses single mesh
-	SMesh& Mesh{ m_Object3DTerrain->GetModel().vMeshes[0] };
-
-	XMVECTOR T{ KVectorGreatest };
 	XMVECTOR PlaneT{};
-	XMVECTOR PointOnPlane{};
 	if (IntersectRayPlane(PickingRayOrigin, PickingRayDirection, XMVectorSet(0, 0, 0, 1), XMVectorSet(0, 1, 0, 0), &PlaneT))
 	{
-		PointOnPlane = PickingRayOrigin + PickingRayDirection * PlaneT;
+		const XMFLOAT2 KHalfSize{ m_Size.x / 2.0f, m_Size.y / 2.0f };
+		const XMVECTOR KPointOnPlane{ PickingRayOrigin + PickingRayDirection * PlaneT };
 
-		m_SelectionPosition.x = XMVectorGetX(PointOnPlane);
-		if (m_SelectionPosition.x > 0) m_SelectionPosition.x += 0.5;
-		if (m_SelectionPosition.x < 0) m_SelectionPosition.x -= 0.5;
-		m_SelectionPosition.x = float((int)m_SelectionPosition.x);
-		m_SelectionPosition.x = min(m_SelectionPosition.x, +m_Size.x / 2.0f);
-		m_SelectionPosition.x = max(m_SelectionPosition.x, -m_Size.x / 2.0f);
+		m_cbPSTerrainSelectionData.AnaloguePosition.x = XMVectorGetX(KPointOnPlane);
+		m_cbPSTerrainSelectionData.AnaloguePosition.y = XMVectorGetZ(KPointOnPlane);
 
-		m_SelectionPosition.y = XMVectorGetZ(PointOnPlane);
-		if (m_SelectionPosition.y > 0) m_SelectionPosition.y += 0.5;
-		if (m_SelectionPosition.y < 0) m_SelectionPosition.y -= 0.5;
-		m_SelectionPosition.y = float((int)m_SelectionPosition.y);
-		m_SelectionPosition.y = min(m_SelectionPosition.y, +m_Size.y / 2.0f);
-		m_SelectionPosition.y = max(m_SelectionPosition.y, -m_Size.y / 2.0f);
+		m_cbPSTerrainSelectionData.DigitalPosition.x = XMVectorGetX(KPointOnPlane);
+		if (m_cbPSTerrainSelectionData.DigitalPosition.x > 0) m_cbPSTerrainSelectionData.DigitalPosition.x += 0.5;
+		if (m_cbPSTerrainSelectionData.DigitalPosition.x < 0) m_cbPSTerrainSelectionData.DigitalPosition.x -= 0.5;
+		m_cbPSTerrainSelectionData.DigitalPosition.x = float((int)m_cbPSTerrainSelectionData.DigitalPosition.x);
+		m_cbPSTerrainSelectionData.DigitalPosition.x = min(m_cbPSTerrainSelectionData.DigitalPosition.x, +KHalfSize.x);
+		m_cbPSTerrainSelectionData.DigitalPosition.x = max(m_cbPSTerrainSelectionData.DigitalPosition.x, -KHalfSize.x);
 
-		for (auto& Triangle : Mesh.vTriangles)
-		{
-			SVertex3D& V0{ Mesh.vVertices[Triangle.I0] };
-			SVertex3D& V1{ Mesh.vVertices[Triangle.I1] };
-			SVertex3D& V2{ Mesh.vVertices[Triangle.I2] };
-			XMVECTOR& V0WorldPosition{ V0.Position };
-			XMVECTOR& V1WorldPosition{ V1.Position };
-			XMVECTOR& V2WorldPosition{ V2.Position };
+		m_cbPSTerrainSelectionData.DigitalPosition.y = XMVectorGetZ(KPointOnPlane);
+		if (m_cbPSTerrainSelectionData.DigitalPosition.y > 0) m_cbPSTerrainSelectionData.DigitalPosition.y += 0.5;
+		if (m_cbPSTerrainSelectionData.DigitalPosition.y < 0) m_cbPSTerrainSelectionData.DigitalPosition.y -= 0.5;
+		m_cbPSTerrainSelectionData.DigitalPosition.y = float((int)m_cbPSTerrainSelectionData.DigitalPosition.y);
+		m_cbPSTerrainSelectionData.DigitalPosition.y = min(m_cbPSTerrainSelectionData.DigitalPosition.y, +KHalfSize.y);
+		m_cbPSTerrainSelectionData.DigitalPosition.y = max(m_cbPSTerrainSelectionData.DigitalPosition.y, -KHalfSize.y);
 
-			float MaxX{ max(max(XMVectorGetX(V0WorldPosition), XMVectorGetX(V1WorldPosition)), XMVectorGetX(V2WorldPosition)) };
-			float MinX{ min(min(XMVectorGetX(V0WorldPosition), XMVectorGetX(V1WorldPosition)), XMVectorGetX(V2WorldPosition)) };
-			float MaxZ{ max(max(XMVectorGetZ(V0WorldPosition), XMVectorGetZ(V1WorldPosition)), XMVectorGetZ(V2WorldPosition)) };
-			float MinZ{ min(min(XMVectorGetZ(V0WorldPosition), XMVectorGetZ(V1WorldPosition)), XMVectorGetZ(V2WorldPosition)) };
-
-			if (MaxX >= m_SelectionPosition.x - m_SelectionHalfSize &&
-				m_SelectionPosition.x + m_SelectionHalfSize >= MinX &&
-				MaxZ >= m_SelectionPosition.y - m_SelectionHalfSize &&
-				m_SelectionPosition.y + m_SelectionHalfSize >= MinZ)
-			{
-				float V0Length{ XMVectorGetX(XMVector3Length(V0.Position -
-					XMVectorSet(m_SelectionPosition.x, XMVectorGetY(V0.Position), m_SelectionPosition.y, 0.0f))) };
-				float V1Length{ XMVectorGetX(XMVector3Length(V1.Position -
-					XMVectorSet(m_SelectionPosition.x, XMVectorGetY(V1.Position), m_SelectionPosition.y, 0.0f))) };
-				float V2Length{ XMVectorGetX(XMVector3Length(V2.Position -
-					XMVectorSet(m_SelectionPosition.x, XMVectorGetY(V2.Position), m_SelectionPosition.y, 0.0f))) };
-
-				V0.TexCoord = XMVectorSetZ(V0.TexCoord, V0Length);
-				V1.TexCoord = XMVectorSetZ(V1.TexCoord, V1Length);
-				V2.TexCoord = XMVectorSetZ(V2.TexCoord, V2Length);
-			}
-			else
-			{
-				V0.TexCoord = XMVectorSetZ(V0.TexCoord, 0.0f);
-				V1.TexCoord = XMVectorSetZ(V1.TexCoord, 0.0f);
-				V2.TexCoord = XMVectorSetZ(V2.TexCoord, 0.0f);
-			}
-		}
-
-		m_Object3DTerrain->UpdateMeshBuffer();
+		m_PtrGame->UpdatePSTerrainSelection(m_cbPSTerrainSelectionData);
 	}
 }
 
@@ -452,10 +416,10 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 
 	int TerrainSizeX{ (int)m_Size.x };
 	int TerrainSizeZ{ (int)m_Size.y };
-	int CenterX{ (int)m_SelectionPosition.x + TerrainSizeX / 2 };
-	int CenterZ{ (int)(-m_SelectionPosition.y) + TerrainSizeZ / 2 };
+	int CenterX{ (int)m_cbPSTerrainSelectionData.DigitalPosition.x + TerrainSizeX / 2 };
+	int CenterZ{ (int)(-m_cbPSTerrainSelectionData.DigitalPosition.y) + TerrainSizeZ / 2 };
 
-	int SelectionSize{ (int)(m_SelectionHalfSize * 2.0f) };
+	int SelectionSize{ (int)(m_cbPSTerrainSelectionData.SelectionHalfSize * 2.0f) };
 	if (SelectionSize == 1)
 	{
 		size_t iPixel{ CenterZ * (size_t)m_HeightMapTextureSize.x + CenterX };
@@ -465,9 +429,9 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 	}
 	else
 	{
-		for (int X = (int)(CenterX - m_SelectionHalfSize); X <= (int)(CenterX + m_SelectionHalfSize); ++X)
+		for (int X = (int)(CenterX - m_cbPSTerrainSelectionData.SelectionHalfSize); X <= (int)(CenterX + m_cbPSTerrainSelectionData.SelectionHalfSize); ++X)
 		{
-			for (int Z = (int)(CenterZ - m_SelectionHalfSize); Z <= (int)(CenterZ + m_SelectionHalfSize); ++Z)
+			for (int Z = (int)(CenterZ - m_cbPSTerrainSelectionData.SelectionHalfSize); Z <= (int)(CenterZ + m_cbPSTerrainSelectionData.SelectionHalfSize); ++Z)
 			{
 				if (X < 0 || Z < 0) continue;
 				if (X > TerrainSizeX || Z > TerrainSizeZ) continue;
@@ -520,44 +484,26 @@ void CTerrain::UpdateHeightMapTexture()
 	m_HeightMapTexture->UpdateTextureRawData(&m_HeightMapTextureRawData[0]);
 }
 
-void CTerrain::UpdateHoverPosition(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection)
-{
-	if (!m_Object3DTerrain) return;
-
-	// Do not consider World transformation!!
-	// Terrain uses single mesh
-	XMVECTOR T{ KVectorGreatest };
-	XMVECTOR PlaneT{};
-	XMVECTOR PointOnPlane{};
-	if (IntersectRayPlane(PickingRayOrigin, PickingRayDirection, XMVectorSet(0, 0, 0, 1), XMVectorSet(0, 1, 0, 0), &PlaneT))
-	{
-		PointOnPlane = PickingRayOrigin + PickingRayDirection * PlaneT;
-
-		m_HoverPosition.x = XMVectorGetX(PointOnPlane);
-		m_HoverPosition.y = XMVectorGetZ(PointOnPlane);
-	}
-}
-
 void CTerrain::UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, float Value, float Radius, bool bForceSet)
 {
-	float DetailSquare{ m_MaskingTextureDetail * m_MaskingTextureDetail };
-	float RadiusSquare{ Radius * Radius * DetailSquare };
-	int CenterU{ static_cast<int>((+m_Size.x / 2.0f + Position.x) * m_MaskingTextureDetail) };
-	int CenterV{ static_cast<int>(-(-m_Size.y / 2.0f + Position.y) * m_MaskingTextureDetail) };
+	const float KDetailSquare{ m_MaskingTextureDetail * m_MaskingTextureDetail };
+	const float KRadiusSquare{ Radius * Radius * KDetailSquare };
+	const int KCenterU{ static_cast<int>((+m_Size.x / 2.0f + Position.x) * m_MaskingTextureDetail) };
+	const int KCenterV{ static_cast<int>(-(-m_Size.y / 2.0f + Position.y) * m_MaskingTextureDetail) };
 
 	for (int iPixel = 0; iPixel < (int)m_MaskingTextureRawData.size(); ++iPixel)
 	{
 		int U{ iPixel % (int)m_MaskingTextureSize.x };
 		int V{ iPixel / (int)m_MaskingTextureSize.x };
 
-		float dU{ float(U - CenterU) };
-		float dV{ float(V - CenterV) };
+		float dU{ float(U - KCenterU) };
+		float dV{ float(V - KCenterV) };
 		float DistanceSquare{ dU * dU + dV * dV };
-		if (DistanceSquare <= RadiusSquare)
+		if (DistanceSquare <= KRadiusSquare)
 		{
 			float Factor{ 1.0f -
-				(sqrt(DistanceSquare / DetailSquare) / m_MaskingRadius) * m_MaskingAttenuation - // Distance attenuation
-				((DistanceSquare / DetailSquare) / m_MaskingRadius) * m_MaskingAttenuation }; // Distance square attenuation
+				(sqrt(DistanceSquare / KDetailSquare) / m_MaskingRadius) * m_MaskingAttenuation - // Distance attenuation
+				((DistanceSquare / KDetailSquare) / m_MaskingRadius) * m_MaskingAttenuation }; // Distance square attenuation
 			Factor = max(Factor, 0.0f);
 			Factor = min(Factor, 1.0f);
 
@@ -617,7 +563,9 @@ void CTerrain::SetSelectionSize(float& Size)
 	Size = min(Size, KSelectionMaxSize);
 	Size = max(Size, KSelectionMinSize);
 
-	m_SelectionHalfSize = Size / 2.0f;
+	m_cbPSTerrainSelectionData.SelectionHalfSize = Size / 2.0f;
+
+	m_PtrGame->UpdatePSTerrainSelection(m_cbPSTerrainSelectionData);
 }
 
 void CTerrain::SetMaskingLayer(EMaskingLayer eLayer)
@@ -633,6 +581,9 @@ void CTerrain::SetMaskingAttenuation(float Attenuation)
 void CTerrain::SetMaskingRadius(float Radius)
 {
 	m_MaskingRadius = Radius;
+
+	m_cbPSTerrainSelectionData.MaskingRadius = m_MaskingRadius;
+	m_PtrGame->UpdatePSTerrainSelection(m_cbPSTerrainSelectionData);
 }
 
 void CTerrain::SetSetHeightValue(float Value)
@@ -671,11 +622,29 @@ bool CTerrain::ShouldDrawWater() const
 	return m_bShouldDrawWater;
 }
 
+void CTerrain::ShouldShowSelection(bool Value)
+{
+	m_cbPSTerrainSelectionData.bShowSelection = ((Value == true) ? TRUE : FALSE);
+
+	m_PtrGame->UpdatePSTerrainSelection(m_cbPSTerrainSelectionData);
+}
+
 void CTerrain::SetEditMode(EEditMode Mode)
 {
 	m_eEditMode = Mode;
 
-	if (m_eEditMode == EEditMode::Masking) ReleaseSelection();
+	if (m_eEditMode == EEditMode::Masking)
+	{
+		ReleaseSelection();
+		m_cbPSTerrainSelectionData.bIsMaskingMode = TRUE;
+		m_cbPSTerrainSelectionData.MaskingRadius = m_MaskingRadius;
+	}
+	else
+	{
+		m_cbPSTerrainSelectionData.bIsMaskingMode = FALSE;
+	}
+
+	m_PtrGame->UpdatePSTerrainSelection(m_cbPSTerrainSelectionData);
 }
 
 CTerrain::EEditMode CTerrain::GetEditMode()
@@ -693,14 +662,24 @@ float CTerrain::GetWaterHeight() const
 	return m_WaterHeight;
 }
 
-void CTerrain::SetTessFactor(float Value)
+void CTerrain::SetTerrainTessFactor(float Value)
 {
-	m_TessFactor = Value;
+	m_TerrainTessFactor = Value;
 }
 
-float CTerrain::GetTessFactor() const
+float CTerrain::GetTerrainTessFactor() const
 {
-	return m_TessFactor;
+	return m_TerrainTessFactor;
+}
+
+void CTerrain::SetWaterTessFactor(float Value)
+{
+	m_WaterTessFactor = Value;
+}
+
+float CTerrain::GetWaterTessFactor() const
+{
+	return m_WaterTessFactor;
 }
 
 const XMFLOAT2& CTerrain::GetSize() const
@@ -716,7 +695,7 @@ int CTerrain::GetMaterialCount() const
 
 const XMFLOAT2& CTerrain::GetSelectionPosition() const
 {
-	return m_SelectionPosition;
+	return m_cbPSTerrainSelectionData.DigitalPosition;
 }
 
 float CTerrain::GetMaskingDetail() const
@@ -810,6 +789,7 @@ void CTerrain::DrawWater()
 {
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
 	m_PtrGame->UpdateVSSpace(XMMatrixTranslation(0, m_WaterHeight, 0));
+	m_PtrGame->UpdateHSTessFactor(m_WaterTessFactor);
 	m_PtrGame->GetBaseShader(EBaseShader::VSBase)->Use();
 	m_PtrGame->GetBaseShader(EBaseShader::VSBase)->UpdateAllConstantBuffers();
 	m_PtrGame->GetBaseShader(EBaseShader::HSWater)->Use();

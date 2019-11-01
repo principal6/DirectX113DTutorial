@@ -6,14 +6,6 @@
 
 class CGame;
 
-struct SCBVSTerrainData
-{
-	float TerrainSizeX{};
-	float TerrainSizeZ{};
-	float TerrainHeightRange{};
-	float Pad{};
-};
-
 class CTerrain
 {
 public:
@@ -30,6 +22,25 @@ public:
 		LayerG,
 		LayerB,
 		LayerA,
+	};
+
+	struct SCBVSTerrainData
+	{
+		float TerrainSizeX{};
+		float TerrainSizeZ{};
+		float TerrainHeightRange{};
+		float Pad{};
+	};
+
+	struct SCBPSTerrainSelectionData
+	{
+		BOOL		bShowSelection{};
+		float		SelectionHalfSize{ KSelectionMinSize / 2.0f };
+		XMFLOAT2	DigitalPosition{};
+
+		BOOL		bIsMaskingMode{};
+		float		MaskingRadius{};
+		XMFLOAT2	AnaloguePosition{};
 	};
 
 public:
@@ -66,7 +77,6 @@ private:
 	void UpdateHeight(size_t iPixel, bool bIsLeftButton);
 	void UpdateHeightMapTexture();
 
-	void UpdateHoverPosition(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection);
 	void UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, float Value, float Radius, bool bForceSet = false);
 	void UpdateMaskingTexture();
 
@@ -85,12 +95,16 @@ public:
 	void ShouldDrawWater(bool Value);
 	bool ShouldDrawWater() const;
 
+	void ShouldShowSelection(bool Value);
+
 	void SetEditMode(EEditMode Mode);
 	CTerrain::EEditMode GetEditMode();
 	void SetWaterHeight(float Value);
 	float GetWaterHeight() const;
-	void SetTessFactor(float Value);
-	float GetTessFactor() const;
+	void SetTerrainTessFactor(float Value);
+	float GetTerrainTessFactor() const;
+	void SetWaterTessFactor(float Value);
+	float GetWaterTessFactor() const;
 
 	const XMFLOAT2& GetSize() const;
 	int GetMaterialCount() const;
@@ -116,6 +130,7 @@ public:
 	static constexpr float KHeightRange{ KMaxHeight - KMinHeight };
 	static constexpr float KHeightRangeHalf{ KHeightRange / 2.0f };
 
+	static constexpr float KTessFactorUnit{ 0.1f };
 	static constexpr float KTessFactorMin{ 2.0f };
 	static constexpr float KTessFactorMax{ 64.0f };
 
@@ -164,7 +179,7 @@ private:
 	unique_ptr<CMaterial::CTexture>	m_HeightMapTexture{};
 	vector<SPixel8UInt>				m_HeightMapTextureRawData{};
 	SCBVSTerrainData				m_cbTerrainData{};
-	float							m_TessFactor{ KTessFactorMin };
+	float							m_TerrainTessFactor{ KTessFactorMin };
 
 	XMFLOAT2						m_MaskingTextureSize{};
 	unique_ptr<CMaterial::CTexture>	m_MaskingTexture{};
@@ -176,18 +191,17 @@ private:
 	unique_ptr<CMaterial::CTexture>	m_WaterNormalTexture{};
 	unique_ptr<CMaterial::CTexture>	m_WaterDisplacementTexture{};
 	float							m_WaterHeight{};
+	float							m_WaterTessFactor{ KTessFactorMin };
 	bool							m_bShouldDrawWater{ true };
 
 private:
-	float			m_SelectionHalfSize{ KSelectionMinSize / 2.0f };
-	XMFLOAT2		m_SelectionPosition{};
+	SCBPSTerrainSelectionData	m_cbPSTerrainSelectionData{};
 
 	EEditMode		m_eEditMode{};
 	float			m_SetHeightValue{};
 	float			m_DeltaHeightValue{ KHeightUnit * KHeightRange };
 	float			m_MaskingRatio{ KMaskingDefaultRatio };
 
-	XMFLOAT2		m_HoverPosition{};
 	EMaskingLayer	m_eMaskingLayer{};
 	float			m_MaskingRadius{ KMaskingDefaultRadius };
 	float			m_MaskingAttenuation{ KMaskingMinAttenuation };

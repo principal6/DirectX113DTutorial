@@ -30,6 +30,24 @@ cbuffer cbLights : register(b1)
 	float4	EyePosition;
 }
 
+cbuffer cbSelection : register(b2)
+{
+	bool bShowSelection;
+	float SelectionHalfSize;
+	float2 DigitalPosition;
+	
+	bool bIsMaskingMode;
+	float MaskingRadius;
+	float2 AnaloguePosition;
+}
+
+cbuffer cbEditorTime : register(b3)
+{
+	float NormalizedTime;
+	float NormalizedTimeHalfSpeed;
+	float2 Pad2;
+}
+
 float4 main(VS_OUTPUT input) : SV_TARGET
 {
 	float4 MaskingSpacePosition = mul(float4(input.WorldPosition.x, 0, -input.WorldPosition.z, 1), Matrix);
@@ -64,14 +82,42 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	ResultNormal = normalize(float4(mul(ResultNormal.xyz, TextureSpace), 0.0f));
 	
 	// Selection highlight (for edit mode)
-	if (input.UV.z > 0.0f)
+	bool bIsHighlitPixel = false;
+	float4 HighlitAlbedo = Albedo;
+	if (bShowSelection == true)
 	{
-		float4 Factors = float4(0.2f, 0.4f, 0.6f, 0);
-		Albedo.xyz *= Factors.xyz;
+		const float3 ColorCmp = float3(0.2f, 0.4f, 0.6f);
+		const float3 HighlightFactor = float3(0.2f, 0.2f, 0.2f);
+		const float Sine = sin(NormalizedTimeHalfSpeed * KPI);
+		if (bIsMaskingMode == true)
+		{
+			const float DistanceX = abs(input.WorldPosition.x - AnaloguePosition.x);
+			const float DistanceZ = abs(input.WorldPosition.z - AnaloguePosition.y);
+			const float Distance = sqrt(DistanceX * DistanceX + DistanceZ * DistanceZ);
+			if (Distance <= MaskingRadius)
+			{
+				Albedo.xyz = max(Albedo.xyz, ColorCmp);
+				Albedo.xyz += HighlightFactor * Sine;
+				bIsHighlitPixel = true;
+				HighlitAlbedo = Albedo;
+			}
+		}
+		else
+		{
+			const float DistanceX = abs(input.WorldPosition.x - DigitalPosition.x);
+			const float DistanceZ = abs(input.WorldPosition.z - DigitalPosition.y);
+			if (DistanceX <= SelectionHalfSize && DistanceZ <= SelectionHalfSize)
+			{
+				Albedo.xyz = max(Albedo.xyz, ColorCmp);
+				Albedo.xyz += HighlightFactor * Sine;
+				bIsHighlitPixel = true;
+				HighlitAlbedo = Albedo;
+			}
+		}
 	}
 
-	// Gamma correction
 	float4 ResultAlbedo = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
+
 	float4 Directional = CalculateDirectional(Albedo, Albedo, 1, 0,
 		DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), ResultNormal);
 	// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
@@ -84,6 +130,11 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	if (input.bUseVertexColor != 0)
 	{
 		return input.Color;
+	}
+
+	if (bIsHighlitPixel == true)
+	{
+		ResultAlbedo = HighlitAlbedo;
 	}
 
 	return ResultAlbedo;

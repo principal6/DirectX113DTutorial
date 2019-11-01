@@ -219,13 +219,18 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						Game.ReleaseCapturedObject3D();
 					}
 
-					Game.SelectTerrain(true, bLeftButton);
+					if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
+					{
+						Game.SelectTerrain(true, bLeftButton);
+					}
 				}
-				
-				if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
+				else
 				{
 					Game.SelectTerrain(false, false);
+				}
 
+				if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
+				{
 					if (MouseState.middleButton)
 					{
 						MainCamera->Rotate(MouseState.x - PrevMouseX, MouseState.y - PrevMouseY, 0.01f);
@@ -344,8 +349,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (ImGui::Button(u8"결정") || ImGui::IsKeyDown(VK_RETURN))
 					{
-						CTerrain::EEditMode eEditMode{};
-						if (Game.GetTerrain()) eEditMode = Game.GetTerrain()->GetEditMode();
+						CTerrain::EEditMode eTerrainEditMode{};
+						if (Game.GetTerrain()) eTerrainEditMode = Game.GetTerrain()->GetEditMode();
 
 						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
 						Game.CreateTerrain(TerrainSize, MaterialDefaultGround0, MaskingDetail);
@@ -353,7 +358,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						SizeX = CTerrain::KDefaultSize;
 						SizeZ = CTerrain::KDefaultSize;
 
-						Game.SetTerrainEditMode(eEditMode);
+						Game.SetEditMode(Game.GetEditMode(), true);
+						Game.SetTerrainEditMode(eTerrainEditMode);
 
 						bShowTerrainGenerator = false;
 						ImGui::CloseCurrentPopup();
@@ -474,10 +480,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									ImGui::Text(u8"마스킹 디테일: %d", (int)Game.GetTerrain()->GetMaskingDetail());
 
 									ImGui::SetNextItemWidth(100);
-									float TessFactor{ Terrain->GetTessFactor() };
-									if (ImGui::DragFloat(u8"테셀레이션 계수", &TessFactor, 0.1f, CTerrain::KTessFactorMin, CTerrain::KTessFactorMax, "%.1f"))
+									float TerrainTessFactor{ Terrain->GetTerrainTessFactor() };
+									if (ImGui::DragFloat(u8"지형 테셀레이션 계수", &TerrainTessFactor, CTerrain::KTessFactorUnit,
+										CTerrain::KTessFactorMin, CTerrain::KTessFactorMax, "%.1f"))
 									{
-										Terrain->SetTessFactor(TessFactor);
+										Terrain->SetTerrainTessFactor(TerrainTessFactor);
 									}
 
 									bool bDrawWater{ Terrain->ShouldDrawWater() };
@@ -492,6 +499,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										CTerrain::KWaterMinHeight, CTerrain::KWaterMaxHeight, "%.1f"))
 									{
 										Terrain->SetWaterHeight(WaterHeight);
+									}
+
+									ImGui::SetNextItemWidth(100);
+									float WaterTessFactor{ Terrain->GetWaterTessFactor() };
+									if (ImGui::DragFloat(u8"물 테셀레이션 계수", &WaterTessFactor, CTerrain::KTessFactorUnit,
+										CTerrain::KTessFactorMin, CTerrain::KTessFactorMax, "%.1f"))
+									{
+										Terrain->SetWaterTessFactor(WaterTessFactor);
 									}
 
 									ImGui::Separator();

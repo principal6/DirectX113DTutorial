@@ -320,9 +320,14 @@ void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* const BoneMatrices)
 	memcpy(m_cbVSAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBVSAnimationBonesData));
 }
 
-void CGame::UpdateVSTerrainData(const SCBVSTerrainData& Data)
+void CGame::UpdateVSTerrainData(const CTerrain::SCBVSTerrainData& Data)
 {
 	m_cbVSTerrainData = Data;
+}
+
+void CGame::UpdateHSTessFactor(float TessFactor)
+{
+	m_cbHSTessFactor.TessFactor = TessFactor;
 }
 
 void CGame::UpdateDSDisplacementData(bool bUseDisplacement)
@@ -355,6 +360,11 @@ void CGame::UpdatePSBaseMaterial(const CMaterial& Material)
 void CGame::UpdatePSTerrainSpace(const XMMATRIX& Matrix)
 {
 	m_cbPSTerrainSpaceData.Matrix = XMMatrixTranspose(Matrix);
+}
+
+void CGame::UpdatePSTerrainSelection(const CTerrain::SCBPSTerrainSelectionData& Selection)
+{
+	m_cbPSTerrainSelectionData = Selection;
 }
 
 void CGame::UpdatePSBase2DFlagOn(EFlagPSBase2D Flag)
@@ -529,6 +539,10 @@ void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material
 	m_Terrain.release();
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Create(TerrainSize, Material, MaskingDetail);
+
+	ID3D11ShaderResourceView* NullSRVs[11]{};
+	m_DeviceContext->DSSetShaderResources(0, 1, NullSRVs);
+	m_DeviceContext->PSSetShaderResources(0, 11, NullSRVs);
 }
 
 void CGame::LoadTerrain(const string& TerrainFileName)
@@ -803,7 +817,7 @@ void CGame::CreateBaseShaders()
 	m_VSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSTerrain->Create(EShaderType::VertexShader, L"Shader\\VSTerrain.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSTerrain->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
-	m_VSTerrain->AddConstantBuffer(&m_cbVSTerrainData, sizeof(SCBVSTerrainData));
+	m_VSTerrain->AddConstantBuffer(&m_cbVSTerrainData, sizeof(CTerrain::SCBVSTerrainData));
 
 	m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSParticle->Create(EShaderType::VertexShader, L"Shader\\VSParticle.hlsl", "main", KParticleInputElementDescs, ARRAYSIZE(KParticleInputElementDescs));
@@ -815,11 +829,12 @@ void CGame::CreateBaseShaders()
 	m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSTerrain->Create(EShaderType::HullShader, L"Shader\\HSTerrain.hlsl", "main");
 	m_HSTerrain->AddConstantBuffer(&m_cbHSCameraData, sizeof(SCBHSCameraData));
-	m_HSTerrain->AddConstantBuffer(&m_cbHSTessFactorData, sizeof(SCBHSTessFactorData));
+	m_HSTerrain->AddConstantBuffer(&m_cbHSTessFactor, sizeof(SCBHSTessFactorData));
 
 	m_HSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSWater->Create(EShaderType::HullShader, L"Shader\\HSWater.hlsl", "main");
 	m_HSWater->AddConstantBuffer(&m_cbHSCameraData, sizeof(SCBHSCameraData));
+	m_HSWater->AddConstantBuffer(&m_cbHSTessFactor, sizeof(SCBHSTessFactorData));
 
 	m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSTerrain->Create(EShaderType::DomainShader, L"Shader\\DSTerrain.hlsl", "main");
@@ -867,6 +882,8 @@ void CGame::CreateBaseShaders()
 	m_PSTerrain->Create(EShaderType::PixelShader, L"Shader\\PSTerrain.hlsl", "main");
 	m_PSTerrain->AddConstantBuffer(&m_cbPSTerrainSpaceData, sizeof(SCBPSTerrainSpaceData));
 	m_PSTerrain->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
+	m_PSTerrain->AddConstantBuffer(&m_cbPSTerrainSelectionData, sizeof(CTerrain::SCBPSTerrainSelectionData));
+	m_PSTerrain->AddConstantBuffer(&m_cbEditorTimeData, sizeof(SCBEditorTimeData));
 
 	m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSWater->Create(EShaderType::PixelShader, L"Shader\\PSWater.hlsl", "main");
@@ -1404,19 +1421,22 @@ CMaterial::CTexture* CGame::GetMaterialTexture(CMaterial::CTexture::EType eType,
 	}
 }
 
-void CGame::SetEditMode(EEditMode Mode)
+void CGame::SetEditMode(EEditMode Mode, bool bForcedSet)
 {
-	if (m_eEditMode == Mode) return;
+	if (!bForcedSet)
+	{
+		if (m_eEditMode == Mode) return;
+	}
 
 	m_eEditMode = Mode;
 	if (m_eEditMode == EEditMode::EditTerrain)
 	{
-		SetTerrainEditMode(CTerrain::EEditMode::SetHeight);
+		if (m_Terrain) m_Terrain->ShouldShowSelection(TRUE);
 		ReleaseCapturedObject3D();
 	}
 	else
 	{
-		SetTerrainEditMode(CTerrain::EEditMode::Masking);
+		if (m_Terrain) m_Terrain->ShouldShowSelection(FALSE);
 	}
 }
 
@@ -1627,6 +1647,11 @@ void CGame::Animate()
 
 void CGame::Draw(float DeltaTime)
 {
+	m_cbEditorTimeData.NormalizedTime += DeltaTime;
+	m_cbEditorTimeData.NormalizedTimeHalfSpeed += DeltaTime * 0.5f;
+	if (m_cbEditorTimeData.NormalizedTime > 1.0f) m_cbEditorTimeData.NormalizedTime = 0.0f;
+	if (m_cbEditorTimeData.NormalizedTimeHalfSpeed > 1.0f) m_cbEditorTimeData.NormalizedTimeHalfSpeed = 0.0f;
+
 	m_cbWaterTimeData.Time += DeltaTime * 0.1f;
 	if (m_cbWaterTimeData.Time >= 1.0f) m_cbWaterTimeData.Time = 0.0f;
 
@@ -1998,7 +2023,7 @@ void CGame::DrawTerrain()
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain))
 	{
 		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
-		m_cbHSTessFactorData.TessFactor = m_Terrain->GetTessFactor();
+		m_cbHSTessFactor.TessFactor = m_Terrain->GetTerrainTessFactor();
 		m_HSTerrain->UpdateAllConstantBuffers();
 		m_HSTerrain->Use();
 

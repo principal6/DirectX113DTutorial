@@ -177,6 +177,13 @@ struct SCBWaterTimeData
 	float		Pads[3]{};
 };
 
+struct SCBEditorTimeData
+{
+	float		NormalizedTime{};
+	float		NormalizedTimeHalfSpeed{};
+	float		Pads[2]{};
+};
+
 class CGame
 {
 public:
@@ -268,7 +275,9 @@ public:
 	void UpdateVSSpace(const XMMATRIX& World);
 	void UpdateVS2DSpace(const XMMATRIX& World);
 	void UpdateVSAnimationBoneMatrices(const XMMATRIX* const BoneMatrices);
-	void UpdateVSTerrainData(const SCBVSTerrainData& Data);
+	void UpdateVSTerrainData(const CTerrain::SCBVSTerrainData& Data);
+
+	void UpdateHSTessFactor(float TessFactor);
 
 	void UpdateDSDisplacementData(bool bUseDisplacement);
 
@@ -276,6 +285,7 @@ public:
 
 	void UpdatePSBaseMaterial(const CMaterial& Material);
 	void UpdatePSTerrainSpace(const XMMATRIX& Matrix);
+	void UpdatePSTerrainSelection(const CTerrain::SCBPSTerrainSelectionData& Selection);
 	void UpdatePSBase2DFlagOn(EFlagPSBase2D Flag);
 	void UpdatePSBase2DFlagOff(EFlagPSBase2D Flag);
 
@@ -336,7 +346,8 @@ private:
 	void CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& Material);
 
 public:
-	void SetEditMode(EEditMode Mode);
+	void SetEditMode(EEditMode Mode, bool bForcedSet = false);
+	EEditMode GetEditMode() const { return m_eEditMode; }
 	void Pick();
 	void PickObject3D(const string& Name);
 	void ReleaseCapturedObject3D();
@@ -479,13 +490,13 @@ private:
 private:
 	SCBVSSpaceData				m_cbVSSpaceData{};
 	SCBVSAnimationBonesData		m_cbVSAnimationBonesData{};
-	SCBVSTerrainData			m_cbVSTerrainData{};
+	CTerrain::SCBVSTerrainData	m_cbVSTerrainData{};
 	SCBVSParticleSpaceData		m_cbVSParticleSpaceData{};
 
 	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
 
 	SCBHSCameraData				m_cbHSCameraData{};
-	SCBHSTessFactorData			m_cbHSTessFactorData{};
+	SCBHSTessFactorData			m_cbHSTessFactor{};
 
 	SCBDSSpaceData				m_cbDSSpaceData{};
 	SCBDSDisplacementData		m_cbDSDisplacementData{};
@@ -499,8 +510,10 @@ private:
 	SCBPSSkyTimeData			m_cbPSSkyTimeData{};
 	SCBWaterTimeData			m_cbWaterTimeData{};
 
-	SCBPS2DFlagsData			m_cbPS2DFlagsData{};
-	SCBPSTerrainSpaceData		m_cbPSTerrainSpaceData{};
+	SCBPS2DFlagsData					m_cbPS2DFlagsData{};
+	SCBPSTerrainSpaceData				m_cbPSTerrainSpaceData{};
+	CTerrain::SCBPSTerrainSelectionData	m_cbPSTerrainSelectionData{};
+	SCBEditorTimeData					m_cbEditorTimeData{};
 
 private:
 	vector<unique_ptr<CShader>>				m_vShaders{};
