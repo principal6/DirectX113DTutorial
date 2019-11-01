@@ -520,6 +520,8 @@ private:
 
 	vector<unique_ptr<CObject3D>>			m_vObject3DMiniAxes{};
 
+	string									m_SkyFileName{};
+	float									m_SkyScalingFactor{};
 	SSkyData								m_SkyData{};
 	CMaterial								m_SkyMaterial{};
 	unique_ptr<CObject3D>					m_Object3DSkySphere{};

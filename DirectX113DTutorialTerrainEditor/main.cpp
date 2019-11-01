@@ -273,7 +273,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
 						if (FileDialog.OpenFileDialog("지형 파일(*.terr)\0*.terr\0", "지형 파일 불러오기"))
 						{
-							Game.LoadTerrain(FileDialog.GetFileName());
+							Game.LoadTerrain(FileDialog.GetRelativeFileName());
 						}
 						bShowOpenFileDialog = false;
 					}
@@ -285,7 +285,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
 							if (FileDialog.SaveFileDialog("지형 파일(*.terr)\0*.terr\0", "지형 파일 내보내기", ".terr"))
 							{
-								Game.SaveTerrain(FileDialog.GetFileName());
+								Game.SaveTerrain(FileDialog.GetRelativeFileName());
 							}
 						}
 
@@ -379,6 +379,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				{
 					ImGui::SetNextWindowPos(ImVec2(400, 22), ImGuiCond_Appearing);
 					ImGui::SetNextWindowSizeConstraints(ImVec2(400, 100), ImVec2(400, 578));
+					
 					if (ImGui::Begin(u8"속성 편집기", &bShowPropertyEditor, ImGuiWindowFlags_AlwaysAutoResize))
 					{
 						if (ImGui::BeginTabBar(u8"탭바", ImGuiTabBarFlags_None))
@@ -428,7 +429,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										XMVectorGetX(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
 										XMVectorGetY(Object3D->ComponentPhysics.BoundingSphere.CenterOffset), 
 										XMVectorGetZ(Object3D->ComponentPhysics.BoundingSphere.CenterOffset) };
-									if (ImGui::DragFloat3(u8"Bounding Sphere 중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
+									if (ImGui::DragFloat3(u8"BS 중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
 										CGame::KBSCenterOffsetMinLimit, CGame::KBSCenterOffsetMaxLimit, "%.2f"))
 									{
 										Object3D->ComponentPhysics.BoundingSphere.CenterOffset =
@@ -436,7 +437,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									}
 
 									float BSRadius{ Object3D->ComponentPhysics.BoundingSphere.Radius };
-									if (ImGui::DragFloat(u8"Bounding Sphere 반지름", &BSRadius, CGame::KBSRadiusUnit,
+									if (ImGui::DragFloat(u8"BS 반지름", &BSRadius, CGame::KBSRadiusUnit,
 										CGame::KBSRadiusMinLimit, CGame::KBSRadiusMaxLimit, "%.2f"))
 									{
 										Object3D->ComponentPhysics.BoundingSphere.Radius = BSRadius;
@@ -458,7 +459,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								CTerrain* Terrain{ Game.GetTerrain() };
 								if (Terrain)
 								{
-									static bool bShouldRecalculateTerrainVertexNormals{ false };
 									static float TerrainSelectionSize{ CTerrain::KSelectionMinSize };
 									static float TerrainSetHeightValue{};
 									static float TerrainDeltaHeightValue{ CTerrain::KHeightUnit };
@@ -466,11 +466,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									static float TerrainMaskingRadius{ CTerrain::KMaskingDefaultRadius };
 									static float TerrainMaskingRatio{ CTerrain::KMaskingDefaultRatio };
 									static float TerrainMaskingAttenuation{ CTerrain::KMaskingDefaultAttenuation };
-									const char* Lists[]{ u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<마스킹 모드>" };
-									static int iSelectedItem{};
+									static const char* const KModeLabelList[3]{ u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<마스킹 모드>" };
+									static int iSelectedMode{};
 
-									const XMFLOAT2& TerrainSize{ Terrain->GetSize() };
-									ImGui::Text(u8"가로 x 세로: %d x %d", (int)TerrainSize.x, (int)TerrainSize.y);
+									const XMFLOAT2& KTerrainSize{ Terrain->GetSize() };
+									ImGui::Text(u8"가로 x 세로: %d x %d", (int)KTerrainSize.x, (int)KTerrainSize.y);
 									ImGui::Text(u8"마스킹 디테일: %d", (int)Game.GetTerrain()->GetMaskingDetail());
 
 									ImGui::SetNextItemWidth(100);
@@ -496,13 +496,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 									ImGui::Separator();
 
-									for (int iListItem = 0; iListItem < ARRAYSIZE(Lists); ++iListItem)
+									for (int iListItem = 0; iListItem < ARRAYSIZE(KModeLabelList); ++iListItem)
 									{
-										if (ImGui::Selectable(Lists[iListItem], (iListItem == iSelectedItem) ? true : false))
+										if (ImGui::Selectable(KModeLabelList[iListItem], (iListItem == iSelectedMode) ? true : false))
 										{
-											iSelectedItem = iListItem;
+											iSelectedMode = iListItem;
 
-											switch (iSelectedItem)
+											switch (iSelectedMode)
 											{
 											case 0:
 												Game.SetTerrainEditMode(CTerrain::EEditMode::SetHeight);
@@ -519,7 +519,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										}
 									}
 
-									if (iSelectedItem == 0)
+									if (iSelectedMode == 0)
 									{
 										ImGui::PushItemWidth(100);
 										if (ImGui::DragFloat(u8"지정할 높이", &TerrainSetHeightValue, CTerrain::KHeightUnit,
@@ -529,7 +529,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										}
 										ImGui::PopItemWidth();
 									}
-									else if (iSelectedItem == 2)
+									else if (iSelectedMode == 2)
 									{
 										ImGui::PushItemWidth(100);
 										if (ImGui::SliderInt(u8"마스킹 레이어", &TerrainMaskingLayer, 0, CTerrain::KMaterialMaxCount - 2))
@@ -571,7 +571,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										ImGui::PopItemWidth();
 									}
 
-									if (iSelectedItem == 2)
+									if (iSelectedMode == 2)
 									{
 										ImGui::PushItemWidth(100);
 										if (ImGui::DragFloat(u8"마스킹 반지름", &TerrainMaskingRadius, CTerrain::KMaskingRadiusUnit,
@@ -716,8 +716,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								static float SpecularColor[3]{};
 								static float SpecularExponent{};
 								static float SpecularIntensity{};
-								static constexpr const char KLabelAdd[]{ u8"추가" };
-								static constexpr const char KLabelChange[]{ u8"변경" };
+								static const char KLabelAdd[]{ u8"추가" };
+								static const char KLabelChange[]{ u8"변경" };
 
 								static constexpr size_t KNameMaxLength{ 255 };
 								static char OldName[KNameMaxLength]{};
@@ -782,8 +782,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 											Material->SetSpecularIntensity(SpecularIntensity);
 										}
 
-										static constexpr const char KTextureDialogFilter[]{ "PNG 파일\0*.png\0JPG 파일\0*.jpg\0모든 파일\0*.*\0" };
-										static constexpr const char KTextureDialogTitle[]{ "텍스쳐 불러오기" };
+										static const char KTextureDialogFilter[]{ "PNG 파일\0*.png\0JPG 파일\0*.jpg\0모든 파일\0*.*\0" };
+										static const char KTextureDialogTitle[]{ "텍스쳐 불러오기" };
 
 										// Diffuse texture
 										{
@@ -816,7 +816,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 												static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
 												if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 												{
-													Material->SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, FileDialog.GetFileName());
+													Material->SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, FileDialog.GetRelativeFileName());
 													Game.LoadMaterial(pairMaterial.first);
 												}
 											}
@@ -853,7 +853,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 												static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
 												if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 												{
-													Material->SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, FileDialog.GetFileName());
+													Material->SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, FileDialog.GetRelativeFileName());
 													Game.LoadMaterial(pairMaterial.first);
 												}
 											}
@@ -890,7 +890,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 												static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
 												if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 												{
-													Material->SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, FileDialog.GetFileName());
+													Material->SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, FileDialog.GetRelativeFileName());
 													Game.LoadMaterial(pairMaterial.first);
 												}
 											}
@@ -1044,7 +1044,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
 							if (FileDialog.SaveFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 파일 내보내기", ".scene"))
 							{
-								Game.SaveScene(FileDialog.GetFileName());
+								Game.SaveScene(FileDialog.GetRelativeFileName());
 							}
 							
 						}
@@ -1056,7 +1056,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
 							if (FileDialog.OpenFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 파일 불러오기"))
 							{
-								Game.LoadScene(FileDialog.GetFileName());
+								Game.LoadScene(FileDialog.GetRelativeFileName());
 							}
 						}
 
@@ -1139,7 +1139,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
 						if (FileDialog.OpenFileDialog("FBX 파일\0*.fbx\0모든 파일\0*.*\0", "모델 불러오기"))
 						{
-							strcpy_s(ModelFileNameWithPath, FileDialog.GetFileName().c_str());
+							strcpy_s(ModelFileNameWithPath, FileDialog.GetRelativeFileName().c_str());
 							strcpy_s(ModelFileNameWithoutPath, FileDialog.GetFileNameWithoutPath().c_str());
 						}
 						bShowLoadModelDialog = false;

@@ -13,6 +13,7 @@ public:
 
 	const string& GetFileName() const { return m_FileName; }
 	const string& GetFileNameWithoutPath() const { return m_FileNameWithoutPath; }
+	const string& GetRelativeFileName() const { return m_RelativeFileName; }
 
 private:
 	const char* const	m_WorkingDirectory{};
@@ -20,5 +21,6 @@ private:
 private:
 	string				m_FileName{};
 	string				m_FileNameWithoutPath{};
+	string				m_RelativeFileName{};
 	OPENFILENAME		m_OpenFileName{};
 };

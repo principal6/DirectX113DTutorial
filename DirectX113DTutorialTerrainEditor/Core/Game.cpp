@@ -151,7 +151,14 @@ void CGame::LoadScene(const string& FileName)
 		if (strcmp(ID, "Terrain") == 0)
 		{
 			const char* TerrainFileName{ xmlSceneChild->Attribute("FileName") };
-			LoadTerrain(TerrainFileName);
+			if (TerrainFileName) LoadTerrain(TerrainFileName);
+		}
+
+		if (strcmp(ID, "Sky") == 0)
+		{
+			const char* SkyFileName{ xmlSceneChild->Attribute("FileName") };
+			float ScalingFactor{ xmlSceneChild->FloatAttribute("ScalingFactor") };
+			if (SkyFileName) SetSky(SkyFileName, ScalingFactor);
 		}
 	}
 }
@@ -254,6 +261,18 @@ void CGame::SaveScene(const string& FileName)
 			}
 
 			xmlRoot->InsertEndChild(xmlTerrain);
+		}
+
+		XMLElement* xmlSky{ xmlDocument.NewElement("Sky") };
+		xmlSky->SetAttribute("ID", "Sky");
+		{
+			if (m_SkyData.bIsDataSet)
+			{
+				xmlSky->SetAttribute("FileName", m_SkyFileName.c_str());
+				xmlSky->SetAttribute("ScalingFactor", m_SkyScalingFactor);
+			}
+
+			xmlRoot->InsertEndChild(xmlSky);
 		}
 	}
 	xmlDocument.InsertEndChild(xmlRoot);
@@ -367,6 +386,9 @@ void CGame::UpdatePSBase2DFlagOff(EFlagPSBase2D Flag)
 void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 {
 	using namespace tinyxml2;
+
+	m_SkyFileName = SkyDataFileName;
+	m_SkyScalingFactor = ScalingFactor;
 
 	size_t Point{ SkyDataFileName.find_last_of('.') };
 	string Extension{ SkyDataFileName.substr(Point + 1) };
@@ -511,6 +533,8 @@ void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material
 
 void CGame::LoadTerrain(const string& TerrainFileName)
 {
+	if (TerrainFileName.empty()) return;
+
 	m_Terrain.release();
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Load(TerrainFileName);
@@ -528,6 +552,7 @@ void CGame::LoadTerrain(const string& TerrainFileName)
 void CGame::SaveTerrain(const string& TerrainFileName)
 {
 	if (!m_Terrain) return;
+	if (TerrainFileName.empty()) return;
 
 	m_Terrain->Save(TerrainFileName);
 }

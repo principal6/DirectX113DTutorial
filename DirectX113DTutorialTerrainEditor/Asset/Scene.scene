@@ -1,7 +1,7 @@
 <Scene>
     <ObjectList ID="ObjectList">
         <Object Name="farmhouse">
-            <Model ID="Model" FileName="C:\Users\jesus\Documents\GitHub\DirectX113DTutorial\DirectX113DTutorialTerrainEditor\Asset\farmhouse.FBX"/>
+            <Model ID="Model" FileName="Asset\farmhouse.FBX"/>
             <Translation ID="Translation" x="0" y="0" z="7.5000038"/>
             <Rotation ID="Rotation" Pitch="0" Yaw="3.1066864" Roll="0"/>
             <Scaling ID="Scaling" x="0.2" y="0.2" z="0.2"/>
@@ -9,7 +9,7 @@
             <BSRadius ID="BSRadius" Value="2.4100001"/>
         </Object>
         <Object Name="tree">
-            <Model ID="Model" FileName="C:\Users\jesus\Documents\GitHub\DirectX113DTutorial\DirectX113DTutorialTerrainEditor\Asset\tree_rezashams313.fbx"/>
+            <Model ID="Model" FileName="Asset\tree_rezashams313.fbx"/>
             <Translation ID="Translation" x="-1.5000001" y="0" z="6.4999981"/>
             <Rotation ID="Rotation" Pitch="0" Yaw="0" Roll="0"/>
             <Scaling ID="Scaling" x="1" y="1" z="1"/>
@@ -17,13 +17,22 @@
             <BSRadius ID="BSRadius" Value="1"/>
         </Object>
         <Object Name="temple">
-            <Model ID="Model" FileName="C:\Users\jesus\Documents\GitHub\DirectX113DTutorial\DirectX113DTutorialTerrainEditor\Asset\temple.FBX"/>
+            <Model ID="Model" FileName="Asset\temple.FBX"/>
             <Translation ID="Translation" x="-15.9" y="0.60000002" z="0"/>
             <Rotation ID="Rotation" Pitch="0" Yaw="-1.5707965" Roll="0"/>
             <Scaling ID="Scaling" x="0.0020000001" y="0.0020000001" z="0.0020000001"/>
             <BSCenterOffset ID="BSCenterOffset" x="5.3099999" y="-0.72000003" z="-2.6400001"/>
             <BSRadius ID="BSRadius" Value="7.9400001"/>
         </Object>
+        <Object Name="ybot">
+            <Model ID="Model" FileName="Asset\ybot_mixamo_idle.fbx"/>
+            <Translation ID="Translation" x="0" y="0" z="0"/>
+            <Rotation ID="Rotation" Pitch="0" Yaw="0" Roll="0"/>
+            <Scaling ID="Scaling" x="0.0040000002" y="0.0040000002" z="0.0040000002"/>
+            <BSCenterOffset ID="BSCenterOffset" x="0" y="0" z="0"/>
+            <BSRadius ID="BSRadius" Value="1"/>
+        </Object>
     </ObjectList>
-    <Terrain ID="Terrain" FileName="C:\Users\jesus\Documents\GitHub\DirectX113DTutorial\DirectX113DTutorialTerrainEditor\Asset\medium.terr"/>
+    <Terrain ID="Terrain" FileName="Asset\medium.terr"/>
+    <Sky ID="Sky" FileName="Asset\Sky.xml" ScalingFactor="30"/>
 </Scene>
