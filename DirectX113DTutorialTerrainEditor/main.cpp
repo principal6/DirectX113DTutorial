@@ -879,7 +879,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 											ImGui::SameLine();
 
-											ImGui::PushID(1);
+											ImGui::PushID(2);
 											if (ImGui::Button(PtrDisplacementTextureLabel))
 											{
 												if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
