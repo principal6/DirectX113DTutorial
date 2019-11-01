@@ -1,5 +1,6 @@
 #include <chrono>
 #include "Core/Game.h"
+#include "Core/FileDialog.h"
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_win32.h"
 #include "ImGui/imgui_impl_dx11.h"
@@ -106,6 +107,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	igIO.Fonts->AddFontDefault();
 	ImFont* igFont{ igIO.Fonts->AddFontFromFileTTF("Asset/D2Coding.ttf", 16.0f, nullptr, igIO.Fonts->GetGlyphRangesKorean()) };
 	
+	// Main loop
 	while (true)
 	{
 		static MSG Msg{};
@@ -268,11 +270,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (bShowOpenFileDialog)
 					{
-						if (Game.OpenFileDialog("지형 파일(*.terr)\0*.terr\0", "지형 파일 불러오기"))
+						static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+						if (FileDialog.OpenFileDialog("지형 파일(*.terr)\0*.terr\0", "지형 파일 불러오기"))
 						{
-							Game.LoadTerrain(Game.GetDialogFileNameWithPath());
+							Game.LoadTerrain(FileDialog.GetFileName());
 						}
-
 						bShowOpenFileDialog = false;
 					}
 
@@ -280,9 +282,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					{
 						if (Game.GetTerrain())
 						{
-							if (Game.SaveFileDialog("지형 파일(*.terr)\0*.terr\0", "지형 파일 내보내기", ".terr"))
+							static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+							if (FileDialog.SaveFileDialog("지형 파일(*.terr)\0*.terr\0", "지형 파일 내보내기", ".terr"))
 							{
-								Game.SaveTerrain(Game.GetDialogFileNameWithPath());
+								Game.SaveTerrain(FileDialog.GetFileName());
 							}
 						}
 
@@ -810,9 +813,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 											ImGui::PushID(0);
 											if (ImGui::Button(PtrDiffuseTextureLabel))
 											{
-												if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
+												static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+												if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 												{
-													Material->SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, Game.GetDialogFileNameWithPath());
+													Material->SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, FileDialog.GetFileName());
 													Game.LoadMaterial(pairMaterial.first);
 												}
 											}
@@ -846,9 +850,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 											ImGui::PushID(1);
 											if (ImGui::Button(PtrNormalTextureLabel))
 											{
-												if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
+												static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+												if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 												{
-													Material->SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, Game.GetDialogFileNameWithPath());
+													Material->SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, FileDialog.GetFileName());
 													Game.LoadMaterial(pairMaterial.first);
 												}
 											}
@@ -882,9 +887,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 											ImGui::PushID(2);
 											if (ImGui::Button(PtrDisplacementTextureLabel))
 											{
-												if (Game.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
+												static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+												if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 												{
-													Material->SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, Game.GetDialogFileNameWithPath());
+													Material->SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, FileDialog.GetFileName());
 													Game.LoadMaterial(pairMaterial.first);
 												}
 											}
@@ -1006,6 +1012,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 				static bool bShowAddObject3D{ false };
 				static bool bShowLoadModelDialog{ false };
+
 				// ### 장면 편집기 윈도우 ###
 				if (bShowSceneEditor)
 				{
@@ -1034,14 +1041,23 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 						if (ImGui::Button(u8"저장"))
 						{
-							Game.SaveScene("Asset\\Scene.xml");
+							static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+							if (FileDialog.SaveFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 파일 내보내기", ".scene"))
+							{
+								Game.SaveScene(FileDialog.GetFileName());
+							}
+							
 						}
 
 						ImGui::SameLine();
 
 						if (ImGui::Button(u8"열기"))
 						{
-							Game.LoadScene("Asset\\Scene.xml");
+							static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+							if (FileDialog.OpenFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 파일 불러오기"))
+							{
+								Game.LoadScene(FileDialog.GetFileName());
+							}
 						}
 
 						ImGui::Columns(1, "Object3Ds");
@@ -1120,10 +1136,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (bShowLoadModelDialog)
 					{
-						if (Game.OpenFileDialog("FBX 파일\0*.fbx\0모든 파일\0*.*\0", "모델 불러오기"))
+						static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+						if (FileDialog.OpenFileDialog("FBX 파일\0*.fbx\0모든 파일\0*.*\0", "모델 불러오기"))
 						{
-							strcpy_s(ModelFileNameWithPath, Game.GetDialogFileNameWithPath());
-							strcpy_s(ModelFileNameWithoutPath, Game.GetDialogFileNameWithoutPath());
+							strcpy_s(ModelFileNameWithPath, FileDialog.GetFileName().c_str());
+							strcpy_s(ModelFileNameWithoutPath, FileDialog.GetFileNameWithoutPath().c_str());
 						}
 						bShowLoadModelDialog = false;
 					}

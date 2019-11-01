@@ -235,11 +235,6 @@ public:
 	void LoadScene(const string& FileName);
 	void SaveScene(const string& FileName);
 
-	bool OpenFileDialog(const char* const Filter, const char* const Title);
-	bool SaveFileDialog(const char* const Filter, const char* const Title, const char* const DefaultExtension);
-	const char* GetDialogFileNameWithPath() const;
-	const char* GetDialogFileNameWithoutPath() const;
-
 private:
 	void CreateWin32Window(WNDPROC const WndProc, LPCTSTR const WindowName);
 	void InitializeDirectX(const wstring& FontFileName, bool bWindowed);
@@ -381,6 +376,7 @@ public:
 	float GetSkyTime() const;
 	XMMATRIX GetTransposedVPMatrix() const;
 	ID3D11DepthStencilState* GetDepthStencilStateLessEqualNoWrite() const { return m_DepthStencilStateLessEqualNoWrite.Get(); }
+	const char* GetWorkingDirectory() const { return m_WorkingDirectory; }
 
 private:
 	void UpdateObject3D(CObject3D* const PtrObject3D);
@@ -562,9 +558,6 @@ private:
 	HINSTANCE		m_hInstance{};
 	XMFLOAT2		m_WindowSize{};
 	char			m_WorkingDirectory[MAX_PATH]{};
-	char			m_DialogFileName[MAX_PATH]{};
-	string			m_DialogFileNameWithoutPath{};
-	OPENFILENAME	m_OpenFileName{};
 
 private:
 	XMMATRIX		m_MatrixProjection{};

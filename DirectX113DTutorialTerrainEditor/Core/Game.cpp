@@ -261,64 +261,6 @@ void CGame::SaveScene(const string& FileName)
 	xmlDocument.SaveFile(FileName.c_str());
 }
 
-bool CGame::OpenFileDialog(const char* const Filter, const char* const Title)
-{
-	m_OpenFileName.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
-	m_OpenFileName.lpstrDefExt = nullptr;
-	m_OpenFileName.lpstrFilter = Filter;
-	m_OpenFileName.lpstrFile = m_DialogFileName;
-	m_OpenFileName.lpstrTitle = Title;
-	m_OpenFileName.lStructSize = sizeof(OPENFILENAME);
-	m_OpenFileName.nMaxFile = MAX_PATH;
-	
-	BOOL Result{ GetOpenFileName(&m_OpenFileName) };
-
-	SetCurrentDirectoryA(m_WorkingDirectory);
-	
-	m_DialogFileNameWithoutPath = m_DialogFileName;
-	if (m_DialogFileNameWithoutPath.size())
-	{
-		size_t Found{ m_DialogFileNameWithoutPath.find_last_of('\\') };
-		m_DialogFileNameWithoutPath = m_DialogFileNameWithoutPath.substr(Found + 1);
-	}
-	
-	return Result;
-}
-
-bool CGame::SaveFileDialog(const char* const Filter, const char* const Title, const char* const DefaultExtension)
-{
-	m_OpenFileName.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
-	m_OpenFileName.lpstrDefExt = DefaultExtension;
-	m_OpenFileName.lpstrFilter = Filter;
-	m_OpenFileName.lpstrFile = m_DialogFileName;
-	m_OpenFileName.lpstrTitle = Title;
-	m_OpenFileName.lStructSize = sizeof(OPENFILENAME);
-	m_OpenFileName.nMaxFile = MAX_PATH;
-
-	BOOL Result{ GetSaveFileName(&m_OpenFileName) };
-
-	SetCurrentDirectoryA(m_WorkingDirectory);
-
-	m_DialogFileNameWithoutPath = m_DialogFileName;
-	if (m_DialogFileNameWithoutPath.size())
-	{
-		size_t Found{ m_DialogFileNameWithoutPath.find_last_of('\\') };
-		m_DialogFileNameWithoutPath = m_DialogFileNameWithoutPath.substr(Found + 1);
-	}
-
-	return Result;
-}
-
-const char* CGame::GetDialogFileNameWithPath() const
-{
-	return m_DialogFileName;
-}
-
-const char* CGame::GetDialogFileNameWithoutPath() const
-{
-	return m_DialogFileNameWithoutPath.c_str();
-}
-
 void CGame::SetPerspective(float FOV, float NearZ, float FarZ)
 {
 	m_NearZ = NearZ;
