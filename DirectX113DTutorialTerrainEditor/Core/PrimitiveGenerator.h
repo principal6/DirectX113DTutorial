@@ -6,7 +6,6 @@
 #include <unordered_map>
 
 static const XMVECTOR KColorWhite{ XMVectorSet(1, 1, 1 ,1) };
-static const XMMATRIX KMatrixIdentity{ XMMatrixIdentity() };
 
 static string ConvertXMVECTORToString(const XMVECTOR& Vector);
 static void CalculateNormals(SMesh& Mesh);

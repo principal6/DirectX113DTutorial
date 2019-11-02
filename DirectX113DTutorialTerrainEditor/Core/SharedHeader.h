@@ -51,6 +51,8 @@ struct STriangle
 	uint32_t I2{};
 };
 
+static const XMMATRIX KMatrixIdentity{ XMMatrixIdentity() };
+
 #define ENUM_CLASS_FLAG(enum_type)\
 static enum_type operator|(enum_type a, enum_type b)\
 {\

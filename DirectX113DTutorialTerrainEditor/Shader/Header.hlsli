@@ -13,6 +13,12 @@ struct VS_INPUT
 	float3 UV			: TEXCOORD;
 	float4 Normal		: NORMAL;
 	float4 Tangent		: TANGENT;
+
+	// Instance
+	float4 InstanceWorld0	: INSTANCEWORLD0;
+	float4 InstanceWorld1	: INSTANCEWORLD1;
+	float4 InstanceWorld2	: INSTANCEWORLD2;
+	float4 InstanceWorld3	: INSTANCEWORLD3;
 };
 
 struct VS_INPUT_ANIMATION

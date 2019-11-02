@@ -2,7 +2,7 @@
 
 cbuffer cbSpace : register(b0)
 {
-	float4x4 WVP;
+	float4x4 ViewProjection;
 	float4x4 World;
 }
 
@@ -30,9 +30,9 @@ VS_OUTPUT main(VS_INPUT input)
 
 	float4 ResultPosition = input.Position;
 	ResultPosition.y = GetHeightFromHeightMap(ResultPosition.xz);
-
-	output.Position = mul(ResultPosition, WVP);
 	output.WorldPosition = mul(ResultPosition, World);
+	output.Position = mul(output.WorldPosition, ViewProjection);
+
 	output.Color = input.Color;
 	output.UV = input.UV;
 

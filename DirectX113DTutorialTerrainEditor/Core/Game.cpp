@@ -11,6 +11,11 @@ static constexpr D3D11_INPUT_ELEMENT_DESC KBaseInputElementDescs[]
 
 	{ "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT	, 1,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	{ "BLENDWEIGHT"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 1, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+
+	{ "INSTANCEWORLD"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2,  0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+	{ "INSTANCEWORLD"	, 1, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+	{ "INSTANCEWORLD"	, 2, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+	{ "INSTANCEWORLD"	, 3, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
 };
 
 static constexpr D3D11_INPUT_ELEMENT_DESC KVSLineInputElementDescs[]
@@ -336,7 +341,7 @@ void CGame::Set3DGizmoMode(E3DGizmoMode Mode)
 void CGame::UpdateVSSpace(const XMMATRIX& World)
 {
 	m_cbVSSpaceData.World = XMMatrixTranspose(World);
-	m_cbVSSpaceData.WVP = XMMatrixTranspose(World * m_MatrixView * m_MatrixProjection);
+	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
 }
 
 void CGame::UpdateVS2DSpace(const XMMATRIX& World)
@@ -827,6 +832,10 @@ void CGame::CreateBaseShaders()
 	m_VSBase->Create(EShaderType::VertexShader, L"Shader\\VSBase.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSBase->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
 
+	m_VSInstance = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_VSInstance->Create(EShaderType::VertexShader, L"Shader\\VSInstance.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+	m_VSInstance->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
+
 	m_VSAnimation = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSAnimation->Create(EShaderType::VertexShader, L"Shader\\VSAnimation.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSAnimation->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
@@ -1138,6 +1147,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::VSBase:
 		Result = m_VSBase.get();
 		break;
+	case EBaseShader::VSInstance:
+		Result = m_VSInstance.get();
+		break;
 	case EBaseShader::VSAnimation:
 		Result = m_VSAnimation.get();
 		break;
@@ -1241,6 +1253,7 @@ void CGame::InsertObject3D(const string& Name)
 void CGame::EraseObject3D(const string& Name)
 {
 	if (!m_vObject3Ds.size()) return;
+	if (Name.length() == 0) return;
 	if (m_mapObject3DNameToIndex.find(Name) == m_mapObject3DNameToIndex.end())
 	{
 		MessageBox(nullptr, string("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "이름 검색 실패", MB_OK | MB_ICONEXCLAMATION);
@@ -1256,13 +1269,11 @@ void CGame::EraseObject3D(const string& Name)
 		m_mapObject3DNameToIndex[SwappedName] = iObject3D;
 	}
 
-	if (m_PtrCapturedPickedObject3D)
+	if (IsAnyObject3DSelected())
 	{
-		const string& CapturedObject3DName{ m_PtrCapturedPickedObject3D->GetName() };
-		if (Name == CapturedObject3DName)
+		if (Name == GetSelectedObject3DName())
 		{
-			m_PtrPickedObject3D = nullptr;
-			m_PtrCapturedPickedObject3D = nullptr;
+			DeselectObject3D();
 		}
 	}
 
@@ -1276,8 +1287,7 @@ void CGame::ClearObject3Ds()
 	m_mapObject3DNameToIndex.clear();
 	m_vObject3Ds.clear();
 
-	m_PtrPickedObject3D = nullptr;
-	m_PtrCapturedPickedObject3D = nullptr;
+	m_PtrSelectedObject3D = nullptr;
 }
 
 CObject3D* CGame::GetObject3D(const string& Name) const
@@ -1462,7 +1472,7 @@ void CGame::SetEditMode(EEditMode Mode, bool bForcedSet)
 	if (m_eEditMode == EEditMode::EditTerrain)
 	{
 		if (m_Terrain) m_Terrain->ShouldShowSelection(TRUE);
-		ReleaseCapturedObject3D();
+		DeselectObject3D();
 	}
 	else
 	{
@@ -1470,9 +1480,9 @@ void CGame::SetEditMode(EEditMode Mode, bool bForcedSet)
 	}
 }
 
-void CGame::Pick()
+bool CGame::Pick()
 {
-	if (m_eEditMode != EEditMode::EditObject) return;
+	if (m_eEditMode != EEditMode::EditObject) return false;
 
 	CastPickingRay();
 
@@ -1482,39 +1492,89 @@ void CGame::Pick()
 
 	PickTriangle();
 
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
-	{
-		if (m_PtrPickedObject3D) m_PtrCapturedPickedObject3D = m_PtrPickedObject3D;
-	}
+	if (m_PtrPickedObject3D) return true;
+	return false;
 }
 
-void CGame::PickObject3D(const string& Name)
+void CGame::SelectObject3D(const string& Name)
 {
 	if (m_eEditMode != EEditMode::EditObject) return;
 
-	m_PtrPickedObject3D = GetObject3D(Name);
-	
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
+	m_PtrSelectedObject3D = GetObject3D(Name);
+	if (m_PtrSelectedObject3D)
 	{
-		m_PtrCapturedPickedObject3D = m_PtrPickedObject3D;
+		if (!m_PtrSelectedObject3D->IsInstanced())
+		{
+			m_SelectedInstanceID = -1;
+			Interact3DGizmos();
+		}
 	}
 }
 
-void CGame::ReleaseCapturedObject3D()
+const string& CGame::GetSelectedObject3DName() const
 {
-	m_PtrCapturedPickedObject3D = nullptr;
+	if (m_PtrSelectedObject3D)
+	{
+		return m_PtrSelectedObject3D->GetName();
+	}
+	return m_NullString;
 }
 
-const char* CGame::GetPickedObject3DName() const
+void CGame::SelectInstance(int InstanceID)
 {
-	if (m_PtrPickedObject3D) return m_PtrPickedObject3D->GetName().c_str();
-	return nullptr;
+	m_SelectedInstanceID = InstanceID;
+
+	if (IsAnyObject3DSelected() && IsAnyInstanceSelected())
+	{
+		Interact3DGizmos();
+	}
 }
 
-const char* CGame::GetCapturedObject3DName() const
+void CGame::DeselectInstance()
 {
-	if (m_PtrCapturedPickedObject3D) return m_PtrCapturedPickedObject3D->GetName().c_str();
-	return nullptr;
+	m_SelectedInstanceID = -1;
+}
+
+bool CGame::IsAnyInstanceSelected() const
+{
+	return (m_SelectedInstanceID != -1) ? true : false;
+}
+
+int CGame::GetPickedInstanceID() const
+{
+	return m_PickedInstanceID;
+}
+
+bool CGame::IsAnyObject3DSelected() const
+{
+	return (m_PtrSelectedObject3D) ? true : false;
+}
+
+const string& CGame::GetPickedObject3DName() const
+{
+	if (m_PtrPickedObject3D)
+	{
+		return m_PtrPickedObject3D->GetName();
+	}
+	return m_NullString;
+}
+
+CObject3D* CGame::GetSelectedObject3D()
+{
+	return m_PtrSelectedObject3D;
+}
+
+int CGame::GetSelectedInstanceID() const
+{
+	return m_SelectedInstanceID;
+}
+
+void CGame::DeselectObject3D()
+{
+	const Mouse::State& MouseState{ m_Mouse->GetState() };
+
+	m_PtrSelectedObject3D = nullptr;
+	m_SelectedInstanceID = -1;
 }
 
 void CGame::CastPickingRay()
@@ -1536,6 +1596,7 @@ void CGame::CastPickingRay()
 void CGame::PickBoundingSphere()
 {
 	m_PtrPickedObject3D = nullptr;
+	m_PickedInstanceID = -1;
 
 	XMVECTOR T{ KVectorGreatest };
 	for (auto& i : m_vObject3Ds)
@@ -1558,14 +1619,36 @@ void CGame::PickBoundingSphere()
 			}
 			else
 			{
-				XMVECTOR NewT{ KVectorGreatest };
-				if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-					Object3D->ComponentPhysics.BoundingSphere.Radius, Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
+				if (Object3D->IsInstanced())
 				{
-					if (XMVector3Less(NewT, T))
+					int InstanceCount{ (int)Object3D->GetInstanceCount() };
+					for (int iInstance = 0; iInstance < InstanceCount; ++iInstance)
 					{
-						T = NewT;
-						m_PtrPickedObject3D = Object3D;
+						auto& Instance{ Object3D->GetInstance(iInstance) };
+						XMVECTOR NewT{ KVectorGreatest };
+						if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
+							Object3D->ComponentPhysics.BoundingSphere.Radius, Instance.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
+						{
+							if (XMVector3Less(NewT, T))
+							{
+								T = NewT;
+								m_PtrPickedObject3D = Object3D;
+								m_PickedInstanceID = iInstance;
+							}
+						}
+					}
+				}
+				else
+				{
+					XMVECTOR NewT{ KVectorGreatest };
+					if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
+						Object3D->ComponentPhysics.BoundingSphere.Radius, Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
+					{
+						if (XMVector3Less(NewT, T))
+						{
+							T = NewT;
+							m_PtrPickedObject3D = Object3D;
+						}
 					}
 				}
 			}
@@ -1683,7 +1766,7 @@ void CGame::Draw(float DeltaTime)
 	if (m_cbEditorTimeData.NormalizedTimeHalfSpeed > 1.0f) m_cbEditorTimeData.NormalizedTimeHalfSpeed = 0.0f;
 
 	m_cbWaterTimeData.Time += DeltaTime * 0.1f;
-	if (m_cbWaterTimeData.Time >= 1.0f) m_cbWaterTimeData.Time = 0.0f;
+	if (m_cbWaterTimeData.Time > 1.0f) m_cbWaterTimeData.Time = 0.0f;
 
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 
@@ -1735,6 +1818,9 @@ void CGame::Draw(float DeltaTime)
 		}
 	}
 
+	DrawObject3DLines();
+
+	// Transparent Object3Ds
 	for (auto& Object3D : m_vObject3Ds)
 	{
 		if (!Object3D->ComponentRender.bIsTransparent) continue;
@@ -1747,8 +1833,6 @@ void CGame::Draw(float DeltaTime)
 			DrawObject3DBoundingSphere(Object3D.get());
 		}
 	}
-
-	DrawObject3DLines();
 
 	DrawObject2Ds();
 }
@@ -1763,7 +1847,7 @@ void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
 	CShader* PS{ PtrObject3D->ComponentRender.PtrPS };
 
 	m_cbVSSpaceData.World = XMMatrixTranspose(PtrObject3D->ComponentTransform.MatrixWorld);
-	m_cbVSSpaceData.WVP = XMMatrixTranspose(PtrObject3D->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
+	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
 	PtrObject3D->UpdateWorldMatrix();
 
 	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::UseRawVertexColor))
@@ -1858,7 +1942,7 @@ void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
 		PtrObject3D->ComponentPhysics.BoundingSphere.Radius, PtrObject3D->ComponentPhysics.BoundingSphere.Radius) };
 	XMMATRIX World{ Scaling * Translation };
 	m_cbVSSpaceData.World = XMMatrixTranspose(World);
-	m_cbVSSpaceData.WVP = XMMatrixTranspose(World * m_MatrixView * m_MatrixProjection);
+	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
 	m_VSBase->UpdateConstantBuffer(0);
 
 	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
@@ -1882,7 +1966,7 @@ void CGame::DrawObject3DLines()
 			Object3DLine->UpdateWorldMatrix();
 
 			m_cbVSSpaceData.World = XMMatrixTranspose(Object3DLine->ComponentTransform.MatrixWorld);
-			m_cbVSSpaceData.WVP = XMMatrixTranspose(Object3DLine->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
+			m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
 			m_VSLine->UpdateConstantBuffer(0);
 
 			Object3DLine->Draw();
@@ -1961,7 +2045,7 @@ void CGame::DrawPickingRay()
 {
 	m_VSLine->Use();
 	m_cbVSSpaceData.World = XMMatrixTranspose(KMatrixIdentity);
-	m_cbVSSpaceData.WVP = XMMatrixTranspose(KMatrixIdentity * m_MatrixView * m_MatrixProjection);
+	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
 	m_VSLine->UpdateConstantBuffer(0);
 
 	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
@@ -1975,7 +2059,7 @@ void CGame::DrawPickedTriangle()
 {
 	m_VSBase->Use();
 	m_cbVSSpaceData.World = XMMatrixTranspose(KMatrixIdentity);
-	m_cbVSSpaceData.WVP = XMMatrixTranspose(KMatrixIdentity * m_MatrixView * m_MatrixProjection);
+	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
 	m_VSBase->UpdateConstantBuffer(0);
 
 	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
@@ -2086,6 +2170,214 @@ void CGame::DrawTerrain()
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 }
 
+void CGame::Interact3DGizmos()
+{
+	if (EFLAG_HAS_NO(m_eFlagsRendering, EFlagsRendering::Use3DGizmos)) return;
+	
+	if (IsAnyObject3DSelected())
+	{
+		if (m_PtrSelectedObject3D->IsInstanced() && !IsAnyInstanceSelected()) return;
+	}
+	else
+	{
+		return;
+	}
+
+	const Mouse::State& MouseState{ m_Mouse->GetState() };
+	XMVECTOR* pTranslation{ &m_PtrSelectedObject3D->ComponentTransform.Translation };
+	XMVECTOR* pScaling{ &m_PtrSelectedObject3D->ComponentTransform.Scaling };
+	float* pPitch{ &m_PtrSelectedObject3D->ComponentTransform.Pitch };
+	float* pYaw{ &m_PtrSelectedObject3D->ComponentTransform.Yaw };
+	float* pRoll{ &m_PtrSelectedObject3D->ComponentTransform.Roll };
+	if (m_SelectedInstanceID != -1)
+	{
+		auto& Instance{ m_PtrSelectedObject3D->GetInstance(m_SelectedInstanceID) };
+		pTranslation = &Instance.Translation;
+		pScaling = &Instance.Scaling;
+		pPitch = &Instance.Pitch;
+		pYaw = &Instance.Yaw;
+		pRoll = &Instance.Roll;
+	}
+
+	if (!MouseState.leftButton)
+	{
+		m_bIsGizmoSelected = false;
+	}
+
+	m_3DGizmoDistanceScalar = XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].GetEyePosition() - *pTranslation)) * 0.1f;
+	m_3DGizmoDistanceScalar = pow(m_3DGizmoDistanceScalar, 0.7f);
+
+	if (m_bIsGizmoSelected)
+	{
+		// Gizmo is selected.
+
+		int DeltaX{ MouseState.x - m_PrevMouseX };
+		int DeltaY{ MouseState.y - m_PrevMouseY };
+
+		int DeltaSum{ DeltaY - DeltaX };
+
+		float TranslationX{ XMVectorGetX(*pTranslation) };
+		float TranslationY{ XMVectorGetY(*pTranslation) };
+		float TranslationZ{ XMVectorGetZ(*pTranslation) };
+
+		float ScalingX{ XMVectorGetX(*pScaling) };
+		float ScalingY{ XMVectorGetY(*pScaling) };
+		float ScalingZ{ XMVectorGetZ(*pScaling) };
+
+		switch (m_e3DGizmoMode)
+		{
+		case E3DGizmoMode::Translation:
+			switch (m_e3DGizmoSelectedAxis)
+			{
+			case E3DGizmoAxis::AxisX:
+				*pTranslation =
+					XMVectorSetX(*pTranslation, TranslationX - DeltaSum * CGame::KTranslationUnit);
+				break;
+			case E3DGizmoAxis::AxisY:
+				*pTranslation =
+					XMVectorSetY(*pTranslation, TranslationY - DeltaSum * CGame::KTranslationUnit);
+				break;
+			case E3DGizmoAxis::AxisZ:
+				*pTranslation =
+					XMVectorSetZ(*pTranslation, TranslationZ - DeltaSum * CGame::KTranslationUnit);
+				break;
+			default:
+				break;
+			}
+			break;
+		case E3DGizmoMode::Rotation:
+			switch (m_e3DGizmoSelectedAxis)
+			{
+			case E3DGizmoAxis::AxisX:
+				*pPitch -= DeltaSum * CGame::KRotation360To2PI;
+				break;
+			case E3DGizmoAxis::AxisY:
+				*pYaw -= DeltaSum * CGame::KRotation360To2PI;
+				break;
+			case E3DGizmoAxis::AxisZ:
+				*pRoll -= DeltaSum * CGame::KRotation360To2PI;
+				break;
+			default:
+				break;
+			}
+			break;
+		case E3DGizmoMode::Scaling:
+			switch (m_e3DGizmoSelectedAxis)
+			{
+			case E3DGizmoAxis::AxisX:
+				*pScaling =
+					XMVectorSetX(*pScaling, ScalingX - DeltaSum * CGame::KScalingUnit);
+				break;
+			case E3DGizmoAxis::AxisY:
+				*pScaling =
+					XMVectorSetY(*pScaling, ScalingY - DeltaSum * CGame::KScalingUnit);
+				break;
+			case E3DGizmoAxis::AxisZ:
+				*pScaling =
+					XMVectorSetZ(*pScaling, ScalingZ - DeltaSum * CGame::KScalingUnit);
+				break;
+			default:
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+
+		m_PtrSelectedObject3D->UpdateInstanceWorldMatrix(m_SelectedInstanceID);
+	}
+	else
+	{
+		// Gizmo is not selected.
+
+		CastPickingRay();
+
+		const XMVECTOR& BSTransaltion{ m_PtrSelectedObject3D->ComponentPhysics.BoundingSphere.CenterOffset };
+
+		switch (m_e3DGizmoMode)
+		{
+		case E3DGizmoMode::Translation:
+			m_Object3D_3DGizmoTranslationX->ComponentTransform.Translation =
+				m_Object3D_3DGizmoTranslationY->ComponentTransform.Translation =
+				m_Object3D_3DGizmoTranslationZ->ComponentTransform.Translation = *pTranslation + BSTransaltion;
+
+			m_bIsGizmoSelected = true;
+			if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationX.get(), E3DGizmoAxis::AxisX))
+			{
+				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
+			}
+			else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationY.get(), E3DGizmoAxis::AxisY))
+			{
+				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
+			}
+			else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationZ.get(), E3DGizmoAxis::AxisZ))
+			{
+				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
+			}
+			else
+			{
+				m_bIsGizmoSelected = false;
+			}
+
+			break;
+		case E3DGizmoMode::Rotation:
+			m_Object3D_3DGizmoRotationPitch->ComponentTransform.Translation =
+				m_Object3D_3DGizmoRotationYaw->ComponentTransform.Translation =
+				m_Object3D_3DGizmoRotationRoll->ComponentTransform.Translation = *pTranslation + BSTransaltion;
+
+			m_bIsGizmoSelected = true;
+			if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationPitch.get(), E3DGizmoAxis::AxisX))
+			{
+				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
+			}
+			else if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationYaw.get(), E3DGizmoAxis::AxisY))
+			{
+				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
+			}
+			else if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationRoll.get(), E3DGizmoAxis::AxisZ))
+			{
+				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
+			}
+			else
+			{
+				m_bIsGizmoSelected = false;
+			}
+
+			break;
+		case E3DGizmoMode::Scaling:
+			m_Object3D_3DGizmoScalingX->ComponentTransform.Translation =
+				m_Object3D_3DGizmoScalingY->ComponentTransform.Translation =
+				m_Object3D_3DGizmoScalingZ->ComponentTransform.Translation = *pTranslation + BSTransaltion;
+
+			m_bIsGizmoSelected = true;
+			if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingX.get(), E3DGizmoAxis::AxisX))
+			{
+				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
+			}
+			else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingY.get(), E3DGizmoAxis::AxisY))
+			{
+				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
+			}
+			else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingZ.get(), E3DGizmoAxis::AxisZ))
+			{
+				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
+			}
+			else
+			{
+				m_bIsGizmoSelected = false;
+			}
+
+			break;
+		default:
+			break;
+		}
+
+	}
+
+	m_PrevMouseX = MouseState.x;
+	m_PrevMouseY = MouseState.y;
+}
+
 bool CGame::ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis)
 {
 	XMVECTOR PlaneNormal{};
@@ -2150,217 +2442,29 @@ bool CGame::ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3
 
 void CGame::Draw3DGizmos()
 {
-	const Mouse::State& MouseState{ m_Mouse->GetState() };
-	static int PrevMouseX{ MouseState.x };
-	static int PrevMouseY{ MouseState.y };
-
-	if (!MouseState.leftButton)
+	if (IsAnyObject3DSelected())
 	{
-		m_bIsGizmoSelected = false;
+		if (m_PtrSelectedObject3D->IsInstanced() && !IsAnyInstanceSelected()) return;
+	}
+	else
+	{
+		return;
 	}
 
-	if (m_PtrCapturedPickedObject3D)
+	switch (m_e3DGizmoMode)
 	{
-		m_3DGizmoDistanceScalar =
-			XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].GetEyePosition() - 
-				m_PtrCapturedPickedObject3D->ComponentTransform.Translation)) * 0.1f;
-		m_3DGizmoDistanceScalar = pow(m_3DGizmoDistanceScalar, 0.7f);
-
-		if (m_bIsGizmoSelected)
-		{
-			if (MouseState.leftButton)
-			{
-				int DeltaX{ MouseState.x - PrevMouseX };
-				int DeltaY{ MouseState.y - PrevMouseY };
-
-				int DeltaSum{ DeltaX + DeltaY };
-
-				float TranslationX{ XMVectorGetX(m_PtrCapturedPickedObject3D->ComponentTransform.Translation) };
-				float TranslationY{ XMVectorGetY(m_PtrCapturedPickedObject3D->ComponentTransform.Translation) };
-				float TranslationZ{ XMVectorGetZ(m_PtrCapturedPickedObject3D->ComponentTransform.Translation) };
-
-				float ScalingX{ XMVectorGetX(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling) };
-				float ScalingY{ XMVectorGetY(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling) };
-				float ScalingZ{ XMVectorGetZ(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling) };
-
-				switch (m_e3DGizmoMode)
-				{
-				case E3DGizmoMode::Translation:
-					switch (m_e3DGizmoSelectedAxis)
-					{
-					case E3DGizmoAxis::AxisX:
-						m_PtrCapturedPickedObject3D->ComponentTransform.Translation =
-							XMVectorSetX(m_PtrCapturedPickedObject3D->ComponentTransform.Translation, TranslationX - DeltaSum * CGame::KTranslationUnit);
-						break;
-					case E3DGizmoAxis::AxisY:
-						m_PtrCapturedPickedObject3D->ComponentTransform.Translation =
-							XMVectorSetY(m_PtrCapturedPickedObject3D->ComponentTransform.Translation, TranslationY - DeltaSum * CGame::KTranslationUnit);
-						break;
-					case E3DGizmoAxis::AxisZ:
-						m_PtrCapturedPickedObject3D->ComponentTransform.Translation =
-							XMVectorSetZ(m_PtrCapturedPickedObject3D->ComponentTransform.Translation, TranslationZ - DeltaSum * CGame::KTranslationUnit);
-						break;
-					default:
-						break;
-					}
-
-					Draw3DGizmoTranslations(m_e3DGizmoSelectedAxis);
-
-					break;
-				case E3DGizmoMode::Rotation:
-					switch (m_e3DGizmoSelectedAxis)
-					{
-					case E3DGizmoAxis::AxisX:
-						m_PtrCapturedPickedObject3D->ComponentTransform.Pitch -= DeltaSum * CGame::KRotation360To2PI;
-						break;
-					case E3DGizmoAxis::AxisY:
-						m_PtrCapturedPickedObject3D->ComponentTransform.Yaw -= DeltaSum * CGame::KRotation360To2PI;
-						break;
-					case E3DGizmoAxis::AxisZ:
-						m_PtrCapturedPickedObject3D->ComponentTransform.Roll -= DeltaSum * CGame::KRotation360To2PI;
-						break;
-					default:
-						break;
-					}
-
-					Draw3DGizmoRotations(m_e3DGizmoSelectedAxis);
-					break;
-				case E3DGizmoMode::Scaling:
-					switch (m_e3DGizmoSelectedAxis)
-					{
-					case E3DGizmoAxis::AxisX:
-						m_PtrCapturedPickedObject3D->ComponentTransform.Scaling =
-							XMVectorSetX(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling, ScalingX - DeltaSum * CGame::KScalingUnit);
-						break;
-					case E3DGizmoAxis::AxisY:
-						m_PtrCapturedPickedObject3D->ComponentTransform.Scaling =
-							XMVectorSetY(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling, ScalingY - DeltaSum * CGame::KScalingUnit);
-						break;
-					case E3DGizmoAxis::AxisZ:
-						m_PtrCapturedPickedObject3D->ComponentTransform.Scaling =
-							XMVectorSetZ(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling, ScalingZ - DeltaSum * CGame::KScalingUnit);
-						break;
-					default:
-						break;
-					}
-
-					ScalingX = XMVectorGetX(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling);
-					ScalingY = XMVectorGetY(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling);
-					ScalingZ = XMVectorGetZ(m_PtrCapturedPickedObject3D->ComponentTransform.Scaling);
-
-					m_PtrCapturedPickedObject3D->ComponentPhysics.BoundingSphere.Radius =
-						max(max(ScalingX, ScalingY), ScalingZ);
-
-					Draw3DGizmoScalings(m_e3DGizmoSelectedAxis);
-
-					break;
-				default:
-					break;
-				}
-				
-			}
-		}
-		else
-		{
-			CastPickingRay();
-
-			switch (m_e3DGizmoMode)
-			{
-			case E3DGizmoMode::Translation:
-				m_Object3D_3DGizmoTranslationX->ComponentTransform.Translation =
-					m_Object3D_3DGizmoTranslationY->ComponentTransform.Translation =
-					m_Object3D_3DGizmoTranslationZ->ComponentTransform.Translation = m_PtrCapturedPickedObject3D->ComponentTransform.Translation;
-
-				m_bIsGizmoSelected = true;
-				if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationX.get(), E3DGizmoAxis::AxisX))
-				{
-					Draw3DGizmoTranslations(E3DGizmoAxis::AxisX);
-					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
-				}
-				else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationY.get(), E3DGizmoAxis::AxisY))
-				{
-					Draw3DGizmoTranslations(E3DGizmoAxis::AxisY);
-					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
-				}
-				else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationZ.get(), E3DGizmoAxis::AxisZ))
-				{
-					Draw3DGizmoTranslations(E3DGizmoAxis::AxisZ);
-					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
-				}
-				else
-				{
-					Draw3DGizmoTranslations(E3DGizmoAxis::None);
-					m_bIsGizmoSelected = false;
-				}
-
-				break;
-			case E3DGizmoMode::Rotation:
-				m_Object3D_3DGizmoRotationPitch->ComponentTransform.Translation =
-					m_Object3D_3DGizmoRotationYaw->ComponentTransform.Translation =
-					m_Object3D_3DGizmoRotationRoll->ComponentTransform.Translation = m_PtrCapturedPickedObject3D->ComponentTransform.Translation;
-
-				m_bIsGizmoSelected = true;
-				if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationPitch.get(), E3DGizmoAxis::AxisX))
-				{
-					Draw3DGizmoRotations(E3DGizmoAxis::AxisX);
-					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
-				}
-				else if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationYaw.get(), E3DGizmoAxis::AxisY))
-				{
-					Draw3DGizmoRotations(E3DGizmoAxis::AxisY);
-					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
-				}
-				else if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationRoll.get(), E3DGizmoAxis::AxisZ))
-				{
-					Draw3DGizmoRotations(E3DGizmoAxis::AxisZ);
-					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
-				}
-				else
-				{
-					Draw3DGizmoRotations(E3DGizmoAxis::None);
-					m_bIsGizmoSelected = false;
-				}
-
-				break;
-			case E3DGizmoMode::Scaling:
-				m_Object3D_3DGizmoScalingX->ComponentTransform.Translation =
-					m_Object3D_3DGizmoScalingY->ComponentTransform.Translation =
-					m_Object3D_3DGizmoScalingZ->ComponentTransform.Translation = m_PtrCapturedPickedObject3D->ComponentTransform.Translation;
-
-				m_bIsGizmoSelected = true;
-				if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingX.get(), E3DGizmoAxis::AxisX))
-				{
-					Draw3DGizmoScalings(E3DGizmoAxis::AxisX);
-					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
-				}
-				else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingY.get(), E3DGizmoAxis::AxisY))
-				{
-					Draw3DGizmoScalings(E3DGizmoAxis::AxisY);
-					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
-				}
-				else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingZ.get(), E3DGizmoAxis::AxisZ))
-				{
-					Draw3DGizmoScalings(E3DGizmoAxis::AxisZ);
-					m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
-				}
-				else
-				{
-					Draw3DGizmoScalings(E3DGizmoAxis::None);
-					m_bIsGizmoSelected = false;
-				}
-
-				break;
-			default:
-				break;
-			}
-			
-		}
+	case E3DGizmoMode::Translation:
+		Draw3DGizmoTranslations(m_e3DGizmoSelectedAxis);
+		break;
+	case E3DGizmoMode::Rotation:
+		Draw3DGizmoRotations(m_e3DGizmoSelectedAxis);
+		break;
+	case E3DGizmoMode::Scaling:
+		Draw3DGizmoScalings(m_e3DGizmoSelectedAxis);
+		break;
+	default:
+		break;
 	}
-
-	PrevMouseX = MouseState.x;
-	PrevMouseY = MouseState.y;
-
-	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
 }
 
 void CGame::Draw3DGizmoRotations(E3DGizmoAxis Axis)
@@ -2452,7 +2556,7 @@ void CGame::Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight)
 	Gizmo->ComponentTransform.Scaling = XMVectorSet(Scalar, Scalar, Scalar, 0.0f);
 	Gizmo->UpdateWorldMatrix();
 	m_cbVSSpaceData.World = XMMatrixTranspose(Gizmo->ComponentTransform.MatrixWorld);
-	m_cbVSSpaceData.WVP = XMMatrixTranspose(Gizmo->ComponentTransform.MatrixWorld * m_MatrixView * m_MatrixProjection);
+	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
 	VS->UpdateConstantBuffer(0);
 	VS->Use();
 

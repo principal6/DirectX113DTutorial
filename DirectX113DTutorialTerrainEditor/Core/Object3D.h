@@ -18,9 +18,17 @@ public:
 		UseRawVertexColor = 0x10
 	};
 
-private:
-	static constexpr float KBoundingSphereDefaultRadius{ 1.0f };
+	struct SInstanceCPUData
+	{
+		string		Name{};
+		XMVECTOR	Translation{};
+		XMVECTOR	Scaling{ XMVectorSet(1, 1, 1, 0) };
+		float		Pitch{};
+		float		Yaw{};
+		float		Roll{};
+	};
 
+private:
 	struct SComponentTransform
 	{
 		XMVECTOR	Translation{};
@@ -30,14 +38,6 @@ private:
 		float		Pitch{};
 		float		Yaw{};
 		float		Roll{};
-	};
-
-	struct SComponentRender
-	{
-		CShader*	PtrVS{};
-		CShader*	PtrPS{};
-		bool		bIsTransparent{ false };
-		bool		bShouldAnimate{ false };
 	};
 
 	struct SComponentPhysics
@@ -53,6 +53,14 @@ private:
 		bool			bIgnoreBoundingSphere{ false };
 	};
 
+	struct SComponentRender
+	{
+		CShader*	PtrVS{};
+		CShader*	PtrPS{};
+		bool		bIsTransparent{ false };
+		bool		bShouldAnimate{ false };
+	};
+
 	struct SMeshBuffers
 	{
 		ComPtr<ID3D11Buffer>	VertexBuffer{};
@@ -64,6 +72,13 @@ private:
 		UINT					VertexBufferAnimationOffset{};
 
 		ComPtr<ID3D11Buffer>	IndexBuffer{};
+	};
+
+	struct SInstanceBuffer
+	{
+		ComPtr<ID3D11Buffer>	Buffer{};
+		UINT					Stride{ sizeof(SInstanceGPUData) };
+		UINT					Offset{};
 	};
 
 public:
@@ -100,9 +115,18 @@ public:
 	void SetMaterial(size_t Index, const CMaterial& Material);
 	size_t GetMaterialCount() const;
 
+	void AddInstance();
+	void DeleteInstance(const string& Name);
+	SInstanceCPUData& GetInstance(int InstanceID);
+	SInstanceCPUData& GetInstance(const string& Name);
+
 	void UpdateQuadUV(const XMFLOAT2& UVOffset, const XMFLOAT2& UVSize);
 	void UpdateMeshBuffer(size_t MeshIndex = 0);
+	void UpdateInstanceBuffers();
+	void UpdateInstanceBuffer(size_t MeshIndex = 0);
+
 	void UpdateWorldMatrix();
+	void UpdateInstanceWorldMatrix(size_t InstanceID);
 
 	void Animate();
 	void Draw(bool bIgnoreOwnTexture = false) const;
@@ -114,18 +138,32 @@ public:
 public:
 	bool IsCreated() const { return m_bIsCreated; }
 	bool IsRiggedModel() const { return m_Model.bIsModelAnimated; }
+	bool IsInstanced() const { return (m_vInstanceCPUData.size() > 0) ? true : false; }
+	size_t GetInstanceCount() const { return m_vInstanceCPUData.size(); }
 	const SModel& GetModel() const { return m_Model; }
 	SModel& GetModel() { return m_Model; }
 	const string& GetName() const { return m_Name; }
 	const string& GetModelFileName() const { return m_ModelFileName; }
+	const map<string, size_t>& GetInstanceMap() const { return m_mapInstanceNameToIndex; }
 
 private:
 	void CreateMeshBuffers();
 	void CreateMeshBuffer(size_t MeshIndex, bool IsAnimated);
 
+	void CreateInstanceBuffers();
+	void CreateInstanceBuffer(size_t MeshIndex);
+
 	void CreateMaterialTextures();
 
 	void CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRIX ParentTransform);
+
+	void LimitFloatRotation(float& Value, const float Min, const float Max);
+
+public:
+	static constexpr size_t KInstanceNameMaxLength{ 100 };
+
+private:
+	static constexpr float KBoundingSphereDefaultRadius{ 1.0f };
 
 public:
 	SComponentTransform			ComponentTransform{};
@@ -144,11 +182,17 @@ private:
 	bool						m_bIsCreated{ false };
 	SModel						m_Model{};
 	vector<SMeshBuffers>		m_vMeshBuffers{};
+	vector<SInstanceBuffer>		m_vInstanceBuffers{};
 
 	XMMATRIX					m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
 	size_t						m_CurrentAnimationIndex{};
 	float						m_CurrentAnimationTick{};
 	bool						m_bShouldTesselate{ false };
+
+private:
+	vector<SInstanceGPUData>	m_vInstanceGPUData{};
+	vector<SInstanceCPUData>	m_vInstanceCPUData{};
+	map<string, size_t>			m_mapInstanceNameToIndex{};
 
 private:
 	CAssimpLoader				m_AssimpLoader{};

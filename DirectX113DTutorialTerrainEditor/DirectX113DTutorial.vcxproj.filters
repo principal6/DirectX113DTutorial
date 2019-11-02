@@ -578,6 +578,9 @@
     <FxCompile Include="Shader\PSCloud.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="Shader\VSInstance.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="ImGui\imgui.natvis">

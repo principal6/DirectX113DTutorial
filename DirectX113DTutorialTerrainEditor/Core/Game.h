@@ -17,6 +17,7 @@
 enum class EBaseShader
 {
 	VSBase,
+	VSInstance,
 	VSAnimation,
 	VSSky,
 	VSLine,
@@ -73,7 +74,7 @@ struct SCBVS2DSpaceData
 
 struct SCBVSSpaceData
 {
-	XMMATRIX	WVP{};
+	XMMATRIX	ViewProjection{};
 	XMMATRIX	World{};
 };
 
@@ -348,13 +349,22 @@ private:
 public:
 	void SetEditMode(EEditMode Mode, bool bForcedSet = false);
 	EEditMode GetEditMode() const { return m_eEditMode; }
-	void Pick();
-	void PickObject3D(const string& Name);
-	void ReleaseCapturedObject3D();
-	const char* GetPickedObject3DName() const;
-	const char* GetCapturedObject3DName() const;
-	bool IsObjectPicked() const { return m_PtrPickedObject3D; };
-	bool IsObjectCaptured() const { return m_PtrCapturedPickedObject3D; }
+
+	bool Pick();
+	void SelectObject3D(const string& Name);
+	void DeselectObject3D();
+	bool IsAnyObject3DSelected() const;
+	const string& GetPickedObject3DName() const;
+	CObject3D* GetSelectedObject3D();
+	const string& GetSelectedObject3DName() const;
+	
+	void SelectInstance(int InstanceID);
+	void DeselectInstance();
+	bool IsAnyInstanceSelected() const;
+	int GetPickedInstanceID() const;
+	int GetSelectedInstanceID() const;
+
+	void Interact3DGizmos();
 
 private:
 	void CastPickingRay();
@@ -455,6 +465,7 @@ private:
 
 private:
 	unique_ptr<CShader>	m_VSBase{};
+	unique_ptr<CShader>	m_VSInstance{};
 	unique_ptr<CShader>	m_VSAnimation{};
 	unique_ptr<CShader>	m_VSSky{};
 	unique_ptr<CShader>	m_VSLine{};
@@ -588,7 +599,10 @@ private:
 	XMVECTOR	m_PickingRayWorldSpaceOrigin{};
 	XMVECTOR	m_PickingRayWorldSpaceDirection{};
 	CObject3D*	m_PtrPickedObject3D{};
-	CObject3D*	m_PtrCapturedPickedObject3D{};
+	CObject3D*	m_PtrSelectedObject3D{};
+	string		m_NullString{};
+	int			m_PickedInstanceID{ -1 };
+	int			m_SelectedInstanceID{ -1 };
 	XMVECTOR	m_PickedTriangleV0{};
 	XMVECTOR	m_PickedTriangleV1{};
 	XMVECTOR	m_PickedTriangleV2{};
@@ -613,6 +627,8 @@ private:
 
 	unique_ptr<Keyboard>			m_Keyboard{};
 	unique_ptr<Mouse>				m_Mouse{};
+	int								m_PrevMouseX{};
+	int								m_PrevMouseY{};
 	unique_ptr<SpriteBatch>			m_SpriteBatch{};
 	unique_ptr<SpriteFont>			m_SpriteFont{};
 	unique_ptr<CommonStates>		m_CommonStates{};

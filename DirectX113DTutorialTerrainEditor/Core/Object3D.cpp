@@ -70,6 +70,16 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 	CreateMeshBuffers();
 	CreateMaterialTextures();
 
+	for (const CMaterial& Material : m_Model.vMaterials)
+	{
+		// @important
+		if (Material.HasTexture(CMaterial::CTexture::EType::OpacityTexture))
+		{
+			ComponentRender.bIsTransparent = true;
+			break;
+		}
+	}
+
 	m_bIsCreated = true;
 }
 
@@ -94,6 +104,101 @@ void CObject3D::SetMaterial(size_t Index, const CMaterial& Material)
 size_t CObject3D::GetMaterialCount() const
 {
 	return m_Model.vMaterials.size();
+}
+
+void CObject3D::AddInstance()
+{
+	size_t InstanceCount{ GetInstanceCount() };
+	string Name{ "instance" + to_string(InstanceCount) };
+
+	if (m_mapInstanceNameToIndex.find(Name) != m_mapInstanceNameToIndex.end())
+	{
+		for (size_t iInstance = 0; iInstance < InstanceCount; ++iInstance)
+		{
+			Name = "instance" + to_string(iInstance);
+			if (m_mapInstanceNameToIndex.find(Name) == m_mapInstanceNameToIndex.end()) break;
+		}
+	}
+
+	bool bShouldRecreateInstanceBuffer{ m_vInstanceCPUData.size() == m_vInstanceCPUData.capacity() };
+
+	m_vInstanceCPUData.emplace_back();
+	m_vInstanceCPUData.back().Name = Name;
+	m_vInstanceCPUData.back().Scaling = ComponentTransform.Scaling;
+	m_mapInstanceNameToIndex[Name] = m_vInstanceCPUData.size() - 1;
+
+	m_vInstanceGPUData.emplace_back();
+	
+	if (m_vInstanceCPUData.size() == 1) CreateInstanceBuffers();
+	if (bShouldRecreateInstanceBuffer) CreateInstanceBuffers();
+
+	CreateInstanceBuffers();
+
+	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(EBaseShader::VSInstance);
+
+	UpdateInstanceWorldMatrix(m_vInstanceCPUData.size() - 1);
+}
+
+void CObject3D::DeleteInstance(const string& Name)
+{
+	if (Name.empty()) return;
+	if (m_vInstanceCPUData.empty()) return;
+	if (m_mapInstanceNameToIndex.find(Name) == m_mapInstanceNameToIndex.end()) return;
+
+	size_t iInstance{ m_mapInstanceNameToIndex.at(Name) };
+	size_t iLastInstance{ GetInstanceCount() - 1 };
+	string InstanceName{ Name };
+	if (iInstance == iLastInstance)
+	{
+		// Last instance
+		m_vInstanceCPUData.pop_back();
+		m_vInstanceGPUData.pop_back();
+
+		m_mapInstanceNameToIndex.erase(InstanceName);
+
+		// @important
+		--iInstance;
+
+		if (m_vInstanceCPUData.empty())
+		{
+			ComponentRender.PtrVS = m_PtrGame->GetBaseShader(EBaseShader::VSBase);
+
+			// @important
+			m_PtrGame->DeselectInstance();
+			return;
+		}
+	}
+	else
+	{
+		// Non-last instance
+		string LastInstanceName{ m_vInstanceCPUData[iLastInstance].Name };
+
+		std::swap(m_vInstanceCPUData[iInstance], m_vInstanceCPUData[iLastInstance]);
+		std::swap(m_vInstanceGPUData[iInstance], m_vInstanceGPUData[iLastInstance]);
+
+		m_vInstanceCPUData.pop_back();
+		m_vInstanceGPUData.pop_back();
+
+		m_mapInstanceNameToIndex.erase(InstanceName);
+		m_mapInstanceNameToIndex[LastInstanceName] = iInstance;
+
+		UpdateInstanceBuffers();
+	}
+
+	// @important
+	m_PtrGame->SelectInstance((int)iInstance);	
+}
+
+CObject3D::SInstanceCPUData& CObject3D::GetInstance(int InstanceID)
+{
+	assert(InstanceID < m_vInstanceCPUData.size());
+	return m_vInstanceCPUData[InstanceID];
+}
+
+CObject3D::SInstanceCPUData& CObject3D::GetInstance(const string& Name)
+{
+	assert(m_mapInstanceNameToIndex.find(Name) != m_mapInstanceNameToIndex.end());
+	return m_vInstanceCPUData[m_mapInstanceNameToIndex.at(Name)];
 }
 
 void CObject3D::CreateMeshBuffers()
@@ -154,6 +259,31 @@ void CObject3D::CreateMeshBuffer(size_t MeshIndex, bool IsAnimated)
 	}
 }
 
+void CObject3D::CreateInstanceBuffers()
+{
+	m_vInstanceBuffers.clear();
+	m_vInstanceBuffers.resize(m_Model.vMeshes.size());
+	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
+	{
+		CreateInstanceBuffer(iMesh);
+	}
+}
+
+void CObject3D::CreateInstanceBuffer(size_t MeshIndex)
+{
+	D3D11_BUFFER_DESC BufferDesc{};
+	BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SInstanceGPUData) * m_vInstanceGPUData.capacity()); // @important
+	BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	BufferDesc.MiscFlags = 0;
+	BufferDesc.StructureByteStride = 0;
+	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+
+	D3D11_SUBRESOURCE_DATA SubresourceData{};
+	SubresourceData.pSysMem = &m_vInstanceGPUData[0];
+	m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, &m_vInstanceBuffers[MeshIndex].Buffer);
+}
+
 void CObject3D::CreateMaterialTextures()
 {
 	for (CMaterial& Material : m_Model.vMaterials)
@@ -188,16 +318,36 @@ void CObject3D::UpdateMeshBuffer(size_t MeshIndex)
 	}
 }
 
+void CObject3D::UpdateInstanceBuffers()
+{
+	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
+	{
+		UpdateInstanceBuffer(iMesh);
+	}
+}
+
+void CObject3D::UpdateInstanceBuffer(size_t MeshIndex)
+{
+	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
+	if (SUCCEEDED(m_PtrDeviceContext->Map(m_vInstanceBuffers[MeshIndex].Buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
+	{
+		memcpy(MappedSubresource.pData, &m_vInstanceGPUData[0], sizeof(SInstanceGPUData) * m_vInstanceGPUData.size());
+
+		m_PtrDeviceContext->Unmap(m_vInstanceBuffers[MeshIndex].Buffer.Get(), 0);
+	}
+}
+
+void CObject3D::LimitFloatRotation(float& Value, const float Min, const float Max)
+{
+	if (Value > Max) Value = Min;
+	if (Value < Min) Value = Max;
+}
+
 void CObject3D::UpdateWorldMatrix()
 {
-	if (ComponentTransform.Pitch > CGame::KRotationMaxLimit) ComponentTransform.Pitch = CGame::KRotationMinLimit;
-	if (ComponentTransform.Pitch < CGame::KRotationMinLimit) ComponentTransform.Pitch = CGame::KRotationMaxLimit;
-
-	if (ComponentTransform.Yaw > CGame::KRotationMaxLimit) ComponentTransform.Yaw = CGame::KRotationMinLimit;
-	if (ComponentTransform.Yaw < CGame::KRotationMinLimit) ComponentTransform.Yaw = CGame::KRotationMaxLimit;
-
-	if (ComponentTransform.Roll > CGame::KRotationMaxLimit) ComponentTransform.Roll = CGame::KRotationMinLimit;
-	if (ComponentTransform.Roll < CGame::KRotationMinLimit) ComponentTransform.Roll = CGame::KRotationMaxLimit;
+	LimitFloatRotation(ComponentTransform.Pitch, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
+	LimitFloatRotation(ComponentTransform.Yaw, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
+	LimitFloatRotation(ComponentTransform.Roll, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
 
 	if (XMVectorGetX(ComponentTransform.Scaling) < CGame::KScalingMinLimit)
 		ComponentTransform.Scaling = XMVectorSetX(ComponentTransform.Scaling, CGame::KScalingMinLimit);
@@ -211,7 +361,40 @@ void CObject3D::UpdateWorldMatrix()
 		ComponentTransform.Yaw, ComponentTransform.Roll) };
 	XMMATRIX Scaling{ XMMatrixScalingFromVector(ComponentTransform.Scaling) };
 
-	ComponentTransform.MatrixWorld = Scaling * Rotation * Translation;
+	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(ComponentPhysics.BoundingSphere.CenterOffset) };
+	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-ComponentPhysics.BoundingSphere.CenterOffset) };
+
+	ComponentTransform.MatrixWorld = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
+}
+
+void CObject3D::UpdateInstanceWorldMatrix(size_t InstanceID)
+{
+	if (InstanceID >= m_vInstanceCPUData.size()) return;
+
+	// Update CPU data
+	LimitFloatRotation(m_vInstanceCPUData[InstanceID].Pitch, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
+	LimitFloatRotation(m_vInstanceCPUData[InstanceID].Yaw, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
+	LimitFloatRotation(m_vInstanceCPUData[InstanceID].Roll, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
+
+	if (XMVectorGetX(m_vInstanceCPUData[InstanceID].Scaling) < CGame::KScalingMinLimit)
+		m_vInstanceCPUData[InstanceID].Scaling = XMVectorSetX(m_vInstanceCPUData[InstanceID].Scaling, CGame::KScalingMinLimit);
+	if (XMVectorGetY(m_vInstanceCPUData[InstanceID].Scaling) < CGame::KScalingMinLimit)
+		m_vInstanceCPUData[InstanceID].Scaling = XMVectorSetY(m_vInstanceCPUData[InstanceID].Scaling, CGame::KScalingMinLimit);
+	if (XMVectorGetZ(m_vInstanceCPUData[InstanceID].Scaling) < CGame::KScalingMinLimit)
+		m_vInstanceCPUData[InstanceID].Scaling = XMVectorSetZ(m_vInstanceCPUData[InstanceID].Scaling, CGame::KScalingMinLimit);
+
+	XMMATRIX Translation{ XMMatrixTranslationFromVector(m_vInstanceCPUData[InstanceID].Translation) };
+	XMMATRIX Rotation{ XMMatrixRotationRollPitchYaw(m_vInstanceCPUData[InstanceID].Pitch,
+		m_vInstanceCPUData[InstanceID].Yaw, m_vInstanceCPUData[InstanceID].Roll) };
+	XMMATRIX Scaling{ XMMatrixScalingFromVector(m_vInstanceCPUData[InstanceID].Scaling) };
+
+	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(ComponentPhysics.BoundingSphere.CenterOffset) };
+	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-ComponentPhysics.BoundingSphere.CenterOffset) };
+	
+	// Update GPU data
+	m_vInstanceGPUData[InstanceID].InstanceWorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
+
+	UpdateInstanceBuffers();
 }
 
 void CObject3D::Animate()
@@ -368,6 +551,12 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 				&m_vMeshBuffers[iMesh].VertexBufferAnimationStride, &m_vMeshBuffers[iMesh].VertexBufferAnimationOffset);
 		}
 
+		if (IsInstanced())
+		{
+			m_PtrDeviceContext->IASetVertexBuffers(2, 1, m_vInstanceBuffers[iMesh].Buffer.GetAddressOf(),
+				&m_vInstanceBuffers[iMesh].Stride, &m_vInstanceBuffers[iMesh].Offset);
+		}
+
 		if (m_bShouldTesselate)
 		{
 			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
@@ -377,7 +566,13 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		}
 		
-
-		m_PtrDeviceContext->DrawIndexed(static_cast<UINT>(Mesh.vTriangles.size() * 3), 0, 0);
+		if (m_vInstanceCPUData.size())
+		{
+			m_PtrDeviceContext->DrawIndexedInstanced(static_cast<UINT>(Mesh.vTriangles.size() * 3), static_cast<UINT>(m_vInstanceCPUData.size()), 0, 0, 0);
+		}
+		else
+		{
+			m_PtrDeviceContext->DrawIndexed(static_cast<UINT>(Mesh.vTriangles.size() * 3), 0, 0);
+		}
 	}
 }

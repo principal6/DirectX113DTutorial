@@ -2,7 +2,7 @@
 
 cbuffer cbSpace : register(b0)
 {
-	float4x4 WVP;
+	float4x4 ViewProjection;
 	float4x4 World;
 }
 
@@ -25,8 +25,9 @@ VS_OUTPUT main(VS_INPUT_ANIMATION input)
 	float4 ResultNormal = normalize(mul(input.Normal, FinalBone));
 	float4 ResultTangent = normalize(mul(input.Tangent, FinalBone));
 
-	output.Position = mul(ResultPosition, WVP);
 	output.WorldPosition = mul(ResultPosition, World);
+	output.Position = mul(output.WorldPosition, ViewProjection);
+	
 	output.Color = input.Color;
 	output.UV = input.UV;
 

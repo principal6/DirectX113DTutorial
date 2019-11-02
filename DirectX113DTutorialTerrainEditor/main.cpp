@@ -18,7 +18,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
 {
 	CGame Game{ hInstance, XMFLOAT2(800, 600) };
-	Game.CreateWin32(WndProc, TEXT("Game"), L"Asset\\dotumche_10_korean.spritefont", true);
+	Game.CreateWin32(WndProc, TEXT("Game Editor"), L"Asset\\dotumche_10_korean.spritefont", true);
 	
 	Game.SetAmbientlLight(XMFLOAT3(1, 1, 1), 0.2f);
 	Game.SetDirectionalLight(XMVectorSet(0, 1, 0, 0), XMVectorSet(1, 1, 1, 1));
@@ -112,20 +112,15 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	{
 		static MSG Msg{};
 		static char KeyDown{};
-		static bool bLeftButton{ false };
-		static bool bRightButton{ false };
-
+		static bool bLeftButtonPressedOnce{ false };
 		if (PeekMessage(&Msg, nullptr, 0, 0, PM_REMOVE))
 		{
-			if (Msg.message == WM_LBUTTONDOWN) bLeftButton = true;
-			if (Msg.message == WM_RBUTTONDOWN) bRightButton = true;
-			if (Msg.message == WM_MOUSEMOVE)
-			{
-				if (Msg.wParam == MK_LBUTTON) bLeftButton = true;
-				if (Msg.wParam == MK_RBUTTON) bRightButton = true;
-			}
-			if (Msg.message == WM_KEYDOWN) KeyDown = (char)Msg.wParam;
 			if (Msg.message == WM_QUIT) break;
+
+			if (Msg.message == WM_KEYDOWN) KeyDown = (char)Msg.wParam;
+			
+			if (Msg.message == WM_LBUTTONDOWN) bLeftButtonPressedOnce = true;
+			if (Msg.message == WM_LBUTTONUP) bLeftButtonPressedOnce = false;
 
 			TranslateMessage(&Msg);
 			DispatchMessage(&Msg);
@@ -147,7 +142,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			}
 			if (KeyState.Escape)
 			{
-				Game.ReleaseCapturedObject3D();
+				Game.DeselectObject3D();
 			}
 			if (!ImGui::IsAnyItemActive())
 			{
@@ -205,23 +200,30 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			static int PrevMouseY{ MouseState.y };
 			if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
 			{
-				if (bRightButton) ImGui::SetWindowFocus(nullptr);
+				if (MouseState.rightButton) ImGui::SetWindowFocus(nullptr);
 
-				if ((bLeftButton || bRightButton) && !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
+				if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
 				{
-					if (bLeftButton)
+					Game.Interact3DGizmos();
+
+					if (bLeftButtonPressedOnce)
 					{
-						Game.Pick();
+						if (Game.Pick())
+						{
+							Game.SelectObject3D(Game.GetPickedObject3DName());
+							Game.SelectInstance(Game.GetPickedInstanceID());
+						}
+						bLeftButtonPressedOnce = false;
 					}
 
-					if (bRightButton)
+					if (MouseState.rightButton)
 					{
-						Game.ReleaseCapturedObject3D();
+						Game.DeselectObject3D();
 					}
 
 					if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
 					{
-						Game.SelectTerrain(true, bLeftButton);
+						Game.SelectTerrain(true, MouseState.leftButton);
 					}
 				}
 				else
@@ -313,7 +315,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::EndMainMenuBar();
 				}
 
-
 				// ### 지형 생성기 윈도우 ###
 				ImGui::SetNextWindowSize(ImVec2(200, 150), ImGuiCond_Always);
 				if (bShowTerrainGenerator) ImGui::OpenPopup(u8"지형 생성기");
@@ -379,7 +380,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::EndPopup();
 				}
 
-
 				// ### 속성 편집기 윈도우 ###
 				if (bShowPropertyEditor)
 				{
@@ -394,41 +394,88 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							{
 								Game.SetEditMode(CGame::EEditMode::EditObject);
 
-								const char* KCapturedObject3DName{ Game.GetCapturedObject3DName() };
-								if (KCapturedObject3DName)
+								if (Game.IsAnyObject3DSelected())
 								{
-									CObject3D* Object3D{ Game.GetObject3D(KCapturedObject3DName) };
+									CObject3D* const Object3D{ Game.GetSelectedObject3D() };
 
-									ImGui::Text(u8"선택된 오브젝트: <%s>", KCapturedObject3DName);
+									ImGui::Text(u8"선택된 오브젝트: <%s>", Game.GetSelectedObject3DName().c_str());
 
-									float Translation[3]{ XMVectorGetX(Object3D->ComponentTransform.Translation),
+									if (Object3D->IsInstanced())
+									{
+										int iSelectedInstance{ Game.GetSelectedInstanceID() };
+										if (iSelectedInstance == -1)
+										{
+											ImGui::Text(u8"<인스턴스를 선택해 주세요.>");
+										}
+										else
+										{
+											auto& Instance{ Object3D->GetInstance(Game.GetSelectedInstanceID()) };
+											ImGui::Text(u8"선택된 인스턴스: <%s>", Instance.Name.c_str());
+
+											float Translation[3]{ XMVectorGetX(Instance.Translation),
+												XMVectorGetY(Instance.Translation), XMVectorGetZ(Instance.Translation) };
+											if (ImGui::DragFloat3(u8"위치", Translation, CGame::KTranslationUnit,
+												CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.1f"))
+											{
+												Instance.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
+												Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
+											}
+
+											int PitchYawRoll360[3]{ (int)(Instance.Pitch * CGame::KRotation2PITo360),
+												(int)(Instance.Yaw * CGame::KRotation2PITo360),
+												(int)(Instance.Roll * CGame::KRotation2PITo360) };
+											if (ImGui::DragInt3(u8"회전", PitchYawRoll360, CGame::KRotation360Unit,
+												CGame::KRotation360MinLimit, CGame::KRotation360MaxLimit))
+											{
+												Instance.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
+												Instance.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
+												Instance.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
+												Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
+											}
+
+											float Scaling[3]{ XMVectorGetX(Instance.Scaling),
+												XMVectorGetY(Instance.Scaling), XMVectorGetZ(Instance.Scaling) };
+											if (ImGui::DragFloat3(u8"크기", Scaling, CGame::KScalingUnit,
+												CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.3f"))
+											{
+												Instance.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
+												Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
+											}
+										}
+									}
+									else
+									{
+										// Non-instanced Object3D
+
+										float Translation[3]{ XMVectorGetX(Object3D->ComponentTransform.Translation),
 										XMVectorGetY(Object3D->ComponentTransform.Translation), XMVectorGetZ(Object3D->ComponentTransform.Translation) };
-									if (ImGui::DragFloat3(u8"위치", Translation, CGame::KTranslationUnit,
-										CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.1f"))
-									{
-										Object3D->ComponentTransform.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
-										Object3D->UpdateWorldMatrix();
-									}
+										if (ImGui::DragFloat3(u8"위치", Translation, CGame::KTranslationUnit,
+											CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.1f"))
+										{
+											Object3D->ComponentTransform.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
+											Object3D->UpdateWorldMatrix();
+										}
 
-									int PitchYawRoll360[3]{ (int)(Object3D->ComponentTransform.Pitch * CGame::KRotation2PITo360),
-										(int)(Object3D->ComponentTransform.Yaw * CGame::KRotation2PITo360), 
-										(int)(Object3D->ComponentTransform.Roll * CGame::KRotation2PITo360) };
-									if (ImGui::DragInt3(u8"회전", PitchYawRoll360, CGame::KRotation360Unit,
-										CGame::KRotation360MinLimit, CGame::KRotation360MaxLimit))
-									{
-										Object3D->ComponentTransform.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
-										Object3D->ComponentTransform.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
-										Object3D->ComponentTransform.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
-										Object3D->UpdateWorldMatrix();
-									}
+										int PitchYawRoll360[3]{ (int)(Object3D->ComponentTransform.Pitch * CGame::KRotation2PITo360),
+											(int)(Object3D->ComponentTransform.Yaw * CGame::KRotation2PITo360),
+											(int)(Object3D->ComponentTransform.Roll * CGame::KRotation2PITo360) };
+										if (ImGui::DragInt3(u8"회전", PitchYawRoll360, CGame::KRotation360Unit,
+											CGame::KRotation360MinLimit, CGame::KRotation360MaxLimit))
+										{
+											Object3D->ComponentTransform.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
+											Object3D->ComponentTransform.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
+											Object3D->ComponentTransform.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
+											Object3D->UpdateWorldMatrix();
+										}
 
-									float Scaling[3]{ XMVectorGetX(Object3D->ComponentTransform.Scaling),
-										XMVectorGetY(Object3D->ComponentTransform.Scaling), XMVectorGetZ(Object3D->ComponentTransform.Scaling) };
-									if (ImGui::DragFloat3(u8"크기", Scaling, CGame::KScalingUnit,
-										CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.3f"))
-									{
-										Object3D->ComponentTransform.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
-										Object3D->UpdateWorldMatrix();
+										float Scaling[3]{ XMVectorGetX(Object3D->ComponentTransform.Scaling),
+											XMVectorGetY(Object3D->ComponentTransform.Scaling), XMVectorGetZ(Object3D->ComponentTransform.Scaling) };
+										if (ImGui::DragFloat3(u8"크기", Scaling, CGame::KScalingUnit,
+											CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.3f"))
+										{
+											Object3D->ComponentTransform.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
+											Object3D->UpdateWorldMatrix();
+										}
 									}
 
 									float BSCenterOffset[3]{
@@ -1031,33 +1078,17 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				// ### 장면 편집기 윈도우 ###
 				if (bShowSceneEditor)
 				{
-					static char SelectedObject3DName[CGame::KObject3DNameMaxLength]{};
-					static int iSelectedObject3D{ -1 };
 					const auto& mapObject3D{ Game.GetObject3DMap() };
 
 					ImGui::SetNextWindowPos(ImVec2(0, 122), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSizeConstraints(ImVec2(200, 60), ImVec2(200, 200));
+					ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(400, 300));
 					if (ImGui::Begin(u8"장면 편집기", &bShowSceneEditor, ImGuiWindowFlags_AlwaysAutoResize))
 					{
-						if (ImGui::Button(u8"추가"))
-						{
-							bShowAddObject3D = true;
-						}
-
-						ImGui::SameLine();
-
-						if (ImGui::Button(u8"삭제"))
-						{
-							Game.EraseObject3D(SelectedObject3DName);
-							memset(SelectedObject3DName, 0, CGame::KObject3DNameMaxLength);
-						}
-
-						ImGui::SameLine();
-
-						if (ImGui::Button(u8"저장"))
+						// 장면 내보내기
+						if (ImGui::Button(u8"장면 내보내기"))
 						{
 							static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
-							if (FileDialog.SaveFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 파일 내보내기", ".scene"))
+							if (FileDialog.SaveFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 내보내기", ".scene"))
 							{
 								Game.SaveScene(FileDialog.GetRelativeFileName());
 							}
@@ -1066,31 +1097,121 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 						ImGui::SameLine();
 
-						if (ImGui::Button(u8"열기"))
+						// 장면 불러오기
+						if (ImGui::Button(u8"장면 불러오기"))
 						{
 							static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
-							if (FileDialog.OpenFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 파일 불러오기"))
+							if (FileDialog.OpenFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 불러오기"))
 							{
 								Game.LoadScene(FileDialog.GetRelativeFileName());
 							}
 						}
 
-						ImGui::Columns(1, "Object3Ds");
-						ImGui::Separator();
-						ImGui::Text(u8"오브젝트 목록"); ImGui::NextColumn();
 						ImGui::Separator();
 
-						int iPair{};
-						for (const auto& pairObject3D : mapObject3D)
+						// 오브젝트 추가
+						if (ImGui::Button(u8"오브젝트 추가"))
 						{
-							if (ImGui::Selectable(pairObject3D.first.c_str(), iSelectedObject3D == iPair, ImGuiSelectableFlags_SpanAllColumns))
+							bShowAddObject3D = true;
+						}
+
+						ImGui::SameLine();
+
+						// 오브젝트 제거
+						if (ImGui::Button(u8"오브젝트 제거"))
+						{
+							Game.EraseObject3D(Game.GetSelectedObject3DName());
+						}
+
+						ImGui::Separator();
+
+						ImGui::Columns(2);
+						ImGui::Text(u8"오브젝트 및 인스턴스"); ImGui::NextColumn();
+						ImGui::Text(u8"인스턴스 관리"); ImGui::NextColumn();
+						ImGui::Separator();
+
+						// 오브젝트 목록
+						int iObject3DPair{};
+						for (const auto& Object3DPair : mapObject3D)
+						{
+							CObject3D* const Object3D{ Game.GetObject3D(Object3DPair.first) };
+							bool bIsThisObject3DSelected{ false };
+							if (Game.GetSelectedObject3DName() == Object3DPair.first) bIsThisObject3DSelected = true;
+
+							ImGuiTreeNodeFlags Flags{ ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth };
+							if (bIsThisObject3DSelected) Flags |= ImGuiTreeNodeFlags_Selected;
+							if (!Object3D->IsInstanced()) Flags |= ImGuiTreeNodeFlags_Leaf;
+							
+							if (!Object3D->IsInstanced()) ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
+
+							bool bIsNodeOpen{ ImGui::TreeNodeEx(Object3DPair.first.c_str(), Flags) };
+							if (ImGui::IsItemClicked())
 							{
-								iSelectedObject3D = iPair;
-								strcpy_s(SelectedObject3DName, pairObject3D.first.c_str());
-								Game.PickObject3D(SelectedObject3DName);
+								Game.SelectObject3D(Object3DPair.first);
+
+								Game.SelectInstance(-1);
 							}
+
 							ImGui::NextColumn();
-							++iPair;
+
+							if (!Object3D->IsRiggedModel())
+							{
+								// 인스턴스 추가
+								ImGui::PushID(iObject3DPair * 2 + 0);
+								if (ImGui::Button(u8"추가"))
+								{
+									Object3D->AddInstance();
+								}
+								ImGui::PopID();
+
+								// 인스턴스 제거
+								if (Object3D->IsInstanced() && Game.IsAnyInstanceSelected())
+								{
+									ImGui::SameLine();
+
+									ImGui::PushID(iObject3DPair * 2 + 1);
+									if (ImGui::Button(u8"제거"))
+									{
+										const CObject3D::SInstanceCPUData& Instance{ Object3D->GetInstance(Game.GetSelectedInstanceID()) };
+										Object3D->DeleteInstance(Instance.Name);
+									}
+									ImGui::PopID();
+								}
+							}
+
+							ImGui::NextColumn();
+
+							if (bIsNodeOpen)
+							{
+								// 인스턴스 목록
+								if (Object3D->IsInstanced())
+								{
+									int iInstancePair{};
+									const auto& InstanceMap{ Object3D->GetInstanceMap() };
+									for (auto& InstancePair : InstanceMap)
+									{
+										bool bSelected{ (iInstancePair == Game.GetSelectedInstanceID()) };
+										if (!bIsThisObject3DSelected) bSelected = false;
+
+										if (ImGui::Selectable(InstancePair.first.c_str(), bSelected))
+										{
+											if (!bIsThisObject3DSelected)
+											{
+												Game.SelectObject3D(Object3DPair.first);
+											}
+											
+											Game.SelectInstance(iInstancePair);
+										}
+										++iInstancePair;
+									}
+								}
+
+								ImGui::TreePop();
+							}
+
+							++iObject3DPair;
+
+							if (!Object3D->IsInstanced()) ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
 						}
 					}
 					ImGui::End();
@@ -1127,14 +1248,15 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						{
 							MessageBox(nullptr, "모델을 불러오세요.", "모델 미지정", MB_OK | MB_ICONEXCLAMATION);
 						}
+						else if (strlen(NewObejct3DName) == 0)
+						{
+							MessageBox(nullptr, "이름을 정하세요.", "이름 미지정", MB_OK | MB_ICONEXCLAMATION);
+						}
 						else
 						{
-							if (NewObejct3DName[0] != 0)
-							{
-								Game.InsertObject3D(NewObejct3DName);
-								CObject3D* Object3D{ Game.GetObject3D(NewObejct3DName) };
-								Object3D->CreateFromFile(ModelFileNameWithPath, bIsModelRigged);
-							}
+							Game.InsertObject3D(NewObejct3DName);
+							CObject3D* Object3D{ Game.GetObject3D(NewObejct3DName) };
+							Object3D->CreateFromFile(ModelFileNameWithPath, bIsModelRigged);
 
 							bShowAddObject3D = false;
 							memset(ModelFileNameWithPath, 0, MAX_PATH);
@@ -1178,8 +1300,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			Game.EndRendering();
 
 			KeyDown = 0;
-			bLeftButton = false;
-			bRightButton = false;
 			TimePrev = TimeNow;
 		}
 	}

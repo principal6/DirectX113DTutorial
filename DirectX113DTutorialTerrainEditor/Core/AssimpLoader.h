@@ -32,6 +32,11 @@ struct SVertexAnimation
 	float		Weights[KMaxWeightCount]{};
 };
 
+struct SInstanceGPUData
+{
+	XMMATRIX	InstanceWorldMatrix{ KMatrixIdentity };
+};
+
 struct SMesh
 {
 	vector<SVertex3D>			vVertices{};
