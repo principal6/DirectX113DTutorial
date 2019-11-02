@@ -1,4 +1,5 @@
 #include "Game.h"
+#include <thread>
 
 static constexpr D3D11_INPUT_ELEMENT_DESC KBaseInputElementDescs[]
 {
@@ -79,11 +80,15 @@ void CGame::LoadScene(const string& FileName)
 
 			ClearObject3Ds();
 			m_vObject3Ds.reserve(vxmlObjects.size());
+			vector<CObject3D*> vPtrObject3D{};
+			vector<std::pair<string, bool>> vModelDatas{};
+
 			for (const auto& xmlObject : vxmlObjects)
 			{
 				const char* ObjectName{ xmlObject->Attribute("Name") };
 				
 				InsertObject3D(ObjectName);
+				vPtrObject3D.emplace_back(GetObject3D(ObjectName));
 				CObject3D* Object3D{ GetObject3D(ObjectName) };
 				
 				vector<XMLElement*> vxmlObjectChildren{};
@@ -101,7 +106,8 @@ void CGame::LoadScene(const string& FileName)
 					if (strcmp(ID, "Model") == 0)
 					{
 						const char* ModelFileName{ xmlObjectChild->Attribute("FileName") };
-						Object3D->CreateFromFile(ModelFileName);
+						bool bIsRigged{ xmlObjectChild->BoolAttribute("IsRigged") };
+						vModelDatas.emplace_back(std::make_pair(ModelFileName, bIsRigged));
 					}
 
 					if (strcmp(ID, "Translation") == 0)
@@ -144,6 +150,30 @@ void CGame::LoadScene(const string& FileName)
 						Object3D->ComponentPhysics.BoundingSphere.Radius = Radius;
 					}
 				}
+			}
+
+			// Create models using multiple threads
+			{
+				ULONGLONG StartTimePoint{ GetTickCount64() };
+				OutputDebugString((to_string(StartTimePoint) + " Loading models.\n").c_str());
+				vector<std::thread> vThreads{};
+				for (size_t iObject3D = 0; iObject3D < vPtrObject3D.size(); ++iObject3D)
+				{
+					vThreads.emplace_back
+					(
+						[](CObject3D* const P, const string& ModelFileName, bool bIsRigged)
+						{
+							P->CreateFromFile(ModelFileName, bIsRigged);
+						}
+						, vPtrObject3D[iObject3D], vModelDatas[iObject3D].first, vModelDatas[iObject3D].second
+							);
+				}
+				for (auto& Thread : vThreads)
+				{
+					Thread.join();
+				}
+				OutputDebugString((to_string(GetTickCount64()) + " All models are loaded. [" 
+					+ to_string(GetTickCount64() - StartTimePoint) + "] elapsed.\n").c_str());
 			}
 		}
 
@@ -194,6 +224,7 @@ void CGame::SaveScene(const string& FileName)
 				{
 					xmlModelFileName->SetAttribute("ID", "Model");
 					xmlModelFileName->SetAttribute("FileName", Object3D->GetModelFileName().c_str());
+					xmlModelFileName->SetAttribute("IsRigged", Object3D->IsRiggedModel());
 					xmlObject->InsertEndChild(xmlModelFileName);
 				}
 				

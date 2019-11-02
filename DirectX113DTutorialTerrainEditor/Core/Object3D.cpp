@@ -1,8 +1,6 @@
 #include "Object3D.h"
 #include "Game.h"
 
-CAssimpLoader CObject3D::ms_AssimpLoader{};
-
 void CObject3D::Create(const SMesh& Mesh)
 {
 	m_Model.vMeshes.clear();
@@ -52,21 +50,23 @@ void CObject3D::Create(const SModel& Model)
 	m_bIsCreated = true;
 }
 
-void CObject3D::CreateFromFile(const string& FileName)
+void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 {
 	m_ModelFileName = FileName;
 
-	if (ms_AssimpLoader.IsAnimatedModel(FileName))
+	ULONGLONG StartTimePoint{ GetTickCount64() };
+	if (bIsModelRigged)
 	{
-		ms_AssimpLoader.LoadAnimatedModelFromFile(FileName, m_Model, m_PtrDevice, m_PtrDeviceContext);
+		m_AssimpLoader.LoadAnimatedModelFromFile(FileName, m_Model, m_PtrDevice, m_PtrDeviceContext);
 
 		ComponentRender.PtrVS = m_PtrGame->GetBaseShader(EBaseShader::VSAnimation);
 	}
 	else
 	{
-		ms_AssimpLoader.LoadStaticModelFromFile(FileName, m_Model, m_PtrDevice, m_PtrDeviceContext);
+		m_AssimpLoader.LoadStaticModelFromFile(FileName, m_Model, m_PtrDevice, m_PtrDeviceContext);
 	}
-	
+	OutputDebugString(("- Model [" + FileName + "] loaded. [" + to_string(GetTickCount64() - StartTimePoint) + "] elapsed.\n").c_str());
+
 	CreateMeshBuffers();
 	CreateMaterialTextures();
 

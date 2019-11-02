@@ -1108,12 +1108,18 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::SetNextItemWidth(140);
 					ImGui::InputText(u8"오브젝트 이름", NewObejct3DName, CGame::KObject3DNameMaxLength);
 
-					ImGui::Text(ModelFileNameWithoutPath);
-					ImGui::SameLine();
 					if (ImGui::Button(u8"모델 불러오기"))
 					{
 						bShowLoadModelDialog = true;
 					}
+					ImGui::SameLine();
+
+					ImGui::Text(ModelFileNameWithoutPath);
+
+					ImGui::SameLine();
+					
+					static bool bIsModelRigged{ false };
+					ImGui::Checkbox(u8"리깅 여부", &bIsModelRigged);
 					
 					if (ImGui::Button(u8"결정") || KeyState.Enter)
 					{
@@ -1127,7 +1133,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							{
 								Game.InsertObject3D(NewObejct3DName);
 								CObject3D* Object3D{ Game.GetObject3D(NewObejct3DName) };
-								Object3D->CreateFromFile(ModelFileNameWithPath);
+								Object3D->CreateFromFile(ModelFileNameWithPath, bIsModelRigged);
 							}
 
 							bShowAddObject3D = false;

@@ -108,7 +108,6 @@ public:
 	CAssimpLoader() {}
 	~CAssimpLoader() {}
 
-	bool IsAnimatedModel(const string& FileName);
 	void LoadStaticModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
 	void LoadAnimatedModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
 
@@ -117,8 +116,8 @@ private:
 	XMVECTOR ConvertaiQuaternionToXMVECTOR(const aiQuaternion& Quaternion);
 	XMMATRIX ConvertaiMatrix4x4ToXMMATRIX(const aiMatrix4x4& Matrix);
 
-	vector<SMesh> LoadMeshesFromFile(const aiScene* const Scene);
-	vector<CMaterial> LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
+	void LoadMeshesFromFile(const aiScene* const Scene, vector<SMesh>& vMeshes);
+	void LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext, vector<CMaterial>& vMaterials);
 
 private:
 	void LoadTextureData(const aiScene* const Scene, const aiString& TextureFileName, CMaterial& Material, CMaterial::CTexture::EType eTextureType);

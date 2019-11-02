@@ -93,7 +93,7 @@ public:
 	void Create(const vector<SMesh>& vMeshes, const vector<CMaterial>& vMaterials);
 	void Create(const SModel& Model);
 
-	void CreateFromFile(const string& FileName);
+	void CreateFromFile(const string& FileName, bool bIsModelRigged);
 
 public:
 	void AddMaterial(const CMaterial& Material);
@@ -113,6 +113,7 @@ public:
 
 public:
 	bool IsCreated() const { return m_bIsCreated; }
+	bool IsRiggedModel() const { return m_Model.bIsModelAnimated; }
 	const SModel& GetModel() const { return m_Model; }
 	SModel& GetModel() { return m_Model; }
 	const string& GetName() const { return m_Name; }
@@ -150,7 +151,7 @@ private:
 	bool						m_bShouldTesselate{ false };
 
 private:
-	static CAssimpLoader		ms_AssimpLoader;
+	CAssimpLoader				m_AssimpLoader{};
 };
 
 ENUM_CLASS_FLAG(CObject3D::EFlagsRendering)

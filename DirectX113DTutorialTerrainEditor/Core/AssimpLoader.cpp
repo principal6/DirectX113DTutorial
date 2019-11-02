@@ -1,17 +1,5 @@
 #include "AssimpLoader.h"
 
-bool CAssimpLoader::IsAnimatedModel(const string& FileName)
-{
-	m_Scene = m_AssimpImporter.ReadFile(FileName, 0);
-	
-	assert(m_Scene);
-	assert(m_Scene->HasMeshes());
-	assert(m_Scene->mRootNode);
-
-	if (m_Scene->mNumAnimations) return true;
-	return false;
-}
-
 void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
 {
 	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded | 
@@ -23,8 +11,8 @@ void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel& Mode
 	assert(m_Scene->HasMeshes());
 	assert(m_Scene->mRootNode);
 
-	Model.vMeshes = LoadMeshesFromFile(m_Scene);
-	Model.vMaterials = LoadMaterialsFromFile(m_Scene, Device, DeviceContext);
+	LoadMeshesFromFile(m_Scene, Model.vMeshes);
+	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model.vMaterials);
 }
 
 void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
@@ -40,13 +28,13 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 	assert(m_Scene->HasMeshes());
 	assert(m_Scene->mRootNode);
 
-	Model.vMeshes = LoadMeshesFromFile(m_Scene);
+	LoadMeshesFromFile(m_Scene, Model.vMeshes);
 	for (auto& Mesh : Model.vMeshes)
 	{
 		Mesh.vVerticesAnimation.resize(Mesh.vVertices.size());
 	}
 
-	Model.vMaterials = LoadMaterialsFromFile(m_Scene, Device, DeviceContext);
+	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model.vMaterials);
 
 	// Scene에서 재귀적으로 Node의 Tree를 만든다.
 	LoadNodes(m_Scene, m_Scene->mRootNode, -1, Model);
@@ -78,7 +66,6 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 	Model.bIsModelAnimated = true;
 }
 
-
 XMVECTOR CAssimpLoader::ConvertaiVector3DToXMVECTOR(const aiVector3D& Vector, float w)
 {
 	return XMVectorSet(Vector.x, Vector.y, Vector.z, w);
@@ -99,80 +86,73 @@ XMMATRIX CAssimpLoader::ConvertaiMatrix4x4ToXMMATRIX(const aiMatrix4x4& Matrix)
 	));
 }
 
-vector<SMesh> CAssimpLoader::LoadMeshesFromFile(const aiScene* const Scene)
+void CAssimpLoader::LoadMeshesFromFile(const aiScene* const Scene, vector<SMesh>& vMeshes)
 {
-	vector<SMesh> vMeshes{};
 	unsigned int MeshCount{ Scene->mNumMeshes };
 	vMeshes.resize(MeshCount);
-
 	for (unsigned int iMesh{}; iMesh < MeshCount; ++iMesh)
 	{
-		aiMesh* aiCurrentMesh{ Scene->mMeshes[iMesh] };
-		SMesh& CurrentMesh{ vMeshes[iMesh] };
-		CurrentMesh.MaterialID = aiCurrentMesh->mMaterialIndex;
+		const aiMesh* const _aiMesh{ Scene->mMeshes[iMesh] };
+		SMesh& Mesh{ vMeshes[iMesh] };
+		Mesh.MaterialID = _aiMesh->mMaterialIndex;
 
-		assert(aiCurrentMesh->HasPositions());
+		assert(_aiMesh->HasPositions());
 		{
-			unsigned int VertexCount{ aiCurrentMesh->mNumVertices };
+			unsigned int VertexCount{ _aiMesh->mNumVertices };
 
 			XMVECTOR Position{}, TexCoord{}, Normal{};
 
-			CurrentMesh.vVertices.reserve(VertexCount);
+			Mesh.vVertices.reserve(VertexCount);
 			for (unsigned int iVertex{}; iVertex < VertexCount; ++iVertex)
 			{
-				Position = ConvertaiVector3DToXMVECTOR(aiCurrentMesh->mVertices[iVertex], 1);
+				Position = ConvertaiVector3DToXMVECTOR(_aiMesh->mVertices[iVertex], 1);
 
 				// Use only one TexCoords system
-				if (aiCurrentMesh->mTextureCoords[0])
+				if (_aiMesh->mTextureCoords[0])
 				{
-					TexCoord = ConvertaiVector3DToXMVECTOR(aiCurrentMesh->mTextureCoords[0][iVertex], 1);
+					TexCoord = ConvertaiVector3DToXMVECTOR(_aiMesh->mTextureCoords[0][iVertex], 1);
 				}
 
-				Normal = ConvertaiVector3DToXMVECTOR(aiCurrentMesh->mNormals[iVertex], 0);
+				Normal = ConvertaiVector3DToXMVECTOR(_aiMesh->mNormals[iVertex], 0);
 
-				CurrentMesh.vVertices.emplace_back();
-				CurrentMesh.vVertices.back().Position = Position;
-				CurrentMesh.vVertices.back().TexCoord = TexCoord;
-				CurrentMesh.vVertices.back().Normal = Normal;
+				Mesh.vVertices.emplace_back();
+				Mesh.vVertices.back().Position = Position;
+				Mesh.vVertices.back().TexCoord = TexCoord;
+				Mesh.vVertices.back().Normal = Normal;
 			}
 		}
 
-		assert(aiCurrentMesh->HasFaces());
+		assert(_aiMesh->HasFaces());
 		{
-			unsigned int FaceCount{ aiCurrentMesh->mNumFaces };
+			unsigned int FaceCount{ _aiMesh->mNumFaces };
 
-			CurrentMesh.vTriangles.reserve(FaceCount);
+			Mesh.vTriangles.reserve(FaceCount);
 			for (unsigned int iFace{}; iFace < FaceCount; ++iFace)
 			{
-				assert(aiCurrentMesh->mFaces[iFace].mNumIndices == 3);
-				auto& Indices = aiCurrentMesh->mFaces[iFace].mIndices;
+				assert(_aiMesh->mFaces[iFace].mNumIndices == 3);
+				auto& Indices = _aiMesh->mFaces[iFace].mIndices;
 
-				CurrentMesh.vTriangles.emplace_back(Indices[0], Indices[1], Indices[2]);
+				Mesh.vTriangles.emplace_back(Indices[0], Indices[1], Indices[2]);
 			}
 		}
 	}
-
-	return vMeshes;
 }
 
-vector<CMaterial> CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
+void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext, vector<CMaterial>& vMaterials)
 {
 	unsigned int MaterialCount{ Scene->mNumMaterials };
-
-	vector<CMaterial> vMaterials{};
 	vMaterials.resize(MaterialCount);
-	
 	for (unsigned int iMaterial{}; iMaterial < MaterialCount; ++iMaterial)
 	{
-		aiMaterial* aiCurrentMaterial{ Scene->mMaterials[iMaterial] };
-		CMaterial& CurrentMaterial{ vMaterials[iMaterial] };
+		const aiMaterial* const _aiMaterial{ Scene->mMaterials[iMaterial] };
+		CMaterial& Material{ vMaterials[iMaterial] };
 
 		aiColor4D aiAmbient{}, aiDiffuse{}, aiSpecular{};
 		float aiShininess{};
-		aiGetMaterialColor(aiCurrentMaterial, AI_MATKEY_COLOR_AMBIENT, &aiAmbient);
-		aiGetMaterialColor(aiCurrentMaterial, AI_MATKEY_COLOR_DIFFUSE, &aiDiffuse);
-		aiGetMaterialColor(aiCurrentMaterial, AI_MATKEY_COLOR_SPECULAR, &aiSpecular);
-		aiGetMaterialFloat(aiCurrentMaterial, AI_MATKEY_SHININESS, &aiShininess);
+		aiGetMaterialColor(_aiMaterial, AI_MATKEY_COLOR_AMBIENT, &aiAmbient);
+		aiGetMaterialColor(_aiMaterial, AI_MATKEY_COLOR_DIFFUSE, &aiDiffuse);
+		aiGetMaterialColor(_aiMaterial, AI_MATKEY_COLOR_SPECULAR, &aiSpecular);
+		aiGetMaterialFloat(_aiMaterial, AI_MATKEY_SHININESS, &aiShininess);
 		
 		if (Scene->HasTextures())
 		{
@@ -181,15 +161,15 @@ vector<CMaterial> CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scen
 			aiString DisplacementTextureFileName{};
 			aiString OpacityTextureFileName{};
 
-			aiGetMaterialTexture(aiCurrentMaterial, aiTextureType_DIFFUSE, 0, &DiffuseTextureFileName);
-			aiGetMaterialTexture(aiCurrentMaterial, aiTextureType_NORMALS, 0, &NormalTextureFileName);
-			aiGetMaterialTexture(aiCurrentMaterial, aiTextureType_DISPLACEMENT, 0, &DisplacementTextureFileName);
-			aiGetMaterialTexture(aiCurrentMaterial, aiTextureType_OPACITY, 0, &OpacityTextureFileName);
+			aiGetMaterialTexture(_aiMaterial, aiTextureType_DIFFUSE, 0, &DiffuseTextureFileName);
+			aiGetMaterialTexture(_aiMaterial, aiTextureType_NORMALS, 0, &NormalTextureFileName);
+			aiGetMaterialTexture(_aiMaterial, aiTextureType_DISPLACEMENT, 0, &DisplacementTextureFileName);
+			aiGetMaterialTexture(_aiMaterial, aiTextureType_OPACITY, 0, &OpacityTextureFileName);
 
-			LoadTextureData(Scene, DiffuseTextureFileName, CurrentMaterial, CMaterial::CTexture::EType::DiffuseTexture);
-			LoadTextureData(Scene, NormalTextureFileName, CurrentMaterial, CMaterial::CTexture::EType::NormalTexture);
-			LoadTextureData(Scene, DisplacementTextureFileName, CurrentMaterial, CMaterial::CTexture::EType::DisplacementTexture);
-			LoadTextureData(Scene, OpacityTextureFileName, CurrentMaterial, CMaterial::CTexture::EType::OpacityTexture);
+			LoadTextureData(Scene, DiffuseTextureFileName, Material, CMaterial::CTexture::EType::DiffuseTexture);
+			LoadTextureData(Scene, NormalTextureFileName, Material, CMaterial::CTexture::EType::NormalTexture);
+			LoadTextureData(Scene, DisplacementTextureFileName, Material, CMaterial::CTexture::EType::DisplacementTexture);
+			LoadTextureData(Scene, OpacityTextureFileName, Material, CMaterial::CTexture::EType::OpacityTexture);
 		}
 
 		if (aiAmbient.r == 0.0f && aiAmbient.g == 0.0f && aiAmbient.b == 0.0f)
@@ -197,21 +177,19 @@ vector<CMaterial> CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scen
 			aiAmbient = aiDiffuse;
 		}
 
-		CurrentMaterial.SetAmbientColor(XMFLOAT3(aiAmbient.r, aiAmbient.g, aiAmbient.b));
-		CurrentMaterial.SetDiffuseColor(XMFLOAT3(aiDiffuse.r, aiDiffuse.g, aiDiffuse.b));
-		CurrentMaterial.SetSpecularColor(XMFLOAT3(aiSpecular.r, aiSpecular.g, aiSpecular.b));
-		CurrentMaterial.SetSpecularExponent(aiShininess);
-		CurrentMaterial.SetSpecularIntensity(1.0f);
+		Material.SetAmbientColor(XMFLOAT3(aiAmbient.r, aiAmbient.g, aiAmbient.b));
+		Material.SetDiffuseColor(XMFLOAT3(aiDiffuse.r, aiDiffuse.g, aiDiffuse.b));
+		Material.SetSpecularColor(XMFLOAT3(aiSpecular.r, aiSpecular.g, aiSpecular.b));
+		Material.SetSpecularExponent(aiShininess);
+		Material.SetSpecularIntensity(1.0f);
 	}
-
-	return vMaterials;
 }
 
 void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString& TextureFileName, CMaterial& Material, CMaterial::CTexture::EType eTextureType)
 {
 	if (TextureFileName.length == 0) return;
 
-	const aiTexture* _aiTexture{ Scene->GetEmbeddedTexture(TextureFileName.C_Str()) };
+	const aiTexture* const _aiTexture{ Scene->GetEmbeddedTexture(TextureFileName.C_Str()) };
 	if (_aiTexture)
 	{
 		unsigned int TexelCount{ _aiTexture->mWidth / 4 };
@@ -271,14 +249,14 @@ void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel& Model)
 	int TotalBoneCount{};
 	for (unsigned int iMesh = 0; iMesh < Model.vMeshes.size(); ++iMesh)
 	{
-		const aiMesh* aiMesh{ Scene->mMeshes[iMesh] };
-		if (aiMesh->HasBones())
+		const aiMesh* const _aiMesh{ Scene->mMeshes[iMesh] };
+		if (_aiMesh->HasBones())
 		{
-			for (unsigned int iBone = 0; iBone < aiMesh->mNumBones; ++iBone)
+			for (unsigned int iBone = 0; iBone < _aiMesh->mNumBones; ++iBone)
 			{
-				const aiBone* aiBone{ aiMesh->mBones[iBone] };
+				const aiBone* const _aiBone{ _aiMesh->mBones[iBone] };
 
-				string BoneName{ aiBone->mName.C_Str() };
+				string BoneName{ _aiBone->mName.C_Str() };
 				size_t BoneNodeIndex{ Model.mapNodeNameToIndex[BoneName] };
 				SModel::SNode& BoneNode{ Model.vNodes[BoneNodeIndex] };
 
@@ -289,13 +267,13 @@ void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel& Model)
 					++TotalBoneCount;
 
 					BoneNode.bIsBone = true;
-					BoneNode.MatrixBoneOffset = ConvertaiMatrix4x4ToXMMATRIX(aiBone->mOffsetMatrix);
+					BoneNode.MatrixBoneOffset = ConvertaiMatrix4x4ToXMMATRIX(_aiBone->mOffsetMatrix);
 				}
 
 				// 여러 Mesh가 같은 Bone을 참조할 수 있으므로 아래 코드는 매번 실행되어야 한다.
-				for (unsigned int iWeight = 0; iWeight < aiBone->mNumWeights; ++iWeight)
+				for (unsigned int iWeight = 0; iWeight < _aiBone->mNumWeights; ++iWeight)
 				{
-					SModel::SNode::SBlendWeight BlendWeight{ iMesh, aiBone->mWeights[iWeight].mVertexId, aiBone->mWeights[iWeight].mWeight };
+					SModel::SNode::SBlendWeight BlendWeight{ iMesh, _aiBone->mWeights[iWeight].mVertexId, _aiBone->mWeights[iWeight].mWeight };
 
 					BoneNode.vBlendWeights.emplace_back(BlendWeight);
 				}
@@ -345,46 +323,46 @@ void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel& Model)
 		Model.vAnimations.resize(Scene->mNumAnimations);
 		for (unsigned int iAnimation = 0; iAnimation < Scene->mNumAnimations; ++iAnimation)
 		{
-			const aiAnimation* aiAnimation{ Scene->mAnimations[iAnimation] };
-			const unsigned int& ChannelCount{ aiAnimation->mNumChannels };
+			const aiAnimation* const _aiAnimation{ Scene->mAnimations[iAnimation] };
+			const unsigned int& ChannelCount{ _aiAnimation->mNumChannels };
 
 			SModel::SAnimation& Animation{ Model.vAnimations[iAnimation] };
-			Animation.TicksPerSecond = static_cast<float>(aiAnimation->mTicksPerSecond);
-			Animation.Duration = static_cast<float>(aiAnimation->mDuration);
+			Animation.TicksPerSecond = static_cast<float>(_aiAnimation->mTicksPerSecond);
+			Animation.Duration = static_cast<float>(_aiAnimation->mDuration);
 			Animation.vNodeAnimations.resize(ChannelCount);
 			for (unsigned int iChannel = 0; iChannel < ChannelCount; ++iChannel)
 			{
-				const aiNodeAnim* Channel{ aiAnimation->mChannels[iChannel] };
+				const aiNodeAnim* const aiChannel{ _aiAnimation->mChannels[iChannel] };
 				SModel::SAnimation::SNodeAnimation& NodeAnimation{ Animation.vNodeAnimations[iChannel] };
 
 				NodeAnimation.Index = iChannel;
-				NodeAnimation.NodeName = Channel->mNodeName.C_Str();
+				NodeAnimation.NodeName = aiChannel->mNodeName.C_Str();
 
-				unsigned int PositionKeyCount{ Channel->mNumPositionKeys };
+				unsigned int PositionKeyCount{ aiChannel->mNumPositionKeys };
 				NodeAnimation.vPositionKeys.resize(PositionKeyCount);
 				for (unsigned int iPositionKey = 0; iPositionKey < PositionKeyCount; ++iPositionKey)
 				{
-					const aiVectorKey& aiKey{ Channel->mPositionKeys[iPositionKey] };
+					const aiVectorKey& aiKey{ aiChannel->mPositionKeys[iPositionKey] };
 					SModel::SAnimation::SNodeAnimation::SKey& Key{ NodeAnimation.vPositionKeys[iPositionKey] };
 					Key.Time = static_cast<float>(aiKey.mTime);
 					Key.Value = ConvertaiVector3DToXMVECTOR(aiKey.mValue, 0);
 				}
 
-				unsigned int RotationKeyCount{ Channel->mNumRotationKeys };
+				unsigned int RotationKeyCount{ aiChannel->mNumRotationKeys };
 				NodeAnimation.vRotationKeys.resize(RotationKeyCount);
 				for (unsigned int iRotationKey = 0; iRotationKey < RotationKeyCount; ++iRotationKey)
 				{
-					const aiQuatKey& aiKey{ Channel->mRotationKeys[iRotationKey] };
+					const aiQuatKey& aiKey{ aiChannel->mRotationKeys[iRotationKey] };
 					SModel::SAnimation::SNodeAnimation::SKey& Key{ NodeAnimation.vRotationKeys[iRotationKey] };
 					Key.Time = static_cast<float>(aiKey.mTime);
 					Key.Value = ConvertaiQuaternionToXMVECTOR(aiKey.mValue);
 				}
 
-				unsigned int ScalingKeyCount{ Channel->mNumScalingKeys };
+				unsigned int ScalingKeyCount{ aiChannel->mNumScalingKeys };
 				NodeAnimation.vScalingKeys.resize(ScalingKeyCount);
 				for (unsigned int iScalingKey = 0; iScalingKey < ScalingKeyCount; ++iScalingKey)
 				{
-					const aiVectorKey& aiKey{ Channel->mScalingKeys[iScalingKey] };
+					const aiVectorKey& aiKey{ aiChannel->mScalingKeys[iScalingKey] };
 					SModel::SAnimation::SNodeAnimation::SKey& Key{ NodeAnimation.vScalingKeys[iScalingKey] };
 					Key.Time = static_cast<float>(aiKey.mTime);
 					Key.Value = ConvertaiVector3DToXMVECTOR(aiKey.mValue, 0);
