@@ -115,10 +115,11 @@ public:
 	void SetMaterial(size_t Index, const CMaterial& Material);
 	size_t GetMaterialCount() const;
 
-	void AddInstance();
+	void AddInstance(bool bShouldCreateInstanceBuffers = true);
 	void DeleteInstance(const string& Name);
 	SInstanceCPUData& GetInstance(int InstanceID);
 	SInstanceCPUData& GetInstance(const string& Name);
+	void CreateInstanceBuffers();
 
 	void UpdateQuadUV(const XMFLOAT2& UVOffset, const XMFLOAT2& UVSize);
 	void UpdateMeshBuffer(size_t MeshIndex = 0);
@@ -150,7 +151,6 @@ private:
 	void CreateMeshBuffers();
 	void CreateMeshBuffer(size_t MeshIndex, bool IsAnimated);
 
-	void CreateInstanceBuffers();
 	void CreateInstanceBuffer(size_t MeshIndex);
 
 	void CreateMaterialTextures();

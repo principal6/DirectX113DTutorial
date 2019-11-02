@@ -15,6 +15,18 @@
             <Scaling ID="Scaling" x="1" y="1" z="1"/>
             <BSCenterOffset ID="BSCenterOffset" x="0" y="1.6799999" z="0"/>
             <BSRadius ID="BSRadius" Value="2.1199999"/>
+            <InstanceList ID="InstanceList">
+                <Instance Name="instance0">
+                    <Translation ID="Translation" x="3.8999999" y="0" z="0"/>
+                    <Rotation ID="Rotation" Pitch="0" Yaw="0" Roll="0"/>
+                    <Scaling ID="Scaling" x="1" y="1" z="1"/>
+                </Instance>
+                <Instance Name="instance1">
+                    <Translation ID="Translation" x="-2.8000002" y="0" z="0"/>
+                    <Rotation ID="Rotation" Pitch="0" Yaw="0" Roll="0"/>
+                    <Scaling ID="Scaling" x="1" y="1" z="1"/>
+                </Instance>
+            </InstanceList>
         </Object>
         <Object Name="temple">
             <Model ID="Model" FileName="Asset\temple.FBX" IsRigged="false"/>

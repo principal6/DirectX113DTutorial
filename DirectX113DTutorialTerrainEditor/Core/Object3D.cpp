@@ -106,7 +106,7 @@ size_t CObject3D::GetMaterialCount() const
 	return m_Model.vMaterials.size();
 }
 
-void CObject3D::AddInstance()
+void CObject3D::AddInstance(bool bShouldCreateInstanceBuffers)
 {
 	size_t InstanceCount{ GetInstanceCount() };
 	string Name{ "instance" + to_string(InstanceCount) };
@@ -129,10 +129,11 @@ void CObject3D::AddInstance()
 
 	m_vInstanceGPUData.emplace_back();
 	
-	if (m_vInstanceCPUData.size() == 1) CreateInstanceBuffers();
-	if (bShouldRecreateInstanceBuffer) CreateInstanceBuffers();
-
-	CreateInstanceBuffers();
+	if (bShouldCreateInstanceBuffers)
+	{
+		if (m_vInstanceCPUData.size() == 1) CreateInstanceBuffers();
+		if (bShouldRecreateInstanceBuffer) CreateInstanceBuffers();
+	}
 
 	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(EBaseShader::VSInstance);
 
@@ -261,6 +262,8 @@ void CObject3D::CreateMeshBuffer(size_t MeshIndex, bool IsAnimated)
 
 void CObject3D::CreateInstanceBuffers()
 {
+	if (m_vInstanceCPUData.empty()) return;
+
 	m_vInstanceBuffers.clear();
 	m_vInstanceBuffers.resize(m_Model.vMeshes.size());
 	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)

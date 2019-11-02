@@ -154,6 +154,64 @@ void CGame::LoadScene(const string& FileName)
 						float Radius{ xmlObjectChild->FloatAttribute("Value") };
 						Object3D->ComponentPhysics.BoundingSphere.Radius = Radius;
 					}
+
+					if (strcmp(ID, "InstanceList") == 0)
+					{
+						vector<XMLElement*> vxmlInstances{};
+						XMLElement* xmlInstance{ xmlObjectChild->FirstChildElement() };
+						while (xmlInstance)
+						{
+							vxmlInstances.emplace_back(xmlInstance);
+							xmlInstance = xmlInstance->NextSiblingElement();
+						}
+						
+						int iInstance{};
+						for (auto& xmlInstance : vxmlInstances)
+						{
+							vector<XMLElement*> vxmlInstanceChildren{};
+							XMLElement* xmlInstanceChild{ xmlInstance->FirstChildElement() };
+							while (xmlInstanceChild)
+							{
+								vxmlInstanceChildren.emplace_back(xmlInstanceChild);
+								xmlInstanceChild = xmlInstanceChild->NextSiblingElement();
+							}
+
+							Object3D->AddInstance(false);
+							auto& Instance{ Object3D->GetInstance(iInstance) };
+							for (auto& xmlInstanceChild : vxmlInstanceChildren)
+							{
+								const char* ID{ xmlInstanceChild->Attribute("ID") };
+								if (strcmp(ID, "Translation") == 0)
+								{
+									float x{ xmlInstanceChild->FloatAttribute("x") };
+									float y{ xmlInstanceChild->FloatAttribute("y") };
+									float z{ xmlInstanceChild->FloatAttribute("z") };
+									Instance.Translation = XMVectorSet(x, y, z, 1.0f);
+								}
+
+								if (strcmp(ID, "Rotation") == 0)
+								{
+									float Pitch{ xmlInstanceChild->FloatAttribute("Pitch") };
+									float Yaw{ xmlInstanceChild->FloatAttribute("Yaw") };
+									float Roll{ xmlInstanceChild->FloatAttribute("Roll") };
+									Instance.Pitch = Pitch;
+									Instance.Yaw = Yaw;
+									Instance.Roll = Roll;
+								}
+
+								if (strcmp(ID, "Scaling") == 0)
+								{
+									float x{ xmlInstanceChild->FloatAttribute("x") };
+									float y{ xmlInstanceChild->FloatAttribute("y") };
+									float z{ xmlInstanceChild->FloatAttribute("z") };
+									Instance.Scaling = XMVectorSet(x, y, z, 1.0f);
+								}
+							}
+							Object3D->UpdateInstanceWorldMatrix(iInstance);
+
+							++iInstance;
+						}
+					}
 				}
 			}
 
@@ -169,9 +227,10 @@ void CGame::LoadScene(const string& FileName)
 						[](CObject3D* const P, const string& ModelFileName, bool bIsRigged)
 						{
 							P->CreateFromFile(ModelFileName, bIsRigged);
+							if (P->IsInstanced()) P->CreateInstanceBuffers();
 						}
 						, vPtrObject3D[iObject3D], vModelDatas[iObject3D].first, vModelDatas[iObject3D].second
-							);
+					);
 				}
 				for (auto& Thread : vThreads)
 				{
@@ -280,6 +339,59 @@ void CGame::SaveScene(const string& FileName)
 					xmlBSRadius->SetAttribute("ID", "BSRadius");
 					xmlBSRadius->SetAttribute("Value", Object3D->ComponentPhysics.BoundingSphere.Radius);
 					xmlObject->InsertEndChild(xmlBSRadius);
+				}
+
+				if (Object3D->IsInstanced())
+				{
+					XMLElement* xmlInstanceList{ xmlDocument.NewElement("InstanceList") };
+					{
+						xmlInstanceList->SetAttribute("ID", "InstanceList");
+
+						for (const auto& InstancePair : Object3D->GetInstanceMap())
+						{
+							XMLElement* xmlInstance{ xmlDocument.NewElement("Instance") };
+							{
+								xmlInstance->SetAttribute("Name", InstancePair.first.c_str());
+
+								const auto& Instance{ Object3D->GetInstance(InstancePair.first) };
+
+								XMLElement* xmlTranslation{ xmlDocument.NewElement("Translation") };
+								{
+									xmlTranslation->SetAttribute("ID", "Translation");
+									XMFLOAT4 Translation{};
+									XMStoreFloat4(&Translation, Instance.Translation);
+									xmlTranslation->SetAttribute("x", Translation.x);
+									xmlTranslation->SetAttribute("y", Translation.y);
+									xmlTranslation->SetAttribute("z", Translation.z);
+									xmlInstance->InsertEndChild(xmlTranslation);
+								}
+
+								XMLElement* xmlRotation{ xmlDocument.NewElement("Rotation") };
+								{
+									xmlRotation->SetAttribute("ID", "Rotation");
+									xmlRotation->SetAttribute("Pitch", Instance.Pitch);
+									xmlRotation->SetAttribute("Yaw", Instance.Yaw);
+									xmlRotation->SetAttribute("Roll", Instance.Roll);
+									xmlInstance->InsertEndChild(xmlRotation);
+								}
+
+								XMLElement* xmlScaling{ xmlDocument.NewElement("Scaling") };
+								{
+									xmlScaling->SetAttribute("ID", "Scaling");
+									XMFLOAT4 Scaling{};
+									XMStoreFloat4(&Scaling, Instance.Scaling);
+									xmlScaling->SetAttribute("x", Scaling.x);
+									xmlScaling->SetAttribute("y", Scaling.y);
+									xmlScaling->SetAttribute("z", Scaling.z);
+									xmlInstance->InsertEndChild(xmlScaling);
+								}
+
+								xmlInstanceList->InsertEndChild(xmlInstance);
+							}
+						}
+
+						xmlObject->InsertEndChild(xmlInstanceList);
+					}
 				}
 
 				xmlObjectList->InsertEndChild(xmlObject);
@@ -2189,7 +2301,7 @@ void CGame::Interact3DGizmos()
 	float* pPitch{ &m_PtrSelectedObject3D->ComponentTransform.Pitch };
 	float* pYaw{ &m_PtrSelectedObject3D->ComponentTransform.Yaw };
 	float* pRoll{ &m_PtrSelectedObject3D->ComponentTransform.Roll };
-	if (m_SelectedInstanceID != -1)
+	if (m_PtrSelectedObject3D->IsInstanced() && IsAnyInstanceSelected())
 	{
 		auto& Instance{ m_PtrSelectedObject3D->GetInstance(m_SelectedInstanceID) };
 		pTranslation = &Instance.Translation;
@@ -2294,13 +2406,21 @@ void CGame::Interact3DGizmos()
 
 		const XMVECTOR& BSTransaltion{ m_PtrSelectedObject3D->ComponentPhysics.BoundingSphere.CenterOffset };
 
+		m_Object3D_3DGizmoTranslationX->ComponentTransform.Translation =
+			m_Object3D_3DGizmoTranslationY->ComponentTransform.Translation =
+			m_Object3D_3DGizmoTranslationZ->ComponentTransform.Translation = *pTranslation + BSTransaltion;
+
+		m_Object3D_3DGizmoRotationPitch->ComponentTransform.Translation =
+			m_Object3D_3DGizmoRotationYaw->ComponentTransform.Translation =
+			m_Object3D_3DGizmoRotationRoll->ComponentTransform.Translation = *pTranslation + BSTransaltion;
+
+		m_Object3D_3DGizmoScalingX->ComponentTransform.Translation =
+			m_Object3D_3DGizmoScalingY->ComponentTransform.Translation =
+			m_Object3D_3DGizmoScalingZ->ComponentTransform.Translation = *pTranslation + BSTransaltion;
+
 		switch (m_e3DGizmoMode)
 		{
 		case E3DGizmoMode::Translation:
-			m_Object3D_3DGizmoTranslationX->ComponentTransform.Translation =
-				m_Object3D_3DGizmoTranslationY->ComponentTransform.Translation =
-				m_Object3D_3DGizmoTranslationZ->ComponentTransform.Translation = *pTranslation + BSTransaltion;
-
 			m_bIsGizmoSelected = true;
 			if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationX.get(), E3DGizmoAxis::AxisX))
 			{
@@ -2321,10 +2441,6 @@ void CGame::Interact3DGizmos()
 
 			break;
 		case E3DGizmoMode::Rotation:
-			m_Object3D_3DGizmoRotationPitch->ComponentTransform.Translation =
-				m_Object3D_3DGizmoRotationYaw->ComponentTransform.Translation =
-				m_Object3D_3DGizmoRotationRoll->ComponentTransform.Translation = *pTranslation + BSTransaltion;
-
 			m_bIsGizmoSelected = true;
 			if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationPitch.get(), E3DGizmoAxis::AxisX))
 			{
@@ -2345,10 +2461,6 @@ void CGame::Interact3DGizmos()
 
 			break;
 		case E3DGizmoMode::Scaling:
-			m_Object3D_3DGizmoScalingX->ComponentTransform.Translation =
-				m_Object3D_3DGizmoScalingY->ComponentTransform.Translation =
-				m_Object3D_3DGizmoScalingZ->ComponentTransform.Translation = *pTranslation + BSTransaltion;
-
 			m_bIsGizmoSelected = true;
 			if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingX.get(), E3DGizmoAxis::AxisX))
 			{
