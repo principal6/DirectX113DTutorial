@@ -454,19 +454,25 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									{
 										// Non-instanced Object3D
 
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"위치");
+										ImGui::SameLine(120);
 										float Translation[3]{ XMVectorGetX(Object3D->ComponentTransform.Translation),
 										XMVectorGetY(Object3D->ComponentTransform.Translation), XMVectorGetZ(Object3D->ComponentTransform.Translation) };
-										if (ImGui::DragFloat3(u8"위치", Translation, CGame::KTranslationUnit,
+										if (ImGui::DragFloat3(u8"##위치", Translation, CGame::KTranslationUnit,
 											CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.1f"))
 										{
 											Object3D->ComponentTransform.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
 											Object3D->UpdateWorldMatrix();
 										}
 
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"회전");
+										ImGui::SameLine(120);
 										int PitchYawRoll360[3]{ (int)(Object3D->ComponentTransform.Pitch * CGame::KRotation2PITo360),
 											(int)(Object3D->ComponentTransform.Yaw * CGame::KRotation2PITo360),
 											(int)(Object3D->ComponentTransform.Roll * CGame::KRotation2PITo360) };
-										if (ImGui::DragInt3(u8"회전", PitchYawRoll360, CGame::KRotation360Unit,
+										if (ImGui::DragInt3(u8"##회전", PitchYawRoll360, CGame::KRotation360Unit,
 											CGame::KRotation360MinLimit, CGame::KRotation360MaxLimit))
 										{
 											Object3D->ComponentTransform.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
@@ -475,9 +481,12 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 											Object3D->UpdateWorldMatrix();
 										}
 
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"크기");
+										ImGui::SameLine(120);
 										float Scaling[3]{ XMVectorGetX(Object3D->ComponentTransform.Scaling),
 											XMVectorGetY(Object3D->ComponentTransform.Scaling), XMVectorGetZ(Object3D->ComponentTransform.Scaling) };
-										if (ImGui::DragFloat3(u8"크기", Scaling, CGame::KScalingUnit,
+										if (ImGui::DragFloat3(u8"##크기", Scaling, CGame::KScalingUnit,
 											CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.3f"))
 										{
 											Object3D->ComponentTransform.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
@@ -485,19 +494,25 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										}
 									}
 
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"BS 중심");
+									ImGui::SameLine(120);
 									float BSCenterOffset[3]{
 										XMVectorGetX(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
 										XMVectorGetY(Object3D->ComponentPhysics.BoundingSphere.CenterOffset), 
 										XMVectorGetZ(Object3D->ComponentPhysics.BoundingSphere.CenterOffset) };
-									if (ImGui::DragFloat3(u8"BS 중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
+									if (ImGui::DragFloat3(u8"##BS중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
 										CGame::KBSCenterOffsetMinLimit, CGame::KBSCenterOffsetMaxLimit, "%.2f"))
 									{
 										Object3D->ComponentPhysics.BoundingSphere.CenterOffset =
 											XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f);
 									}
 
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"BS 반지름");
+									ImGui::SameLine(120);
 									float BSRadius{ Object3D->ComponentPhysics.BoundingSphere.Radius };
-									if (ImGui::DragFloat(u8"BS 반지름", &BSRadius, CGame::KBSRadiusUnit,
+									if (ImGui::DragFloat(u8"##BS반지름", &BSRadius, CGame::KBSRadiusUnit,
 										CGame::KBSRadiusMinLimit, CGame::KBSRadiusMaxLimit, "%.2f"))
 									{
 										Object3D->ComponentPhysics.BoundingSphere.Radius = BSRadius;
