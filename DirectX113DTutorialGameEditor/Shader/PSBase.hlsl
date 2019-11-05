@@ -7,8 +7,8 @@ Texture2D OpacityTexture : register(t10);
 
 cbuffer cbFlags : register(b0)
 {
-	bool UseTexture;
-	bool UseLighting;
+	bool bUseTexture;
+	bool bUseLighting;
 	bool2 Pads;
 }
 
@@ -32,7 +32,12 @@ cbuffer cbMaterial : register(b2)
 
 	bool	bHasNormalTexture;
 	bool	bHasOpacityTexture;
-	bool2	Pad;
+	bool2	Pads2;
+}
+
+cbuffer cbSpace : register(b3)
+{
+	float4x4	ViewProjection;
 }
 
 float4 main(VS_OUTPUT input) : SV_TARGET
@@ -42,7 +47,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	float4 SpecularColor = float4(MaterialSpecular, 1);
 	float Opacity = 1.0f;
 	
-	if (UseTexture == true)
+	if (bUseTexture == true)
 	{
 		if (bHasDiffuseTexture == true)
 		{
@@ -57,7 +62,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	DiffuseColor.xyz *= DiffuseColor.xyz;
 
 	float4 Result = DiffuseColor;
-	if (UseLighting == true)
+	if (bUseLighting == true)
 	{
 		Result = CalculateAmbient(AmbientColor, AmbientLightColor, AmbientLightIntensity);
 
@@ -71,15 +76,8 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 		Result += Directional;
 	}
 
-	if (input.bUseVertexColor != 0)
-	{
-		return input.Color;
-	}
-
-	if (bHasOpacityTexture == true)
-	{
-		Result.a *= Opacity;
-	}
-
+	if (input.bUseVertexColor != 0) Result = input.Color;
+	if (bHasOpacityTexture == true) Result.a *= Opacity;
+	
 	return Result;
 }
