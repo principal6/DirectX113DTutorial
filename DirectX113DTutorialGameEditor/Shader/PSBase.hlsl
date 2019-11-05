@@ -78,7 +78,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
 	if (bHasOpacityTexture == true)
 	{
-		Result.a *= (1.0f - Opacity);
+		Result.a *= Opacity;
 	}
 
 	return Result;
