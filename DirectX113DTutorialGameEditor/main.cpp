@@ -223,7 +223,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					if (MouseState.x != PrevMouseX || MouseState.y != PrevMouseY)
 					{
-						Game.SelectTerrain(true, MouseState.leftButton);
+						if (MouseState.leftButton || MouseState.rightButton)
+						{
+							Game.SelectTerrain(true, MouseState.leftButton);
+						}
+						else
+						{
+							Game.SelectTerrain(false, false);
+						}
 					}
 				}
 				else
