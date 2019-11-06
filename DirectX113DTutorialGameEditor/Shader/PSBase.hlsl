@@ -56,7 +56,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 		
 		if (bHasOpacityTexture == true)
 		{
-			Opacity = OpacityTexture.Sample(CurrentSampler, input.UV.xy).r;
+			Opacity = OpacityTexture.Sample(CurrentSampler, input.UV.xy).a;
 		}
 	}
 	DiffuseColor.xyz *= DiffuseColor.xyz;
