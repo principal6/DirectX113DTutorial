@@ -13,7 +13,8 @@ public:
 	{
 		SetHeight,
 		DeltaHeight,
-		Masking
+		Masking,
+		FoliagePlacing
 	};
 
 	enum class EMaskingLayer
@@ -32,14 +33,22 @@ public:
 		float Pad{};
 	};
 
+	struct SCBVSFoliageData
+	{
+		float	Density{};
+		int		CountX{};
+		int		CountZ{};
+		float	Reserved{};
+	};
+
 	struct SCBPSTerrainSelectionData
 	{
 		BOOL		bShowSelection{};
 		float		SelectionHalfSize{ KSelectionMinSize / 2.0f };
 		XMFLOAT2	DigitalPosition{};
 
-		BOOL		bIsMaskingMode{};
-		float		MaskingRadius{};
+		BOOL		bUseCircularSelection{};
+		float		SelectionRadius{};
 		XMFLOAT2	AnaloguePosition{};
 	};
 
@@ -57,11 +66,16 @@ public:
 	void Load(const string& FileName);
 	void Save(const string& FileName);
 
+	void CreateFoliageCluster(const vector<string>& vFoliageFileNames, int PlacingDetail);
+	void SetFoliageDensity(float Density);
+	float GetFoliageDenstiy() const;
+
 private:
 	void CreateTerrainObject3D(vector<CMaterial>& vMaterialsl);
 	void CreateHeightMapTexture(bool bShouldClear);
 	void CreateMaskingTexture(bool bShouldClear);
 	void CreateWater();
+	void CreateFoliagePlaceTexutre();
 
 public:
 	void AddMaterial(const CMaterial& Material);
@@ -80,14 +94,24 @@ private:
 	void UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, float Value, float Radius, bool bForceSet = false);
 	void UpdateMaskingTexture();
 
+	void UpdateFoliagePlacing(float Radius, const XMFLOAT2& Position, bool bErase);
+	void UpdateFoliagePlaceTexture();
+
 public:
 	void SetSelectionSize(float& Size);
+	float GetSelectionSize() const;
 	void SetMaskingLayer(EMaskingLayer eLayer);
+	CTerrain::EMaskingLayer GetMaskingLayer() const;
 	void SetMaskingAttenuation(float Attenuation);
+	float GetMaskingAttenuation() const;
 	void SetMaskingRadius(float Radius);
+	float GetMaskingRadius() const;
 	void SetSetHeightValue(float Value);
+	float GetSetHeightValue() const;
 	void SetDeltaHeightValue(float Value);
-	void SetMaskingValue(float Value);
+	float GetDeltaHeightValue() const;
+	void SetMaskingRatio(float Value);
+	float GetMaskingRatio() const;
 
 	void ShouldTessellate(bool Value);
 	bool ShouldTessellate() const;
@@ -117,9 +141,11 @@ public:
 	void Draw(bool bDrawNormals);
 	void DrawHeightMapTexture();
 	void DrawMaskingTexture();
+	void DrawFoliagePlacingTexture();
 
 private:
 	void DrawWater();
+	void DrawFoliageCluster();
 
 public:
 	static constexpr int KMaterialMaxCount{ 5 }; // It includes 1 main texture + 4 layer textures
@@ -165,6 +191,9 @@ public:
 	static constexpr float KWaterMinHeight{ KMinHeight };
 	static constexpr float KWaterMaxHeight{ KMaxHeight };
 
+	static constexpr float KMaxFoliageInterval{ 1.0f };
+	static constexpr float KMinFoliageInterval{ 0.1f };
+
 private:
 	ID3D11Device* const			m_PtrDevice{};
 	ID3D11DeviceContext* const	m_PtrDeviceContext{};
@@ -193,6 +222,16 @@ private:
 	float							m_WaterHeight{};
 	float							m_WaterTessFactor{ KTessFactorMin };
 	bool							m_bShouldDrawWater{ true };
+
+private:
+	vector<unique_ptr<CObject3D>>	m_vFoliages{};
+	bool							m_bHasFoliageCluster{ false };
+	SCBVSFoliageData				m_cbVSFoliageData{};
+	unique_ptr<CMaterial::CTexture>	m_PerlinNoiseTexture{};
+	XMFLOAT2						m_FoliagePlaceTextureSize{};
+	unique_ptr<CMaterial::CTexture>	m_FoliagePlaceTexture{};
+	vector<SPixel8UInt>				m_FoliagePlaceTextureRawData{};
+	int								m_FoliagePlacingDetail{};
 
 private:
 	SCBPSTerrainSelectionData	m_cbPSTerrainSelectionData{};

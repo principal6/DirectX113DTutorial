@@ -1,4 +1,4 @@
-#include "HBase.hlsli"
+#include "Base.hlsli"
 
 SamplerState CurrentSampler : register(s0);
 Texture2D DiffuseTexture : register(t0);
@@ -56,7 +56,15 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 		
 		if (bHasOpacityTexture == true)
 		{
-			Opacity = OpacityTexture.Sample(CurrentSampler, input.UV.xy).a;
+			float4 Sampled = OpacityTexture.Sample(CurrentSampler, input.UV.xy);
+			if (Sampled.r == Sampled.g && Sampled.g == Sampled.b)
+			{
+				Opacity = Sampled.r;
+			}
+			else
+			{
+				Opacity = Sampled.a;
+			}
 		}
 	}
 	DiffuseColor.xyz *= DiffuseColor.xyz;

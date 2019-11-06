@@ -6,6 +6,20 @@ static const float KPI = 3.14159f;
 static const float K2PI = 6.28318f;
 static const float K4PI = 12.56637f;
 
+static float4 RotateAroundAxisX(float4 V, float Theta)
+{
+	float2x2 RotationMatrix = float2x2(cos(Theta), sin(Theta), -sin(Theta), cos(Theta));
+	V.yz = mul(V.yz, RotationMatrix);
+	return V;
+}
+
+static float4 RotateAroundAxisZ(float4 V, float Theta)
+{
+	float2x2 RotationMatrix = float2x2(cos(Theta), sin(Theta), -sin(Theta), cos(Theta));
+	V.xy = mul(V.xy, RotationMatrix);
+	return V;
+}
+
 static float4 CalculateBitangent(float4 Normal, float4 Tangent)
 {
 	return float4(normalize(cross(Normal.xyz, Tangent.xyz)), 0);

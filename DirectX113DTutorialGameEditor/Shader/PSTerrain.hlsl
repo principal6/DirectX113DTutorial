@@ -1,4 +1,4 @@
-#include "HBase.hlsli"
+#include "Terrain.hlsli"
 
 SamplerState CurrentSampler : register(s0);
 
@@ -36,8 +36,8 @@ cbuffer cbSelection : register(b2)
 	float SelectionHalfSize;
 	float2 DigitalPosition;
 	
-	bool bIsMaskingMode;
-	float MaskingRadius;
+	bool bUseCircularSelection;
+	float SelectionRadius;
 	float2 AnaloguePosition;
 }
 
@@ -89,12 +89,12 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 		const float3 ColorCmp = float3(0.2f, 0.4f, 0.6f);
 		const float3 HighlightFactor = float3(0.2f, 0.2f, 0.2f);
 		const float Sine = sin(NormalizedTimeHalfSpeed * KPI);
-		if (bIsMaskingMode == true)
+		if (bUseCircularSelection == true)
 		{
 			const float DistanceX = abs(input.WorldPosition.x - AnaloguePosition.x);
 			const float DistanceZ = abs(input.WorldPosition.z - AnaloguePosition.y);
 			const float Distance = sqrt(DistanceX * DistanceX + DistanceZ * DistanceZ);
-			if (Distance <= MaskingRadius)
+			if (Distance <= SelectionRadius)
 			{
 				Albedo.xyz = max(Albedo.xyz, ColorCmp);
 				Albedo.xyz += HighlightFactor * Sine;

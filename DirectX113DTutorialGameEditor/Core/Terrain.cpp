@@ -36,7 +36,6 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, fl
 
 	CreateTerrainObject3D(vMaterials);
 
-	m_Object2DTextureRepresentation.release();
 	m_Object2DTextureRepresentation = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
 	m_Object2DTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
 
@@ -140,7 +139,6 @@ void CTerrain::Load(const string& FileName)
 
 	CreateTerrainObject3D(Model.vMaterials);
 
-	m_Object2DTextureRepresentation.release();
 	m_Object2DTextureRepresentation = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
 	m_Object2DTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
 
@@ -223,6 +221,45 @@ void CTerrain::Save(const string& FileName)
 	ofs.close();
 }
 
+void CTerrain::CreateFoliageCluster(const vector<string>& vFoliageFileNames, int PlacingDetail)
+{
+	srand((unsigned int)GetTickCount64());
+
+	m_FoliagePlacingDetail = PlacingDetail;
+
+	CreateFoliagePlaceTexutre();
+	
+	if (!m_PerlinNoiseTexture)
+	{
+		m_PerlinNoiseTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+		m_PerlinNoiseTexture->CreateTextureFromFile("Asset\\perlin_noise.jpg", false);
+		m_PerlinNoiseTexture->SetShaderType(EShaderType::VertexShader);
+		m_PerlinNoiseTexture->SetSlot(1);
+	}
+
+	const int KTerrainSizeX{ static_cast<int>(m_Size.x) };
+	const int KTerrainSizeZ{ static_cast<int>(m_Size.y) };
+	m_cbVSFoliageData.CountX = KTerrainSizeX * PlacingDetail;
+	m_cbVSFoliageData.CountZ = KTerrainSizeZ * PlacingDetail;
+	for (const auto& FoliageFileName : vFoliageFileNames)
+	{
+		m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext, m_PtrGame));
+		m_vFoliages.back()->CreateFromFile(FoliageFileName, false);
+	}
+
+	m_bHasFoliageCluster = true;
+}
+
+void CTerrain::SetFoliageDensity(float Density)
+{
+	m_cbVSFoliageData.Density = Density;
+}
+
+float CTerrain::GetFoliageDenstiy() const
+{
+	return m_cbVSFoliageData.Density;
+}
+
 void CTerrain::CreateTerrainObject3D(vector<CMaterial>& vMaterials)
 {
 	SModel Model{};
@@ -233,7 +270,6 @@ void CTerrain::CreateTerrainObject3D(vector<CMaterial>& vMaterials)
 	Model.vMaterials = vMaterials;
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
 
-	m_Object3DTerrain.release();
 	m_Object3DTerrain = make_unique<CObject3D>("Terrain", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 	m_Object3DTerrain->Create(Model);
 	m_Object3DTerrain->ShouldTessellate(true); // @important
@@ -241,7 +277,6 @@ void CTerrain::CreateTerrainObject3D(vector<CMaterial>& vMaterials)
 
 void CTerrain::CreateHeightMapTexture(bool bShouldClear)
 {
-	m_HeightMapTexture.release();
 	m_HeightMapTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
 
 	m_HeightMapTextureSize = m_Size;
@@ -267,11 +302,10 @@ void CTerrain::CreateHeightMapTexture(bool bShouldClear)
 
 void CTerrain::CreateMaskingTexture(bool bShouldClear)
 {
+	m_MaskingTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+
 	m_MaskingTextureSize.x = m_Size.x * m_MaskingTextureDetail;
 	m_MaskingTextureSize.y = m_Size.y * m_MaskingTextureDetail;
-
-	m_MaskingTexture.release();
-	m_MaskingTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_MaskingTexture->CreateBlankTexture(DXGI_FORMAT_R8G8B8A8_UNORM, m_MaskingTextureSize);
 	m_MaskingTexture->SetSlot(KMaskingTextureSlot);
 	m_MaskingTexture->Use();
@@ -292,27 +326,38 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 
 void CTerrain::CreateWater()
 {
-	constexpr XMVECTOR KWaterColor{ 0.0f, 0.5f, 0.625f, 0.8125f };
+	static constexpr XMVECTOR KWaterColor{ 0.0f, 0.5f, 0.625f, 0.8125f };
 
-	m_Object3DWater.release();
 	m_Object3DWater = make_unique<CObject3D>("Water", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 
 	SMesh WaterMesh{ GenerateTerrainBase(m_Size, false, KWaterColor) };
 	m_Object3DWater->Create(WaterMesh);
 	m_Object3DWater->ShouldTessellate(true);
 
-	m_WaterNormalTexture.release();
 	m_WaterNormalTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_WaterNormalTexture->CreateTextureFromFile("Asset\\water_normal.jpg", false);
 	m_WaterNormalTexture->SetSlot(0);
 	m_WaterNormalTexture->Use();
 
-	m_WaterDisplacementTexture.release();
 	m_WaterDisplacementTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_WaterDisplacementTexture->CreateTextureFromFile("Asset\\water_displacement.jpg", false);
 	m_WaterDisplacementTexture->SetSlot(0);
 	m_WaterDisplacementTexture->SetShaderType(EShaderType::DomainShader);
 	m_WaterDisplacementTexture->Use();
+}
+
+void CTerrain::CreateFoliagePlaceTexutre()
+{
+	m_FoliagePlaceTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+
+	m_FoliagePlaceTextureSize.x = static_cast<float>(m_Size.x * m_FoliagePlacingDetail);
+	m_FoliagePlaceTextureSize.y = static_cast<float>(m_Size.y * m_FoliagePlacingDetail);
+	m_FoliagePlaceTexture->CreateBlankTexture(DXGI_FORMAT_R8_UNORM, m_FoliagePlaceTextureSize);
+
+	m_FoliagePlaceTextureRawData.clear();
+	m_FoliagePlaceTextureRawData.resize(static_cast<size_t>(m_FoliagePlaceTextureSize.x) * static_cast<size_t>(m_FoliagePlaceTextureSize.y));
+
+	UpdateFoliagePlaceTexture();
 }
 
 void CTerrain::AddMaterial(const CMaterial& Material)
@@ -353,6 +398,10 @@ void CTerrain::Select(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingR
 			{
 				UpdateMasking(m_eMaskingLayer, m_cbPSTerrainSelectionData.AnaloguePosition, 0.0f, m_MaskingRadius, true);
 			}
+		}
+		else if (m_eEditMode == EEditMode::FoliagePlacing)
+		{
+			UpdateFoliagePlacing(1.0f, m_cbPSTerrainSelectionData.AnaloguePosition, !bIsLeftButton);
 		}
 		else
 		{
@@ -558,6 +607,83 @@ void CTerrain::UpdateMaskingTexture()
 	m_MaskingTexture->UpdateTextureRawData(&m_MaskingTextureRawData[0]);
 }
 
+void CTerrain::UpdateFoliagePlacing(float Radius, const XMFLOAT2& Position, bool bErase)
+{
+	const float KDetailSquare{ (float)m_FoliagePlacingDetail * (float)m_FoliagePlacingDetail };
+	const float KRadiusSquare{ Radius * Radius * KDetailSquare };
+	const int KCenterU{ static_cast<int>((+m_Size.x / 2.0f + Position.x) * m_FoliagePlacingDetail) };
+	const int KCenterV{ static_cast<int>(-(-m_Size.y / 2.0f + Position.y) * m_FoliagePlacingDetail) };
+
+	for (int iPixel = 0; iPixel < (int)m_FoliagePlaceTextureRawData.size(); ++iPixel)
+	{
+		int U{ iPixel % (int)(m_FoliagePlaceTextureSize.x) };
+		int V{ iPixel / (int)(m_FoliagePlaceTextureSize.x) };
+
+		float dU{ float(U - KCenterU) };
+		float dV{ float(V - KCenterV) };
+		float DistanceSquare{ dU * dU + dV * dV };
+		if (DistanceSquare <= KRadiusSquare)
+		{
+			if (bErase)
+			{
+				// 지우기
+				if (m_FoliagePlaceTextureRawData[iPixel].R == 255)
+				{
+					m_FoliagePlaceTextureRawData[iPixel].R = 0;
+
+					const string KInstanceName{ "Foliage" + to_string(U) + "." + to_string(V) };
+					for (auto& Foliage : m_vFoliages)
+					{
+						Foliage->DeleteInstance(KInstanceName);
+					}
+				}
+			}
+			else
+			{
+				// 그리기
+				if (m_FoliagePlaceTextureRawData[iPixel].R != 255)
+				{
+					m_FoliagePlaceTextureRawData[iPixel].R = 255;
+
+					const string KInstanceName{ "Foliage" + to_string(U) + "." + to_string(V) };
+					const float Interval{ 1.0f / (float)m_FoliagePlacingDetail };
+					for (auto& Foliage : m_vFoliages)
+					{
+						Foliage->InsertInstance(KInstanceName);
+
+						int iInstance{ Foliage->GetInstanceCount() - 1 };
+						auto& Instance{ Foliage->GetInstance(iInstance) };
+
+						float XDisplacement{ GetRandom(-0.2f, +0.2f) };
+						float YDisplacement{ GetRandom(-0.1f, 0.0f) };
+						float ZDisplacement{ GetRandom(-0.2f, +0.2f) };
+						Instance.Translation =
+							XMVectorSet
+							(
+								XDisplacement + (U - (m_cbVSFoliageData.CountX / 2)) * Interval,
+								YDisplacement,
+								ZDisplacement - (V - (m_cbVSFoliageData.CountZ / 2)) * Interval,
+								1
+							);
+
+						float YRotationAngle{ GetRandom(0.0f, XM_2PI) };
+						Instance.Yaw = YRotationAngle;
+
+						Foliage->UpdateInstanceWorldMatrix(iInstance);
+					}
+				}
+			}
+		}
+	}
+
+	UpdateFoliagePlaceTexture();
+}
+
+void CTerrain::UpdateFoliagePlaceTexture()
+{
+	m_FoliagePlaceTexture->UpdateTextureRawData(&m_FoliagePlaceTextureRawData[0]);
+}
+
 void CTerrain::SetSelectionSize(float& Size)
 {
 	Size = min(Size, KSelectionMaxSize);
@@ -568,9 +694,19 @@ void CTerrain::SetSelectionSize(float& Size)
 	m_PtrGame->UpdatePSTerrainSelection(m_cbPSTerrainSelectionData);
 }
 
+float CTerrain::GetSelectionSize() const
+{
+	return (m_cbPSTerrainSelectionData.SelectionHalfSize * 2.0f);
+}
+
 void CTerrain::SetMaskingLayer(EMaskingLayer eLayer)
 {
 	m_eMaskingLayer = eLayer;
+}
+
+CTerrain::EMaskingLayer CTerrain::GetMaskingLayer() const
+{
+	return m_eMaskingLayer;
 }
 
 void CTerrain::SetMaskingAttenuation(float Attenuation)
@@ -578,12 +714,23 @@ void CTerrain::SetMaskingAttenuation(float Attenuation)
 	m_MaskingAttenuation = Attenuation;
 }
 
+float CTerrain::GetMaskingAttenuation() const
+{
+	return m_MaskingAttenuation;
+}
+
 void CTerrain::SetMaskingRadius(float Radius)
 {
+	Radius = max(min(Radius, KMaskingMaxRadius), KMaskingMinRadius);
 	m_MaskingRadius = Radius;
 
-	m_cbPSTerrainSelectionData.MaskingRadius = m_MaskingRadius;
+	m_cbPSTerrainSelectionData.SelectionRadius = m_MaskingRadius;
 	m_PtrGame->UpdatePSTerrainSelection(m_cbPSTerrainSelectionData);
+}
+
+float CTerrain::GetMaskingRadius() const
+{
+	return m_MaskingRadius;
 }
 
 void CTerrain::SetSetHeightValue(float Value)
@@ -591,14 +738,29 @@ void CTerrain::SetSetHeightValue(float Value)
 	m_SetHeightValue = Value;
 }
 
+float CTerrain::GetSetHeightValue() const
+{
+	return m_SetHeightValue;
+}
+
 void CTerrain::SetDeltaHeightValue(float Value)
 {
 	m_DeltaHeightValue = Value;
 }
 
-void CTerrain::SetMaskingValue(float Value)
+float CTerrain::GetDeltaHeightValue() const
+{
+	return m_DeltaHeightValue;
+}
+
+void CTerrain::SetMaskingRatio(float Value)
 {
 	m_MaskingRatio = Value;
+}
+
+float CTerrain::GetMaskingRatio() const
+{
+	return m_MaskingRatio;
 }
 
 void CTerrain::ShouldTessellate(bool Value)
@@ -633,15 +795,15 @@ void CTerrain::SetEditMode(EEditMode Mode)
 {
 	m_eEditMode = Mode;
 
-	if (m_eEditMode == EEditMode::Masking)
+	if (m_eEditMode == EEditMode::Masking || m_eEditMode == EEditMode::FoliagePlacing)
 	{
 		ReleaseSelection();
-		m_cbPSTerrainSelectionData.bIsMaskingMode = TRUE;
-		m_cbPSTerrainSelectionData.MaskingRadius = m_MaskingRadius;
+		m_cbPSTerrainSelectionData.bUseCircularSelection = TRUE;
+		m_cbPSTerrainSelectionData.SelectionRadius = m_MaskingRadius;
 	}
 	else
 	{
-		m_cbPSTerrainSelectionData.bIsMaskingMode = FALSE;
+		m_cbPSTerrainSelectionData.bUseCircularSelection = FALSE;
 	}
 
 	m_PtrGame->UpdatePSTerrainSelection(m_cbPSTerrainSelectionData);
@@ -744,6 +906,11 @@ void CTerrain::Draw(bool bDrawNormals)
 	{
 		DrawWater();
 	}
+
+	if (m_bHasFoliageCluster)
+	{
+		DrawFoliageCluster();
+	}
 }
 
 void CTerrain::DrawHeightMapTexture()
@@ -785,6 +952,26 @@ void CTerrain::DrawMaskingTexture()
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }
 
+void CTerrain::DrawFoliagePlacingTexture()
+{
+	if (!m_Object2DTextureRepresentation) return;
+
+	m_FoliagePlaceTexture->SetShaderType(EShaderType::PixelShader);
+	m_FoliagePlaceTexture->Use();
+
+	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
+
+	m_PtrGame->UpdateVS2DSpace(KMatrixIdentity);
+	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(EBaseShader::PSHeightMap2D)->Use();
+
+	m_Object2DTextureRepresentation->Draw();
+
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
+}
+
 void CTerrain::DrawWater()
 {
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
@@ -802,4 +989,35 @@ void CTerrain::DrawWater()
 	m_WaterDisplacementTexture->Use();
 	m_Object3DWater->Draw();
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
+}
+
+void CTerrain::DrawFoliageCluster()
+{
+	if (m_vFoliages.empty()) return;
+	if (m_vFoliages[0]->GetInstanceCount() == 0) return;
+
+	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullNone());
+	m_PtrDeviceContext->OMSetBlendState(m_PtrGame->GetBlendStateAlphaToCoverage(), nullptr, 0xFFFFFFFF);
+
+	m_PtrGame->UpdateVSSpace(KMatrixIdentity);
+	m_PtrGame->UpdateVSFoliageData(m_cbVSFoliageData);
+	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
+	m_HeightMapTexture->Use();
+	m_PerlinNoiseTexture->Use();
+	
+	m_PtrGame->GetBaseShader(EBaseShader::VSFoliage)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::VSFoliage)->UpdateAllConstantBuffers();
+
+	m_PtrGame->GetBaseShader(EBaseShader::PSBase)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::PSBase)->UpdateAllConstantBuffers();
+
+	m_PtrDeviceContext->HSSetShader(nullptr, nullptr, 0);
+	m_PtrDeviceContext->DSSetShader(nullptr, nullptr, 0);
+
+	for (const auto& Foliage : m_vFoliages)
+	{
+		Foliage->Draw();
+	}
+
+	m_PtrGame->SetUniversalRSState();
 }

@@ -492,19 +492,22 @@
     <None Include="Assimp\vector3.inl">
       <Filter>Assimp</Filter>
     </None>
-    <None Include="Shader\HShared.hlsli">
+    <None Include="Shader\Terrain.hlsli">
       <Filter>Shader</Filter>
     </None>
-    <None Include="Shader\HLine.hlsli">
+    <None Include="Shader\Particle.hlsli">
       <Filter>Shader</Filter>
     </None>
-    <None Include="Shader\HParticle.hlsli">
+    <None Include="Shader\Shared.hlsli">
       <Filter>Shader</Filter>
     </None>
-    <None Include="Shader\HBase.hlsli">
+    <None Include="Shader\Line.hlsli">
       <Filter>Shader</Filter>
     </None>
-    <None Include="Shader\HBase2D.hlsli">
+    <None Include="Shader\Base2D.hlsli">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="Shader\Base.hlsli">
       <Filter>Shader</Filter>
     </None>
   </ItemGroup>
@@ -588,6 +591,9 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\VSInstance.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\VSFoliage.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

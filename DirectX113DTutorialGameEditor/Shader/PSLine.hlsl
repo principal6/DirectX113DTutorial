@@ -1,4 +1,4 @@
-#include "HLine.hlsli"
+#include "Line.hlsli"
 
 float4 main(VS_LINE_OUTPUT input) : SV_TARGET
 {

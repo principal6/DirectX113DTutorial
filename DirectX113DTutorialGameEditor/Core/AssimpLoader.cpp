@@ -182,6 +182,9 @@ void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Devi
 		Material.SetSpecularColor(XMFLOAT3(aiSpecular.r, aiSpecular.g, aiSpecular.b));
 		Material.SetSpecularExponent(aiShininess);
 		Material.SetSpecularIntensity(1.0f);
+
+		// @warning
+		Material.ShouldGenerateAutoMipMap(true);
 	}
 }
 

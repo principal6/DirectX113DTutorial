@@ -24,6 +24,7 @@ enum class EBaseShader
 	VSLine,
 	VSGizmo,
 	VSTerrain,
+	VSFoliage,
 	VSParticle,
 	VSBase2D,
 
@@ -180,7 +181,8 @@ public:
 		Use3DGizmos = 0x040,
 		TessellateTerrain = 0x080,
 		DrawTerrainHeightMapTexture = 0x100,
-		DrawTerrainMaskingTexture = 0x200
+		DrawTerrainMaskingTexture = 0x200,
+		DrawTerrainFoliagePlacingTexture = 0x400
 	};
 
 	enum class ERasterizerState
@@ -248,6 +250,7 @@ private:
 	void CreateSetViews();
 	void SetViewports();
 	void CreateDepthStencilStates();
+	void CreateBlendStates();
 	void CreateInputDevices();
 	void CreateBaseShaders();
 	void CreateMiniAxes();
@@ -262,7 +265,7 @@ public:
 	void SetGameRenderingFlags(EFlagsRendering Flags);
 	void ToggleGameRenderingFlags(EFlagsRendering Flags);
 	void Set3DGizmoMode(E3DGizmoMode Mode);
-	void SetUniversalRasterizerState();
+	void SetUniversalRSState();
 	void SetUniversalbUseLighiting();
 	E3DGizmoMode Get3DGizmoMode() { return m_e3DGizmoMode; }
 	CommonStates* GetCommonStates() { return m_CommonStates.get(); }
@@ -273,6 +276,7 @@ public:
 	void UpdateVS2DSpace(const XMMATRIX& World);
 	void UpdateVSAnimationBoneMatrices(const XMMATRIX* const BoneMatrices);
 	void UpdateVSTerrainData(const CTerrain::SCBVSTerrainData& Data);
+	void UpdateVSFoliageData(const CTerrain::SCBVSFoliageData& Data);
 
 	void UpdateHSTessFactor(float TessFactor);
 
@@ -369,10 +373,6 @@ private:
 
 public:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
-	void SetTerrainEditMode(CTerrain::EEditMode Mode);
-	void SetTerrainMaskingLayer(CTerrain::EMaskingLayer eLayer);
-	void SetTerrainMaskingAttenuation(float Attenuation);
-	void SetTerrainMaskingSize(float Size);
 
 public:
 	void BeginRendering(const FLOAT* ClearColor);
@@ -393,6 +393,7 @@ public:
 	float GetSkyTime() const;
 	XMMATRIX GetTransposedViewProjectionMatrix() const;
 	ID3D11DepthStencilState* GetDepthStencilStateLessEqualNoWrite() const { return m_DepthStencilStateLessEqualNoWrite.Get(); }
+	ID3D11BlendState* GetBlendStateAlphaToCoverage() const { return m_BlendAlphaToCoverage.Get(); }
 	const char* GetWorkingDirectory() const { return m_WorkingDirectory; }
 
 private:
@@ -467,6 +468,7 @@ private:
 	unique_ptr<CShader>	m_VSLine{};
 	unique_ptr<CShader>	m_VSGizmo{};
 	unique_ptr<CShader>	m_VSTerrain{};
+	unique_ptr<CShader>	m_VSFoliage{};
 	unique_ptr<CShader>	m_VSParticle{};
 
 	unique_ptr<CShader>	m_VSBase2D{};
@@ -498,6 +500,7 @@ private:
 	SCBVSSpaceData				m_cbVSSpaceData{};
 	SCBVSAnimationBonesData		m_cbVSAnimationBonesData{};
 	CTerrain::SCBVSTerrainData	m_cbVSTerrainData{};
+	CTerrain::SCBVSFoliageData	m_cbVSFoliageData{};
 
 	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
 
@@ -619,6 +622,7 @@ private:
 	ComPtr<ID3D11Texture2D>			m_DepthStencilBuffer{};
 	ComPtr<ID3D11DepthStencilState>	m_DepthStencilStateLessEqualNoWrite{};
 	ComPtr<ID3D11DepthStencilState>	m_DepthStencilStateAlways{};
+	ComPtr<ID3D11BlendState>		m_BlendAlphaToCoverage{};
 
 	unique_ptr<Keyboard>			m_Keyboard{};
 	unique_ptr<Mouse>				m_Mouse{};

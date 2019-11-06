@@ -1,4 +1,4 @@
-#include "HParticle.hlsli"
+#include "Particle.hlsli"
 
 SamplerState CurrentSampler : register(s0);
 Texture2D ParticleTexture : register(t0);

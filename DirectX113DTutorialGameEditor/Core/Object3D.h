@@ -115,7 +115,9 @@ public:
 	void SetMaterial(size_t Index, const CMaterial& Material);
 	size_t GetMaterialCount() const;
 
-	void AddInstance(bool bShouldCreateInstanceBuffers = true);
+	void CreateInstances(int InstanceCount);
+	void InsertInstance(bool bShouldCreateInstanceBuffers = true);
+	void InsertInstance(const string& Name);
 	void DeleteInstance(const string& Name);
 	SInstanceCPUData& GetInstance(int InstanceID);
 	SInstanceCPUData& GetInstance(const string& Name);
@@ -127,7 +129,8 @@ public:
 	void UpdateInstanceBuffer(size_t MeshIndex = 0);
 
 	void UpdateWorldMatrix();
-	void UpdateInstanceWorldMatrix(size_t InstanceID);
+	void UpdateInstanceWorldMatrix(int InstanceID);
+	void UpdateAllInstancesWorldMatrix();
 
 	void Animate();
 	void Draw(bool bIgnoreOwnTexture = false) const;
@@ -140,7 +143,7 @@ public:
 	bool IsCreated() const { return m_bIsCreated; }
 	bool IsRiggedModel() const { return m_Model.bIsModelAnimated; }
 	bool IsInstanced() const { return (m_vInstanceCPUData.size() > 0) ? true : false; }
-	size_t GetInstanceCount() const { return m_vInstanceCPUData.size(); }
+	int GetInstanceCount() const { return (int)m_vInstanceCPUData.size(); }
 	const SModel& GetModel() const { return m_Model; }
 	SModel& GetModel() { return m_Model; }
 	const string& GetName() const { return m_Name; }

@@ -40,7 +40,7 @@ public:
 
 	public:
 		void CreateTextureFromFile(const string& TextureFileName, bool bShouldGenerateMipMap);
-		void CreateTextureFromMemory(const vector<uint8_t>& RawData);
+		void CreateTextureFromMemory(const vector<uint8_t>& RawData, bool bShouldGenerateMipMap);
 		void CreateBlankTexture(DXGI_FORMAT Format, const XMFLOAT2& TextureSize);
 
 	private:

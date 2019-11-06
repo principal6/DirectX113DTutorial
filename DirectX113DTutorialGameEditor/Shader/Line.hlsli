@@ -1,4 +1,4 @@
-#include "HShared.hlsli"
+#include "Shared.hlsli"
 
 struct VS_LINE_INPUT
 {

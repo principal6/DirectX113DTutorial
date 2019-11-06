@@ -1,4 +1,4 @@
-#include "HBase.hlsli"
+#include "Terrain.hlsli"
 
 cbuffer cbSpace : register(b0)
 {
@@ -14,13 +14,13 @@ cbuffer cbTerrain : register(b1)
 	float Pad;
 }
 
-SamplerState CurrentSampler : register(s0);
+SamplerState HeightMapSampler : register(s0);
 Texture2D<float> HeightMapTexture : register(t0);
 
 float GetHeightFromHeightMap(float2 XZ)
 {
-	float2 uv = float2((XZ.x + (TerrainSizeX / 2.0f)) / TerrainSizeX, (-XZ.y + (TerrainSizeZ / 2.0f)) / TerrainSizeZ);
-	float y_norm = HeightMapTexture.SampleLevel(CurrentSampler, uv, 0);
+	float2 uv = CalculateHeightMapUV(float2(TerrainSizeX, TerrainSizeZ), XZ);
+	float y_norm = HeightMapTexture.SampleLevel(HeightMapSampler, uv, 0);
 	return (y_norm * TerrainHeightRange - TerrainHeightRange / 2.0f);
 }
 
@@ -40,7 +40,7 @@ VS_OUTPUT main(VS_INPUT input)
 	float HeightXPlus = GetHeightFromHeightMap(ResultPosition.xz + float2(+1, 0));
 	float HeightZMinus = GetHeightFromHeightMap(ResultPosition.xz + float2(0, -1));
 	float HeightZPlus = GetHeightFromHeightMap(ResultPosition.xz + float2(0, +1));
-	float4 ResultNormal = normalize(float4(HeightXMinus - HeightXPlus, 2.0f, HeightZMinus - HeightZPlus, 0));
+	float4 ResultNormal = CalculateHeightMapNormal(HeightXMinus, HeightXPlus, HeightZMinus, HeightZPlus);
 	output.WorldNormal = normalize(mul(ResultNormal, World));
 
 	float4 ResultBitangent = normalize(float4(cross(ResultNormal.xyz, input.Tangent.xyz), 0));

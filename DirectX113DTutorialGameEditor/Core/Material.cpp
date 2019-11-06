@@ -52,10 +52,40 @@ void CMaterial::CTexture::CreateTextureFromFile(const string& TextureFileName, b
 	m_bIsCreated = true;
 }
 
-void CMaterial::CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData)
+void CMaterial::CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData, bool bShouldGenerateMipMap)
 {
-	assert(SUCCEEDED(CreateWICTextureFromMemory(m_PtrDevice, &RawData[0], RawData.size(), 
-		(ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
+	if (bShouldGenerateMipMap)
+	{
+		ComPtr<ID3D11Texture2D> NonMipMappedTexture{};
+		CreateWICTextureFromMemory(m_PtrDevice, &RawData[0], RawData.size(), (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
+
+		if (!NonMipMappedTexture)
+		{
+			MessageBox(nullptr, "텍스처를 생성할 수 없습니다.", "텍스처 생성 오류", MB_OK | MB_ICONEXCLAMATION);
+			return;
+		}
+
+		D3D11_TEXTURE2D_DESC Texture2DDesc{};
+		NonMipMappedTexture->GetDesc(&Texture2DDesc);
+		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		Texture2DDesc.CPUAccessFlags = 0;
+		Texture2DDesc.MipLevels = 0;
+		Texture2DDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+
+		assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&Texture2DDesc, nullptr, m_Texture2D.GetAddressOf())));
+
+		m_PtrDeviceContext->ResolveSubresource(m_Texture2D.Get(), 0, NonMipMappedTexture.Get(), 0, Texture2DDesc.Format);
+
+		m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
+
+		m_PtrDeviceContext->GenerateMips(m_ShaderResourceView.Get());
+	}
+	else
+	{
+		assert(SUCCEEDED(CreateWICTextureFromMemory(m_PtrDevice, &RawData[0], RawData.size(),
+			(ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
+	}
 
 	UpdateTextureSize();
 
@@ -289,7 +319,7 @@ void CMaterial::CreateTexture(CMaterial::CTexture::EType eType, ID3D11Device* co
 
 		if (IsTextureEmbedded(eType))
 		{
-			PtrTexture->CreateTextureFromMemory(GetTextureRawData(eType));
+			PtrTexture->CreateTextureFromMemory(GetTextureRawData(eType), ShouldGenerateAutoMipMap());
 			ClearEmbeddedTextureData(eType);
 		}
 		else

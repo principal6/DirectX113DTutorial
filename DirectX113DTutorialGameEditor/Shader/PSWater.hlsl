@@ -1,4 +1,4 @@
-#include "HBase.hlsli"
+#include "Terrain.hlsli"
 
 SamplerState CurrentSampler : register(s0);
 Texture2D WaterNormalTexture : register(t0);

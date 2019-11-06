@@ -1,4 +1,4 @@
-#include "HParticle.hlsli"
+#include "Particle.hlsli"
 
 VS_PARTICLE_OUTPUT main(VS_PARTICLE_INPUT Input)
 {

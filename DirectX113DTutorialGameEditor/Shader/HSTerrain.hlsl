@@ -1,4 +1,4 @@
-#include "HBase.hlsli"
+#include "Terrain.hlsli"
 
 cbuffer cbCamera : register(b0)
 {

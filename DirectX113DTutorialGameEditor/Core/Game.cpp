@@ -155,7 +155,7 @@ void CGame::LoadScene(const string& FileName)
 								xmlInstanceChild = xmlInstanceChild->NextSiblingElement();
 							}
 
-							Object3D->AddInstance(false);
+							Object3D->InsertInstance(false);
 							auto& Instance{ Object3D->GetInstance(iInstance) };
 							for (auto& xmlInstanceChild : vxmlInstanceChildren)
 							{
@@ -451,6 +451,11 @@ void CGame::UpdateVSTerrainData(const CTerrain::SCBVSTerrainData& Data)
 	m_cbVSTerrainData = Data;
 }
 
+void CGame::UpdateVSFoliageData(const CTerrain::SCBVSFoliageData& Data)
+{
+	m_cbVSFoliageData = Data;
+}
+
 void CGame::UpdateHSTessFactor(float TessFactor)
 {
 	m_cbHSTessFactor.TessFactor = TessFactor;
@@ -662,10 +667,12 @@ float CGame::GetAmbientLightIntensity() const
 
 void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, float MaskingDetail)
 {
-	m_Terrain.release();
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Create(TerrainSize, Material, MaskingDetail);
 
+	// @TEMPORARY
+	m_Terrain->CreateFoliageCluster({ "Asset\\basic_grass0.fbx", "Asset\\basic_grass2.fbx", "Asset\\basic_grass3.fbx" }, 4);
+	
 	ID3D11ShaderResourceView* NullSRVs[11]{};
 	m_DeviceContext->DSSetShaderResources(0, 1, NullSRVs);
 	m_DeviceContext->PSSetShaderResources(0, 11, NullSRVs);
@@ -675,7 +682,6 @@ void CGame::LoadTerrain(const string& TerrainFileName)
 {
 	if (TerrainFileName.empty()) return;
 
-	m_Terrain.release();
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Load(TerrainFileName);
 	
@@ -770,6 +776,7 @@ void CGame::InitializeDirectX(const wstring& FontFileName, bool bWindowed)
 	SetViewports();
 
 	CreateDepthStencilStates();
+	CreateBlendStates();
 
 	SetPerspective(KDefaultFOV, KDefaultNearZ, KDefaultFarZ);
 
@@ -890,6 +897,18 @@ void CGame::SetViewports()
 		Viewport.MinDepth = 0.0f;
 		Viewport.MaxDepth = 1.0f;
 	}
+
+	{
+		m_vViewports.emplace_back();
+
+		D3D11_VIEWPORT& Viewport{ m_vViewports.back() };
+		Viewport.TopLeftX = m_WindowSize.x * 2.0f / 8.0f;
+		Viewport.TopLeftY = m_WindowSize.y * 7.0f / 8.0f;
+		Viewport.Width = m_WindowSize.x / 8.0f;
+		Viewport.Height = m_WindowSize.y / 8.0f;
+		Viewport.MinDepth = 0.0f;
+		Viewport.MaxDepth = 1.0f;
+	}
 }
 
 void CGame::CreateDepthStencilStates()
@@ -906,6 +925,23 @@ void CGame::CreateDepthStencilStates()
 	DepthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 
 	assert(SUCCEEDED(m_Device->CreateDepthStencilState(&DepthStencilDesc, m_DepthStencilStateAlways.GetAddressOf())));
+}
+
+void CGame::CreateBlendStates()
+{
+	D3D11_BLEND_DESC BlendDesc{};
+	BlendDesc.AlphaToCoverageEnable = TRUE;
+	BlendDesc.IndependentBlendEnable = FALSE;
+	BlendDesc.RenderTarget[0].BlendEnable = TRUE;
+	BlendDesc.RenderTarget[0].BlendOp;
+	BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	BlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_SRC_ALPHA;
+	BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+	BlendDesc.RenderTarget[0].BlendOp = BlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	m_Device->CreateBlendState(&BlendDesc, m_BlendAlphaToCoverage.ReleaseAndGetAddressOf());
 }
 
 void CGame::CreateInputDevices()
@@ -948,6 +984,12 @@ void CGame::CreateBaseShaders()
 	m_VSTerrain->Create(EShaderType::VertexShader, L"Shader\\VSTerrain.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSTerrain->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
 	m_VSTerrain->AddConstantBuffer(&m_cbVSTerrainData, sizeof(CTerrain::SCBVSTerrainData));
+
+	m_VSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_VSFoliage->Create(EShaderType::VertexShader, L"Shader\\VSFoliage.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+	m_VSFoliage->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
+	m_VSFoliage->AddConstantBuffer(&m_cbVSTerrainData, sizeof(CTerrain::SCBVSTerrainData));
+	m_VSFoliage->AddConstantBuffer(&m_cbVSFoliageData, sizeof(CTerrain::SCBVSFoliageData));
 
 	m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSParticle->Create(EShaderType::VertexShader, L"Shader\\VSParticle.hlsl", "main", 
@@ -1257,6 +1299,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::VSTerrain:
 		Result = m_VSTerrain.get();
 		break;
+	case EBaseShader::VSFoliage:
+		Result = m_VSFoliage.get();
+		break;
 	case EBaseShader::VSParticle:
 		Result = m_VSParticle.get();
 		break;
@@ -1528,7 +1573,7 @@ void CGame::CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& M
 
 		if (Material.IsTextureEmbedded(eType))
 		{
-			PtrTexture->CreateTextureFromMemory(Material.GetTextureRawData(eType));
+			PtrTexture->CreateTextureFromMemory(Material.GetTextureRawData(eType), Material.ShouldGenerateAutoMipMap());
 			Material.ClearEmbeddedTextureData(eType);
 		}
 		else
@@ -1809,30 +1854,6 @@ void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
 	m_Terrain->Select(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, bShouldEdit, bIsLeftButton);
 }
 
-void CGame::SetTerrainEditMode(CTerrain::EEditMode Mode)
-{
-	if (!m_Terrain) return;
-	m_Terrain->SetEditMode(Mode);
-}
-
-void CGame::SetTerrainMaskingLayer(CTerrain::EMaskingLayer eLayer)
-{
-	if (!m_Terrain) return;
-	m_Terrain->SetMaskingLayer(eLayer);
-}
-
-void CGame::SetTerrainMaskingAttenuation(float Attenuation)
-{
-	if (!m_Terrain) return;
-	m_Terrain->SetMaskingAttenuation(Attenuation);
-}
-
-void CGame::SetTerrainMaskingSize(float Size)
-{
-	if (!m_Terrain) return;
-	m_Terrain->SetMaskingRadius(Size);
-}
-
 void CGame::BeginRendering(const FLOAT* ClearColor)
 {
 	m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), Colors::CornflowerBlue);
@@ -1844,7 +1865,7 @@ void CGame::BeginRendering(const FLOAT* ClearColor)
 
 	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
 
-	SetUniversalRasterizerState();
+	SetUniversalRSState();
 
 	m_MatrixView = XMMatrixLookAtLH(m_vCameras[m_CurrentCameraIndex].GetEyePosition(), 
 		m_vCameras[m_CurrentCameraIndex].GetFocusPosition(),
@@ -2004,7 +2025,7 @@ void CGame::DrawObject3D(const CObject3D* const PtrObject3D)
 	}
 	else
 	{
-		SetUniversalRasterizerState();
+		SetUniversalRSState();
 	}
 
 	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoDepthComparison))
@@ -2050,7 +2071,7 @@ void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
 
 	m_Object3DBoundingSphere->Draw();
 
-	SetUniversalRasterizerState();
+	SetUniversalRSState();
 }
 
 void CGame::DrawObject3DLines()
@@ -2233,7 +2254,9 @@ void CGame::DrawTerrain()
 {
 	if (!m_Terrain) return;
 	
-	SetUniversalRasterizerState();
+	SetUniversalRSState();
+
+	SetUniversalbUseLighiting();
 
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain))
 	{
@@ -2266,6 +2289,12 @@ void CGame::DrawTerrain()
 	{
 		m_DeviceContext->RSSetViewports(1, &m_vViewports[3]);
 		m_Terrain->DrawMaskingTexture();
+	}
+
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainFoliagePlacingTexture))
+	{
+		m_DeviceContext->RSSetViewports(1, &m_vViewports[4]);
+		m_Terrain->DrawFoliagePlacingTexture();
 	}
 
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
@@ -2675,7 +2704,7 @@ void CGame::Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight)
 	Gizmo->Draw();
 }
 
-void CGame::SetUniversalRasterizerState()
+void CGame::SetUniversalRSState()
 {
 	switch (m_eRasterizerState)
 	{

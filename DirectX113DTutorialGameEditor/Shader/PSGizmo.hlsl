@@ -1,4 +1,4 @@
-#include "HBase.hlsli"
+#include "Base.hlsli"
 
 cbuffer cbColorFactor : register(b0)
 {

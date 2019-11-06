@@ -25,6 +25,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 	Game.SetGameRenderingFlags(CGame::EFlagsRendering::UseLighting | CGame::EFlagsRendering::DrawMiniAxes |
 		CGame::EFlagsRendering::DrawTerrainHeightMapTexture | CGame::EFlagsRendering::DrawTerrainMaskingTexture | 
+		CGame::EFlagsRendering::DrawTerrainFoliagePlacingTexture |
 		CGame::EFlagsRendering::TessellateTerrain | CGame::EFlagsRendering::Use3DGizmos);
 
 	CCamera* MainCamera{ Game.AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
@@ -363,11 +364,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
 						Game.CreateTerrain(TerrainSize, MaterialDefaultGround0, MaskingDetail);
 
+						CTerrain* const Terrain{ Game.GetTerrain() };
+
 						SizeX = CTerrain::KDefaultSize;
 						SizeZ = CTerrain::KDefaultSize;
 
 						Game.SetEditMode(Game.GetEditMode(), true);
-						Game.SetTerrainEditMode(eTerrainEditMode);
+						Terrain->SetEditMode(eTerrainEditMode);
 
 						bShowTerrainGenerator = false;
 						ImGui::CloseCurrentPopup();
@@ -527,21 +530,16 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								ImGui::EndTabItem();
 							}
 
+							// 지형 편집기
 							if (ImGui::BeginTabItem(u8"지형"))
 							{
 								Game.SetEditMode(CGame::EEditMode::EditTerrain);
 
-								CTerrain* Terrain{ Game.GetTerrain() };
+								CTerrain* const Terrain{ Game.GetTerrain() };
 								if (Terrain)
 								{
-									static float TerrainSelectionSize{ CTerrain::KSelectionMinSize };
-									static float TerrainSetHeightValue{};
-									static float TerrainDeltaHeightValue{ CTerrain::KHeightUnit };
-									static int TerrainMaskingLayer{};
-									static float TerrainMaskingRadius{ CTerrain::KMaskingDefaultRadius };
-									static float TerrainMaskingRatio{ CTerrain::KMaskingDefaultRatio };
-									static float TerrainMaskingAttenuation{ CTerrain::KMaskingDefaultAttenuation };
-									static const char* const KModeLabelList[3]{ u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<마스킹 모드>" };
+									static const char* const KModeLabelList[4]{ 
+										u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<마스킹 모드>", u8"<초목 배치 모드>" };
 									static int iSelectedMode{};
 
 									const XMFLOAT2& KTerrainSize{ Terrain->GetSize() };
@@ -555,6 +553,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									{
 										Terrain->SetTerrainTessFactor(TerrainTessFactor);
 									}
+
+									ImGui::Separator();
 
 									bool bDrawWater{ Terrain->ShouldDrawWater() };
 									if (ImGui::Checkbox(u8"물 그리기", &bDrawWater))
@@ -580,6 +580,15 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 									ImGui::Separator();
 
+									ImGui::SetNextItemWidth(100);
+									float FoliageDenstiy{ Terrain->GetFoliageDenstiy() };
+									if (ImGui::DragFloat(u8"초목 밀도", &FoliageDenstiy, 0.01f, 0.0f, 1.0f, "%.2f"))
+									{
+										Terrain->SetFoliageDensity(FoliageDenstiy);
+									}
+
+									ImGui::Separator();
+
 									for (int iListItem = 0; iListItem < ARRAYSIZE(KModeLabelList); ++iListItem)
 									{
 										if (ImGui::Selectable(KModeLabelList[iListItem], (iListItem == iSelectedMode) ? true : false))
@@ -589,13 +598,16 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 											switch (iSelectedMode)
 											{
 											case 0:
-												Game.SetTerrainEditMode(CTerrain::EEditMode::SetHeight);
+												Terrain->SetEditMode(CTerrain::EEditMode::SetHeight);
 												break;
 											case 1:
-												Game.SetTerrainEditMode(CTerrain::EEditMode::DeltaHeight);
+												Terrain->SetEditMode(CTerrain::EEditMode::DeltaHeight);
 												break;
 											case 2:
-												Game.SetTerrainEditMode(CTerrain::EEditMode::Masking);
+												Terrain->SetEditMode(CTerrain::EEditMode::Masking);
+												break;
+											case 3:
+												Terrain->SetEditMode(CTerrain::EEditMode::FoliagePlacing);
 												break;
 											default:
 												break;
@@ -606,6 +618,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									if (iSelectedMode == 0)
 									{
 										ImGui::PushItemWidth(100);
+										float TerrainSetHeightValue{ Terrain->GetSetHeightValue() };
 										if (ImGui::DragFloat(u8"지정할 높이", &TerrainSetHeightValue, CTerrain::KHeightUnit,
 											CTerrain::KMinHeight, CTerrain::KMaxHeight, "%.1f"))
 										{
@@ -616,21 +629,22 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									else if (iSelectedMode == 2)
 									{
 										ImGui::PushItemWidth(100);
+										int TerrainMaskingLayer{ (int)Terrain->GetMaskingLayer() };
 										if (ImGui::SliderInt(u8"마스킹 레이어", &TerrainMaskingLayer, 0, CTerrain::KMaterialMaxCount - 2))
 										{
 											switch (TerrainMaskingLayer)
 											{
 											case 0:
-												Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerR);
+												Terrain->SetMaskingLayer(CTerrain::EMaskingLayer::LayerR);
 												break;
 											case 1:
-												Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerG);
+												Terrain->SetMaskingLayer(CTerrain::EMaskingLayer::LayerG);
 												break;
 											case 2:
-												Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerB);
+												Terrain->SetMaskingLayer(CTerrain::EMaskingLayer::LayerB);
 												break;
 											case 3:
-												Game.SetTerrainMaskingLayer(CTerrain::EMaskingLayer::LayerA);
+												Terrain->SetMaskingLayer(CTerrain::EMaskingLayer::LayerA);
 												break;
 											default:
 												break;
@@ -639,18 +653,20 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										ImGui::PopItemWidth();
 
 										ImGui::PushItemWidth(100);
+										float TerrainMaskingRatio{ Terrain->GetMaskingRatio() };
 										if (ImGui::DragFloat(u8"마스킹 배합 비율", &TerrainMaskingRatio, CTerrain::KMaskingRatioUnit,
 											CTerrain::KMaskingMinRatio, CTerrain::KMaskingMaxRatio, "%.3f"))
 										{
-											Terrain->SetMaskingValue(TerrainMaskingRatio);
+											Terrain->SetMaskingRatio(TerrainMaskingRatio);
 										}
 										ImGui::PopItemWidth();
 
 										ImGui::PushItemWidth(100);
+										float TerrainMaskingAttenuation{ Terrain->GetMaskingAttenuation() };
 										if (ImGui::DragFloat(u8"마스킹 감쇠", &TerrainMaskingAttenuation, CTerrain::KMaskingAttenuationUnit,
 											CTerrain::KMaskingMinAttenuation, CTerrain::KMaskingMaxAttenuation, "%.3f"))
 										{
-											Game.SetTerrainMaskingAttenuation(TerrainMaskingAttenuation);
+											Terrain->SetMaskingAttenuation(TerrainMaskingAttenuation);
 										}
 										ImGui::PopItemWidth();
 									}
@@ -658,22 +674,28 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									if (iSelectedMode == 2)
 									{
 										ImGui::PushItemWidth(100);
+										float TerrainMaskingRadius{ Terrain->GetMaskingRadius() };
 										if (ImGui::DragFloat(u8"마스킹 반지름", &TerrainMaskingRadius, CTerrain::KMaskingRadiusUnit,
 											CTerrain::KMaskingMinRadius, CTerrain::KMaskingMaxRadius, "%.1f"))
 										{
-											Game.SetTerrainMaskingSize(TerrainMaskingRadius);
+											Terrain->SetMaskingRadius(TerrainMaskingRadius);
 										}
 										if (MouseState.scrollWheelValue)
 										{
 											if (MouseState.scrollWheelValue > 0) TerrainMaskingRadius += CTerrain::KMaskingRadiusUnit;
 											if (MouseState.scrollWheelValue < 0) TerrainMaskingRadius -= CTerrain::KMaskingRadiusUnit;
-											Game.SetTerrainMaskingSize(TerrainMaskingRadius);
+											Terrain->SetMaskingRadius(TerrainMaskingRadius);
 										}
 										ImGui::PopItemWidth();
+									}
+									else if (iSelectedMode == 3)
+									{
+
 									}
 									else
 									{
 										ImGui::PushItemWidth(100);
+										float TerrainSelectionSize{ Terrain->GetSelectionSize() };
 										if (ImGui::DragFloat(u8"지형 선택 크기", &TerrainSelectionSize, CTerrain::KSelectionSizeUnit,
 											CTerrain::KSelectionMinSize, CTerrain::KSelectionMaxSize, "%.0f"))
 										{
@@ -795,11 +817,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								ImGui::PopID();
 
 								static constexpr float KUniformWidth{ 180.0f };
-								static float AmbientColor[3]{};
-								static float DiffuseColor[3]{};
-								static float SpecularColor[3]{};
-								static float SpecularExponent{};
-								static float SpecularIntensity{};
 								static const char KLabelAdd[]{ u8"추가" };
 								static const char KLabelChange[]{ u8"변경" };
 
@@ -824,9 +841,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 										ImGui::SetNextItemWidth(KUniformWidth);
 										const XMFLOAT3& AmbientColor3{ Material->GetAmbientColor() };
-										AmbientColor[0] = AmbientColor3.x;
-										AmbientColor[1] = AmbientColor3.y;
-										AmbientColor[2] = AmbientColor3.z;
+										float AmbientColor[3]{ AmbientColor3.x, AmbientColor3.y, AmbientColor3.z };
 										if (ImGui::ColorEdit3(u8"환경광(Ambient)", AmbientColor, ImGuiColorEditFlags_RGB))
 										{
 											Material->SetAmbientColor(XMFLOAT3(AmbientColor[0], AmbientColor[1], AmbientColor[2]));
@@ -834,9 +849,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 										ImGui::SetNextItemWidth(KUniformWidth);
 										const XMFLOAT3& DiffuseColor3{ Material->GetDiffuseColor() };
-										DiffuseColor[0] = DiffuseColor3.x;
-										DiffuseColor[1] = DiffuseColor3.y;
-										DiffuseColor[2] = DiffuseColor3.z;
+										float DiffuseColor[3]{ DiffuseColor3.x, DiffuseColor3.y, DiffuseColor3.z };
 										if (ImGui::ColorEdit3(u8"난반사광(Diffuse)", DiffuseColor, ImGuiColorEditFlags_RGB))
 										{
 											Material->SetDiffuseColor(XMFLOAT3(DiffuseColor[0], DiffuseColor[1], DiffuseColor[2]));
@@ -844,23 +857,21 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 										ImGui::SetNextItemWidth(KUniformWidth);
 										const XMFLOAT3& SpecularColor3{ Material->GetSpecularColor() };
-										SpecularColor[0] = SpecularColor3.x;
-										SpecularColor[1] = SpecularColor3.y;
-										SpecularColor[2] = SpecularColor3.z;
+										float SpecularColor[3]{ SpecularColor3.x, SpecularColor3.y, SpecularColor3.z };
 										if (ImGui::ColorEdit3(u8"정반사광(Specular)", SpecularColor, ImGuiColorEditFlags_RGB))
 										{
 											Material->SetSpecularColor(XMFLOAT3(SpecularColor[0], SpecularColor[1], SpecularColor[2]));
 										}
 
 										ImGui::SetNextItemWidth(KUniformWidth);
-										SpecularExponent = Material->GetSpecularExponent();
+										float SpecularExponent{ Material->GetSpecularExponent() };
 										if (ImGui::DragFloat(u8"정반사광(Specular) 지수", &SpecularExponent, 0.001f, 0.0f, 1.0f, "%.3f"))
 										{
 											Material->SetSpecularExponent(SpecularExponent);
 										}
 
 										ImGui::SetNextItemWidth(KUniformWidth);
-										SpecularIntensity = Material->GetSpecularIntensity();
+										float SpecularIntensity{ Material->GetSpecularIntensity() };
 										if (ImGui::DragFloat(u8"정반사광(Specular) 강도", &SpecularIntensity, 0.001f, 0.0f, 1.0f, "%.3f"))
 										{
 											Material->SetSpecularIntensity(SpecularIntensity);
@@ -1182,7 +1193,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								ImGui::PushID(iObject3DPair * 2 + 0);
 								if (ImGui::Button(u8"추가"))
 								{
-									Object3D->AddInstance();
+									Object3D->InsertInstance();
 								}
 								ImGui::PopID();
 

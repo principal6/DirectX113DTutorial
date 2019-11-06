@@ -106,14 +106,40 @@ size_t CObject3D::GetMaterialCount() const
 	return m_Model.vMaterials.size();
 }
 
-void CObject3D::AddInstance(bool bShouldCreateInstanceBuffers)
+void CObject3D::CreateInstances(int InstanceCount)
 {
-	size_t InstanceCount{ GetInstanceCount() };
+	m_vInstanceCPUData.clear();
+	m_vInstanceCPUData.resize(InstanceCount);
+	for (auto& InstanceCPUData : m_vInstanceCPUData)
+	{
+		InstanceCPUData.Scaling = ComponentTransform.Scaling;
+	}
+
+	m_vInstanceGPUData.clear();
+	m_vInstanceGPUData.resize(InstanceCount);
+
+	m_mapInstanceNameToIndex.clear();
+	for (int iInstance = 0; iInstance < InstanceCount; ++iInstance)
+	{
+		string Name{ "instance" + to_string(iInstance) };
+		m_mapInstanceNameToIndex[Name] = iInstance;
+	}
+
+	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(EBaseShader::VSInstance);
+
+	CreateInstanceBuffers();
+
+	UpdateAllInstancesWorldMatrix();
+}
+
+void CObject3D::InsertInstance(bool bShouldCreateInstanceBuffers)
+{
+	int InstanceCount{ GetInstanceCount() };
 	string Name{ "instance" + to_string(InstanceCount) };
 
 	if (m_mapInstanceNameToIndex.find(Name) != m_mapInstanceNameToIndex.end())
 	{
-		for (size_t iInstance = 0; iInstance < InstanceCount; ++iInstance)
+		for (int iInstance = 0; iInstance < InstanceCount; ++iInstance)
 		{
 			Name = "instance" + to_string(iInstance);
 			if (m_mapInstanceNameToIndex.find(Name) == m_mapInstanceNameToIndex.end()) break;
@@ -137,7 +163,27 @@ void CObject3D::AddInstance(bool bShouldCreateInstanceBuffers)
 
 	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(EBaseShader::VSInstance);
 
-	UpdateInstanceWorldMatrix(m_vInstanceCPUData.size() - 1);
+	UpdateInstanceWorldMatrix(static_cast<int>(m_vInstanceCPUData.size() - 1));
+}
+
+void CObject3D::InsertInstance(const string& Name)
+{
+	int InstanceCount{ GetInstanceCount() };
+	bool bShouldRecreateInstanceBuffer{ m_vInstanceCPUData.size() == m_vInstanceCPUData.capacity() };
+
+	m_vInstanceCPUData.emplace_back();
+	m_vInstanceCPUData.back().Name = Name;
+	m_vInstanceCPUData.back().Scaling = ComponentTransform.Scaling;
+	m_mapInstanceNameToIndex[Name] = m_vInstanceCPUData.size() - 1;
+
+	m_vInstanceGPUData.emplace_back();
+
+	if (m_vInstanceCPUData.size() == 1) CreateInstanceBuffers();
+	if (bShouldRecreateInstanceBuffer) CreateInstanceBuffers();
+
+	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(EBaseShader::VSInstance);
+
+	UpdateInstanceWorldMatrix(static_cast<int>(m_vInstanceCPUData.size() - 1));
 }
 
 void CObject3D::DeleteInstance(const string& Name)
@@ -146,8 +192,8 @@ void CObject3D::DeleteInstance(const string& Name)
 	if (m_vInstanceCPUData.empty()) return;
 	if (m_mapInstanceNameToIndex.find(Name) == m_mapInstanceNameToIndex.end()) return;
 
-	size_t iInstance{ m_mapInstanceNameToIndex.at(Name) };
-	size_t iLastInstance{ GetInstanceCount() - 1 };
+	int iInstance{ (int)m_mapInstanceNameToIndex.at(Name) };
+	int iLastInstance{ GetInstanceCount() - 1 };
 	string InstanceName{ Name };
 	if (iInstance == iLastInstance)
 	{
@@ -370,7 +416,7 @@ void CObject3D::UpdateWorldMatrix()
 	ComponentTransform.MatrixWorld = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
 }
 
-void CObject3D::UpdateInstanceWorldMatrix(size_t InstanceID)
+void CObject3D::UpdateInstanceWorldMatrix(int InstanceID)
 {
 	if (InstanceID >= m_vInstanceCPUData.size()) return;
 
@@ -397,6 +443,37 @@ void CObject3D::UpdateInstanceWorldMatrix(size_t InstanceID)
 	// Update GPU data
 	m_vInstanceGPUData[InstanceID].InstanceWorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
 
+	UpdateInstanceBuffers();
+}
+
+void CObject3D::UpdateAllInstancesWorldMatrix()
+{
+	// Update CPU data
+	for (int iInstance = 0; iInstance < static_cast<int>(m_vInstanceCPUData.size()); ++iInstance)
+	{
+		LimitFloatRotation(m_vInstanceCPUData[iInstance].Pitch, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
+		LimitFloatRotation(m_vInstanceCPUData[iInstance].Yaw, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
+		LimitFloatRotation(m_vInstanceCPUData[iInstance].Roll, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
+
+		if (XMVectorGetX(m_vInstanceCPUData[iInstance].Scaling) < CGame::KScalingMinLimit)
+			m_vInstanceCPUData[iInstance].Scaling = XMVectorSetX(m_vInstanceCPUData[iInstance].Scaling, CGame::KScalingMinLimit);
+		if (XMVectorGetY(m_vInstanceCPUData[iInstance].Scaling) < CGame::KScalingMinLimit)
+			m_vInstanceCPUData[iInstance].Scaling = XMVectorSetY(m_vInstanceCPUData[iInstance].Scaling, CGame::KScalingMinLimit);
+		if (XMVectorGetZ(m_vInstanceCPUData[iInstance].Scaling) < CGame::KScalingMinLimit)
+			m_vInstanceCPUData[iInstance].Scaling = XMVectorSetZ(m_vInstanceCPUData[iInstance].Scaling, CGame::KScalingMinLimit);
+
+		XMMATRIX Translation{ XMMatrixTranslationFromVector(m_vInstanceCPUData[iInstance].Translation) };
+		XMMATRIX Rotation{ XMMatrixRotationRollPitchYaw(m_vInstanceCPUData[iInstance].Pitch,
+			m_vInstanceCPUData[iInstance].Yaw, m_vInstanceCPUData[iInstance].Roll) };
+		XMMATRIX Scaling{ XMMatrixScalingFromVector(m_vInstanceCPUData[iInstance].Scaling) };
+
+		XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(ComponentPhysics.BoundingSphere.CenterOffset) };
+		XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-ComponentPhysics.BoundingSphere.CenterOffset) };
+
+		// Update GPU data
+		m_vInstanceGPUData[iInstance].InstanceWorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
+	}
+	
 	UpdateInstanceBuffers();
 }
 

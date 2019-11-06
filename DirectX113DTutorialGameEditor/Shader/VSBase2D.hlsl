@@ -1,4 +1,4 @@
-#include "HBase2D.hlsli"
+#include "Base2D.hlsli"
 
 cbuffer cbSpace : register(b0)
 {

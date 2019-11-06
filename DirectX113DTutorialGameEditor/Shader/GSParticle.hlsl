@@ -1,4 +1,4 @@
-#include "HParticle.hlsli"
+#include "Particle.hlsli"
 
 cbuffer cbSpace : register(b0)
 {
