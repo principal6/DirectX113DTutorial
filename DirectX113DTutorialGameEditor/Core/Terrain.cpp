@@ -237,10 +237,6 @@ void CTerrain::CreateFoliageCluster(const vector<string>& vFoliageFileNames, int
 		m_PerlinNoiseTexture->SetSlot(1);
 	}
 
-	const int KTerrainSizeX{ static_cast<int>(m_Size.x) };
-	const int KTerrainSizeZ{ static_cast<int>(m_Size.y) };
-	m_cbVSFoliageData.CountX = KTerrainSizeX * PlacingDetail;
-	m_cbVSFoliageData.CountZ = KTerrainSizeZ * PlacingDetail;
 	for (const auto& FoliageFileName : vFoliageFileNames)
 	{
 		m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext, m_PtrGame));
@@ -252,12 +248,12 @@ void CTerrain::CreateFoliageCluster(const vector<string>& vFoliageFileNames, int
 
 void CTerrain::SetFoliageDensity(float Density)
 {
-	m_cbVSFoliageData.Density = Density;
+	m_FoliageDenstiy = Density;
 }
 
 float CTerrain::GetFoliageDenstiy() const
 {
-	return m_cbVSFoliageData.Density;
+	return m_FoliageDenstiy;
 }
 
 void CTerrain::CreateTerrainObject3D(vector<CMaterial>& vMaterials)
@@ -641,7 +637,7 @@ void CTerrain::UpdateFoliagePlacing(float Radius, const XMFLOAT2& Position, bool
 			else
 			{
 				// ±×¸®±â
-				float InverseDenstiy{ 1.0f - m_cbVSFoliageData.Density };
+				float InverseDenstiy{ 1.0f - m_FoliageDenstiy };
 				int DenstiyModular{ iPixel % (int)(pow(InverseDenstiy + 1.0f, 5.0f)) };
 				if (m_FoliagePlaceTextureRawData[iPixel].R != 255 && DenstiyModular == 0)
 				{
@@ -662,9 +658,9 @@ void CTerrain::UpdateFoliagePlacing(float Radius, const XMFLOAT2& Position, bool
 						Instance.Translation =
 							XMVectorSet
 							(
-								XDisplacement + (U - (m_cbVSFoliageData.CountX / 2)) * Interval,
+								XDisplacement + (U - (int)(m_FoliagePlaceTextureSize.x * 0.5f)) * Interval,
 								YDisplacement,
-								ZDisplacement - (V - (m_cbVSFoliageData.CountZ / 2)) * Interval,
+								ZDisplacement - (V - (int)(m_FoliagePlaceTextureSize.y * 0.5f)) * Interval,
 								1
 							);
 
@@ -1002,7 +998,6 @@ void CTerrain::DrawFoliageCluster()
 	m_PtrDeviceContext->OMSetBlendState(m_PtrGame->GetBlendStateAlphaToCoverage(), nullptr, 0xFFFFFFFF);
 
 	m_PtrGame->UpdateVSSpace(KMatrixIdentity);
-	m_PtrGame->UpdateVSFoliageData(m_cbVSFoliageData);
 	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
 	m_HeightMapTexture->Use();
 	m_PerlinNoiseTexture->Use();
@@ -1010,9 +1005,8 @@ void CTerrain::DrawFoliageCluster()
 	m_PtrGame->GetBaseShader(EBaseShader::VSFoliage)->Use();
 	m_PtrGame->GetBaseShader(EBaseShader::VSFoliage)->UpdateAllConstantBuffers();
 
-	//m_PtrGame->UpdatePSBaseMaterial(CMaterial Material);
-	m_PtrGame->GetBaseShader(EBaseShader::PSBase)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::PSBase)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(EBaseShader::PSFoliage)->Use();
+	m_PtrGame->GetBaseShader(EBaseShader::PSFoliage)->UpdateAllConstantBuffers();
 
 	m_PtrDeviceContext->HSSetShader(nullptr, nullptr, 0);
 	m_PtrDeviceContext->DSSetShader(nullptr, nullptr, 0);

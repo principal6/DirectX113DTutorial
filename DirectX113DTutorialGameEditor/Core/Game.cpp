@@ -451,11 +451,6 @@ void CGame::UpdateVSTerrainData(const CTerrain::SCBVSTerrainData& Data)
 	m_cbVSTerrainData = Data;
 }
 
-void CGame::UpdateVSFoliageData(const CTerrain::SCBVSFoliageData& Data)
-{
-	m_cbVSFoliageData = Data;
-}
-
 void CGame::UpdateHSTessFactor(float TessFactor)
 {
 	m_cbHSTessFactor.TessFactor = TessFactor;
@@ -486,6 +481,7 @@ void CGame::UpdatePSBaseMaterial(const CMaterial& Material)
 	m_cbPSBaseMaterialData.bHasOpacityTexture = Material.HasTexture(CMaterial::CTexture::EType::OpacityTexture);
 
 	m_PSBase->UpdateConstantBuffer(2);
+	m_PSFoliage->UpdateConstantBuffer(2);
 }
 
 void CGame::UpdatePSTerrainSpace(const XMMATRIX& Matrix)
@@ -990,7 +986,6 @@ void CGame::CreateBaseShaders()
 	m_VSFoliage->Create(EShaderType::VertexShader, L"Shader\\VSFoliage.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSFoliage->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
 	m_VSFoliage->AddConstantBuffer(&m_cbVSTerrainData, sizeof(CTerrain::SCBVSTerrainData));
-	m_VSFoliage->AddConstantBuffer(&m_cbVSFoliageData, sizeof(CTerrain::SCBVSFoliageData));
 
 	m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSParticle->Create(EShaderType::VertexShader, L"Shader\\VSParticle.hlsl", "main", 
@@ -1063,6 +1058,12 @@ void CGame::CreateBaseShaders()
 	m_PSWater->Create(EShaderType::PixelShader, L"Shader\\PSWater.hlsl", "main");
 	m_PSWater->AddConstantBuffer(&m_cbWaterTimeData, sizeof(SCBWaterTimeData));
 	m_PSWater->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
+
+	m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSFoliage->Create(EShaderType::PixelShader, L"Shader\\PSFoliage.hlsl", "main");
+	m_PSFoliage->AddConstantBuffer(&m_cbPSBaseFlagsData, sizeof(SCBPSBaseFlagsData));
+	m_PSFoliage->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
+	m_PSFoliage->AddConstantBuffer(&m_cbPSBaseMaterialData, sizeof(SCBPSBaseMaterialData));
 
 	m_PSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSParticle->Create(EShaderType::PixelShader, L"Shader\\PSParticle.hlsl", "main");
@@ -1350,6 +1351,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSWater:
 		Result = m_PSWater.get();
+		break;
+	case EBaseShader::PSFoliage:
+		Result = m_PSFoliage.get();
 		break;
 	case EBaseShader::PSParticle:
 		Result = m_PSParticle.get();

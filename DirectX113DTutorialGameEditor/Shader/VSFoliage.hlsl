@@ -1,4 +1,4 @@
-#include "Terrain.hlsli"
+#include "Foliage.hlsli"
 
 cbuffer cbSpace : register(b0)
 {
@@ -12,14 +12,6 @@ cbuffer cbTerrain : register(b1)
 	float TerrainSizeZ;
 	float TerrainHeightRange;
 	float Pad;
-}
-
-cbuffer cbFoliage : register(b2)
-{
-	float FoliageDensity;
-	int FoliageCountX;
-	int FoliageCountZ;
-	float Reserved;
 }
 
 SamplerState Sampler : register(s0);
@@ -51,10 +43,8 @@ VS_OUTPUT main(VS_INPUT Input)
 	const float KZDifference = KHeightZPlus - KHeightZMinus;
 	const float KXRotationAngle = atan(KZDifference / 2.0f);
 
-	float4x4 InstanceWorldWithoutXZTranslation = KInstanceWorld;
-	InstanceWorldWithoutXZTranslation._m30 = InstanceWorldWithoutXZTranslation._m32 = 0.0f;
-
-	float4 InstancePosition = mul(Input.Position, InstanceWorldWithoutXZTranslation);
+	float4 InstancePosition = Input.Position;
+	InstancePosition.xyz = mul(Input.Position.xyz, (float3x3)KInstanceWorld);
 	InstancePosition = RotateAroundAxisZ(InstancePosition, KZRotationAngle);
 	InstancePosition = RotateAroundAxisX(InstancePosition, -KXRotationAngle);
 	InstancePosition.x += KInstanceWorld._m30;
@@ -63,15 +53,8 @@ VS_OUTPUT main(VS_INPUT Input)
 
 	Output.WorldPosition = InstancePosition;
 	Output.Position = mul(InstancePosition, ViewProjection);
-
-	Output.Color = Input.Color;
 	Output.UV = Input.UV;
-
 	Output.WorldNormal = normalize(mul(Input.Normal, KInstanceWorld));
-	Output.WorldTangent = normalize(float4(cross(Output.WorldNormal.xyz, Input.Tangent.xyz), 0));
-	Output.WorldBitangent = normalize(float4(cross(Output.WorldTangent.xyz, Output.WorldNormal.xyz), 0));
-
-	Output.bUseVertexColor = 0;
 
 	return Output;
 }

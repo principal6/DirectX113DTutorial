@@ -45,6 +45,7 @@ enum class EBaseShader
 	PSGizmo,
 	PSTerrain,
 	PSWater,
+	PSFoliage,
 	PSParticle,
 
 	PSBase2D,
@@ -276,7 +277,6 @@ public:
 	void UpdateVS2DSpace(const XMMATRIX& World);
 	void UpdateVSAnimationBoneMatrices(const XMMATRIX* const BoneMatrices);
 	void UpdateVSTerrainData(const CTerrain::SCBVSTerrainData& Data);
-	void UpdateVSFoliageData(const CTerrain::SCBVSFoliageData& Data);
 
 	void UpdateHSTessFactor(float TessFactor);
 
@@ -490,6 +490,7 @@ private:
 	unique_ptr<CShader>	m_PSGizmo{};
 	unique_ptr<CShader>	m_PSTerrain{};
 	unique_ptr<CShader>	m_PSWater{};
+	unique_ptr<CShader>	m_PSFoliage{};
 	unique_ptr<CShader>	m_PSParticle{};
 
 	unique_ptr<CShader>	m_PSBase2D{};
@@ -500,7 +501,6 @@ private:
 	SCBVSSpaceData				m_cbVSSpaceData{};
 	SCBVSAnimationBonesData		m_cbVSAnimationBonesData{};
 	CTerrain::SCBVSTerrainData	m_cbVSTerrainData{};
-	CTerrain::SCBVSFoliageData	m_cbVSFoliageData{};
 
 	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
 

@@ -510,6 +510,9 @@
     <None Include="Shader\Base.hlsli">
       <Filter>Shader</Filter>
     </None>
+    <None Include="Shader\Foliage.hlsli">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\GSNormal.hlsl">
@@ -594,6 +597,9 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\VSFoliage.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PSFoliage.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

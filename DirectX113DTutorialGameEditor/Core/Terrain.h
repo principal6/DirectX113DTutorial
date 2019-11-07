@@ -33,14 +33,6 @@ public:
 		float Pad{};
 	};
 
-	struct SCBVSFoliageData
-	{
-		float	Density{};
-		int		CountX{};
-		int		CountZ{};
-		float	Reserved{};
-	};
-
 	struct SCBPSTerrainSelectionData
 	{
 		BOOL		bShowSelection{};
@@ -226,12 +218,12 @@ private:
 private:
 	vector<unique_ptr<CObject3D>>	m_vFoliages{};
 	bool							m_bHasFoliageCluster{ false };
-	SCBVSFoliageData				m_cbVSFoliageData{};
 	unique_ptr<CMaterial::CTexture>	m_PerlinNoiseTexture{};
 	XMFLOAT2						m_FoliagePlaceTextureSize{};
 	unique_ptr<CMaterial::CTexture>	m_FoliagePlaceTexture{};
 	vector<SPixel8UInt>				m_FoliagePlaceTextureRawData{};
 	int								m_FoliagePlacingDetail{};
+	float							m_FoliageDenstiy{};
 
 private:
 	SCBPSTerrainSelectionData	m_cbPSTerrainSelectionData{};
