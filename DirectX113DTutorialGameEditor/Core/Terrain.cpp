@@ -638,7 +638,8 @@ void CTerrain::UpdateFoliagePlacing(float Radius, const XMFLOAT2& Position, bool
 			{
 				// ±×¸®±â
 				float InverseDenstiy{ 1.0f - m_FoliageDenstiy };
-				int DenstiyModular{ iPixel % (int)(pow(InverseDenstiy + 1.0f, 5.0f)) };
+				float Exponent{ GetRandom(6.0f, 8.0f) };
+				int DenstiyModular{ iPixel % (int)(pow(InverseDenstiy + 1.0f, Exponent)) };
 				if (m_FoliagePlaceTextureRawData[iPixel].R != 255 && DenstiyModular == 0)
 				{
 					m_FoliagePlaceTextureRawData[iPixel].R = 255;
