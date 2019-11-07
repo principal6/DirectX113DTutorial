@@ -671,7 +671,8 @@ void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material
 	m_Terrain->Create(TerrainSize, Material, MaskingDetail);
 
 	// @TEMPORARY
-	m_Terrain->CreateFoliageCluster({ "Asset\\basic_grass0.fbx", "Asset\\basic_grass2.fbx", "Asset\\basic_grass3.fbx" }, 4);
+	m_Terrain->CreateFoliageCluster({ "Asset\\basic_grass0.fbx", "Asset\\basic_grass2.fbx", "Asset\\basic_grass3.fbx" }, 7);
+	//m_Terrain->CreateFoliageCluster({ "Asset\\foliage_set5_008.fbx" }, 2);
 	
 	ID3D11ShaderResourceView* NullSRVs[11]{};
 	m_DeviceContext->DSSetShaderResources(0, 1, NullSRVs);

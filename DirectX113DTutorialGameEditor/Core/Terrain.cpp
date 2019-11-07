@@ -326,7 +326,7 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 
 void CTerrain::CreateWater()
 {
-	static constexpr XMVECTOR KWaterColor{ 0.0f, 0.5f, 0.625f, 0.8125f };
+	static constexpr XMVECTOR KWaterColor{ 0.0f, 0.5f, 0.75f, 0.8125f };
 
 	m_Object3DWater = make_unique<CObject3D>("Water", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 
@@ -641,7 +641,9 @@ void CTerrain::UpdateFoliagePlacing(float Radius, const XMFLOAT2& Position, bool
 			else
 			{
 				// ±×¸®±â
-				if (m_FoliagePlaceTextureRawData[iPixel].R != 255)
+				float InverseDenstiy{ 1.0f - m_cbVSFoliageData.Density };
+				int DenstiyModular{ iPixel % (int)(pow(InverseDenstiy + 1.0f, 5.0f)) };
+				if (m_FoliagePlaceTextureRawData[iPixel].R != 255 && DenstiyModular == 0)
 				{
 					m_FoliagePlaceTextureRawData[iPixel].R = 255;
 
@@ -1008,6 +1010,7 @@ void CTerrain::DrawFoliageCluster()
 	m_PtrGame->GetBaseShader(EBaseShader::VSFoliage)->Use();
 	m_PtrGame->GetBaseShader(EBaseShader::VSFoliage)->UpdateAllConstantBuffers();
 
+	//m_PtrGame->UpdatePSBaseMaterial(CMaterial Material);
 	m_PtrGame->GetBaseShader(EBaseShader::PSBase)->Use();
 	m_PtrGame->GetBaseShader(EBaseShader::PSBase)->UpdateAllConstantBuffers();
 

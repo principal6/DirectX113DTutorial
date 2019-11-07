@@ -17,7 +17,10 @@ void CMaterial::CTexture::CreateTextureFromFile(const string& TextureFileName, b
 	{
 		wstring wFileName{ m_TextureFileName.begin(), m_TextureFileName.end() };
 		ComPtr<ID3D11Texture2D> NonMipMappedTexture{};
-		CreateWICTextureFromFile(m_PtrDevice, wFileName.c_str(), (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
+
+		// @important: ignore sRGB!!
+		CreateWICTextureFromFileEx(m_PtrDevice, m_PtrDeviceContext, wFileName.c_str(), 0i64, D3D11_USAGE_DEFAULT,
+			D3D11_BIND_SHADER_RESOURCE, 0, 0, WIC_LOADER_IGNORE_SRGB, (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
 
 		if (!NonMipMappedTexture)
 		{
@@ -57,7 +60,10 @@ void CMaterial::CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData
 	if (bShouldGenerateMipMap)
 	{
 		ComPtr<ID3D11Texture2D> NonMipMappedTexture{};
-		CreateWICTextureFromMemory(m_PtrDevice, &RawData[0], RawData.size(), (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
+
+		// @important: ignore sRGB!!
+		CreateWICTextureFromMemoryEx(m_PtrDevice, &RawData[0], RawData.size(), 0i64, D3D11_USAGE_DEFAULT,
+			D3D11_BIND_SHADER_RESOURCE, 0, 0, WIC_LOADER_IGNORE_SRGB, (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
 
 		if (!NonMipMappedTexture)
 		{

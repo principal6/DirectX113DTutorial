@@ -116,15 +116,24 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 		}
 	}
 
-	float4 ResultAlbedo = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
+	// # Gamma correction
+	Albedo.xyz = pow(Albedo.xyz, 2.0f);
 
-	float4 Directional = CalculateDirectional(Albedo, Albedo, 1, 0,
-		DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), ResultNormal);
-	// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
-	float Dot = dot(DirectionalLightDirection, KUpDirection);
-	Directional.xyz *= pow(Dot, 0.6f);
+	float4 ResultColor = Albedo;
+	{
+		float4 Ambient = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
+		float4 Directional = CalculateDirectional(Albedo, Albedo, 1, 0,
+			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), normalize(input.WorldNormal));
 
-	ResultAlbedo.xyz += Directional.xyz;
+		// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
+		float Dot = dot(DirectionalLightDirection, KUpDirection);
+		Directional.xyz *= pow(Dot, 0.6f);
+
+		ResultColor = Ambient + Directional;
+	}
+
+	// # Gamma correction
+	ResultColor.xyz = pow(ResultColor.xyz, 0.5f);
 
 	// For normal & tangent drawing
 	if (input.bUseVertexColor != 0)
@@ -134,8 +143,8 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
 	if (bIsHighlitPixel == true)
 	{
-		ResultAlbedo = HighlitAlbedo;
+		ResultColor = HighlitAlbedo;
 	}
 
-	return ResultAlbedo;
+	return ResultColor;
 }

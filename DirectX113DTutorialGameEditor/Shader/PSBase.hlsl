@@ -67,13 +67,16 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 			}
 		}
 	}
-	DiffuseColor.xyz *= DiffuseColor.xyz;
 
-	float4 Result = DiffuseColor;
+	// # Gamma correction
+	DiffuseColor.xyz = pow(DiffuseColor.xyz, 2.0f);
+	AmbientColor.xyz = pow(AmbientColor.xyz, 2.0f);
+	SpecularColor.xyz = pow(SpecularColor.xyz, 2.0f);
+
+	float4 ResultColor = DiffuseColor;
 	if (bUseLighting == true)
 	{
-		Result = CalculateAmbient(AmbientColor, AmbientLightColor, AmbientLightIntensity);
-
+		float4 Ambient = CalculateAmbient(AmbientColor, AmbientLightColor, AmbientLightIntensity);
 		float4 Directional = CalculateDirectional(DiffuseColor, SpecularColor, SpecularExponent, SpecularIntensity,
 			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), normalize(input.WorldNormal));
 
@@ -81,11 +84,14 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 		float Dot = dot(DirectionalLightDirection, KUpDirection);
 		Directional.xyz *= pow(Dot, 0.6f);
 
-		Result += Directional;
+		ResultColor = Ambient + Directional;
 	}
 
-	if (input.bUseVertexColor != 0) Result = input.Color;
-	if (bHasOpacityTexture == true) Result.a *= Opacity;
+	// # Gamma correction
+	ResultColor.xyz = pow(ResultColor.xyz, 0.5f);
+
+	if (input.bUseVertexColor != 0) ResultColor = input.Color;
+	if (bHasOpacityTexture == true) ResultColor.a *= Opacity;
 	
-	return Result;
+	return ResultColor;
 }

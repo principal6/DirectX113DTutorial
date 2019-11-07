@@ -27,12 +27,20 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	float4 ResultNormal = normalize((WaterNormalTexture.Sample(CurrentSampler, ResultUV) * 2.0f) - 1.0f);
 	ResultNormal = normalize(float4(mul(ResultNormal.xyz, TextureSpace), 0.0f));
 
-	// Gamma correction
-	Albedo.xyz *= Albedo.xyz;
-	float4 ResultAlbedo = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
-	ResultAlbedo += CalculateDirectional(Albedo, float4(1, 1, 1, 1), 128.0f, 1.0f,
-		DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), ResultNormal);
-	ResultAlbedo.a = Albedo.a;
+	// # Gamma correction
+	Albedo.xyz = pow(Albedo.xyz, 2.0f);
 
-	return ResultAlbedo;
+	float4 ResultColor = Albedo;
+	{
+		float4 Ambient = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
+		float4 Directional = CalculateDirectional(Albedo, float4(1, 1, 1, 1), 64.0f, 1.0f,
+			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), normalize(ResultNormal));
+
+		ResultColor.xyz = Ambient.xyz + Directional.xyz;
+	}
+
+	// # Gamma correction
+	ResultColor.xyz = pow(ResultColor.xyz, 0.5f);
+
+	return ResultColor;
 }

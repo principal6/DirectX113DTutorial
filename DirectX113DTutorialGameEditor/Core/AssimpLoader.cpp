@@ -149,10 +149,12 @@ void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Devi
 
 		aiColor4D aiAmbient{}, aiDiffuse{}, aiSpecular{};
 		float aiShininess{};
+		float aiShininessStength{};
 		aiGetMaterialColor(_aiMaterial, AI_MATKEY_COLOR_AMBIENT, &aiAmbient);
 		aiGetMaterialColor(_aiMaterial, AI_MATKEY_COLOR_DIFFUSE, &aiDiffuse);
 		aiGetMaterialColor(_aiMaterial, AI_MATKEY_COLOR_SPECULAR, &aiSpecular);
 		aiGetMaterialFloat(_aiMaterial, AI_MATKEY_SHININESS, &aiShininess);
+		aiGetMaterialFloat(_aiMaterial, AI_MATKEY_SHININESS_STRENGTH, &aiShininessStength);
 		
 		if (Scene->HasTextures())
 		{
@@ -181,7 +183,7 @@ void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Devi
 		Material.SetDiffuseColor(XMFLOAT3(aiDiffuse.r, aiDiffuse.g, aiDiffuse.b));
 		Material.SetSpecularColor(XMFLOAT3(aiSpecular.r, aiSpecular.g, aiSpecular.b));
 		Material.SetSpecularExponent(aiShininess);
-		Material.SetSpecularIntensity(1.0f);
+		Material.SetSpecularIntensity(aiShininessStength);
 
 		// @warning
 		Material.ShouldGenerateAutoMipMap(true);
