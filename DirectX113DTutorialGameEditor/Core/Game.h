@@ -118,7 +118,7 @@ struct SCBPSLightsData
 	XMVECTOR	EyePosition{};
 };
 
-struct SCBPSBaseMaterialData
+struct SCBMaterialData
 {
 	XMFLOAT3	MaterialAmbient{};
 	float		SpecularExponent{ 1 };
@@ -285,9 +285,9 @@ public:
 
 	void UpdateGSSpace();
 
-	void UpdatePSBaseMaterial(const CMaterial& Material);
-	void UpdatePSTerrainSpace(const XMMATRIX& Matrix);
-	void UpdatePSTerrainSelection(const CTerrain::SCBPSTerrainSelectionData& Selection);
+	void UpdateCBMaterial(const CMaterial& Material);
+	void UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix);
+	void UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection);
 	void UpdatePSBase2DFlagOn(EFlagPSBase2D Flag);
 	void UpdatePSBase2DFlagOff(EFlagPSBase2D Flag);
 
@@ -303,13 +303,12 @@ public:
 	float GetAmbientLightIntensity() const;
 
 public:
-	void CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, float MaskingDetail);
+	void CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, int MaskingDetail, float UniformScaling);
 	void LoadTerrain(const string& TerrainFileName);
 	void SaveTerrain(const string& TerrainFileName);
 	void AddTerrainMaterial(const CMaterial& Material);
 	void SetTerrainMaterial(int MaterialID, const CMaterial& Material);
 	CTerrain* GetTerrain() const { return m_Terrain.get(); }
-	void SetTerrainSelectionSize(float& Size);
 
 private:
 	void LoadSkyObjectData(const tinyxml2::XMLElement* const xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
@@ -390,7 +389,6 @@ public:
 	SpriteBatch* GetSpriteBatchPtr() const { return m_SpriteBatch.get(); }
 	SpriteFont* GetSpriteFontPtr() const { return m_SpriteFont.get(); }
 	const XMFLOAT2& GetWindowSize() const;
-	const XMFLOAT2& GetTerrainSelectionPosition() const;
 	float GetSkyTime() const;
 	XMMATRIX GetTransposedViewProjectionMatrix() const;
 	ID3D11DepthStencilState* GetDepthStencilStateLessEqualNoWrite() const { return m_DepthStencilStateLessEqualNoWrite.Get(); }
@@ -501,7 +499,7 @@ private:
 private:
 	SCBVSSpaceData				m_cbVSSpaceData{};
 	SCBVSAnimationBonesData		m_cbVSAnimationBonesData{};
-	CTerrain::SCBTerrainData	m_cbTerrainData{};
+	CTerrain::SCBTerrainData	m_CBTerrainData{};
 	CTerrain::SCBWindData		m_cbWindData{};
 
 	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
@@ -516,15 +514,15 @@ private:
 
 	SCBPSLightsData				m_cbPSLightsData{};
 	SCBPSBaseFlagsData			m_cbPSBaseFlagsData{};
-	SCBPSBaseMaterialData		m_cbPSBaseMaterialData{};
+	SCBMaterialData				m_CBMaterialData{};
 	SCBPSGizmoColorFactorData	m_cbPSGizmoColorFactorData{};
 	SCBPSSkyTimeData			m_cbPSSkyTimeData{};
-	SCBWaterTimeData			m_cbWaterTimeData{};
+	SCBWaterTimeData			m_CBWaterTimeData{};
 
 	SCBPS2DFlagsData					m_cbPS2DFlagsData{};
-	SCBPSTerrainSpaceData				m_cbPSTerrainSpaceData{};
-	CTerrain::SCBPSTerrainSelectionData	m_cbPSTerrainSelectionData{};
-	SCBEditorTimeData					m_cbEditorTimeData{};
+	SCBPSTerrainSpaceData				m_CBTerrainMaskingSpaceData{};
+	CTerrain::SCBTerrainSelectionData	m_CBTerrainSelectionData{};
+	SCBEditorTimeData					m_CBEditorTimeData{};
 
 private:
 	vector<unique_ptr<CShader>>				m_vShaders{};

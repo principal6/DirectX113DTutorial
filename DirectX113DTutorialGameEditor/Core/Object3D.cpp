@@ -615,7 +615,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };
 		const CMaterial& Material{ m_Model.vMaterials[Mesh.MaterialID] };
 
-		m_PtrGame->UpdatePSBaseMaterial(Material);
+		m_PtrGame->UpdateCBMaterial(Material);
 		m_PtrGame->UpdateDSDisplacementData(false);
 
 		if (m_Model.bUseMultipleTexturesInSingleMesh) // This bool is for CTerrain
@@ -634,7 +634,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 		}
 		else
 		{
-			m_PtrGame->UpdatePSBaseMaterial(Material);
+			m_PtrGame->UpdateCBMaterial(Material);
 			if (Material.HasTexture() && !bIgnoreOwnTexture)
 			{
 				if (Material.HasTexture(CMaterial::CTexture::EType::DisplacementTexture))

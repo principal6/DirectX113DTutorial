@@ -41,15 +41,14 @@ public:
 		float		Radius{ 1.0f };
 	};
 
-	struct SCBPSTerrainSelectionData
+	struct SCBTerrainSelectionData
 	{
 		BOOL		bShowSelection{};
-		float		SelectionHalfSize{ KSelectionMinSize / 2.0f };
-		XMFLOAT2	DigitalPosition{};
+		float		SelectionRadius{ CTerrain::KDefaultSelectionRadius };
+		XMFLOAT2	Position{};
 
-		BOOL		bUseCircularSelection{};
-		float		SelectionRadius{};
-		XMFLOAT2	AnaloguePosition{};
+		XMMATRIX	TerrainWorld{};
+		XMMATRIX	InverseTerrainWorld{};
 	};
 
 public:
@@ -62,16 +61,20 @@ public:
 	~CTerrain() {}
 
 public:
-	void Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, float MaskingDetail);
+	void Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, int MaskingDetail, float UniformScaling = 1.0f);
 	void Load(const string& FileName);
 	void Save(const string& FileName);
 
+private:
+	void Scale(const XMVECTOR& Scaling);
+
+public:
 	void CreateFoliageCluster(const vector<string>& vFoliageFileNames, int PlacingDetail);
 	void SetFoliageDensity(float Density);
 	float GetFoliageDenstiy() const;
 
-	void SetWindVelocity(float (&Velocity)[3]);
-	void SetWindVelocity(XMFLOAT3& Velocity);
+public:
+	void SetWindVelocity(const XMFLOAT3& Velocity);
 	void SetWindVelocity(const XMVECTOR& Velocity);
 	const XMVECTOR& GetWindVelocity() const;
 	void SetWindRadius(float Radius);
@@ -90,30 +93,22 @@ public:
 	void SetMaterial(int MaterialID, const CMaterial& NewMaterial);
 	const CMaterial& GetMaterial(int Index) const;
 	
+public:
 	void Select(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton);
 
 private:
-	void UpdateSelection(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection);
-	void ReleaseSelection();
+	void UpdateSelectionPosition(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection);
 	void UpdateHeights(bool bIsLeftButton);
-	void UpdateHeight(size_t iPixel, bool bIsLeftButton);
-	void UpdateHeightMapTexture();
-
-	void UpdateMasking(EMaskingLayer eLayer, const XMFLOAT2& Position, float Value, float Radius, bool bForceSet = false);
-	void UpdateMaskingTexture();
-
-	void UpdateFoliagePlacing(float Radius, const XMFLOAT2& Position, bool bErase);
-	void UpdateFoliagePlaceTexture();
+	void UpdateMasking(EMaskingLayer eLayer, float Value, bool bForceSet = false);
+	void UpdateFoliagePlacing(bool bErase);
 
 public:
-	void SetSelectionSize(float& Size);
-	float GetSelectionSize() const;
 	void SetMaskingLayer(EMaskingLayer eLayer);
 	CTerrain::EMaskingLayer GetMaskingLayer() const;
 	void SetMaskingAttenuation(float Attenuation);
 	float GetMaskingAttenuation() const;
-	void SetMaskingRadius(float Radius);
-	float GetMaskingRadius() const;
+	void SetSelectionRadius(float Radius);
+	float GetSelectionRadius() const;
 	void SetSetHeightValue(float Value);
 	float GetSetHeightValue() const;
 	void SetDeltaHeightValue(float Value);
@@ -140,10 +135,14 @@ public:
 
 	const XMFLOAT2& GetSize() const;
 	int GetMaterialCount() const;
-	const XMFLOAT2& GetSelectionPosition() const;
-	float GetMaskingDetail() const;
+	int GetMaskingDetail() const;
+
+	bool HasFoliageCluster() const;
 
 	const string& GetFileName() const;
+
+	const XMFLOAT2& GetSelectionPosition() const;
+	int GetFoliagePlacingDetail() const;
 
 	float GetTerrainHeightAt(float X, float Z);
 	float GetTerrainHeightAt(int iX, int iZ);
@@ -163,6 +162,9 @@ private:
 public:
 	static constexpr int KMaterialMaxCount{ 5 }; // It includes 1 main texture + 4 layer textures
 
+	static constexpr float KMinUniformScaling{ 1.0f };
+	static constexpr float KMaxUniformScaling{ 16.0f };
+
 	static constexpr float KHeightUnit{ 0.01f };
 	static constexpr float KMaxHeight{ +5.0f };
 	static constexpr float KMinHeight{ -5.0f };
@@ -173,9 +175,10 @@ public:
 	static constexpr float KTessFactorMin{ 2.0f };
 	static constexpr float KTessFactorMax{ 64.0f };
 
-	static constexpr float KSelectionSizeUnit{ 1.0f };
-	static constexpr float KSelectionMinSize{ 1.0f };
-	static constexpr float KSelectionMaxSize{ 10.0f };
+	static constexpr float KSelectionRadiusUnit{ 0.1f };
+	static constexpr float KMinSelectionRadius{ 0.1f };
+	static constexpr float KMaxSelectionRadius{ 8.0f };
+	static constexpr float KDefaultSelectionRadius{ 1.0f };
 	
 	static constexpr int KMinSize{ 2 };
 	static constexpr int KDefaultSize{ 10 };
@@ -191,14 +194,9 @@ public:
 	static constexpr float KMaskingMaxAttenuation{ 1.0f };
 	static constexpr float KMaskingDefaultAttenuation{ KMaskingMinAttenuation };
 
-	static constexpr float KMaskingRadiusUnit{ 0.1f };
-	static constexpr float KMaskingMinRadius{ 0.1f };
-	static constexpr float KMaskingMaxRadius{ 8.0f };
-	static constexpr float KMaskingDefaultRadius{ 1.0f };
-
-	static constexpr float KMaskingMinDetail{ 1.0f };
-	static constexpr float KMaskingMaxDetail{ 16.0f };
-	static constexpr float KMaskingDefaultDetail{ 8.0f };
+	static constexpr int KMaskingMinDetail{ 1 };
+	static constexpr int KMaskingMaxDetail{ 16 };
+	static constexpr int KMaskingDefaultDetail{ 8 };
 
 	static constexpr float KWaterHeightUnit{ 0.1f };
 	static constexpr float KWaterMinHeight{ KMinHeight };
@@ -206,8 +204,13 @@ public:
 
 	static constexpr float KMaxFoliageInterval{ 1.0f };
 	static constexpr float KMinFoliageInterval{ 0.1f };
+	static constexpr int KDefaultFoliagePlacingDetail{ 7 };
+	static constexpr int KMaxFoliagePlacingDetail{ 16 };
+	static constexpr int KMinFoliagePlacingDetail{ 1 };
 
 	static constexpr float KMinWindRadius{ 0.125f };
+	static constexpr float KMinWindVelocityElement{ -8.0f };
+	static constexpr float KMaxWindVelocityElement{ +8.0f };
 
 private:
 	ID3D11Device* const			m_PtrDevice{};
@@ -245,14 +248,14 @@ private:
 	XMFLOAT2						m_FoliagePlaceTextureSize{};
 	unique_ptr<CMaterial::CTexture>	m_FoliagePlaceTexture{};
 	vector<SPixel8UInt>				m_FoliagePlaceTextureRawData{};
-	int								m_FoliagePlacingDetail{};
+	int								m_FoliagePlacingDetail{ KDefaultFoliagePlacingDetail };
 	float							m_FoliageDenstiy{};
 
 	SCBWindData						m_CBWindData{};
 	unique_ptr<CObject3D>			m_Object3DWindRepresentation{};
 
 private:
-	SCBPSTerrainSelectionData	m_cbPSTerrainSelectionData{};
+	SCBTerrainSelectionData			m_CBTerrainSelectionData{};
 
 	EEditMode		m_eEditMode{};
 	float			m_SetHeightValue{};
@@ -260,9 +263,8 @@ private:
 	float			m_MaskingRatio{ KMaskingDefaultRatio };
 
 	EMaskingLayer	m_eMaskingLayer{};
-	float			m_MaskingRadius{ KMaskingDefaultRadius };
 	float			m_MaskingAttenuation{ KMaskingMinAttenuation };
-	float			m_MaskingTextureDetail{ KMaskingDefaultDetail };
+	int				m_MaskingTextureDetail{ KMaskingDefaultDetail };
 
 	string			m_FileName{};
 };

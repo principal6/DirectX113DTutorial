@@ -448,7 +448,7 @@ void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* const BoneMatrices)
 
 void CGame::UpdateCBTerrainData(const CTerrain::SCBTerrainData& Data)
 {
-	m_cbTerrainData = Data;
+	m_CBTerrainData = Data;
 }
 
 void CGame::UpdateCBWindData(const CTerrain::SCBWindData& Data)
@@ -473,30 +473,30 @@ void CGame::UpdateGSSpace()
 	m_cbGSSpaceData.ViewProjection = GetTransposedViewProjectionMatrix();
 }
 
-void CGame::UpdatePSBaseMaterial(const CMaterial& Material)
+void CGame::UpdateCBMaterial(const CMaterial& Material)
 {
-	m_cbPSBaseMaterialData.MaterialAmbient = Material.GetAmbientColor();
-	m_cbPSBaseMaterialData.MaterialDiffuse = Material.GetDiffuseColor();
-	m_cbPSBaseMaterialData.MaterialSpecular = Material.GetSpecularColor();
-	m_cbPSBaseMaterialData.SpecularExponent = Material.GetSpecularExponent();
-	m_cbPSBaseMaterialData.SpecularIntensity = Material.GetSpecularIntensity();
+	m_CBMaterialData.MaterialAmbient = Material.GetAmbientColor();
+	m_CBMaterialData.MaterialDiffuse = Material.GetDiffuseColor();
+	m_CBMaterialData.MaterialSpecular = Material.GetSpecularColor();
+	m_CBMaterialData.SpecularExponent = Material.GetSpecularExponent();
+	m_CBMaterialData.SpecularIntensity = Material.GetSpecularIntensity();
 
-	m_cbPSBaseMaterialData.bHasDiffuseTexture = Material.HasTexture(CMaterial::CTexture::EType::DiffuseTexture);
-	m_cbPSBaseMaterialData.bHasNormalTexture = Material.HasTexture(CMaterial::CTexture::EType::NormalTexture);
-	m_cbPSBaseMaterialData.bHasOpacityTexture = Material.HasTexture(CMaterial::CTexture::EType::OpacityTexture);
+	m_CBMaterialData.bHasDiffuseTexture = Material.HasTexture(CMaterial::CTexture::EType::DiffuseTexture);
+	m_CBMaterialData.bHasNormalTexture = Material.HasTexture(CMaterial::CTexture::EType::NormalTexture);
+	m_CBMaterialData.bHasOpacityTexture = Material.HasTexture(CMaterial::CTexture::EType::OpacityTexture);
 
 	m_PSBase->UpdateConstantBuffer(2);
 	m_PSFoliage->UpdateConstantBuffer(2);
 }
 
-void CGame::UpdatePSTerrainSpace(const XMMATRIX& Matrix)
+void CGame::UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix)
 {
-	m_cbPSTerrainSpaceData.Matrix = XMMatrixTranspose(Matrix);
+	m_CBTerrainMaskingSpaceData.Matrix = XMMatrixTranspose(Matrix);
 }
 
-void CGame::UpdatePSTerrainSelection(const CTerrain::SCBPSTerrainSelectionData& Selection)
+void CGame::UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection)
 {
-	m_cbPSTerrainSelectionData = Selection;
+	m_CBTerrainSelectionData = Selection;
 }
 
 void CGame::UpdatePSBase2DFlagOn(EFlagPSBase2D Flag)
@@ -666,14 +666,10 @@ float CGame::GetAmbientLightIntensity() const
 	return m_cbPSLightsData.AmbientLightIntensity;
 }
 
-void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, float MaskingDetail)
+void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, int MaskingDetail, float UniformScaling)
 {
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Terrain->Create(TerrainSize, Material, MaskingDetail);
-
-	// @TEMPORARY
-	m_Terrain->CreateFoliageCluster({ "Asset\\basic_grass0.fbx", "Asset\\basic_grass2.fbx", "Asset\\basic_grass3.fbx" }, 7);
-	//m_Terrain->CreateFoliageCluster({ "Asset\\foliage_set5_008.fbx" }, 2);
+	m_Terrain->Create(TerrainSize, Material, MaskingDetail, UniformScaling);
 	
 	ID3D11ShaderResourceView* NullSRVs[11]{};
 	m_DeviceContext->DSSetShaderResources(0, 1, NullSRVs);
@@ -717,11 +713,6 @@ void CGame::SetTerrainMaterial(int MaterialID, const CMaterial& Material)
 	if (!m_Terrain) return;
 
 	m_Terrain->SetMaterial(MaterialID, Material);
-}
-
-void CGame::SetTerrainSelectionSize(float& Size)
-{
-	m_Terrain->SetSelectionSize(Size);
 }
 
 CCamera* CGame::AddCamera(const CCamera::SCameraData& CameraData)
@@ -985,12 +976,12 @@ void CGame::CreateBaseShaders()
 	m_VSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSTerrain->Create(EShaderType::VertexShader, L"Shader\\VSTerrain.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSTerrain->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
-	m_VSTerrain->AddConstantBuffer(&m_cbTerrainData, sizeof(CTerrain::SCBTerrainData));
+	m_VSTerrain->AddConstantBuffer(&m_CBTerrainData, sizeof(CTerrain::SCBTerrainData));
 
 	m_VSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSFoliage->Create(EShaderType::VertexShader, L"Shader\\VSFoliage.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSFoliage->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
-	m_VSFoliage->AddConstantBuffer(&m_cbTerrainData, sizeof(CTerrain::SCBTerrainData));
+	m_VSFoliage->AddConstantBuffer(&m_CBTerrainData, sizeof(CTerrain::SCBTerrainData));
 	m_VSFoliage->AddConstantBuffer(&m_cbWindData, sizeof(CTerrain::SCBWindData));
 
 	m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
@@ -1019,7 +1010,7 @@ void CGame::CreateBaseShaders()
 	m_DSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSWater->Create(EShaderType::DomainShader, L"Shader\\DSWater.hlsl", "main");
 	m_DSWater->AddConstantBuffer(&m_cbDSSpaceData, sizeof(SCBDSSpaceData));
-	m_DSWater->AddConstantBuffer(&m_cbWaterTimeData, sizeof(SCBWaterTimeData));
+	m_DSWater->AddConstantBuffer(&m_CBWaterTimeData, sizeof(SCBWaterTimeData));
 
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSNormal->Create(EShaderType::GeometryShader, L"Shader\\GSNormal.hlsl", "main");
@@ -1033,7 +1024,7 @@ void CGame::CreateBaseShaders()
 	m_PSBase->Create(EShaderType::PixelShader, L"Shader\\PSBase.hlsl", "main");
 	m_PSBase->AddConstantBuffer(&m_cbPSBaseFlagsData, sizeof(SCBPSBaseFlagsData));
 	m_PSBase->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
-	m_PSBase->AddConstantBuffer(&m_cbPSBaseMaterialData, sizeof(SCBPSBaseMaterialData));
+	m_PSBase->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
 
 	m_PSVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSVertexColor->Create(EShaderType::PixelShader, L"Shader\\PSVertexColor.hlsl", "main");
@@ -1055,21 +1046,21 @@ void CGame::CreateBaseShaders()
 
 	m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSTerrain->Create(EShaderType::PixelShader, L"Shader\\PSTerrain.hlsl", "main");
-	m_PSTerrain->AddConstantBuffer(&m_cbPSTerrainSpaceData, sizeof(SCBPSTerrainSpaceData));
+	m_PSTerrain->AddConstantBuffer(&m_CBTerrainMaskingSpaceData, sizeof(SCBPSTerrainSpaceData));
 	m_PSTerrain->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
-	m_PSTerrain->AddConstantBuffer(&m_cbPSTerrainSelectionData, sizeof(CTerrain::SCBPSTerrainSelectionData));
-	m_PSTerrain->AddConstantBuffer(&m_cbEditorTimeData, sizeof(SCBEditorTimeData));
+	m_PSTerrain->AddConstantBuffer(&m_CBTerrainSelectionData, sizeof(CTerrain::SCBTerrainSelectionData));
+	m_PSTerrain->AddConstantBuffer(&m_CBEditorTimeData, sizeof(SCBEditorTimeData));
 
 	m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSWater->Create(EShaderType::PixelShader, L"Shader\\PSWater.hlsl", "main");
-	m_PSWater->AddConstantBuffer(&m_cbWaterTimeData, sizeof(SCBWaterTimeData));
+	m_PSWater->AddConstantBuffer(&m_CBWaterTimeData, sizeof(SCBWaterTimeData));
 	m_PSWater->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
 
 	m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSFoliage->Create(EShaderType::PixelShader, L"Shader\\PSFoliage.hlsl", "main");
 	m_PSFoliage->AddConstantBuffer(&m_cbPSBaseFlagsData, sizeof(SCBPSBaseFlagsData));
 	m_PSFoliage->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
-	m_PSFoliage->AddConstantBuffer(&m_cbPSBaseMaterialData, sizeof(SCBPSBaseMaterialData));
+	m_PSFoliage->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
 
 	m_PSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSParticle->Create(EShaderType::PixelShader, L"Shader\\PSParticle.hlsl", "main");
@@ -1893,15 +1884,15 @@ void CGame::Animate(float DeltaTime)
 
 void CGame::Draw(float DeltaTime)
 {
-	m_cbEditorTimeData.NormalizedTime += DeltaTime;
-	m_cbEditorTimeData.NormalizedTimeHalfSpeed += DeltaTime * 0.5f;
-	if (m_cbEditorTimeData.NormalizedTime > 1.0f) m_cbEditorTimeData.NormalizedTime = 0.0f;
-	if (m_cbEditorTimeData.NormalizedTimeHalfSpeed > 1.0f) m_cbEditorTimeData.NormalizedTimeHalfSpeed = 0.0f;
+	m_CBEditorTimeData.NormalizedTime += DeltaTime;
+	m_CBEditorTimeData.NormalizedTimeHalfSpeed += DeltaTime * 0.5f;
+	if (m_CBEditorTimeData.NormalizedTime > 1.0f) m_CBEditorTimeData.NormalizedTime = 0.0f;
+	if (m_CBEditorTimeData.NormalizedTimeHalfSpeed > 1.0f) m_CBEditorTimeData.NormalizedTimeHalfSpeed = 0.0f;
 
-	m_cbWaterTimeData.Time += DeltaTime * 0.1f;
-	if (m_cbWaterTimeData.Time > 1.0f) m_cbWaterTimeData.Time = 0.0f;
+	m_CBWaterTimeData.Time += DeltaTime * 0.1f;
+	if (m_CBWaterTimeData.Time > 1.0f) m_CBWaterTimeData.Time = 0.0f;
 
-	m_cbTerrainData.Time = m_cbEditorTimeData.NormalizedTime;
+	m_CBTerrainData.Time = m_CBEditorTimeData.NormalizedTime;
 
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 
@@ -2770,12 +2761,6 @@ Mouse::State CGame::GetMouseState() const
 const XMFLOAT2& CGame::GetWindowSize() const
 {
 	return m_WindowSize;
-}
-
-const XMFLOAT2& CGame::GetTerrainSelectionPosition() const
-{
-	assert(m_Terrain);
-	return m_Terrain->GetSelectionPosition();
 }
 
 float CGame::GetSkyTime() const

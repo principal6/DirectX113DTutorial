@@ -43,6 +43,7 @@
 #define READ_BYTES_TO_BOOL GetBoolFromBtyes(ReadBytes)
 #define READ_BYTES_TO_UINT8 GetUint8FromBtyes(ReadBytes)
 #define READ_BYTES_TO_UINT32 GetUint32FromBtyes(ReadBytes)
+#define READ_BYTES_TO_INT32 GetInt32FromBtyes(ReadBytes)
 #define READ_BYTES_TO_FLOAT GetFloatFromBtyes(ReadBytes)
 #define READ_BYTES_TO_XMFLOAT3 GetXMFLOAT3FromBtyes(ReadBytes)
 #define READ_BYTES_TO_XMFLOAT4 GetXMFLOAT4FromBtyes(ReadBytes)
@@ -50,6 +51,7 @@
 
 #define WRITE_BOOL_TO_BYTE(Value) GetByteFromBool((bool)Value, BoolByte); ofs.write(&BoolByte, sizeof(BoolByte))
 #define WRITE_UINT32_TO_BYTES(Value) GetBytesFromUint32((uint32_t)Value, Uint32Bytes); ofs.write(Uint32Bytes, sizeof(Uint32Bytes))
+#define WRITE_INT32_TO_BYTES(Value) GetBytesFromInt32((int32_t)Value, Int32Bytes); ofs.write(Int32Bytes, sizeof(Int32Bytes))
 #define WRITE_FLOAT_TO_BYTES(Value) GetBytesFromFloat((float)Value, FloatBytes); ofs.write(FloatBytes, sizeof(FloatBytes))
 #define WRITE_XMFLOAT3_TO_BYTES(Value) GetBytesFromXMFLOAT3(Value, XMFLOAT3Bytes); ofs.write(XMFLOAT3Bytes, sizeof(XMFLOAT3Bytes))
 #define WRITE_XMFLOAT4_TO_BYTES(Value) GetBytesFromXMFLOAT4(Value, XMFLOAT4Bytes); ofs.write(XMFLOAT4Bytes, sizeof(XMFLOAT4Bytes))
@@ -70,6 +72,13 @@ static void GetByteFromBool(bool Value, char& Bytes)
 }
 
 static void GetBytesFromUint32(uint32_t Value, char(&Bytes)[4])
+{
+	constexpr size_t KSize{ sizeof(char) * 4 };
+	memset(&Bytes[0], 0, KSize);
+	memcpy(&Bytes[0], &Value, KSize);
+}
+
+static void GetBytesFromInt32(int32_t Value, char(&Bytes)[4])
 {
 	constexpr size_t KSize{ sizeof(char) * 4 };
 	memset(&Bytes[0], 0, KSize);
@@ -127,6 +136,13 @@ static uint32_t GetUint32FromBtyes(char(&Bytes)[512])
 {
 	uint32_t Result{};
 	memcpy(&Result, &Bytes[0], sizeof(uint32_t));
+	return Result;
+}
+
+static int32_t GetInt32FromBtyes(char(&Bytes)[512])
+{
+	int32_t Result{};
+	memcpy(&Result, &Bytes[0], sizeof(int32_t));
 	return Result;
 }
 
