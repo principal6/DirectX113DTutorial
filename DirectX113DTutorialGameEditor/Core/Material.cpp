@@ -1,53 +1,58 @@
 #include "Material.h"
+#include <wincodec.h>
 
-void CMaterial::CTexture::CreateTextureFromFile(const string& TextureFileName, bool bShouldGenerateMipMap)
+void CMaterial::CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerateMipMap)
 {
-	m_TextureFileName = TextureFileName;
+	m_FileName = FileName;
 
-	size_t found{ m_TextureFileName.find_last_of(L'.') };
-	string Ext{ m_TextureFileName.substr(found) };
-	wstring wFileName{ m_TextureFileName.begin(), m_TextureFileName.end() };
+	size_t found{ m_FileName.find_last_of(L'.') };
+	string Ext{ m_FileName.substr(found) };
+	wstring wFileName{ m_FileName.begin(), m_FileName.end() };
 	for (auto& c : Ext)
 	{
 		c = toupper(c);
 	}
-	assert(Ext != ".DDS");
-
-	if (bShouldGenerateMipMap)
+	if (Ext == ".DDS")
 	{
-		wstring wFileName{ m_TextureFileName.begin(), m_TextureFileName.end() };
-		ComPtr<ID3D11Texture2D> NonMipMappedTexture{};
-
-		// @important: ignore sRGB!!
-		CreateWICTextureFromFileEx(m_PtrDevice, m_PtrDeviceContext, wFileName.c_str(), 0i64, D3D11_USAGE_DEFAULT,
-			D3D11_BIND_SHADER_RESOURCE, 0, 0, WIC_LOADER_IGNORE_SRGB, (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
-
-		if (!NonMipMappedTexture)
-		{
-			MessageBox(nullptr, ("텍스처를 찾을 수 없습니다." + m_TextureFileName).c_str(), "파일 열기 오류", MB_OK | MB_ICONEXCLAMATION);
-			return;
-		}
-
-		D3D11_TEXTURE2D_DESC Texture2DDesc{};
-		NonMipMappedTexture->GetDesc(&Texture2DDesc);
-		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-		Texture2DDesc.CPUAccessFlags = 0;
-		Texture2DDesc.MipLevels = 0;
-		Texture2DDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
-
-		assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&Texture2DDesc, nullptr, m_Texture2D.GetAddressOf())));
-
-		m_PtrDeviceContext->ResolveSubresource(m_Texture2D.Get(), 0, NonMipMappedTexture.Get(), 0, Texture2DDesc.Format);
-
-		m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
-
-		m_PtrDeviceContext->GenerateMips(m_ShaderResourceView.Get());
-
+		assert(SUCCEEDED(CreateDDSTextureFromFile(m_PtrDevice, wFileName.c_str(), (ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
 	}
 	else
 	{
-		assert(SUCCEEDED(CreateWICTextureFromFile(m_PtrDevice, wFileName.c_str(), (ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
+		if (bShouldGenerateMipMap)
+		{
+			ComPtr<ID3D11Texture2D> NonMipMappedTexture{};
+
+			// @important: ignore sRGB!!
+			CreateWICTextureFromFileEx(m_PtrDevice, m_PtrDeviceContext, wFileName.c_str(), 0i64, D3D11_USAGE_DEFAULT,
+				D3D11_BIND_SHADER_RESOURCE, 0, 0, WIC_LOADER_IGNORE_SRGB, (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
+
+			if (!NonMipMappedTexture)
+			{
+				MessageBox(nullptr, ("텍스처를 찾을 수 없습니다." + m_FileName).c_str(), "파일 열기 오류", MB_OK | MB_ICONEXCLAMATION);
+				return;
+			}
+
+			D3D11_TEXTURE2D_DESC Texture2DDesc{};
+			NonMipMappedTexture->GetDesc(&Texture2DDesc);
+			Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+			Texture2DDesc.CPUAccessFlags = 0;
+			Texture2DDesc.MipLevels = 0;
+			Texture2DDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+			Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+
+			assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&Texture2DDesc, nullptr, m_Texture2D.GetAddressOf())));
+
+			m_PtrDeviceContext->ResolveSubresource(m_Texture2D.Get(), 0, NonMipMappedTexture.Get(), 0, Texture2DDesc.Format);
+
+			m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
+
+			m_PtrDeviceContext->GenerateMips(m_ShaderResourceView.Get());
+
+		}
+		else
+		{
+			assert(SUCCEEDED(CreateWICTextureFromFile(m_PtrDevice, wFileName.c_str(), (ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
+		}
 	}
 
 	UpdateTextureSize();
@@ -98,7 +103,7 @@ void CMaterial::CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData
 	m_bIsCreated = true;
 }
 
-void CMaterial::CTexture::CreateBlankTexture(DXGI_FORMAT Format, const XMFLOAT2& TextureSize)
+void CMaterial::CTexture::CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize)
 {
 	m_TextureSize = TextureSize;
 
@@ -106,7 +111,7 @@ void CMaterial::CTexture::CreateBlankTexture(DXGI_FORMAT Format, const XMFLOAT2&
 	Texture2DDesc.ArraySize = 1;
 	Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	Texture2DDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	Texture2DDesc.Format = Format;
+	Texture2DDesc.Format = (DXGI_FORMAT)Format;
 	Texture2DDesc.Height = static_cast<UINT>(m_TextureSize.y);
 	Texture2DDesc.MipLevels = 1;
 	Texture2DDesc.SampleDesc.Count = 1;
@@ -118,6 +123,14 @@ void CMaterial::CTexture::CreateBlankTexture(DXGI_FORMAT Format, const XMFLOAT2&
 	m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
 
 	m_bIsCreated = true;
+}
+
+void CMaterial::CTexture::SaveToDDSFile(const string& FileName)
+{
+	wstring wFileName{ FileName.begin(), FileName.end() };
+	D3D11_TEXTURE2D_DESC Desc{};
+	m_Texture2D->GetDesc(&Desc);
+	assert(SUCCEEDED(SaveDDSTextureToFile(m_PtrDeviceContext, (ID3D11Resource*)m_Texture2D.Get(), wFileName.c_str())));
 }
 
 void CMaterial::CTexture::UpdateTextureSize()
@@ -167,6 +180,29 @@ void CMaterial::CTexture::UpdateTextureRawData(const SPixel32UInt* const PtrData
 			memcpy(PtrDest + (static_cast<size_t>(iRow) * MappedSubresource.RowPitch), 
 				PtrData + (static_cast<size_t>(iRow) * SrcRowPixelCount),
 				SrcRowPixelCount * sizeof(SPixel32UInt));
+		}
+
+		m_PtrDeviceContext->Unmap(m_Texture2D.Get(), 0);
+	}
+}
+
+void CMaterial::CTexture::UpdateTextureRawData(const SPixel128Float* const PtrData)
+{
+	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
+	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
+	{
+		size_t SrcRowPixelCount{ (size_t)m_TextureSize.x };
+		size_t SrcRowCount{ (size_t)m_TextureSize.y };
+		uint8_t* PtrDest{ (uint8_t*)MappedSubresource.pData };
+
+		UINT RowCount{ (MappedSubresource.DepthPitch) ?
+			MappedSubresource.DepthPitch / MappedSubresource.RowPitch :
+			static_cast<UINT>(SrcRowCount) };
+		for (UINT iRow = 0; iRow < RowCount; ++iRow)
+		{
+			memcpy(PtrDest + (static_cast<size_t>(iRow) * MappedSubresource.RowPitch),
+				PtrData + (static_cast<size_t>(iRow) * SrcRowPixelCount),
+				SrcRowPixelCount * sizeof(SPixel128Float));
 		}
 
 		m_PtrDeviceContext->Unmap(m_Texture2D.Get(), 0);

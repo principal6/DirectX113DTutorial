@@ -441,9 +441,14 @@ void CGame::UpdateVS2DSpace(const XMMATRIX& World)
 	m_cbVS2DSpaceData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
 }
 
-void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* const BoneMatrices)
+void CGame::UpdateCBAnimationBoneMatrices(const XMMATRIX* const BoneMatrices)
 {
-	memcpy(m_cbVSAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBVSAnimationBonesData));
+	memcpy(m_CBAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBAnimationBonesData));
+}
+
+void CGame::UpdateCBAnimationData(const CObject3D::SCBAnimationData& Data)
+{
+	m_CBAnimationData = Data;
 }
 
 void CGame::UpdateCBTerrainData(const CTerrain::SCBTerrainData& Data)
@@ -959,7 +964,8 @@ void CGame::CreateBaseShaders()
 	m_VSAnimation = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSAnimation->Create(EShaderType::VertexShader, L"Shader\\VSAnimation.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSAnimation->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
-	m_VSAnimation->AddConstantBuffer(&m_cbVSAnimationBonesData, sizeof(SCBVSAnimationBonesData));
+	m_VSAnimation->AddConstantBuffer(&m_CBAnimationBonesData, sizeof(SCBAnimationBonesData));
+	m_VSAnimation->AddConstantBuffer(&m_CBAnimationData, sizeof(CObject3D::SCBAnimationData));
 
 	m_VSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSSky->Create(EShaderType::VertexShader, L"Shader\\VSSky.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));

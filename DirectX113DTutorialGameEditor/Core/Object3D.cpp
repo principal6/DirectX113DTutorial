@@ -108,6 +108,120 @@ int CObject3D::GetAnimationCount() const
 	return (int)m_Model.vAnimations.size();
 }
 
+void CObject3D::BakeAnimationTexture()
+{
+	if (m_Model.vAnimations.empty()) return;
+
+	int32_t AnimationCount{ (int32_t)m_Model.vAnimations.size() };
+	int32_t TextureHeight{ KAnimationTextureReservedHeight };
+	vector<int32_t> vAnimationHeights{};
+	for (const auto& Animation : m_Model.vAnimations)
+	{
+		vAnimationHeights.emplace_back((int32_t)Animation.Duration + 1);
+		TextureHeight += vAnimationHeights.back();
+	}
+
+	m_BakedAnimationTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_BakedAnimationTexture->CreateBlankTexture(CMaterial::CTexture::EFormat::Pixel128Float, XMFLOAT2((float)KAnimationTextureWidth, (float)TextureHeight));
+	
+	vector<SPixel128Float> vRawData{};
+	
+	vRawData.resize((int64_t)KAnimationTextureWidth * TextureHeight);
+	vRawData[0].R = 'A';
+	vRawData[0].G = 'N';
+	vRawData[0].B = 'I';
+	vRawData[0].A = 'M';
+
+	float fAnimationCount{ (float)AnimationCount };
+	memcpy(&vRawData[1].R, &fAnimationCount, sizeof(float));
+
+	int32_t AnimationHeightSum{ KAnimationTextureReservedHeight };
+	for (int32_t iAnimation = 0; iAnimation < (int32_t)vAnimationHeights.size(); ++iAnimation)
+	{
+		float fAnimationHeightSum{ (float)AnimationHeightSum };
+		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].R, &fAnimationHeightSum, sizeof(float));
+		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].G, &m_Model.vAnimations[iAnimation].Duration, sizeof(float));
+		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].B, &m_Model.vAnimations[iAnimation].TicksPerSecond, sizeof(float));
+		//A
+
+		AnimationHeightSum += vAnimationHeights[iAnimation];
+	}
+
+	for (int32_t iAnimation = 0; iAnimation < (int32_t)m_Model.vAnimations.size(); ++iAnimation)
+	{
+		float fAnimationOffset{};
+		memcpy(&fAnimationOffset, &vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].R, sizeof(float));
+
+		const int32_t KAnimationYOffset{ (int32_t)fAnimationOffset };
+		const int32_t KAnimationOffset{ (int32_t)((int64_t)KAnimationYOffset * KAnimationTextureWidth) };
+		const SModel::SAnimation& Animation{ m_Model.vAnimations[iAnimation] };
+		
+		int32_t Duration{ (int32_t)Animation.Duration + 1 };
+		for (int32_t iTime = 0; iTime < Duration; ++iTime)
+		{
+			const int32_t KTimeOffset{ (int32_t)((int64_t)iTime * KAnimationTextureWidth) };
+			CalculateAnimatedBoneMatrices(Animation, (float)iTime, m_Model.vNodes[0], XMMatrixIdentity());
+
+			for (int32_t iBoneMatrix = 0; iBoneMatrix < (int32_t)KMaxBoneMatrixCount; ++iBoneMatrix)
+			{
+				const auto& BoneMatrix{ m_AnimatedBoneMatrices[iBoneMatrix] };
+				XMMATRIX TransposedBoneMatrix{ XMMatrixTranspose(BoneMatrix) };
+				memcpy(&vRawData[(int64_t)KAnimationOffset + KTimeOffset + (int64_t)iBoneMatrix * 4].R, &TransposedBoneMatrix, sizeof(XMMATRIX));
+			}
+		}
+	}
+
+	m_BakedAnimationTexture->UpdateTextureRawData(&vRawData[0]);
+}
+
+void CObject3D::SaveBakedAnimationTexture(const string& FileName)
+{
+	if (!m_BakedAnimationTexture) return;
+
+	m_BakedAnimationTexture->SaveToDDSFile(FileName);
+}
+
+void CObject3D::LoadBakedAnimationTexture(const string& FileName)
+{
+	m_BakedAnimationTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_BakedAnimationTexture->CreateTextureFromFile(FileName, false);
+
+	ID3D11Texture2D* const AnimationTexture{ m_BakedAnimationTexture->GetTexture2DPtr() };
+
+	D3D11_TEXTURE2D_DESC AnimationTextureDesc{};
+	AnimationTexture->GetDesc(&AnimationTextureDesc);
+
+	AnimationTextureDesc.BindFlags = 0;
+	AnimationTextureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+	AnimationTextureDesc.Usage = D3D11_USAGE_STAGING;
+
+	ComPtr<ID3D11Texture2D> ReadableAnimationTexture{};
+	assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&AnimationTextureDesc, nullptr, ReadableAnimationTexture.GetAddressOf())));
+
+	m_PtrDeviceContext->CopyResource(ReadableAnimationTexture.Get(), AnimationTexture);
+
+	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
+	if (SUCCEEDED(m_PtrDeviceContext->Map(ReadableAnimationTexture.Get(), 0, D3D11_MAP_READ, 0, &MappedSubresource)))
+	{
+		vector<SPixel128Float> vPixels{};
+		vPixels.resize(KAnimationTextureWidth);
+		memcpy(&vPixels[0], MappedSubresource.pData, sizeof(SPixel128Float) * KAnimationTextureWidth);
+
+		// Animation count
+		m_Model.vAnimations.resize((size_t)vPixels[1].R);
+
+		for (int32_t iAnimation = 0; iAnimation < (int32_t)m_Model.vAnimations.size(); ++iAnimation)
+		{
+			m_Model.vAnimations[iAnimation].Duration = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].G;
+			m_Model.vAnimations[iAnimation].TicksPerSecond = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].B;
+		}
+
+		m_PtrDeviceContext->Unmap(ReadableAnimationTexture.Get(), 0);
+	}
+
+	m_BakedAnimationTexture->SetShaderType(EShaderType::VertexShader);
+}
+
 void CObject3D::AddMaterial(const CMaterial& Material)
 {
 	m_Model.vMaterials.emplace_back(Material);
@@ -507,16 +621,26 @@ void CObject3D::Animate(float DeltaTime)
 	if (!m_Model.vAnimations.size()) return;
 
 	SModel::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationID] };
-	
 	m_CurrentAnimationTick += CurrentAnimation.TicksPerSecond * DeltaTime;
-	if (m_CurrentAnimationTick >= CurrentAnimation.Duration)
+	if (m_CurrentAnimationTick > CurrentAnimation.Duration)
 	{
 		m_CurrentAnimationTick = 0.0f;
 	}
 
-	CalculateAnimatedBoneMatrices(m_Model.vNodes[0], XMMatrixIdentity());
+	if (m_BakedAnimationTexture)
+	{
+		m_CBAnimationData.bUseGPUSkinning = TRUE;
+		m_CBAnimationData.AnimationID = m_CurrentAnimationID;
+		m_CBAnimationData.AnimationTick = m_CurrentAnimationTick;
 
-	m_PtrGame->UpdateVSAnimationBoneMatrices(m_AnimatedBoneMatrices);
+		m_PtrGame->UpdateCBAnimationData(m_CBAnimationData);
+	}
+	else
+	{
+		CalculateAnimatedBoneMatrices(m_Model.vAnimations[m_CurrentAnimationID], m_CurrentAnimationTick, m_Model.vNodes[0], XMMatrixIdentity());
+
+		m_PtrGame->UpdateCBAnimationBoneMatrices(m_AnimatedBoneMatrices);
+	}
 }
 
 void CObject3D::ShouldTessellate(bool Value)
@@ -524,13 +648,13 @@ void CObject3D::ShouldTessellate(bool Value)
 	m_bShouldTesselate = Value;
 }
 
-void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRIX ParentTransform)
+void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick, 
+	const SModel::SNode& Node, XMMATRIX ParentTransform)
 {
 	XMMATRIX MatrixTransformation{ Node.MatrixTransformation * ParentTransform };
 
 	if (Node.bIsBone)
 	{
-		const SModel::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationID] };
 		if (CurrentAnimation.vNodeAnimations.size())
 		{
 			if (CurrentAnimation.mapNodeAnimationNameToIndex.find(Node.Name) != CurrentAnimation.mapNodeAnimationNameToIndex.end())
@@ -549,7 +673,7 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRI
 					SModel::SAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
-						if (vKeys[iKey].Time <= m_CurrentAnimationTick)
+						if (vKeys[iKey].Time <= AnimationTick)
 						{
 							KeyA = vKeys[iKey];
 							KeyB = vKeys[(iKey < (uint32_t)vKeys.size() - 1) ? iKey + 1 : 0];
@@ -565,7 +689,7 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRI
 					SModel::SAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
-						if (vKeys[iKey].Time <= m_CurrentAnimationTick)
+						if (vKeys[iKey].Time <= AnimationTick)
 						{
 							KeyA = vKeys[iKey];
 							KeyB = vKeys[(iKey < (uint32_t)vKeys.size() - 1) ? iKey + 1 : 0];
@@ -581,7 +705,7 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRI
 					SModel::SAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
-						if (vKeys[iKey].Time <= m_CurrentAnimationTick)
+						if (vKeys[iKey].Time <= AnimationTick)
 						{
 							KeyA = vKeys[iKey];
 							KeyB = vKeys[(iKey < (uint32_t)vKeys.size() - 1) ? iKey + 1 : 0];
@@ -603,13 +727,15 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRI
 	{
 		for (auto iChild : Node.vChildNodeIndices)
 		{
-			CalculateAnimatedBoneMatrices(m_Model.vNodes[iChild], MatrixTransformation);
+			CalculateAnimatedBoneMatrices(CurrentAnimation, AnimationTick, m_Model.vNodes[iChild], MatrixTransformation);
 		}
 	}
 }
 
 void CObject3D::Draw(bool bIgnoreOwnTexture) const
 {
+	if (m_BakedAnimationTexture) m_BakedAnimationTexture->Use();
+	
 	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
 	{
 		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };

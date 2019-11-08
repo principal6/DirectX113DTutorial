@@ -43,8 +43,15 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	{
 		CObject3D* YBot{ Game.GetObject3D("YBot") };
 		YBot->CreateFromFile("Asset\\ybot_mixamo_idle.fbx", true);
+		
+		/*
 		YBot->AddAnimationFromFile("Asset\\ybot_mixamo_walking.fbx");
 		YBot->AddAnimationFromFile("Asset\\ybot_mixamo_punching.fbx");
+		YBot->BakeAnimationTexture();
+		YBot->SaveBakedAnimationTexture("Asset\\ybot_animation.dds");
+		*/
+
+		YBot->LoadBakedAnimationTexture("Asset\\ybot_animation.dds");
 
 		YBot->ComponentTransform.Scaling = XMVectorSet(0.01f, 0.01f, 0.01f, 0);
 		YBot->UpdateWorldMatrix();

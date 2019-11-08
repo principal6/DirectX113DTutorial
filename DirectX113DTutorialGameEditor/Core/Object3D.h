@@ -28,6 +28,14 @@ public:
 		float		Roll{};
 	};
 
+	struct SCBAnimationData
+	{
+		BOOL	bUseGPUSkinning{};
+		int32_t	AnimationID{};
+		int32_t AnimationDuration{};
+		float	AnimationTick{};
+	};
+
 private:
 	struct SComponentTransform
 	{
@@ -115,6 +123,10 @@ public:
 	void SetAnimationID(int ID);
 	int GetAnimationID() const;
 	int GetAnimationCount() const;
+	
+	void BakeAnimationTexture();
+	void SaveBakedAnimationTexture(const string& FileName);
+	void LoadBakedAnimationTexture(const string& FileName);
 
 public:
 	void AddMaterial(const CMaterial& Material);
@@ -164,7 +176,7 @@ private:
 
 	void CreateMaterialTextures();
 
-	void CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRIX ParentTransform);
+	void CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick, const SModel::SNode& Node, XMMATRIX ParentTransform);
 
 	void LimitFloatRotation(float& Value, const float Min, const float Max);
 
@@ -173,6 +185,9 @@ public:
 
 private:
 	static constexpr float KBoundingSphereDefaultRadius{ 1.0f };
+	static constexpr int32_t KAnimationTextureWidth{ 4 * (int32_t)KMaxBoneMatrixCount };
+	static constexpr int32_t KAnimationTextureReservedHeight{ 1 };
+	static constexpr int32_t KAnimationTextureReservedFirstPixelCount{ 2 };
 
 public:
 	SComponentTransform			ComponentTransform{};
@@ -197,6 +212,9 @@ private:
 	int							m_CurrentAnimationID{};
 	float						m_CurrentAnimationTick{};
 	bool						m_bShouldTesselate{ false };
+
+	unique_ptr<CMaterial::CTexture> m_BakedAnimationTexture{};
+	SCBAnimationData				m_CBAnimationData{};
 
 private:
 	vector<SInstanceGPUData>	m_vInstanceGPUData{};

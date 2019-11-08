@@ -65,7 +65,7 @@ struct SCBVSSpaceData
 	XMMATRIX	ViewProjection{};
 };
 
-struct SCBVSAnimationBonesData
+struct SCBAnimationBonesData
 {
 	XMMATRIX	BoneMatrices[KMaxBoneMatrixCount]{};
 };
@@ -275,7 +275,8 @@ public:
 public:
 	void UpdateVSSpace(const XMMATRIX& World);
 	void UpdateVS2DSpace(const XMMATRIX& World);
-	void UpdateVSAnimationBoneMatrices(const XMMATRIX* const BoneMatrices);
+	void UpdateCBAnimationBoneMatrices(const XMMATRIX* const BoneMatrices);
+	void UpdateCBAnimationData(const CObject3D::SCBAnimationData& Data);
 	void UpdateCBTerrainData(const CTerrain::SCBTerrainData& Data);
 	void UpdateCBWindData(const CTerrain::SCBWindData& Data);
 
@@ -498,7 +499,8 @@ private:
 
 private:
 	SCBVSSpaceData				m_cbVSSpaceData{};
-	SCBVSAnimationBonesData		m_cbVSAnimationBonesData{};
+	SCBAnimationBonesData		m_CBAnimationBonesData{};
+	CObject3D::SCBAnimationData	m_CBAnimationData{};
 	CTerrain::SCBTerrainData	m_CBTerrainData{};
 	CTerrain::SCBWindData		m_cbWindData{};
 

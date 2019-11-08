@@ -15,6 +15,14 @@ struct alignas(4) SPixel32UInt
 	uint8_t A{};
 };
 
+struct alignas(4) SPixel128Float
+{
+	float R{};
+	float G{};
+	float B{};
+	float A{};
+};
+
 class CMaterial
 {
 public:
@@ -29,6 +37,13 @@ public:
 			OpacityTexture
 		};
 
+		enum class EFormat
+		{
+			Pixel8Int = DXGI_FORMAT_R8_UNORM,
+			Pixel32Int = DXGI_FORMAT_R8G8B8A8_UNORM,
+			Pixel128Float = DXGI_FORMAT_R32G32B32A32_FLOAT
+		};
+
 	public:
 		CTexture(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
 			m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
@@ -39,24 +54,28 @@ public:
 		~CTexture() {}
 
 	public:
-		void CreateTextureFromFile(const string& TextureFileName, bool bShouldGenerateMipMap);
+		void CreateTextureFromFile(const string& FileName, bool bShouldGenerateMipMap);
 		void CreateTextureFromMemory(const vector<uint8_t>& RawData, bool bShouldGenerateMipMap);
-		void CreateBlankTexture(DXGI_FORMAT Format, const XMFLOAT2& TextureSize);
+		void CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize);
 
+		void SaveToDDSFile(const string& FileName);
+		
 	private:
 		void UpdateTextureSize();
 
 	public:
 		void UpdateTextureRawData(const SPixel8UInt* const PtrData);
 		void UpdateTextureRawData(const SPixel32UInt* const PtrData);
+		void UpdateTextureRawData(const SPixel128Float* const PtrData);
 		void SetSlot(UINT Slot);
 		void SetShaderType(EShaderType eShaderType);
 		void Use(int ForcedSlot = -1) const;
 
 	public:
 		bool IsCreated() const { return m_bIsCreated; }
-		const string& GetFileName() const { return m_TextureFileName; }
+		const string& GetFileName() const { return m_FileName; }
 		const XMFLOAT2& GetTextureSize() const { return m_TextureSize; }
+		ID3D11Texture2D* GetTexture2DPtr() const { return m_Texture2D.Get(); }
 		ID3D11ShaderResourceView* GetShaderResourceViewPtr() { return m_ShaderResourceView.Get(); }
 
 	private:
@@ -64,7 +83,7 @@ public:
 		ID3D11DeviceContext* const			m_PtrDeviceContext{};
 
 	private:
-		string								m_TextureFileName{};
+		string								m_FileName{};
 		XMFLOAT2							m_TextureSize{};
 		UINT								m_Slot{};
 		EShaderType							m_eShaderType{ EShaderType::PixelShader };

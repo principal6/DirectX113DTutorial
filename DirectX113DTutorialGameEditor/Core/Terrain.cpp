@@ -325,7 +325,7 @@ void CTerrain::CreateHeightMapTexture(bool bShouldClear)
 	m_HeightMapTextureSize = m_Size;
 	m_HeightMapTextureSize.x += 1.0f;
 	m_HeightMapTextureSize.y += 1.0f;
-	m_HeightMapTexture->CreateBlankTexture(DXGI_FORMAT_R8_UNORM, m_HeightMapTextureSize);
+	m_HeightMapTexture->CreateBlankTexture(CMaterial::CTexture::EFormat::Pixel8Int, m_HeightMapTextureSize);
 	m_HeightMapTexture->SetSlot(0);
 	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
 	m_HeightMapTexture->Use();
@@ -350,7 +350,7 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 
 	m_MaskingTextureSize.x = m_Size.x * m_MaskingTextureDetail;
 	m_MaskingTextureSize.y = m_Size.y * m_MaskingTextureDetail;
-	m_MaskingTexture->CreateBlankTexture(DXGI_FORMAT_R8G8B8A8_UNORM, m_MaskingTextureSize);
+	m_MaskingTexture->CreateBlankTexture(CMaterial::CTexture::EFormat::Pixel32Int, m_MaskingTextureSize);
 	m_MaskingTexture->SetSlot(KMaskingTextureSlot);
 	m_MaskingTexture->Use();
 
@@ -397,7 +397,7 @@ void CTerrain::CreateFoliagePlaceTexutre()
 
 	m_FoliagePlaceTextureSize.x = static_cast<float>(m_Size.x * m_FoliagePlacingDetail);
 	m_FoliagePlaceTextureSize.y = static_cast<float>(m_Size.y * m_FoliagePlacingDetail);
-	m_FoliagePlaceTexture->CreateBlankTexture(DXGI_FORMAT_R8_UNORM, m_FoliagePlaceTextureSize);
+	m_FoliagePlaceTexture->CreateBlankTexture(CMaterial::CTexture::EFormat::Pixel8Int, m_FoliagePlaceTextureSize);
 
 	m_FoliagePlaceTextureRawData.clear();
 	m_FoliagePlaceTextureRawData.resize(static_cast<size_t>(m_FoliagePlaceTextureSize.x) * static_cast<size_t>(m_FoliagePlaceTextureSize.y));
