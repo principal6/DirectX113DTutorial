@@ -38,7 +38,7 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 
 	// Scene에서 재귀적으로 Node의 Tree를 만든다.
 	LoadNodes(m_Scene, m_Scene->mRootNode, -1, Model);
-
+	
 	// Node의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다.
 	for (auto& Node : Model.vNodes)
 	{
@@ -54,7 +54,7 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 	// Scene에서 Animation을 불러온다.
 	LoadAnimations(m_Scene, Model);
 
-	// Animation의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다. 
+	// NodeAnimation의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다. 
 	for (auto& Animation : Model.vAnimations)
 	{
 		for (auto& NodeAnimation : Animation.vNodeAnimations)
@@ -64,6 +64,31 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 	}
 
 	Model.bIsModelAnimated = true;
+}
+
+void CAssimpLoader::AddAnimationFromFile(const string& FileName, SModel& Model)
+{
+	m_AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
+	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
+		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph |
+		aiProcess_SplitLargeMeshes | aiProcess_ImproveCacheLocality | aiProcess_FixInfacingNormals |
+		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices |
+		aiProcess_RemoveComponent | aiProcess_GenSmoothNormals);
+
+	assert(m_Scene);
+	assert(m_Scene->HasMeshes());
+	assert(m_Scene->mRootNode);
+
+	LoadAnimations(m_Scene, Model);
+
+	// NodeAnimation의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다. 
+	for (auto& Animation : Model.vAnimations)
+	{
+		for (auto& NodeAnimation : Animation.vNodeAnimations)
+		{
+			Animation.mapNodeAnimationNameToIndex[NodeAnimation.NodeName] = NodeAnimation.Index;
+		}
+	}
 }
 
 XMVECTOR CAssimpLoader::ConvertaiVector3DToXMVECTOR(const aiVector3D& Vector, float w)
@@ -325,13 +350,14 @@ void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel& Model)
 {
 	if (Scene->mNumAnimations)
 	{
-		Model.vAnimations.resize(Scene->mNumAnimations);
-		for (unsigned int iAnimation = 0; iAnimation < Scene->mNumAnimations; ++iAnimation)
+		unsigned int aiAnimationCount{ Scene->mNumAnimations };
+		for (unsigned int iaiAnimation = 0; iaiAnimation < aiAnimationCount; ++iaiAnimation)
 		{
-			const aiAnimation* const _aiAnimation{ Scene->mAnimations[iAnimation] };
+			const aiAnimation* const _aiAnimation{ Scene->mAnimations[iaiAnimation] };
 			const unsigned int& ChannelCount{ _aiAnimation->mNumChannels };
 
-			SModel::SAnimation& Animation{ Model.vAnimations[iAnimation] };
+			Model.vAnimations.emplace_back();
+			SModel::SAnimation& Animation{ Model.vAnimations.back() };
 			Animation.TicksPerSecond = static_cast<float>(_aiAnimation->mTicksPerSecond);
 			Animation.Duration = static_cast<float>(_aiAnimation->mDuration);
 			Animation.vNodeAnimations.resize(ChannelCount);

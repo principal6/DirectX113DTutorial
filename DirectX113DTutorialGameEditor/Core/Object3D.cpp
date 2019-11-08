@@ -83,6 +83,31 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 	m_bIsCreated = true;
 }
 
+void CObject3D::AddAnimationFromFile(const string& FileName)
+{
+	if (!m_Model.bIsModelAnimated) return;
+
+	m_AssimpLoader.AddAnimationFromFile(FileName, m_Model);
+}
+
+void CObject3D::SetAnimationID(int ID)
+{
+	ID = min(ID, (int)(m_Model.vAnimations.size() - 1));
+	ID = max(ID, 0);
+
+	m_CurrentAnimationID = ID;
+}
+
+int CObject3D::GetAnimationID() const
+{
+	return m_CurrentAnimationID;
+}
+
+int CObject3D::GetAnimationCount() const
+{
+	return (int)m_Model.vAnimations.size();
+}
+
 void CObject3D::AddMaterial(const CMaterial& Material)
 {
 	m_Model.vMaterials.emplace_back(Material);
@@ -477,13 +502,13 @@ void CObject3D::UpdateAllInstancesWorldMatrix()
 	UpdateInstanceBuffers();
 }
 
-void CObject3D::Animate()
+void CObject3D::Animate(float DeltaTime)
 {
 	if (!m_Model.vAnimations.size()) return;
 
-	SModel::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationIndex] };
+	SModel::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationID] };
 	
-	m_CurrentAnimationTick += CurrentAnimation.TicksPerSecond * 0.001f; // TEMPORARY SLOW DOWN!!
+	m_CurrentAnimationTick += CurrentAnimation.TicksPerSecond * DeltaTime;
 	if (m_CurrentAnimationTick >= CurrentAnimation.Duration)
 	{
 		m_CurrentAnimationTick = 0.0f;
@@ -505,7 +530,7 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SNode& Node, XMMATRI
 
 	if (Node.bIsBone)
 	{
-		const SModel::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationIndex] };
+		const SModel::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationID] };
 		if (CurrentAnimation.vNodeAnimations.size())
 		{
 			if (CurrentAnimation.mapNodeAnimationNameToIndex.find(Node.Name) != CurrentAnimation.mapNodeAnimationNameToIndex.end())

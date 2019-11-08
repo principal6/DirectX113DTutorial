@@ -377,7 +377,7 @@ public:
 
 public:
 	void BeginRendering(const FLOAT* ClearColor);
-	void Animate();
+	void Animate(float DeltaTime);
 	void Draw(float DeltaTime);
 	void EndRendering();
 

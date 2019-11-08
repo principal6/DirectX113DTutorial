@@ -39,6 +39,17 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		Grid->Create(Generate3DGrid(0));
 	}
 
+	Game.InsertObject3D("YBot");
+	{
+		CObject3D* YBot{ Game.GetObject3D("YBot") };
+		YBot->CreateFromFile("Asset\\ybot_mixamo_idle.fbx", true);
+		YBot->AddAnimationFromFile("Asset\\ybot_mixamo_walking.fbx");
+		YBot->AddAnimationFromFile("Asset\\ybot_mixamo_punching.fbx");
+
+		YBot->ComponentTransform.Scaling = XMVectorSet(0.01f, 0.01f, 0.01f, 0);
+		YBot->UpdateWorldMatrix();
+	}
+
 	CMaterial MaterialTest{};
 	{
 		MaterialTest.SetName("Test");
@@ -251,7 +262,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				}
 			}
 
-			Game.Animate();
+			Game.Animate(DeltaTimeF);
 			Game.Draw(DeltaTimeF);
 
 			ImGui_ImplDX11_NewFrame();
@@ -521,6 +532,19 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										Object3D->ComponentPhysics.BoundingSphere.Radius = BSRadius;
 									}
 
+									if (Object3D->IsRiggedModel())
+									{
+										ImGui::Separator();
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"애니메이션 ID");
+										ImGui::SameLine(120);
+										int AnimationID{ Object3D->GetAnimationID() };
+										if (ImGui::SliderInt(u8"##애니메이션ID", &AnimationID, 0, Object3D->GetAnimationCount() - 1))
+										{
+											Object3D->SetAnimationID(AnimationID);
+										}
+									}
 								}
 								else
 								{

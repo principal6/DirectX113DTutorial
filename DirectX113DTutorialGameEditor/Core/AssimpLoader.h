@@ -115,6 +115,7 @@ public:
 
 	void LoadStaticModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
 	void LoadAnimatedModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
+	void AddAnimationFromFile(const string& FileName, SModel& Model);
 
 private:
 	XMVECTOR ConvertaiVector3DToXMVECTOR(const aiVector3D& Vector, float w);

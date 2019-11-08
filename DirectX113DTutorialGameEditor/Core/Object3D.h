@@ -111,6 +111,12 @@ public:
 	void CreateFromFile(const string& FileName, bool bIsModelRigged);
 
 public:
+	void AddAnimationFromFile(const string& FileName);
+	void SetAnimationID(int ID);
+	int GetAnimationID() const;
+	int GetAnimationCount() const;
+
+public:
 	void AddMaterial(const CMaterial& Material);
 	void SetMaterial(size_t Index, const CMaterial& Material);
 	size_t GetMaterialCount() const;
@@ -132,7 +138,7 @@ public:
 	void UpdateInstanceWorldMatrix(int InstanceID);
 	void UpdateAllInstancesWorldMatrix();
 
-	void Animate();
+	void Animate(float DeltaTime);
 	void Draw(bool bIgnoreOwnTexture = false) const;
 
 public:
@@ -188,7 +194,7 @@ private:
 	vector<SInstanceBuffer>		m_vInstanceBuffers{};
 
 	XMMATRIX					m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
-	size_t						m_CurrentAnimationIndex{};
+	int							m_CurrentAnimationID{};
 	float						m_CurrentAnimationTick{};
 	bool						m_bShouldTesselate{ false };
 

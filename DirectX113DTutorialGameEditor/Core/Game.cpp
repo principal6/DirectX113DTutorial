@@ -1883,11 +1883,11 @@ void CGame::BeginRendering(const FLOAT* ClearColor)
 		m_vCameras[m_CurrentCameraIndex].GetUpDirection());
 }
 
-void CGame::Animate()
+void CGame::Animate(float DeltaTime)
 {
 	for (auto& Object3D : m_vObject3Ds)
 	{
-		if (Object3D) Object3D->Animate();
+		if (Object3D) Object3D->Animate(DeltaTime);
 	}
 }
 
