@@ -11,7 +11,14 @@ cbuffer cbTerrain : register(b1)
 	float TerrainSizeX;
 	float TerrainSizeZ;
 	float TerrainHeightRange;
-	float Pad;
+	float Time;
+}
+
+cbuffer cbWind : register(b2)
+{
+	float4 WindVelocity;
+	float3 WindPosition;
+	float WindRadius;
 }
 
 SamplerState Sampler : register(s0);
@@ -44,12 +51,28 @@ VS_OUTPUT main(VS_INPUT Input)
 	InstancePosition = RotateAroundAxisX(InstancePosition, -KXRotationAngle);
 	InstancePosition.x += KInstanceWorld._m30;
 	InstancePosition.z += KInstanceWorld._m32;
+
+	Output.WorldNormal = normalize(mul(Input.Normal, KInstanceWorld));
+
+	if (Input.UV.y < 0.2f) // Upper vertices
+	{
+		float Distance = distance(InstancePosition.xz, WindPosition.xz);
+		if (Distance <= WindRadius)
+		{
+			const float KWindDisplacementFactor = 0.0625f;
+			float3 WindDirection = normalize(WindVelocity.xyz);
+			float NormalizedDistance = Distance / WindRadius;
+			InstancePosition.x += WindVelocity.x * (1.0f - NormalizedDistance) * (sin(Time * K2PI) * 0.125f + 0.875f) * KWindDisplacementFactor;
+			InstancePosition.z += WindVelocity.z * (1.0f - NormalizedDistance) * (sin(Time * K2PI) * 0.125f + 0.875f) * KWindDisplacementFactor;
+		}
+	}
+
 	InstancePosition.y += KHeight;
 
 	Output.WorldPosition = InstancePosition;
 	Output.Position = mul(InstancePosition, ViewProjection);
 	Output.UV = Input.UV;
-	Output.WorldNormal = normalize(mul(Input.Normal, KInstanceWorld));
+	//Output.WorldNormal = normalize(mul(Input.Normal, KInstanceWorld));
 
 	return Output;
 }

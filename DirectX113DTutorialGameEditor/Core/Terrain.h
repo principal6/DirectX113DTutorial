@@ -25,12 +25,20 @@ public:
 		LayerA,
 	};
 
-	struct SCBVSTerrainData
+	struct SCBTerrainData
 	{
 		float TerrainSizeX{};
 		float TerrainSizeZ{};
 		float TerrainHeightRange{};
-		float Pad{};
+		float Time{};
+	};
+
+	// TODO: Bake wind data into a fetch texture, so that in shader we could use multiple wind displacement!
+	struct SCBWindData
+	{
+		XMVECTOR	Velocity{};
+		XMFLOAT3	Position{};
+		float		Radius{ 1.0f };
 	};
 
 	struct SCBPSTerrainSelectionData
@@ -62,12 +70,20 @@ public:
 	void SetFoliageDensity(float Density);
 	float GetFoliageDenstiy() const;
 
+	void SetWindVelocity(float (&Velocity)[3]);
+	void SetWindVelocity(XMFLOAT3& Velocity);
+	void SetWindVelocity(const XMVECTOR& Velocity);
+	const XMVECTOR& GetWindVelocity() const;
+	void SetWindRadius(float Radius);
+	float GetWindRadius() const;
+
 private:
 	void CreateTerrainObject3D(vector<CMaterial>& vMaterialsl);
 	void CreateHeightMapTexture(bool bShouldClear);
 	void CreateMaskingTexture(bool bShouldClear);
 	void CreateWater();
 	void CreateFoliagePlaceTexutre();
+	void CreateWindRepresentation();
 
 public:
 	void AddMaterial(const CMaterial& Material);
@@ -129,7 +145,12 @@ public:
 
 	const string& GetFileName() const;
 
+	float GetTerrainHeightAt(float X, float Z);
+	float GetTerrainHeightAt(int iX, int iZ);
+
 public:
+	void UpdateWind(float DeltaTime);
+
 	void Draw(bool bDrawNormals);
 	void DrawHeightMapTexture();
 	void DrawMaskingTexture();
@@ -186,6 +207,8 @@ public:
 	static constexpr float KMaxFoliageInterval{ 1.0f };
 	static constexpr float KMinFoliageInterval{ 0.1f };
 
+	static constexpr float KMinWindRadius{ 0.125f };
+
 private:
 	ID3D11Device* const			m_PtrDevice{};
 	ID3D11DeviceContext* const	m_PtrDeviceContext{};
@@ -199,7 +222,7 @@ private:
 	XMFLOAT2						m_HeightMapTextureSize{};
 	unique_ptr<CMaterial::CTexture>	m_HeightMapTexture{};
 	vector<SPixel8UInt>				m_HeightMapTextureRawData{};
-	SCBVSTerrainData				m_cbTerrainData{};
+	SCBTerrainData					m_CBTerrainData{};
 	float							m_TerrainTessFactor{ KTessFactorMin };
 
 	XMFLOAT2						m_MaskingTextureSize{};
@@ -224,6 +247,9 @@ private:
 	vector<SPixel8UInt>				m_FoliagePlaceTextureRawData{};
 	int								m_FoliagePlacingDetail{};
 	float							m_FoliageDenstiy{};
+
+	SCBWindData						m_CBWindData{};
+	unique_ptr<CObject3D>			m_Object3DWindRepresentation{};
 
 private:
 	SCBPSTerrainSelectionData	m_cbPSTerrainSelectionData{};

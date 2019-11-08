@@ -14,6 +14,14 @@ static bool IntersectRayPlane(const XMVECTOR& RayOrigin, const XMVECTOR& RayDire
 static bool IntersectRayTriangle(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection,
 	const XMVECTOR& TriangleV0, const XMVECTOR& TriangleV1, const XMVECTOR& TriangleV2, XMVECTOR* OutPtrT);
 
+static float Lerp(float a, float b, float t)
+{
+	// (1 - t)a + tb
+	// = a - ta + tb
+	// = a + t(b - a)
+	return a + t * (b - a);
+}
+
 static int GetRandom(int Min, int Max)
 {
 	if (Min >= Max) return Min;

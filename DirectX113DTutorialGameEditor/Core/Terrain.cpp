@@ -25,10 +25,10 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, fl
 	m_MaskingTextureDetail = max(m_MaskingTextureDetail, KMaskingMinDetail);
 	m_MaskingTextureDetail = min(m_MaskingTextureDetail, KMaskingMaxDetail);
 
-	m_cbTerrainData.TerrainSizeX = m_Size.x;
-	m_cbTerrainData.TerrainSizeZ = m_Size.y;
-	m_cbTerrainData.TerrainHeightRange = KHeightRange;
-	m_PtrGame->UpdateVSTerrainData(m_cbTerrainData);
+	m_CBTerrainData.TerrainSizeX = m_Size.x;
+	m_CBTerrainData.TerrainSizeZ = m_Size.y;
+	m_CBTerrainData.TerrainHeightRange = KHeightRange;
+	m_PtrGame->UpdateCBTerrainData(m_CBTerrainData);
 
 	vector<CMaterial> vMaterials{};
 	vMaterials.emplace_back(Material);
@@ -63,17 +63,17 @@ void CTerrain::Load(const string& FileName)
 	// 4B (float) Terrain X Size
 	READ_BYTES(4);
 	m_Size.x = READ_BYTES_TO_FLOAT;
-	m_cbTerrainData.TerrainSizeX = m_Size.x;
+	m_CBTerrainData.TerrainSizeX = m_Size.x;
 	
 	// 4B (float) Terrain Z Size
 	READ_BYTES(4);
 	m_Size.y = READ_BYTES_TO_FLOAT;
-	m_cbTerrainData.TerrainSizeZ = m_Size.y;
+	m_CBTerrainData.TerrainSizeZ = m_Size.y;
 
 	// 4B (float) Terrain Height Range
 	READ_BYTES(4);
-	m_cbTerrainData.TerrainHeightRange = READ_BYTES_TO_FLOAT;
-	m_PtrGame->UpdateVSTerrainData(m_cbTerrainData);
+	m_CBTerrainData.TerrainHeightRange = READ_BYTES_TO_FLOAT;
+	m_PtrGame->UpdateCBTerrainData(m_CBTerrainData);
 
 	// 4B (float) Terrain tessellation factor
 	READ_BYTES(4);
@@ -173,7 +173,7 @@ void CTerrain::Save(const string& FileName)
 	WRITE_FLOAT_TO_BYTES(m_Size.y);
 
 	// 4B (float) Terrain Height Range
-	WRITE_FLOAT_TO_BYTES(m_cbTerrainData.TerrainHeightRange);
+	WRITE_FLOAT_TO_BYTES(m_CBTerrainData.TerrainHeightRange);
 
 	// 4B (float) Terrain tessellation factor
 	WRITE_FLOAT_TO_BYTES(m_TerrainTessFactor);
@@ -244,6 +244,8 @@ void CTerrain::CreateFoliageCluster(const vector<string>& vFoliageFileNames, int
 	}
 
 	m_bHasFoliageCluster = true;
+
+	CreateWindRepresentation();
 }
 
 void CTerrain::SetFoliageDensity(float Density)
@@ -254,6 +256,50 @@ void CTerrain::SetFoliageDensity(float Density)
 float CTerrain::GetFoliageDenstiy() const
 {
 	return m_FoliageDenstiy;
+}
+
+void CTerrain::SetWindVelocity(float(&Velocity)[3])
+{
+	XMFLOAT3 xmf3Velocity{ Velocity[0], Velocity[1], Velocity[2] };
+	XMVECTOR xmvVelocity{ XMLoadFloat3(&xmf3Velocity) };
+	xmvVelocity = XMVector3Normalize(xmvVelocity);
+	XMStoreFloat3(&xmf3Velocity, xmvVelocity);
+
+	Velocity[0] = xmf3Velocity.x;
+	Velocity[1] = xmf3Velocity.y;
+	Velocity[2] = xmf3Velocity.z;
+
+	m_CBWindData.Velocity = xmvVelocity;
+	m_PtrGame->UpdateCBWindData(m_CBWindData);
+}
+
+void CTerrain::SetWindVelocity(XMFLOAT3& Velocity)
+{
+	XMVECTOR xmvVelocity{ XMLoadFloat3(&Velocity) };
+	m_CBWindData.Velocity = xmvVelocity;
+	m_PtrGame->UpdateCBWindData(m_CBWindData);
+}
+
+void CTerrain::SetWindVelocity(const XMVECTOR& Velocity)
+{
+	m_CBWindData.Velocity = Velocity;
+	m_PtrGame->UpdateCBWindData(m_CBWindData);
+}
+
+const XMVECTOR& CTerrain::GetWindVelocity() const
+{
+	return m_CBWindData.Velocity;
+}
+
+void CTerrain::SetWindRadius(float Radius)
+{
+	Radius = max(Radius, KMinWindRadius);
+	m_CBWindData.Radius = Radius;
+}
+
+float CTerrain::GetWindRadius() const
+{
+	return m_CBWindData.Radius;
 }
 
 void CTerrain::CreateTerrainObject3D(vector<CMaterial>& vMaterials)
@@ -354,6 +400,12 @@ void CTerrain::CreateFoliagePlaceTexutre()
 	m_FoliagePlaceTextureRawData.resize(static_cast<size_t>(m_FoliagePlaceTextureSize.x) * static_cast<size_t>(m_FoliagePlaceTextureSize.y));
 
 	UpdateFoliagePlaceTexture();
+}
+
+void CTerrain::CreateWindRepresentation()
+{
+	m_Object3DWindRepresentation = make_unique<CObject3D>("WindRepr", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	m_Object3DWindRepresentation->Create(GenerateSphere());
 }
 
 void CTerrain::AddMaterial(const CMaterial& Material)
@@ -869,6 +921,99 @@ const string& CTerrain::GetFileName() const
 	return m_FileName;
 }
 
+float CTerrain::GetTerrainHeightAt(float X, float Z)
+{
+	if (m_HeightMapTextureRawData.size())
+	{
+		int iTerrainHalfSizeX{ (int)(m_Size.x * 0.5f) };
+		int iTerrainHalfSizeZ{ (int)(m_Size.y * 0.5f) };
+		int iX{ (int)floor(X) + iTerrainHalfSizeX }; // [0, TerrainSizeX + 1]
+		int iZ{ -(int)floor(Z) + iTerrainHalfSizeZ }; // [0, TerrainSizeZ + 1]
+		float dX{ X - floor(X) };
+		float dZ{ Z - floor(Z) };
+		
+		if (dX == 0.0f && dZ == 0.0f)
+		{
+			return GetTerrainHeightAt(iX, iZ);
+		}
+		else
+		{
+			int idX{}, idZ{};
+			if (dX != 0.0f)
+			{
+				idX = (int)(dX / dX);
+				if (dX < 0.0f) idX = -idX;
+			}
+			if (dZ != 0.0f)
+			{
+				idZ = (int)(dZ / dZ);
+				if (dZ < 0.0f) idZ = -idZ;
+			}
+			int iCmpX{ iX + idX };
+			int iCmpZ{ iZ - idZ };
+			float Height{ GetTerrainHeightAt(iX, iZ) };
+			float CmpHeightX{ GetTerrainHeightAt(iCmpX, iZ) };
+			float CmpHeightZ{ GetTerrainHeightAt(iX, iCmpZ) };
+
+			float XLerp{ Lerp(Height, CmpHeightX, abs(dX)) };
+			float ZLerp{ Lerp(Height, CmpHeightZ, abs(dZ)) };
+
+			if (dX == 0.0f) return ZLerp;
+			if (dZ == 0.0f) return XLerp;
+
+			float Tan{ abs(dZ) / abs(dX) };
+			float Theta{ atan(Tan) };
+			float Weight{ Theta / XM_PIDIV4 }; // [0.0f, 1.0f]
+
+			return Lerp(XLerp, ZLerp, Weight);
+		}
+	}
+	return 0.0f;
+}
+
+float CTerrain::GetTerrainHeightAt(int iX, int iZ)
+{
+	if (m_HeightMapTextureRawData.size())
+	{
+		int iTerrainSizeX{ (int)m_Size.x };
+		int iPixel{ iZ * (iTerrainSizeX + 1) + iX };
+		float NormalizeHeight{ (float)m_HeightMapTextureRawData[iPixel].R / 255.0f };
+		float Height{ NormalizeHeight * KHeightRange }; // [0, KHeightRange]
+		Height += KMinHeight; // [-KMinHeight, +KMaxHeight]
+		return Height;
+	}
+	return 0.0f;
+}
+
+void CTerrain::UpdateWind(float DeltaTime)
+{
+	XMVECTOR xmvPosition{ XMLoadFloat3(&m_CBWindData.Position) };
+	xmvPosition += m_CBWindData.Velocity * DeltaTime;	
+	XMStoreFloat3(&m_CBWindData.Position, xmvPosition);
+
+	float HalfTerrainSizeX{ m_Size.x * 0.5f };
+	float HalfTerrainSizeZ{ m_Size.y * 0.5f };
+	if (m_CBWindData.Position.x < -HalfTerrainSizeX)
+	{
+		m_CBWindData.Position.x = +HalfTerrainSizeX;
+	}
+	else if (m_CBWindData.Position.x > +HalfTerrainSizeX)
+	{
+		m_CBWindData.Position.x = -HalfTerrainSizeX;
+	}
+	if (m_CBWindData.Position.z < -HalfTerrainSizeZ)
+	{
+		m_CBWindData.Position.z = +HalfTerrainSizeZ;
+	}
+	else if (m_CBWindData.Position.z > +HalfTerrainSizeZ)
+	{
+		m_CBWindData.Position.z = -HalfTerrainSizeZ;
+	}
+	m_CBWindData.Position.y = GetTerrainHeightAt(m_CBWindData.Position.x, m_CBWindData.Position.z);
+
+	m_PtrGame->UpdateCBWindData(m_CBWindData);
+}
+
 void CTerrain::Draw(bool bDrawNormals)
 {
 	if (!m_Object3DTerrain) return;
@@ -1018,4 +1163,25 @@ void CTerrain::DrawFoliageCluster()
 	}
 
 	m_PtrGame->SetUniversalRSState();
+
+	// Wind sphere represenatation
+	if (m_Object3DWindRepresentation && false)
+	{
+		m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->Wireframe());
+
+		m_Object3DWindRepresentation->ComponentTransform.Translation = XMLoadFloat3(&m_CBWindData.Position);
+		m_Object3DWindRepresentation->ComponentTransform.Scaling = XMVectorSet(m_CBWindData.Radius, m_CBWindData.Radius, m_CBWindData.Radius, 0);
+		m_Object3DWindRepresentation->UpdateWorldMatrix();
+
+		m_PtrGame->UpdateVSSpace(m_Object3DWindRepresentation->ComponentTransform.MatrixWorld);
+
+		m_PtrGame->GetBaseShader(EBaseShader::VSBase)->Use();
+		m_PtrGame->GetBaseShader(EBaseShader::VSBase)->UpdateAllConstantBuffers();
+
+		m_PtrGame->GetBaseShader(EBaseShader::PSVertexColor)->Use();
+
+		m_Object3DWindRepresentation->Draw();
+
+		m_PtrGame->SetUniversalRSState();
+	}
 }

@@ -326,6 +326,13 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord, 
 			{
 				U0 = V0 = 0.0f;
 				U1 = V1 = 1.0f;
+
+				/*
+				U0 = (float)(x % 4) * 0.25f;
+				U1 = (float)((x % 4) + 1) * 0.25f;
+				V0 = (float)(z % 4) * 0.25f;
+				V1 = (float)((z % 4) + 1) * 0.25f;
+				*/
 			}
 			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z + 0), 1), Color, XMVectorSet(U0, V0, 0, 0));
 			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(-z + 0), 1), Color, XMVectorSet(U1, V0, 0, 0));

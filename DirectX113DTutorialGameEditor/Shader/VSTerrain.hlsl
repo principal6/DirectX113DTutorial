@@ -11,7 +11,7 @@ cbuffer cbTerrain : register(b1)
 	float TerrainSizeX;
 	float TerrainSizeZ;
 	float TerrainHeightRange;
-	float Pad;
+	float Time;
 }
 
 SamplerState HeightMapSampler : register(s0);

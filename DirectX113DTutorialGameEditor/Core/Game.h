@@ -276,7 +276,8 @@ public:
 	void UpdateVSSpace(const XMMATRIX& World);
 	void UpdateVS2DSpace(const XMMATRIX& World);
 	void UpdateVSAnimationBoneMatrices(const XMMATRIX* const BoneMatrices);
-	void UpdateVSTerrainData(const CTerrain::SCBVSTerrainData& Data);
+	void UpdateCBTerrainData(const CTerrain::SCBTerrainData& Data);
+	void UpdateCBWindData(const CTerrain::SCBWindData& Data);
 
 	void UpdateHSTessFactor(float TessFactor);
 
@@ -412,7 +413,7 @@ private:
 	void DrawPickedTriangle();
 
 	void DrawSky(float DeltaTime);
-	void DrawTerrain();
+	void DrawTerrain(float DeltaTime);
 
 	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
 	bool ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
@@ -500,7 +501,8 @@ private:
 private:
 	SCBVSSpaceData				m_cbVSSpaceData{};
 	SCBVSAnimationBonesData		m_cbVSAnimationBonesData{};
-	CTerrain::SCBVSTerrainData	m_cbVSTerrainData{};
+	CTerrain::SCBTerrainData	m_cbTerrainData{};
+	CTerrain::SCBWindData		m_cbWindData{};
 
 	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
 

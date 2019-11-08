@@ -446,9 +446,14 @@ void CGame::UpdateVSAnimationBoneMatrices(const XMMATRIX* const BoneMatrices)
 	memcpy(m_cbVSAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBVSAnimationBonesData));
 }
 
-void CGame::UpdateVSTerrainData(const CTerrain::SCBVSTerrainData& Data)
+void CGame::UpdateCBTerrainData(const CTerrain::SCBTerrainData& Data)
 {
-	m_cbVSTerrainData = Data;
+	m_cbTerrainData = Data;
+}
+
+void CGame::UpdateCBWindData(const CTerrain::SCBWindData& Data)
+{
+	m_cbWindData = Data;
 }
 
 void CGame::UpdateHSTessFactor(float TessFactor)
@@ -980,12 +985,13 @@ void CGame::CreateBaseShaders()
 	m_VSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSTerrain->Create(EShaderType::VertexShader, L"Shader\\VSTerrain.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSTerrain->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
-	m_VSTerrain->AddConstantBuffer(&m_cbVSTerrainData, sizeof(CTerrain::SCBVSTerrainData));
+	m_VSTerrain->AddConstantBuffer(&m_cbTerrainData, sizeof(CTerrain::SCBTerrainData));
 
 	m_VSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSFoliage->Create(EShaderType::VertexShader, L"Shader\\VSFoliage.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSFoliage->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
-	m_VSFoliage->AddConstantBuffer(&m_cbVSTerrainData, sizeof(CTerrain::SCBVSTerrainData));
+	m_VSFoliage->AddConstantBuffer(&m_cbTerrainData, sizeof(CTerrain::SCBTerrainData));
+	m_VSFoliage->AddConstantBuffer(&m_cbWindData, sizeof(CTerrain::SCBWindData));
 
 	m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSParticle->Create(EShaderType::VertexShader, L"Shader\\VSParticle.hlsl", "main", 
@@ -1895,6 +1901,8 @@ void CGame::Draw(float DeltaTime)
 	m_cbWaterTimeData.Time += DeltaTime * 0.1f;
 	if (m_cbWaterTimeData.Time > 1.0f) m_cbWaterTimeData.Time = 0.0f;
 
+	m_cbTerrainData.Time = m_cbEditorTimeData.NormalizedTime;
+
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 
 	m_cbPSLightsData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
@@ -1930,7 +1938,7 @@ void CGame::Draw(float DeltaTime)
 		Draw3DGizmos();
 	}
 
-	DrawTerrain();
+	DrawTerrain(DeltaTime);
 
 	for (auto& Object3D : m_vObject3Ds)
 	{
@@ -2255,13 +2263,15 @@ void CGame::DrawSky(float DeltaTime)
 	DrawObject3D(m_Object3DMoon.get());
 }
 
-void CGame::DrawTerrain()
+void CGame::DrawTerrain(float DeltaTime)
 {
 	if (!m_Terrain) return;
 	
 	SetUniversalRSState();
 
 	SetUniversalbUseLighiting();
+
+	m_Terrain->UpdateWind(DeltaTime);
 
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain))
 	{

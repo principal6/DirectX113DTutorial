@@ -580,11 +580,25 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 									ImGui::Separator();
 
-									ImGui::SetNextItemWidth(100);
+									ImGui::SetNextItemWidth(150);
 									float FoliageDenstiy{ Terrain->GetFoliageDenstiy() };
 									if (ImGui::DragFloat(u8"초목 밀도", &FoliageDenstiy, 0.01f, 0.0f, 1.0f, "%.2f"))
 									{
 										Terrain->SetFoliageDensity(FoliageDenstiy);
+									}
+
+									ImGui::SetNextItemWidth(150);
+									XMFLOAT3 WindVelocity{}; XMStoreFloat3(&WindVelocity, Terrain->GetWindVelocity());
+									if (ImGui::DragFloat3(u8"바람 속도", &WindVelocity.x, 0.001f, -10.0f, 10.0f, "%.3f"))
+									{
+										Terrain->SetWindVelocity(WindVelocity);
+									}
+
+									ImGui::SetNextItemWidth(150);
+									float WindRadius{ Terrain->GetWindRadius() };
+									if (ImGui::DragFloat(u8"바람 반지름", &WindRadius, 0.01f, 0.1f, 10.0f, "%.2f"))
+									{
+										Terrain->SetWindRadius(WindRadius);
 									}
 
 									ImGui::Separator();
@@ -840,27 +854,24 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										}
 
 										ImGui::SetNextItemWidth(KUniformWidth);
-										const XMFLOAT3& AmbientColor3{ Material->GetAmbientColor() };
-										float AmbientColor[3]{ AmbientColor3.x, AmbientColor3.y, AmbientColor3.z };
-										if (ImGui::ColorEdit3(u8"환경광(Ambient)", AmbientColor, ImGuiColorEditFlags_RGB))
+										XMFLOAT3 AmbientColor{ Material->GetAmbientColor() };
+										if (ImGui::ColorEdit3(u8"환경광(Ambient)", &AmbientColor.x, ImGuiColorEditFlags_RGB))
 										{
-											Material->SetAmbientColor(XMFLOAT3(AmbientColor[0], AmbientColor[1], AmbientColor[2]));
+											Material->SetAmbientColor(AmbientColor);
 										}
 
 										ImGui::SetNextItemWidth(KUniformWidth);
-										const XMFLOAT3& DiffuseColor3{ Material->GetDiffuseColor() };
-										float DiffuseColor[3]{ DiffuseColor3.x, DiffuseColor3.y, DiffuseColor3.z };
-										if (ImGui::ColorEdit3(u8"난반사광(Diffuse)", DiffuseColor, ImGuiColorEditFlags_RGB))
+										XMFLOAT3 DiffuseColor{ Material->GetDiffuseColor() };
+										if (ImGui::ColorEdit3(u8"난반사광(Diffuse)", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
 										{
-											Material->SetDiffuseColor(XMFLOAT3(DiffuseColor[0], DiffuseColor[1], DiffuseColor[2]));
+											Material->SetDiffuseColor(DiffuseColor);
 										}
 
 										ImGui::SetNextItemWidth(KUniformWidth);
-										const XMFLOAT3& SpecularColor3{ Material->GetSpecularColor() };
-										float SpecularColor[3]{ SpecularColor3.x, SpecularColor3.y, SpecularColor3.z };
-										if (ImGui::ColorEdit3(u8"정반사광(Specular)", SpecularColor, ImGuiColorEditFlags_RGB))
+										XMFLOAT3 SpecularColor{ Material->GetSpecularColor() };
+										if (ImGui::ColorEdit3(u8"정반사광(Specular)", &SpecularColor.x, ImGuiColorEditFlags_RGB))
 										{
-											Material->SetSpecularColor(XMFLOAT3(SpecularColor[0], SpecularColor[1], SpecularColor[2]));
+											Material->SetSpecularColor(SpecularColor);
 										}
 
 										ImGui::SetNextItemWidth(KUniformWidth);
@@ -1051,13 +1062,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										DirectionalLightDirection[2], 0.0f));
 								}
 
-								const XMFLOAT3& KAmbientLightColor{ Game.GetAmbientLightColor() };
-								float AmbientLightColor[3]{ KAmbientLightColor.x, KAmbientLightColor.y, KAmbientLightColor.z };
-
+								XMFLOAT3 AmbientLightColor{ Game.GetAmbientLightColor() };
 								ImGui::SetNextItemWidth(180);
-								if (ImGui::DragFloat3(u8" Ambient 색상", AmbientLightColor, 0.02f, 0.0f, +1.0f, "%.2f"))
+								if (ImGui::DragFloat3(u8" Ambient 색상", &AmbientLightColor.x, 0.02f, 0.0f, +1.0f, "%.2f"))
 								{
-									Game.SetAmbientlLight(XMFLOAT3(AmbientLightColor[0], AmbientLightColor[1], AmbientLightColor[2]), Game.GetAmbientLightIntensity());
+									Game.SetAmbientlLight(AmbientLightColor, Game.GetAmbientLightIntensity());
 								}
 
 								float AmbientLightIntensity{ Game.GetAmbientLightIntensity() };
