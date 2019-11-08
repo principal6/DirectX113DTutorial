@@ -15,20 +15,22 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(InputPatch<VS_OUTPUT, 3> Patch, uin
 {
 	HS_CONSTANT_DATA_OUTPUT Output;
 
-	const float KDistanceThreshold = 15.0f;
+	const float KDistanceFactor = 0.5f;
 	const float KEdgeMax = 0.5f * TessFactor;
 	const float KInsideMax = 1.0f * TessFactor;
+	
+	float E0 = KEdgeMax / (distance(Patch[0].WorldPosition, EyePosition) * KDistanceFactor);
+	float E1 = KEdgeMax / (distance(Patch[1].WorldPosition, EyePosition) * KDistanceFactor);
+	float E2 = KEdgeMax / (distance(Patch[2].WorldPosition, EyePosition) * KDistanceFactor);
+	float Edge0 = max(E1, E2);
+	float Edge1 = max(E0, E2);
+	float Edge2 = max(E0, E1);
+	Output.EdgeTessFactor[0] = Edge0;
+	Output.EdgeTessFactor[1] = Edge1;
+	Output.EdgeTessFactor[2] = Edge2;
+
 	float4 CenterPosition = (Patch[0].WorldPosition + Patch[1].WorldPosition + Patch[2].WorldPosition) / 3.0f;
-	float Distance = distance(CenterPosition, EyePosition);
-	float ThresholdDistance = max(Distance - KDistanceThreshold, 1.0f);
-	float Edge = KEdgeMax;
-	float Inside = KInsideMax / ThresholdDistance;
-	if (Distance <= KDistanceThreshold) Inside = KInsideMax;
-
-	Output.EdgeTessFactor[0] = Edge;
-	Output.EdgeTessFactor[1] = Edge;
-	Output.EdgeTessFactor[2] = Edge;
-
+	float Inside = KInsideMax / (distance(CenterPosition, EyePosition) * KDistanceFactor);
 	Output.InsideTessFactor = Inside;
 	
 	return Output;
@@ -38,7 +40,7 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(InputPatch<VS_OUTPUT, 3> Patch, uin
 [maxtessfactor(64.0f)]
 [outputcontrolpoints(3)]
 [outputtopology("triangle_cw")]
-[partitioning("fractional_even")]
+[partitioning("fractional_odd")]
 [patchconstantfunc("CalcHSPatchConstants")]
 HS_OUTPUT main(InputPatch<VS_OUTPUT, 3> Patch, uint i : SV_OutputControlPointID, uint PatchID : SV_PrimitiveID )
 {

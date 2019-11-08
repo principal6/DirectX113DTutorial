@@ -172,7 +172,7 @@ public:
 	static constexpr float KHeightRangeHalf{ KHeightRange / 2.0f };
 
 	static constexpr float KTessFactorUnit{ 0.1f };
-	static constexpr float KTessFactorMin{ 2.0f };
+	static constexpr float KTessFactorMin{ 1.0f };
 	static constexpr float KTessFactorMax{ 64.0f };
 
 	static constexpr float KSelectionRadiusUnit{ 0.1f };
