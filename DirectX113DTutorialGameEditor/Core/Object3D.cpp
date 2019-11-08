@@ -83,11 +83,17 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 	m_bIsCreated = true;
 }
 
-void CObject3D::AddAnimationFromFile(const string& FileName)
+bool CObject3D::HasAnimations()
+{
+	return (m_Model.vAnimations.size()) ? true : false;
+}
+
+void CObject3D::AddAnimationFromFile(const string& FileName, const string& AnimationName)
 {
 	if (!m_Model.bIsModelAnimated) return;
 
 	m_AssimpLoader.AddAnimationFromFile(FileName, m_Model);
+	m_Model.vAnimations.back().Name = AnimationName;
 }
 
 void CObject3D::SetAnimationID(int ID)
@@ -108,6 +114,34 @@ int CObject3D::GetAnimationCount() const
 	return (int)m_Model.vAnimations.size();
 }
 
+void CObject3D::SetAnimationName(int ID, const string& Name)
+{
+	if (m_Model.vAnimations.empty())
+	{
+		MessageBox(nullptr, "애니메이션이 존재하지 않습니다.", "리깅 오류", MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
+
+	if (Name.size() > KMaxAnimationNameLength)
+	{
+		MessageBox(nullptr, ("애니메이션 이름은 최대 " + to_string(KMaxAnimationNameLength) + "자입니다.").c_str(),
+			"이름 길이 제한", MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
+
+	m_Model.vAnimations[ID].Name = Name;
+}
+
+const string& CObject3D::GetAnimationName(int ID) const
+{
+	return m_Model.vAnimations[ID].Name;
+}
+
+bool CObject3D::CanBakeAnimationTexture() const
+{
+	return !m_bIsBakedAnimationLoaded;
+}
+
 void CObject3D::BakeAnimationTexture()
 {
 	if (m_Model.vAnimations.empty()) return;
@@ -123,7 +157,8 @@ void CObject3D::BakeAnimationTexture()
 
 	m_BakedAnimationTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_BakedAnimationTexture->CreateBlankTexture(CMaterial::CTexture::EFormat::Pixel128Float, XMFLOAT2((float)KAnimationTextureWidth, (float)TextureHeight));
-	
+	m_BakedAnimationTexture->SetShaderType(EShaderType::VertexShader);
+
 	vector<SPixel128Float> vRawData{};
 	
 	vRawData.resize((int64_t)KAnimationTextureWidth * TextureHeight);
@@ -139,10 +174,17 @@ void CObject3D::BakeAnimationTexture()
 	for (int32_t iAnimation = 0; iAnimation < (int32_t)vAnimationHeights.size(); ++iAnimation)
 	{
 		float fAnimationHeightSum{ (float)AnimationHeightSum };
-		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].R, &fAnimationHeightSum, sizeof(float));
-		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].G, &m_Model.vAnimations[iAnimation].Duration, sizeof(float));
-		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].B, &m_Model.vAnimations[iAnimation].TicksPerSecond, sizeof(float));
+		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].R,
+			&fAnimationHeightSum, sizeof(float));
+		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].G,
+			&m_Model.vAnimations[iAnimation].Duration, sizeof(float));
+		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].B,
+			&m_Model.vAnimations[iAnimation].TicksPerSecond, sizeof(float));
 		//A
+
+		// RGBA = 4 floats = 16 chars!
+		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 1].R,
+			m_Model.vAnimations[iAnimation].Name.c_str(), sizeof(char) * 16);
 
 		AnimationHeightSum += vAnimationHeights[iAnimation];
 	}
@@ -150,7 +192,7 @@ void CObject3D::BakeAnimationTexture()
 	for (int32_t iAnimation = 0; iAnimation < (int32_t)m_Model.vAnimations.size(); ++iAnimation)
 	{
 		float fAnimationOffset{};
-		memcpy(&fAnimationOffset, &vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].R, sizeof(float));
+		memcpy(&fAnimationOffset, &vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].R, sizeof(float));
 
 		const int32_t KAnimationYOffset{ (int32_t)fAnimationOffset };
 		const int32_t KAnimationOffset{ (int32_t)((int64_t)KAnimationYOffset * KAnimationTextureWidth) };
@@ -208,18 +250,34 @@ void CObject3D::LoadBakedAnimationTexture(const string& FileName)
 		memcpy(&vPixels[0], MappedSubresource.pData, sizeof(SPixel128Float) * KAnimationTextureWidth);
 
 		// Animation count
+		m_Model.vAnimations.clear();
 		m_Model.vAnimations.resize((size_t)vPixels[1].R);
 
 		for (int32_t iAnimation = 0; iAnimation < (int32_t)m_Model.vAnimations.size(); ++iAnimation)
 		{
-			m_Model.vAnimations[iAnimation].Duration = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].G;
-			m_Model.vAnimations[iAnimation].TicksPerSecond = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation].B;
+			m_Model.vAnimations[iAnimation].Duration = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].G;
+			m_Model.vAnimations[iAnimation].TicksPerSecond = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].B;
+
+			float NameR{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 1].R };
+			float NameG{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 1].G };
+			float NameB{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 1].B };
+			float NameA{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 1].A };
+
+			char Name[16]{};
+			memcpy(&Name[0], &NameR, 4);
+			memcpy(&Name[4], &NameG, 4);
+			memcpy(&Name[8], &NameB, 4);
+			memcpy(&Name[12], &NameA, 4);
+
+			m_Model.vAnimations[iAnimation].Name = Name;
 		}
 
 		m_PtrDeviceContext->Unmap(ReadableAnimationTexture.Get(), 0);
 	}
 
 	m_BakedAnimationTexture->SetShaderType(EShaderType::VertexShader);
+
+	m_bIsBakedAnimationLoaded = true;
 }
 
 void CObject3D::AddMaterial(const CMaterial& Material)

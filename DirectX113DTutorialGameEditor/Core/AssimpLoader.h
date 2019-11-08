@@ -93,6 +93,8 @@ struct SModel
 		float							TicksPerSecond{};
 
 		unordered_map<string, size_t>	mapNodeAnimationNameToIndex{};
+
+		string							Name{};
 	};
 
 	vector<SMesh>					vMeshes{};

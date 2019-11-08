@@ -244,7 +244,6 @@ private:
 private:
 	vector<unique_ptr<CObject3D>>	m_vFoliages{};
 	bool							m_bHasFoliageCluster{ false };
-	unique_ptr<CMaterial::CTexture>	m_PerlinNoiseTexture{};
 	XMFLOAT2						m_FoliagePlaceTextureSize{};
 	unique_ptr<CMaterial::CTexture>	m_FoliagePlaceTexture{};
 	vector<SPixel8UInt>				m_FoliagePlaceTextureRawData{};

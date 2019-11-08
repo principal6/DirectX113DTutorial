@@ -39,24 +39,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		Grid->Create(Generate3DGrid(0));
 	}
 
-	Game.InsertObject3D("YBot");
-	{
-		CObject3D* YBot{ Game.GetObject3D("YBot") };
-		YBot->CreateFromFile("Asset\\ybot_mixamo_idle.fbx", true);
-		
-		/*
-		YBot->AddAnimationFromFile("Asset\\ybot_mixamo_walking.fbx");
-		YBot->AddAnimationFromFile("Asset\\ybot_mixamo_punching.fbx");
-		YBot->BakeAnimationTexture();
-		YBot->SaveBakedAnimationTexture("Asset\\ybot_animation.dds");
-		*/
-
-		YBot->LoadBakedAnimationTexture("Asset\\ybot_animation.dds");
-
-		YBot->ComponentTransform.Scaling = XMVectorSet(0.01f, 0.01f, 0.01f, 0);
-		YBot->UpdateWorldMatrix();
-	}
-
 	CMaterial MaterialTest{};
 	{
 		MaterialTest.SetName("Test");
@@ -124,7 +106,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 	ImGuiIO& igIO{ ImGui::GetIO() };
 	igIO.Fonts->AddFontDefault();
-	ImFont* igFont{ igIO.Fonts->AddFontFromFileTTF("Asset/D2Coding.ttf", 16.0f, nullptr, igIO.Fonts->GetGlyphRangesKorean()) };
+	ImFont* igFont{ igIO.Fonts->AddFontFromFileTTF("Asset/D2Coding.ttf", 15.0f, nullptr, igIO.Fonts->GetGlyphRangesKorean()) };
 	
 	// Main loop
 	while (true)
@@ -420,6 +402,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						{
 							if (ImGui::BeginTabItem(u8"오브젝트"))
 							{
+								static bool bShowAnimationAdder{ false };
+								static bool bShowAnimationEditor{ false };
+								static int iSelectedAnimationID{};
+
 								Game.SetEditMode(CGame::EEditMode::EditObject);
 
 								if (Game.IsAnyObject3DSelected())
@@ -548,17 +534,74 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										Object3D->ComponentPhysics.BoundingSphere.Radius = BSRadius;
 									}
 
+									// Rigged model
 									if (Object3D->IsRiggedModel())
 									{
 										ImGui::Separator();
 
 										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"애니메이션 개수:");
+										ImGui::SameLine(150);
+										int AnimationCount{ Object3D->GetAnimationCount() };
+										ImGui::Text(u8"%d", AnimationCount);
+
+										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"애니메이션 ID");
-										ImGui::SameLine(120);
+										ImGui::SameLine(150);
 										int AnimationID{ Object3D->GetAnimationID() };
-										if (ImGui::SliderInt(u8"##애니메이션ID", &AnimationID, 0, Object3D->GetAnimationCount() - 1))
+										if (ImGui::SliderInt(u8"##애니메이션 ID", &AnimationID, 0, Object3D->GetAnimationCount() - 1))
 										{
 											Object3D->SetAnimationID(AnimationID);
+										}
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"애니메이션 목록");
+										
+										if (ImGui::Button(u8"추가")) bShowAnimationAdder = true;
+										
+										ImGui::SameLine();
+
+										if (ImGui::Button(u8"수정")) bShowAnimationEditor = true;
+
+										if (Object3D->CanBakeAnimationTexture())
+										{
+											ImGui::SameLine();
+
+											if (ImGui::Button(u8"저장"))
+											{
+												static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+												if (FileDialog.SaveFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 저장", ".dds"))
+												{
+													Object3D->BakeAnimationTexture();
+													Object3D->SaveBakedAnimationTexture(FileDialog.GetFileName());
+												}
+											}
+										}
+
+										ImGui::SameLine();
+
+										if (ImGui::Button(u8"열기"))
+										{
+											static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+											if (FileDialog.OpenFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 불러오기"))
+											{
+												Object3D->LoadBakedAnimationTexture(FileDialog.GetFileName());
+											}
+										}
+
+										if (ImGui::ListBoxHeader(u8"##애니메이션 목록", ImVec2(KWindowWidth, 0)))
+										{
+											for (int iAnimation = 0; iAnimation < AnimationCount; ++iAnimation)
+											{
+												ImGui::PushID(iAnimation);
+												if (ImGui::Selectable(Object3D->GetAnimationName(iAnimation).c_str(), (iAnimation == iSelectedAnimationID)))
+												{
+													iSelectedAnimationID = iAnimation;
+												}
+												ImGui::PopID();
+											}
+
+											ImGui::ListBoxFooter();
 										}
 									}
 								}
@@ -567,6 +610,98 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									ImGui::Text(u8"<먼저 오브젝트를 선택하세요.>");
 								}
 
+								if (bShowAnimationAdder) ImGui::OpenPopup(u8"애니메이션 추가");
+								if (ImGui::BeginPopupModal(u8"애니메이션 추가", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove))
+								{
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"애니메이션 이름");
+									ImGui::SameLine(150);
+									static char Name[16]{};
+									ImGui::InputText(u8"##애니메이션 이름", Name, 16);
+
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"파일 이름");
+									ImGui::SameLine(150);
+									static char FileName[MAX_PATH]{};
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"%s", FileName);
+
+									if (ImGui::Button(u8"불러오기"))
+									{
+										static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+										if (FileDialog.OpenFileDialog("모델 파일(*.fbx)\0*.fbx\0", "애니메이션 불러오기"))
+										{
+											strcpy_s(FileName, FileDialog.GetRelativeFileName().c_str());
+										}
+									}
+
+									ImGui::SameLine();
+
+									if (ImGui::Button(u8"결정"))
+									{
+										if (FileName[0] == '\0')
+										{
+											MessageBox(nullptr, "파일을 먼저 불러오세요.", "파일", MB_OK | MB_ICONEXCLAMATION);
+										}
+										else
+										{
+											CObject3D* const Object3D{ Game.GetSelectedObject3D() };
+											Object3D->AddAnimationFromFile(FileName, Name);
+
+											bShowAnimationAdder = false;
+											ImGui::CloseCurrentPopup();
+										}
+									}
+
+									ImGui::SameLine();
+
+									if (ImGui::Button(u8"취소"))
+									{
+										bShowAnimationAdder = false;
+										ImGui::CloseCurrentPopup();
+									}
+
+									ImGui::EndPopup();
+								}
+
+								if (bShowAnimationEditor) ImGui::OpenPopup(u8"애니메이션 수정");
+								if (ImGui::BeginPopupModal(u8"애니메이션 수정", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove))
+								{
+									static bool bFirstTime{ true };
+									CObject3D* const Object3D{ Game.GetSelectedObject3D() };
+
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"애니메이션 이름");
+									ImGui::SameLine(150);
+									static char AnimationName[CObject3D::KMaxAnimationNameLength]{};
+									if (bFirstTime)
+									{
+										strcpy_s(AnimationName, Object3D->GetAnimationName(iSelectedAnimationID).c_str());
+										bFirstTime = false;
+									}
+									ImGui::InputText(u8"##애니메이션 이름", AnimationName, CObject3D::KMaxAnimationNameLength);
+
+									if (ImGui::Button(u8"결정"))
+									{
+										CObject3D* const Object3D{ Game.GetSelectedObject3D() };
+										Object3D->SetAnimationName(iSelectedAnimationID, AnimationName);
+
+										bFirstTime = true;
+										bShowAnimationEditor = false;
+										ImGui::CloseCurrentPopup();
+									}
+
+									ImGui::SameLine();
+
+									if (ImGui::Button(u8"취소"))
+									{
+										bFirstTime = true;
+										bShowAnimationEditor = false;
+										ImGui::CloseCurrentPopup();
+									}
+
+									ImGui::EndPopup();
+								}
 								ImGui::EndTabItem();
 							}
 

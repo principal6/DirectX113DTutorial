@@ -40,7 +40,7 @@ VS_OUTPUT main(VS_INPUT_ANIMATION input)
 	{
 		const int KAnimationTextureReservedFirstPixelCount = 2;
 		const int KAnimationCount = AnimationTexture[int2(1, 0)].x;
-		const float4 KAnimationInfo = AnimationTexture[int2(KAnimationTextureReservedFirstPixelCount + AnimationID, 0)];
+		const float4 KAnimationInfo = AnimationTexture[int2(KAnimationTextureReservedFirstPixelCount + AnimationID * 2 + 0, 0)];
 		int AnimationOffset = KAnimationInfo.x;
 		int AnimationDuration = KAnimationInfo.y;
 

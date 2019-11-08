@@ -244,15 +244,8 @@ void CTerrain::CreateFoliageCluster(const vector<string>& vFoliageFileNames, int
 	m_FoliagePlacingDetail = PlacingDetail;
 
 	CreateFoliagePlaceTexutre();
-	
-	if (!m_PerlinNoiseTexture)
-	{
-		m_PerlinNoiseTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
-		m_PerlinNoiseTexture->CreateTextureFromFile("Asset\\perlin_noise.jpg", false);
-		m_PerlinNoiseTexture->SetShaderType(EShaderType::VertexShader);
-		m_PerlinNoiseTexture->SetSlot(1);
-	}
 
+	m_vFoliages.clear();
 	for (const auto& FoliageFileName : vFoliageFileNames)
 	{
 		m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext, m_PtrGame));
@@ -1102,7 +1095,6 @@ void CTerrain::DrawFoliageCluster()
 	m_PtrGame->UpdateVSSpace(KMatrixIdentity);
 	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
 	m_HeightMapTexture->Use();
-	m_PerlinNoiseTexture->Use();
 	
 	m_PtrGame->GetBaseShader(EBaseShader::VSFoliage)->Use();
 	m_PtrGame->GetBaseShader(EBaseShader::VSFoliage)->UpdateAllConstantBuffers();

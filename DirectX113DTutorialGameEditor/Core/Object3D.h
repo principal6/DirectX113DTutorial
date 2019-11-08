@@ -119,11 +119,15 @@ public:
 	void CreateFromFile(const string& FileName, bool bIsModelRigged);
 
 public:
-	void AddAnimationFromFile(const string& FileName);
+	bool HasAnimations();
+	void AddAnimationFromFile(const string& FileName, const string& AnimationName);
 	void SetAnimationID(int ID);
 	int GetAnimationID() const;
 	int GetAnimationCount() const;
+	void SetAnimationName(int ID, const string& Name);
+	const string& GetAnimationName(int ID) const;
 	
+	bool CanBakeAnimationTexture() const;
 	void BakeAnimationTexture();
 	void SaveBakedAnimationTexture(const string& FileName);
 	void LoadBakedAnimationTexture(const string& FileName);
@@ -182,6 +186,7 @@ private:
 
 public:
 	static constexpr size_t KInstanceNameMaxLength{ 100 };
+	static constexpr size_t KMaxAnimationNameLength{ 15 };
 
 private:
 	static constexpr float KBoundingSphereDefaultRadius{ 1.0f };
@@ -215,6 +220,7 @@ private:
 
 	unique_ptr<CMaterial::CTexture> m_BakedAnimationTexture{};
 	SCBAnimationData				m_CBAnimationData{};
+	bool							m_bIsBakedAnimationLoaded{ false };
 
 private:
 	vector<SInstanceGPUData>	m_vInstanceGPUData{};
