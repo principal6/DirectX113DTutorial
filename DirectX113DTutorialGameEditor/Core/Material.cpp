@@ -1,6 +1,11 @@
 #include "Material.h"
 #include <wincodec.h>
 
+using std::vector;
+using std::string;
+using std::wstring;
+using std::make_unique;
+
 void CMaterial::CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerateMipMap)
 {
 	m_FileName = FileName;
@@ -28,7 +33,7 @@ void CMaterial::CTexture::CreateTextureFromFile(const string& FileName, bool bSh
 
 			if (!NonMipMappedTexture)
 			{
-				MessageBox(nullptr, ("텍스처를 찾을 수 없습니다." + m_FileName).c_str(), "파일 열기 오류", MB_OK | MB_ICONEXCLAMATION);
+				MB_WARN(("텍스처를 찾을 수 없습니다." + m_FileName).c_str(), "텍스처 생성 실패");
 				return;
 			}
 
@@ -72,7 +77,7 @@ void CMaterial::CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData
 
 		if (!NonMipMappedTexture)
 		{
-			MessageBox(nullptr, "텍스처를 생성할 수 없습니다.", "텍스처 생성 오류", MB_OK | MB_ICONEXCLAMATION);
+			MB_WARN("텍스처를 생성할 수 없습니다.", "텍스처 생성 실패");
 			return;
 		}
 

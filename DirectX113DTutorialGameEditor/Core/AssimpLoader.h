@@ -39,11 +39,11 @@ struct SInstanceGPUData
 
 struct SMesh
 {
-	vector<SVertex3D>			vVertices{};
-	vector<SVertexAnimation>	vVerticesAnimation{};
-	vector<STriangle>			vTriangles{};
+	std::vector<SVertex3D>			vVertices{};
+	std::vector<SVertexAnimation>	vVerticesAnimation{};
+	std::vector<STriangle>			vTriangles{};
 
-	size_t						MaterialID{};
+	size_t							MaterialID{};
 };
 
 struct SModel
@@ -58,16 +58,16 @@ struct SModel
 		};
 
 		int32_t					Index{};
-		string					Name{};
+		std::string				Name{};
 
 		int32_t					ParentNodeIndex{};
-		vector<int32_t>			vChildNodeIndices{};
+		std::vector<int32_t>	vChildNodeIndices{};
 		XMMATRIX				MatrixTransformation{};
 
-		bool					bIsBone{ false };
-		uint32_t				BoneIndex{};
-		vector<SBlendWeight>	vBlendWeights{};
-		XMMATRIX				MatrixBoneOffset{};
+		bool						bIsBone{ false };
+		uint32_t					BoneIndex{};
+		std::vector<SBlendWeight>	vBlendWeights{};
+		XMMATRIX					MatrixBoneOffset{};
 	};
 
 	struct SAnimation
@@ -80,33 +80,33 @@ struct SModel
 				XMVECTOR	Value{};
 			};
 
-			uint32_t		Index{};
-			string			NodeName{};
-			vector<SKey>	vPositionKeys{};
-			vector<SKey>	vRotationKeys{};
-			vector<SKey>	vScalingKeys{};
+			uint32_t			Index{};
+			std::string			NodeName{};
+			std::vector<SKey>	vPositionKeys{};
+			std::vector<SKey>	vRotationKeys{};
+			std::vector<SKey>	vScalingKeys{};
 		};
 
-		vector<SNodeAnimation>			vNodeAnimations{};
+		std::vector<SNodeAnimation>				vNodeAnimations{};
 
-		float							Duration{};
-		float							TicksPerSecond{};
+		float									Duration{};
+		float									TicksPerSecond{};
 
-		unordered_map<string, size_t>	mapNodeAnimationNameToIndex{};
+		std::unordered_map<std::string, size_t>	mapNodeAnimationNameToIndex{};
 
-		string							Name{};
+		std::string								Name{};
 	};
 
-	vector<SMesh>					vMeshes{};
-	vector<CMaterial>				vMaterials{};
+	std::vector<SMesh>						vMeshes{};
+	std::vector<CMaterial>					vMaterials{};
 
-	vector<SNode>					vNodes{};
-	unordered_map<string, size_t>	mapNodeNameToIndex{};
-	uint32_t						ModelBoneCount{};
+	std::vector<SNode>						vNodes{};
+	std::unordered_map<std::string, size_t>	mapNodeNameToIndex{};
+	uint32_t								ModelBoneCount{};
 
-	vector<SAnimation>				vAnimations{};
-	bool							bIsModelAnimated{};
-	bool							bUseMultipleTexturesInSingleMesh{ false };
+	std::vector<SAnimation>					vAnimations{};
+	bool									bIsModelAnimated{};
+	bool									bUseMultipleTexturesInSingleMesh{ false };
 };
 
 class CAssimpLoader
@@ -115,17 +115,17 @@ public:
 	CAssimpLoader() {}
 	~CAssimpLoader() {}
 
-	void LoadStaticModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
-	void LoadAnimatedModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
-	void AddAnimationFromFile(const string& FileName, SModel& Model);
+	void LoadStaticModelFromFile(const std::string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
+	void LoadAnimatedModelFromFile(const std::string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext);
+	void AddAnimationFromFile(const std::string& FileName, SModel& Model);
 
 private:
 	XMVECTOR ConvertaiVector3DToXMVECTOR(const aiVector3D& Vector, float w);
 	XMVECTOR ConvertaiQuaternionToXMVECTOR(const aiQuaternion& Quaternion);
 	XMMATRIX ConvertaiMatrix4x4ToXMMATRIX(const aiMatrix4x4& Matrix);
 
-	void LoadMeshesFromFile(const aiScene* const Scene, vector<SMesh>& vMeshes);
-	void LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext, vector<CMaterial>& vMaterials);
+	void LoadMeshesFromFile(const aiScene* const Scene, std::vector<SMesh>& vMeshes);
+	void LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext, std::vector<CMaterial>& vMaterials);
 
 private:
 	void LoadTextureData(const aiScene* const Scene, const aiString& TextureFileName, CMaterial& Material, CMaterial::CTexture::EType eTextureType);

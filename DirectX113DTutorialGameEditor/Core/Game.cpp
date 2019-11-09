@@ -1,6 +1,14 @@
 #include "Game.h"
 #include <thread>
 
+using std::vector;
+using std::string;
+using std::wstring;
+using std::thread;
+using std::to_string;
+using std::stof;
+using std::make_unique;
+
 static constexpr D3D11_INPUT_ELEMENT_DESC KBaseInputElementDescs[]
 {
 	{ "POSITION"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -18,13 +26,25 @@ static constexpr D3D11_INPUT_ELEMENT_DESC KBaseInputElementDescs[]
 	{ "INSTANCEWORLD"	, 3, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
 };
 
-void CGame::CreateWin32(WNDPROC const WndProc, LPCTSTR const WindowName, const wstring& FontFileName, bool bWindowed)
+void CGame::CreateWin32(WNDPROC const WndProc, const std::string& WindowName, bool bWindowed)
 {
 	CreateWin32Window(WndProc, WindowName);
 
-	InitializeDirectX(FontFileName, bWindowed);
+	InitializeDirectX(bWindowed);
 
 	GetCurrentDirectoryA(MAX_PATH, m_WorkingDirectory);
+}
+
+void CGame::CreateSpriteFont(const wstring& FontFileName)
+{
+	if (!m_Device)
+	{
+		MB_WARN("아직 Device가 생성되지 않았습니다", "SpriteFont 생성 실패");
+		return;
+	}
+
+	m_SpriteBatch = make_unique<SpriteBatch>(m_DeviceContext.Get());
+	m_SpriteFont = make_unique<SpriteFont>(m_Device.Get(), FontFileName.c_str());
 }
 
 void CGame::Destroy()
@@ -32,708 +52,7 @@ void CGame::Destroy()
 	DestroyWindow(m_hWnd);
 }
 
-void CGame::LoadScene(const string& FileName)
-{
-	using namespace tinyxml2;
-
-	tinyxml2::XMLDocument xmlDocument{};
-	xmlDocument.LoadFile(FileName.c_str());
-
-	XMLElement* xmlScene{ xmlDocument.FirstChildElement() };
-	vector<XMLElement*> vxmlSceneChildren{};
-	XMLElement* xmlSceneChild{ xmlScene->FirstChildElement() };
-	while (xmlSceneChild)
-	{
-		vxmlSceneChildren.emplace_back(xmlSceneChild);
-		xmlSceneChild = xmlSceneChild->NextSiblingElement();
-	}
-
-	for (const auto& xmlSceneChild : vxmlSceneChildren)
-	{
-		const char* ID{ xmlSceneChild->Attribute("ID") };
-
-		if (strcmp(ID, "ObjectList") == 0)
-		{
-			vector<XMLElement*> vxmlObjects{};
-			XMLElement* xmlObject{ xmlSceneChild->FirstChildElement() };
-			while (xmlObject)
-			{
-				vxmlObjects.emplace_back(xmlObject);
-				xmlObject = xmlObject->NextSiblingElement();
-			}
-
-			ClearObject3Ds();
-			m_vObject3Ds.reserve(vxmlObjects.size());
-			vector<CObject3D*> vPtrObject3D{};
-			vector<std::pair<string, bool>> vModelDatas{};
-
-			for (const auto& xmlObject : vxmlObjects)
-			{
-				const char* ObjectName{ xmlObject->Attribute("Name") };
-				
-				InsertObject3D(ObjectName);
-				vPtrObject3D.emplace_back(GetObject3D(ObjectName));
-				CObject3D* Object3D{ GetObject3D(ObjectName) };
-				
-				vector<XMLElement*> vxmlObjectChildren{};
-				XMLElement* xmlObjectChild{ xmlObject->FirstChildElement() };
-				while (xmlObjectChild)
-				{
-					vxmlObjectChildren.emplace_back(xmlObjectChild);
-					xmlObjectChild = xmlObjectChild->NextSiblingElement();
-				}
-
-				for (const auto& xmlObjectChild : vxmlObjectChildren)
-				{
-					const char* ID{ xmlObjectChild->Attribute("ID") };
-
-					if (strcmp(ID, "Model") == 0)
-					{
-						const char* ModelFileName{ xmlObjectChild->Attribute("FileName") };
-						bool bIsRigged{ xmlObjectChild->BoolAttribute("IsRigged") };
-						vModelDatas.emplace_back(std::make_pair(ModelFileName, bIsRigged));
-					}
-
-					if (strcmp(ID, "Translation") == 0)
-					{
-						float x{ xmlObjectChild->FloatAttribute("x") };
-						float y{ xmlObjectChild->FloatAttribute("y") };
-						float z{ xmlObjectChild->FloatAttribute("z") };
-						Object3D->ComponentTransform.Translation = XMVectorSet(x, y, z, 1.0f);
-					}
-
-					if (strcmp(ID, "Rotation") == 0)
-					{
-						float Pitch{ xmlObjectChild->FloatAttribute("Pitch") };
-						float Yaw{ xmlObjectChild->FloatAttribute("Yaw") };
-						float Roll{ xmlObjectChild->FloatAttribute("Roll") };
-						Object3D->ComponentTransform.Pitch = Pitch;
-						Object3D->ComponentTransform.Yaw = Yaw;
-						Object3D->ComponentTransform.Roll = Roll;
-					}
-
-					if (strcmp(ID, "Scaling") == 0)
-					{
-						float x{ xmlObjectChild->FloatAttribute("x") };
-						float y{ xmlObjectChild->FloatAttribute("y") };
-						float z{ xmlObjectChild->FloatAttribute("z") };
-						Object3D->ComponentTransform.Scaling = XMVectorSet(x, y, z, 1.0f);
-					}
-
-					if (strcmp(ID, "BSCenterOffset") == 0)
-					{
-						float x{ xmlObjectChild->FloatAttribute("x") };
-						float y{ xmlObjectChild->FloatAttribute("y") };
-						float z{ xmlObjectChild->FloatAttribute("z") };
-						Object3D->ComponentPhysics.BoundingSphere.CenterOffset = XMVectorSet(x, y, z, 1.0f);
-					}
-
-					if (strcmp(ID, "BSRadius") == 0)
-					{
-						float Radius{ xmlObjectChild->FloatAttribute("Value") };
-						Object3D->ComponentPhysics.BoundingSphere.Radius = Radius;
-					}
-
-					if (strcmp(ID, "InstanceList") == 0)
-					{
-						vector<XMLElement*> vxmlInstances{};
-						XMLElement* xmlInstance{ xmlObjectChild->FirstChildElement() };
-						while (xmlInstance)
-						{
-							vxmlInstances.emplace_back(xmlInstance);
-							xmlInstance = xmlInstance->NextSiblingElement();
-						}
-						
-						int iInstance{};
-						for (auto& xmlInstance : vxmlInstances)
-						{
-							vector<XMLElement*> vxmlInstanceChildren{};
-							XMLElement* xmlInstanceChild{ xmlInstance->FirstChildElement() };
-							while (xmlInstanceChild)
-							{
-								vxmlInstanceChildren.emplace_back(xmlInstanceChild);
-								xmlInstanceChild = xmlInstanceChild->NextSiblingElement();
-							}
-
-							Object3D->InsertInstance(false);
-							auto& Instance{ Object3D->GetInstance(iInstance) };
-							for (auto& xmlInstanceChild : vxmlInstanceChildren)
-							{
-								const char* ID{ xmlInstanceChild->Attribute("ID") };
-								if (strcmp(ID, "Translation") == 0)
-								{
-									float x{ xmlInstanceChild->FloatAttribute("x") };
-									float y{ xmlInstanceChild->FloatAttribute("y") };
-									float z{ xmlInstanceChild->FloatAttribute("z") };
-									Instance.Translation = XMVectorSet(x, y, z, 1.0f);
-								}
-
-								if (strcmp(ID, "Rotation") == 0)
-								{
-									float Pitch{ xmlInstanceChild->FloatAttribute("Pitch") };
-									float Yaw{ xmlInstanceChild->FloatAttribute("Yaw") };
-									float Roll{ xmlInstanceChild->FloatAttribute("Roll") };
-									Instance.Pitch = Pitch;
-									Instance.Yaw = Yaw;
-									Instance.Roll = Roll;
-								}
-
-								if (strcmp(ID, "Scaling") == 0)
-								{
-									float x{ xmlInstanceChild->FloatAttribute("x") };
-									float y{ xmlInstanceChild->FloatAttribute("y") };
-									float z{ xmlInstanceChild->FloatAttribute("z") };
-									Instance.Scaling = XMVectorSet(x, y, z, 1.0f);
-								}
-							}
-							Object3D->UpdateInstanceWorldMatrix(iInstance);
-
-							++iInstance;
-						}
-					}
-				}
-			}
-
-			// Create models using multiple threads
-			{
-				ULONGLONG StartTimePoint{ GetTickCount64() };
-				OutputDebugString((to_string(StartTimePoint) + " Loading models.\n").c_str());
-				vector<std::thread> vThreads{};
-				for (size_t iObject3D = 0; iObject3D < vPtrObject3D.size(); ++iObject3D)
-				{
-					vThreads.emplace_back
-					(
-						[](CObject3D* const P, const string& ModelFileName, bool bIsRigged)
-						{
-							P->CreateFromFile(ModelFileName, bIsRigged);
-							if (P->IsInstanced()) P->CreateInstanceBuffers();
-						}
-						, vPtrObject3D[iObject3D], vModelDatas[iObject3D].first, vModelDatas[iObject3D].second
-					);
-				}
-				for (auto& Thread : vThreads)
-				{
-					Thread.join();
-				}
-				OutputDebugString((to_string(GetTickCount64()) + " All models are loaded. [" 
-					+ to_string(GetTickCount64() - StartTimePoint) + "] elapsed.\n").c_str());
-			}
-		}
-
-		if (strcmp(ID, "Terrain") == 0)
-		{
-			const char* TerrainFileName{ xmlSceneChild->Attribute("FileName") };
-			if (TerrainFileName) LoadTerrain(TerrainFileName);
-		}
-
-		if (strcmp(ID, "Sky") == 0)
-		{
-			const char* SkyFileName{ xmlSceneChild->Attribute("FileName") };
-			float ScalingFactor{ xmlSceneChild->FloatAttribute("ScalingFactor") };
-			if (SkyFileName) SetSky(SkyFileName, ScalingFactor);
-		}
-	}
-}
-
-void CGame::SaveScene(const string& FileName)
-{
-	using namespace tinyxml2;
-
-	if (m_Terrain)
-	{
-		if (m_Terrain->GetFileName().size() == 0)
-		{
-			MessageBox(nullptr, "지형이 존재하지만 저장되지 않았습니다.\n먼저 지형을 저장해 주세요.", "지형 저장", MB_OK | MB_ICONEXCLAMATION);
-			return;
-		}
-		else
-		{
-			m_Terrain->Save(m_Terrain->GetFileName());
-		}
-	}
-
-	tinyxml2::XMLDocument xmlDocument{};
-	XMLElement* xmlRoot{ xmlDocument.NewElement("Scene") };
-	{
-		XMLElement* xmlObjectList{ xmlDocument.NewElement("ObjectList") };
-		xmlObjectList->SetAttribute("ID", "ObjectList");
-		{
-			for (const auto& Object3D : m_vObject3Ds)
-			{
-				XMLElement* xmlObject{ xmlDocument.NewElement("Object") };
-				xmlObject->SetAttribute("Name", Object3D->GetName().c_str());
-
-				XMLElement* xmlModelFileName{ xmlDocument.NewElement("Model") };
-				{
-					xmlModelFileName->SetAttribute("ID", "Model");
-					xmlModelFileName->SetAttribute("FileName", Object3D->GetModelFileName().c_str());
-					xmlModelFileName->SetAttribute("IsRigged", Object3D->IsRiggedModel());
-					xmlObject->InsertEndChild(xmlModelFileName);
-				}
-				
-				XMLElement* xmlTranslation{ xmlDocument.NewElement("Translation") };
-				{
-					xmlTranslation->SetAttribute("ID", "Translation");
-					XMFLOAT4 Translation{};
-					XMStoreFloat4(&Translation, Object3D->ComponentTransform.Translation);
-					xmlTranslation->SetAttribute("x", Translation.x);
-					xmlTranslation->SetAttribute("y", Translation.y);
-					xmlTranslation->SetAttribute("z", Translation.z);
-					xmlObject->InsertEndChild(xmlTranslation);
-				}
-				
-				XMLElement* xmlRotation{ xmlDocument.NewElement("Rotation") };
-				{
-					xmlRotation->SetAttribute("ID", "Rotation");
-					xmlRotation->SetAttribute("Pitch", Object3D->ComponentTransform.Pitch);
-					xmlRotation->SetAttribute("Yaw", Object3D->ComponentTransform.Yaw);
-					xmlRotation->SetAttribute("Roll", Object3D->ComponentTransform.Roll);
-					xmlObject->InsertEndChild(xmlRotation);
-				}
-
-				XMLElement* xmlScaling{ xmlDocument.NewElement("Scaling") };
-				{
-					xmlScaling->SetAttribute("ID", "Scaling");
-					XMFLOAT4 Scaling{};
-					XMStoreFloat4(&Scaling, Object3D->ComponentTransform.Scaling);
-					xmlScaling->SetAttribute("x", Scaling.x);
-					xmlScaling->SetAttribute("y", Scaling.y);
-					xmlScaling->SetAttribute("z", Scaling.z);
-					xmlObject->InsertEndChild(xmlScaling);
-				}
-
-				XMLElement* xmlBSCenterOffset{ xmlDocument.NewElement("BSCenterOffset") };
-				{
-					xmlBSCenterOffset->SetAttribute("ID", "BSCenterOffset");
-					XMFLOAT4 BSCenterOffset{};
-					XMStoreFloat4(&BSCenterOffset, Object3D->ComponentPhysics.BoundingSphere.CenterOffset);
-					xmlBSCenterOffset->SetAttribute("x", BSCenterOffset.x);
-					xmlBSCenterOffset->SetAttribute("y", BSCenterOffset.y);
-					xmlBSCenterOffset->SetAttribute("z", BSCenterOffset.z);
-					xmlObject->InsertEndChild(xmlBSCenterOffset);
-				}
-
-				XMLElement* xmlBSRadius{ xmlDocument.NewElement("BSRadius") };
-				{
-					xmlBSRadius->SetAttribute("ID", "BSRadius");
-					xmlBSRadius->SetAttribute("Value", Object3D->ComponentPhysics.BoundingSphere.Radius);
-					xmlObject->InsertEndChild(xmlBSRadius);
-				}
-
-				if (Object3D->IsInstanced())
-				{
-					XMLElement* xmlInstanceList{ xmlDocument.NewElement("InstanceList") };
-					{
-						xmlInstanceList->SetAttribute("ID", "InstanceList");
-
-						for (const auto& InstancePair : Object3D->GetInstanceMap())
-						{
-							XMLElement* xmlInstance{ xmlDocument.NewElement("Instance") };
-							{
-								xmlInstance->SetAttribute("Name", InstancePair.first.c_str());
-
-								const auto& Instance{ Object3D->GetInstance(InstancePair.first) };
-
-								XMLElement* xmlTranslation{ xmlDocument.NewElement("Translation") };
-								{
-									xmlTranslation->SetAttribute("ID", "Translation");
-									XMFLOAT4 Translation{};
-									XMStoreFloat4(&Translation, Instance.Translation);
-									xmlTranslation->SetAttribute("x", Translation.x);
-									xmlTranslation->SetAttribute("y", Translation.y);
-									xmlTranslation->SetAttribute("z", Translation.z);
-									xmlInstance->InsertEndChild(xmlTranslation);
-								}
-
-								XMLElement* xmlRotation{ xmlDocument.NewElement("Rotation") };
-								{
-									xmlRotation->SetAttribute("ID", "Rotation");
-									xmlRotation->SetAttribute("Pitch", Instance.Pitch);
-									xmlRotation->SetAttribute("Yaw", Instance.Yaw);
-									xmlRotation->SetAttribute("Roll", Instance.Roll);
-									xmlInstance->InsertEndChild(xmlRotation);
-								}
-
-								XMLElement* xmlScaling{ xmlDocument.NewElement("Scaling") };
-								{
-									xmlScaling->SetAttribute("ID", "Scaling");
-									XMFLOAT4 Scaling{};
-									XMStoreFloat4(&Scaling, Instance.Scaling);
-									xmlScaling->SetAttribute("x", Scaling.x);
-									xmlScaling->SetAttribute("y", Scaling.y);
-									xmlScaling->SetAttribute("z", Scaling.z);
-									xmlInstance->InsertEndChild(xmlScaling);
-								}
-
-								xmlInstanceList->InsertEndChild(xmlInstance);
-							}
-						}
-
-						xmlObject->InsertEndChild(xmlInstanceList);
-					}
-				}
-
-				xmlObjectList->InsertEndChild(xmlObject);
-			}
-			xmlRoot->InsertEndChild(xmlObjectList);
-		}
-
-		XMLElement* xmlTerrain{ xmlDocument.NewElement("Terrain") };
-		xmlTerrain->SetAttribute("ID", "Terrain");
-		{
-			if (m_Terrain)
-			{
-				xmlTerrain->SetAttribute("FileName", m_Terrain->GetFileName().c_str());
-			}
-
-			xmlRoot->InsertEndChild(xmlTerrain);
-		}
-
-		XMLElement* xmlSky{ xmlDocument.NewElement("Sky") };
-		xmlSky->SetAttribute("ID", "Sky");
-		{
-			if (m_SkyData.bIsDataSet)
-			{
-				xmlSky->SetAttribute("FileName", m_SkyFileName.c_str());
-				xmlSky->SetAttribute("ScalingFactor", m_SkyScalingFactor);
-			}
-
-			xmlRoot->InsertEndChild(xmlSky);
-		}
-	}
-	xmlDocument.InsertEndChild(xmlRoot);
-
-	xmlDocument.SaveFile(FileName.c_str());
-}
-
-void CGame::SetPerspective(float FOV, float NearZ, float FarZ)
-{
-	m_NearZ = NearZ;
-	m_FarZ = FarZ;
-
-	m_MatrixProjection = XMMatrixPerspectiveFovLH(FOV, m_WindowSize.x / m_WindowSize.y, m_NearZ, m_FarZ);
-}
-
-void CGame::SetGameRenderingFlags(EFlagsRendering Flags)
-{
-	m_eFlagsRendering = Flags;
-}
-
-void CGame::ToggleGameRenderingFlags(EFlagsRendering Flags)
-{
-	m_eFlagsRendering ^= Flags;
-}
-
-void CGame::Set3DGizmoMode(E3DGizmoMode Mode)
-{
-	m_e3DGizmoMode = Mode;
-}
-
-void CGame::UpdateVSSpace(const XMMATRIX& World)
-{
-	m_cbVSSpaceData.World = XMMatrixTranspose(World);
-	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-}
-
-void CGame::UpdateVS2DSpace(const XMMATRIX& World)
-{
-	m_cbVS2DSpaceData.World = XMMatrixTranspose(World);
-	m_cbVS2DSpaceData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
-}
-
-void CGame::UpdateCBAnimationBoneMatrices(const XMMATRIX* const BoneMatrices)
-{
-	memcpy(m_CBAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBAnimationBonesData));
-}
-
-void CGame::UpdateCBAnimationData(const CObject3D::SCBAnimationData& Data)
-{
-	m_CBAnimationData = Data;
-}
-
-void CGame::UpdateCBTerrainData(const CTerrain::SCBTerrainData& Data)
-{
-	m_CBTerrainData = Data;
-}
-
-void CGame::UpdateCBWindData(const CTerrain::SCBWindData& Data)
-{
-	m_cbWindData = Data;
-}
-
-void CGame::UpdateHSTessFactor(float TessFactor)
-{
-	m_cbHSTessFactor.TessFactor = TessFactor;
-}
-
-void CGame::UpdateDSDisplacementData(bool bUseDisplacement)
-{
-	m_cbDSDisplacementData.bUseDisplacement = bUseDisplacement;
-
-	m_DSTerrain->UpdateAllConstantBuffers();
-}
-
-void CGame::UpdateGSSpace()
-{
-	m_cbGSSpaceData.ViewProjection = GetTransposedViewProjectionMatrix();
-}
-
-void CGame::UpdateCBMaterial(const CMaterial& Material)
-{
-	m_CBMaterialData.MaterialAmbient = Material.GetAmbientColor();
-	m_CBMaterialData.MaterialDiffuse = Material.GetDiffuseColor();
-	m_CBMaterialData.MaterialSpecular = Material.GetSpecularColor();
-	m_CBMaterialData.SpecularExponent = Material.GetSpecularExponent();
-	m_CBMaterialData.SpecularIntensity = Material.GetSpecularIntensity();
-
-	m_CBMaterialData.bHasDiffuseTexture = Material.HasTexture(CMaterial::CTexture::EType::DiffuseTexture);
-	m_CBMaterialData.bHasNormalTexture = Material.HasTexture(CMaterial::CTexture::EType::NormalTexture);
-	m_CBMaterialData.bHasOpacityTexture = Material.HasTexture(CMaterial::CTexture::EType::OpacityTexture);
-
-	m_PSBase->UpdateConstantBuffer(2);
-	m_PSFoliage->UpdateConstantBuffer(2);
-}
-
-void CGame::UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix)
-{
-	m_CBTerrainMaskingSpaceData.Matrix = XMMatrixTranspose(Matrix);
-}
-
-void CGame::UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection)
-{
-	m_CBTerrainSelectionData = Selection;
-}
-
-void CGame::UpdatePSBase2DFlagOn(EFlagPSBase2D Flag)
-{
-	switch (Flag)
-	{
-	case EFlagPSBase2D::UseTexture:
-		m_cbPS2DFlagsData.bUseTexture = TRUE;
-		break;
-	default:
-		break;
-	}
-	m_PSBase2D->UpdateConstantBuffer(0);
-}
-
-void CGame::UpdatePSBase2DFlagOff(EFlagPSBase2D Flag)
-{
-	switch (Flag)
-	{
-	case EFlagPSBase2D::UseTexture:
-		m_cbPS2DFlagsData.bUseTexture = FALSE;
-		break;
-	default:
-		break;
-	}
-	m_PSBase2D->UpdateConstantBuffer(0);
-}
-
-void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
-{
-	using namespace tinyxml2;
-
-	m_SkyFileName = SkyDataFileName;
-	m_SkyScalingFactor = ScalingFactor;
-
-	size_t Point{ SkyDataFileName.find_last_of('.') };
-	string Extension{ SkyDataFileName.substr(Point + 1) };
-	for (auto& c : Extension)
-	{
-		c = toupper(c);
-	}
-	assert(Extension == "XML");
-	
-	tinyxml2::XMLDocument xmlDocument{};
-	if (xmlDocument.LoadFile(SkyDataFileName.c_str()) != XML_SUCCESS)
-	{
-		MessageBox(nullptr, ("Sky 설정 파일을 찾을 수 없습니다. (" + SkyDataFileName + ")").c_str(), "Sky 설정 불러오기 실패", MB_OK | MB_ICONEXCLAMATION);
-		return;
-	}
-	
-	XMLElement* xmlRoot{ xmlDocument.FirstChildElement() };
-	XMLElement* xmlTexture{ xmlRoot->FirstChildElement() };
-	m_SkyData.TextureFileName = xmlTexture->GetText();
-
-	XMLElement* xmlSun{ xmlTexture->NextSiblingElement() };
-	{
-		LoadSkyObjectData(xmlSun, m_SkyData.Sun);
-	}
-
-	XMLElement* xmlMoon{ xmlSun->NextSiblingElement() };
-	{
-		LoadSkyObjectData(xmlMoon, m_SkyData.Moon);
-	}
-
-	XMLElement* xmlCloud{ xmlMoon->NextSiblingElement() };
-	{
-		LoadSkyObjectData(xmlCloud, m_SkyData.Cloud);
-	}
-
-	m_SkyMaterial.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, m_SkyData.TextureFileName);
-
-	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterial);
-	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
-	m_Object3DSkySphere->ComponentRender.PtrVS = m_VSSky.get();
-	m_Object3DSkySphere->ComponentRender.PtrPS = m_PSSky.get();
-	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
-	m_Object3DSkySphere->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
-
-	m_Object3DSun = make_unique<CObject3D>("Sun", m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DSun->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
-	m_Object3DSun->UpdateQuadUV(m_SkyData.Sun.UVOffset, m_SkyData.Sun.UVSize);
-	m_Object3DSun->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Sun.WidthHeightRatio, 0);
-	m_Object3DSun->ComponentRender.PtrVS = m_VSSky.get();
-	m_Object3DSun->ComponentRender.PtrPS = m_PSBase.get();
-	m_Object3DSun->ComponentRender.bIsTransparent = true;
-	m_Object3DSun->ComponentPhysics.bIsPickable = false;
-	m_Object3DSun->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
-	
-	m_Object3DMoon = make_unique<CObject3D>("Moon", m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DMoon->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
-	m_Object3DMoon->UpdateQuadUV(m_SkyData.Moon.UVOffset, m_SkyData.Moon.UVSize);
-	m_Object3DMoon->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Moon.WidthHeightRatio, 0);
-	m_Object3DMoon->ComponentRender.PtrVS = m_VSSky.get();
-	m_Object3DMoon->ComponentRender.PtrPS = m_PSBase.get();
-	m_Object3DMoon->ComponentRender.bIsTransparent = true;
-	m_Object3DMoon->ComponentPhysics.bIsPickable = false;
-	m_Object3DMoon->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
-	
-	/*
-	SModel CloudModel{};
-	CloudModel.vMeshes.emplace_back(GenerateSphere(64));
-	CloudModel.vMaterials.resize(1);
-	CloudModel.vMaterials[0].SetDiffuseTextureFileName("Asset\\earth_clouds.png");
-
-	m_Object3DCloud = make_unique<CObject3D>("Cloud", m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DCloud->Create(CloudModel);
-	m_Object3DCloud->ComponentTransform.Scaling = XMVectorSet(KSkyDistance * 2, KSkyDistance * 4, KSkyDistance * 2, 0);
-	m_Object3DCloud->ComponentTransform.Roll = -XM_PIDIV2;
-	m_Object3DCloud->ComponentRender.PtrVS = m_VSSky.get();
-	m_Object3DCloud->ComponentRender.PtrPS = m_PSCloud.get();
-	m_Object3DCloud->ComponentRender.bIsTransparent = true;
-	m_Object3DCloud->ComponentPhysics.bIsPickable = false;
-	m_Object3DCloud->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
-	*/
-
-	m_SkyData.bIsDataSet = true;
-
-	return;
-}
-
-void CGame::LoadSkyObjectData(const tinyxml2::XMLElement* const xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData)
-{
-	using namespace tinyxml2;
-
-	const XMLElement* xmlUVOffset{ xmlSkyObject->FirstChildElement() };
-	SkyObjectData.UVOffset.x = xmlUVOffset->FloatAttribute("U");
-	SkyObjectData.UVOffset.y = xmlUVOffset->FloatAttribute("V");
-
-	const XMLElement* xmlUVSize{ xmlUVOffset->NextSiblingElement() };
-	SkyObjectData.UVSize.x = xmlUVSize->FloatAttribute("U");
-	SkyObjectData.UVSize.y = xmlUVSize->FloatAttribute("V");
-
-	const XMLElement* xmlWidthHeightRatio{ xmlUVSize->NextSiblingElement() };
-	SkyObjectData.WidthHeightRatio = stof(xmlWidthHeightRatio->GetText());
-}
-
-void CGame::SetDirectionalLight(const XMVECTOR& LightSourcePosition)
-{
-	m_cbPSLightsData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
-}
-
-void CGame::SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color)
-{
-	m_cbPSLightsData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
-	m_cbPSLightsData.DirectionalLightColor = Color;
-}
-
-const XMVECTOR& CGame::GetDirectionalLightDirection() const
-{
-	return m_cbPSLightsData.DirectionalLightDirection;
-}
-
-void CGame::SetAmbientlLight(const XMFLOAT3& Color, float Intensity)
-{
-	m_cbPSLightsData.AmbientLightColor = Color;
-	m_cbPSLightsData.AmbientLightIntensity = Intensity;
-}
-
-const XMFLOAT3& CGame::GetAmbientLightColor() const
-{
-	return m_cbPSLightsData.AmbientLightColor;
-}
-
-float CGame::GetAmbientLightIntensity() const
-{
-	return m_cbPSLightsData.AmbientLightIntensity;
-}
-
-void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, uint32_t MaskingDetail, float UniformScaling)
-{
-	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Terrain->Create(TerrainSize, Material, MaskingDetail, UniformScaling);
-	
-	ID3D11ShaderResourceView* NullSRVs[11]{};
-	m_DeviceContext->DSSetShaderResources(0, 1, NullSRVs);
-	m_DeviceContext->PSSetShaderResources(0, 11, NullSRVs);
-}
-
-void CGame::LoadTerrain(const string& TerrainFileName)
-{
-	if (TerrainFileName.empty()) return;
-
-	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Terrain->Load(TerrainFileName);
-	
-	ClearMaterials();
-	int MaterialCount{ m_Terrain->GetMaterialCount() };
-	for (int iMaterial = 0; iMaterial < MaterialCount; ++iMaterial)
-	{
-		const CMaterial& Material{ m_Terrain->GetMaterial(iMaterial) };
-
-		AddMaterial(Material);
-	}
-}
-
-void CGame::SaveTerrain(const string& TerrainFileName)
-{
-	if (!m_Terrain) return;
-	if (TerrainFileName.empty()) return;
-
-	m_Terrain->Save(TerrainFileName);
-}
-
-void CGame::AddTerrainMaterial(const CMaterial& Material)
-{
-	if (!m_Terrain) return;
-
-	m_Terrain->AddMaterial(Material);
-}
-
-void CGame::SetTerrainMaterial(int MaterialID, const CMaterial& Material)
-{
-	if (!m_Terrain) return;
-
-	m_Terrain->SetMaterial(MaterialID, Material);
-}
-
-CCamera* CGame::AddCamera(const CCamera::SCameraData& CameraData)
-{
-	m_vCameras.emplace_back(CameraData);
-
-	return &m_vCameras.back();
-}
-
-CCamera* CGame::GetCamera(size_t Index)
-{
-	assert(Index < m_vCameras.size());
-	return &m_vCameras[Index];
-}
-
-void CGame::CreateWin32Window(WNDPROC const WndProc, LPCTSTR const WindowName)
+void CGame::CreateWin32Window(WNDPROC const WndProc, const std::string& WindowName)
 {
 	assert(!m_hWnd);
 
@@ -757,15 +76,15 @@ void CGame::CreateWin32Window(WNDPROC const WndProc, LPCTSTR const WindowName)
 	WindowRect.bottom = static_cast<LONG>(m_WindowSize.y);
 	AdjustWindowRect(&WindowRect, KWindowStyle, false);
 
-	assert(m_hWnd = CreateWindowEx(0, KClassName, WindowName, KWindowStyle,
-		CW_USEDEFAULT,  CW_USEDEFAULT, WindowRect.right - WindowRect.left, WindowRect.bottom - WindowRect.top,
+	assert(m_hWnd = CreateWindowExA(0, KClassName, WindowName.c_str(), KWindowStyle,
+		CW_USEDEFAULT, CW_USEDEFAULT, WindowRect.right - WindowRect.left, WindowRect.bottom - WindowRect.top,
 		nullptr, nullptr, m_hInstance, nullptr));
 
 	ShowWindow(m_hWnd, SW_SHOW);
 	UpdateWindow(m_hWnd);
 }
 
-void CGame::InitializeDirectX(const wstring& FontFileName, bool bWindowed)
+void CGame::InitializeDirectX(bool bWindowed)
 {
 	CreateSwapChain(bWindowed);
 
@@ -792,11 +111,8 @@ void CGame::InitializeDirectX(const wstring& FontFileName, bool bWindowed)
 	Create3DGizmos();
 
 	m_MatrixProjection2D = XMMatrixOrthographicLH(m_WindowSize.x, m_WindowSize.y, 0.0f, 1.0f);
-	m_SpriteBatch = make_unique<SpriteBatch>(m_DeviceContext.Get());
-	m_SpriteFont = make_unique<SpriteFont>(m_Device.Get(), FontFileName.c_str());
 	m_CommonStates = make_unique<CommonStates>(m_Device.Get());
 }
-
 
 void CGame::CreateSwapChain(bool bWindowed)
 {
@@ -955,81 +271,81 @@ void CGame::CreateBaseShaders()
 {
 	m_VSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSBase->Create(EShaderType::VertexShader, L"Shader\\VSBase.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSBase->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
+	m_VSBase->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 
 	m_VSInstance = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSInstance->Create(EShaderType::VertexShader, L"Shader\\VSInstance.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSInstance->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
+	m_VSInstance->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 
 	m_VSAnimation = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSAnimation->Create(EShaderType::VertexShader, L"Shader\\VSAnimation.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSAnimation->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
+	m_VSAnimation->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 	m_VSAnimation->AddConstantBuffer(&m_CBAnimationBonesData, sizeof(SCBAnimationBonesData));
 	m_VSAnimation->AddConstantBuffer(&m_CBAnimationData, sizeof(CObject3D::SCBAnimationData));
 
 	m_VSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSSky->Create(EShaderType::VertexShader, L"Shader\\VSSky.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSSky->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
+	m_VSSky->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 
 	m_VSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSLine->Create(EShaderType::VertexShader, L"Shader\\VSLine.hlsl", "main", CObject3DLine::KInputElementDescs, ARRAYSIZE(CObject3DLine::KInputElementDescs));
-	m_VSLine->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
+	m_VSLine->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 
 	m_VSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSGizmo->Create(EShaderType::VertexShader, L"Shader\\VSGizmo.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSGizmo->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
+	m_VSGizmo->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 
 	m_VSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSTerrain->Create(EShaderType::VertexShader, L"Shader\\VSTerrain.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSTerrain->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
+	m_VSTerrain->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 	m_VSTerrain->AddConstantBuffer(&m_CBTerrainData, sizeof(CTerrain::SCBTerrainData));
 
 	m_VSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSFoliage->Create(EShaderType::VertexShader, L"Shader\\VSFoliage.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSFoliage->AddConstantBuffer(&m_cbVSSpaceData, sizeof(SCBVSSpaceData));
+	m_VSFoliage->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 	m_VSFoliage->AddConstantBuffer(&m_CBTerrainData, sizeof(CTerrain::SCBTerrainData));
-	m_VSFoliage->AddConstantBuffer(&m_cbWindData, sizeof(CTerrain::SCBWindData));
+	m_VSFoliage->AddConstantBuffer(&m_CBWindData, sizeof(CTerrain::SCBWindData));
 
 	m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSParticle->Create(EShaderType::VertexShader, L"Shader\\VSParticle.hlsl", "main", 
+	m_VSParticle->Create(EShaderType::VertexShader, L"Shader\\VSParticle.hlsl", "main",
 		CParticlePool::KInputElementDescs, ARRAYSIZE(CParticlePool::KInputElementDescs));
 
 	m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSBase2D->Create(EShaderType::VertexShader, L"Shader\\VSBase2D.hlsl", "main", CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
-	m_VSBase2D->AddConstantBuffer(&m_cbVS2DSpaceData, sizeof(SCBVS2DSpaceData));
+	m_VSBase2D->AddConstantBuffer(&m_CBSpace2DData, sizeof(SCBSpace2DData));
 
 	m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSTerrain->Create(EShaderType::HullShader, L"Shader\\HSTerrain.hlsl", "main");
-	m_HSTerrain->AddConstantBuffer(&m_cbHSCameraData, sizeof(SCBHSCameraData));
-	m_HSTerrain->AddConstantBuffer(&m_cbHSTessFactor, sizeof(SCBHSTessFactorData));
+	m_HSTerrain->AddConstantBuffer(&m_CBCameraData, sizeof(SCBCameraData));
+	m_HSTerrain->AddConstantBuffer(&m_CBTessFactorData, sizeof(SCBTessFactorData));
 
 	m_HSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSWater->Create(EShaderType::HullShader, L"Shader\\HSWater.hlsl", "main");
-	m_HSWater->AddConstantBuffer(&m_cbHSCameraData, sizeof(SCBHSCameraData));
-	m_HSWater->AddConstantBuffer(&m_cbHSTessFactor, sizeof(SCBHSTessFactorData));
+	m_HSWater->AddConstantBuffer(&m_CBCameraData, sizeof(SCBCameraData));
+	m_HSWater->AddConstantBuffer(&m_CBTessFactorData, sizeof(SCBTessFactorData));
 
 	m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSTerrain->Create(EShaderType::DomainShader, L"Shader\\DSTerrain.hlsl", "main");
-	m_DSTerrain->AddConstantBuffer(&m_cbDSSpaceData, sizeof(SCBDSSpaceData));
-	m_DSTerrain->AddConstantBuffer(&m_cbDSDisplacementData, sizeof(SCBDSDisplacementData));
+	m_DSTerrain->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
+	m_DSTerrain->AddConstantBuffer(&m_CBDisplacementData, sizeof(SCBDisplacementData));
 
 	m_DSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSWater->Create(EShaderType::DomainShader, L"Shader\\DSWater.hlsl", "main");
-	m_DSWater->AddConstantBuffer(&m_cbDSSpaceData, sizeof(SCBDSSpaceData));
+	m_DSWater->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
 	m_DSWater->AddConstantBuffer(&m_CBWaterTimeData, sizeof(SCBWaterTimeData));
 
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSNormal->Create(EShaderType::GeometryShader, L"Shader\\GSNormal.hlsl", "main");
-	m_GSNormal->AddConstantBuffer(&m_cbGSSpaceData, sizeof(SCBGSSpaceData));
+	m_GSNormal->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
 
 	m_GSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSParticle->Create(EShaderType::GeometryShader, L"Shader\\GSParticle.hlsl", "main");
-	m_GSParticle->AddConstantBuffer(&m_cbGSSpaceData, sizeof(SCBGSSpaceData));
+	m_GSParticle->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
 
 	m_PSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase->Create(EShaderType::PixelShader, L"Shader\\PSBase.hlsl", "main");
 	m_PSBase->AddConstantBuffer(&m_cbPSBaseFlagsData, sizeof(SCBPSBaseFlagsData));
-	m_PSBase->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
+	m_PSBase->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
 	m_PSBase->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
 
 	m_PSVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
@@ -1037,35 +353,35 @@ void CGame::CreateBaseShaders()
 
 	m_PSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSSky->Create(EShaderType::PixelShader, L"Shader\\PSSky.hlsl", "main");
-	m_PSSky->AddConstantBuffer(&m_cbPSSkyTimeData, sizeof(SCBPSSkyTimeData));
+	m_PSSky->AddConstantBuffer(&m_CBSkyTimeData, sizeof(SCBSkyTimeData));
 
 	m_PSCloud = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSCloud->Create(EShaderType::PixelShader, L"Shader\\PSCloud.hlsl", "main");
-	m_PSCloud->AddConstantBuffer(&m_cbPSSkyTimeData, sizeof(SCBPSSkyTimeData));
+	m_PSCloud->AddConstantBuffer(&m_CBSkyTimeData, sizeof(SCBSkyTimeData));
 
 	m_PSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSLine->Create(EShaderType::PixelShader, L"Shader\\PSLine.hlsl", "main");
 
 	m_PSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSGizmo->Create(EShaderType::PixelShader, L"Shader\\PSGizmo.hlsl", "main");
-	m_PSGizmo->AddConstantBuffer(&m_cbPSGizmoColorFactorData, sizeof(SCBPSGizmoColorFactorData));
+	m_PSGizmo->AddConstantBuffer(&m_CBGizmoColorFactorData, sizeof(SCBGizmoColorFactorData));
 
 	m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSTerrain->Create(EShaderType::PixelShader, L"Shader\\PSTerrain.hlsl", "main");
-	m_PSTerrain->AddConstantBuffer(&m_CBTerrainMaskingSpaceData, sizeof(SCBPSTerrainSpaceData));
-	m_PSTerrain->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
+	m_PSTerrain->AddConstantBuffer(&m_CBTerrainMaskingSpaceData, sizeof(SCBTerrainMaskingSpaceData));
+	m_PSTerrain->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
 	m_PSTerrain->AddConstantBuffer(&m_CBTerrainSelectionData, sizeof(CTerrain::SCBTerrainSelectionData));
 	m_PSTerrain->AddConstantBuffer(&m_CBEditorTimeData, sizeof(SCBEditorTimeData));
 
 	m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSWater->Create(EShaderType::PixelShader, L"Shader\\PSWater.hlsl", "main");
 	m_PSWater->AddConstantBuffer(&m_CBWaterTimeData, sizeof(SCBWaterTimeData));
-	m_PSWater->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
+	m_PSWater->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
 
 	m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSFoliage->Create(EShaderType::PixelShader, L"Shader\\PSFoliage.hlsl", "main");
 	m_PSFoliage->AddConstantBuffer(&m_cbPSBaseFlagsData, sizeof(SCBPSBaseFlagsData));
-	m_PSFoliage->AddConstantBuffer(&m_cbPSLightsData, sizeof(SCBPSLightsData));
+	m_PSFoliage->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
 	m_PSFoliage->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
 
 	m_PSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
@@ -1111,7 +427,7 @@ void CGame::CreateMiniAxes()
 	m_vObject3DMiniAxes[2]->ComponentTransform.Yaw = -XM_PIDIV2;
 	m_vObject3DMiniAxes[2]->ComponentTransform.Roll = -XM_PIDIV2;
 	m_vObject3DMiniAxes[2]->eFlagsRendering = CObject3D::EFlagsRendering::NoLighting;
-	
+
 	m_vObject3DMiniAxes[0]->ComponentTransform.Scaling =
 		m_vObject3DMiniAxes[1]->ComponentTransform.Scaling =
 		m_vObject3DMiniAxes[2]->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.8f, 0.1f, 0);
@@ -1145,9 +461,9 @@ void CGame::CreatePickedTriangle()
 
 void CGame::Create3DGizmos()
 {
-	const static XMVECTOR ColorX{ XMVectorSet(1.0f, 0.1f, 0.1f, 1) };
-	const static XMVECTOR ColorY{ XMVectorSet(0.1f, 1.0f, 0.1f, 1) };
-	const static XMVECTOR ColorZ{ XMVectorSet(0.1f, 0.1f, 1.0f, 1) };
+	const static XMVECTOR ColorX{ XMVectorSet(1.0f, 0.2f, 0.2f, 1) };
+	const static XMVECTOR ColorY{ XMVectorSet(0.2f, 1.0f, 0.2f, 1) };
+	const static XMVECTOR ColorZ{ XMVectorSet(0.2f, 0.2f, 1.0f, 1) };
 
 	m_Object3D_3DGizmoRotationPitch = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
@@ -1266,13 +582,741 @@ void CGame::Create3DGizmos()
 	}
 }
 
-CShader* CGame::AddShader()
+
+void CGame::LoadScene(const string& FileName)
+{
+	using namespace tinyxml2;
+
+	tinyxml2::XMLDocument xmlDocument{};
+	xmlDocument.LoadFile(FileName.c_str());
+
+	XMLElement* xmlScene{ xmlDocument.FirstChildElement() };
+	vector<XMLElement*> vxmlSceneChildren{};
+	XMLElement* xmlSceneChild{ xmlScene->FirstChildElement() };
+	while (xmlSceneChild)
+	{
+		vxmlSceneChildren.emplace_back(xmlSceneChild);
+		xmlSceneChild = xmlSceneChild->NextSiblingElement();
+	}
+
+	for (const auto& xmlSceneChild : vxmlSceneChildren)
+	{
+		const char* ID{ xmlSceneChild->Attribute("ID") };
+
+		if (strcmp(ID, "ObjectList") == 0)
+		{
+			vector<XMLElement*> vxmlObjects{};
+			XMLElement* xmlObject{ xmlSceneChild->FirstChildElement() };
+			while (xmlObject)
+			{
+				vxmlObjects.emplace_back(xmlObject);
+				xmlObject = xmlObject->NextSiblingElement();
+			}
+
+			ClearObject3Ds();
+			m_vObject3Ds.reserve(vxmlObjects.size());
+			vector<CObject3D*> vPtrObject3D{};
+			vector<std::pair<string, bool>> vModelDatas{};
+
+			for (const auto& xmlObject : vxmlObjects)
+			{
+				const char* ObjectName{ xmlObject->Attribute("Name") };
+
+				InsertObject3D(ObjectName);
+				vPtrObject3D.emplace_back(GetObject3D(ObjectName));
+				CObject3D* Object3D{ GetObject3D(ObjectName) };
+
+				vector<XMLElement*> vxmlObjectChildren{};
+				XMLElement* xmlObjectChild{ xmlObject->FirstChildElement() };
+				while (xmlObjectChild)
+				{
+					vxmlObjectChildren.emplace_back(xmlObjectChild);
+					xmlObjectChild = xmlObjectChild->NextSiblingElement();
+				}
+
+				for (const auto& xmlObjectChild : vxmlObjectChildren)
+				{
+					const char* ID{ xmlObjectChild->Attribute("ID") };
+
+					if (strcmp(ID, "Model") == 0)
+					{
+						const char* ModelFileName{ xmlObjectChild->Attribute("FileName") };
+						bool bIsRigged{ xmlObjectChild->BoolAttribute("IsRigged") };
+						vModelDatas.emplace_back(std::make_pair(ModelFileName, bIsRigged));
+					}
+
+					if (strcmp(ID, "Translation") == 0)
+					{
+						float x{ xmlObjectChild->FloatAttribute("x") };
+						float y{ xmlObjectChild->FloatAttribute("y") };
+						float z{ xmlObjectChild->FloatAttribute("z") };
+						Object3D->ComponentTransform.Translation = XMVectorSet(x, y, z, 1.0f);
+					}
+
+					if (strcmp(ID, "Rotation") == 0)
+					{
+						float Pitch{ xmlObjectChild->FloatAttribute("Pitch") };
+						float Yaw{ xmlObjectChild->FloatAttribute("Yaw") };
+						float Roll{ xmlObjectChild->FloatAttribute("Roll") };
+						Object3D->ComponentTransform.Pitch = Pitch;
+						Object3D->ComponentTransform.Yaw = Yaw;
+						Object3D->ComponentTransform.Roll = Roll;
+					}
+
+					if (strcmp(ID, "Scaling") == 0)
+					{
+						float x{ xmlObjectChild->FloatAttribute("x") };
+						float y{ xmlObjectChild->FloatAttribute("y") };
+						float z{ xmlObjectChild->FloatAttribute("z") };
+						Object3D->ComponentTransform.Scaling = XMVectorSet(x, y, z, 1.0f);
+					}
+
+					if (strcmp(ID, "BSCenterOffset") == 0)
+					{
+						float x{ xmlObjectChild->FloatAttribute("x") };
+						float y{ xmlObjectChild->FloatAttribute("y") };
+						float z{ xmlObjectChild->FloatAttribute("z") };
+						Object3D->ComponentPhysics.BoundingSphere.CenterOffset = XMVectorSet(x, y, z, 1.0f);
+					}
+
+					if (strcmp(ID, "BSRadius") == 0)
+					{
+						float Radius{ xmlObjectChild->FloatAttribute("Value") };
+						Object3D->ComponentPhysics.BoundingSphere.Radius = Radius;
+					}
+
+					if (strcmp(ID, "InstanceList") == 0)
+					{
+						vector<XMLElement*> vxmlInstances{};
+						XMLElement* xmlInstance{ xmlObjectChild->FirstChildElement() };
+						while (xmlInstance)
+						{
+							vxmlInstances.emplace_back(xmlInstance);
+							xmlInstance = xmlInstance->NextSiblingElement();
+						}
+
+						int iInstance{};
+						for (auto& xmlInstance : vxmlInstances)
+						{
+							vector<XMLElement*> vxmlInstanceChildren{};
+							XMLElement* xmlInstanceChild{ xmlInstance->FirstChildElement() };
+							while (xmlInstanceChild)
+							{
+								vxmlInstanceChildren.emplace_back(xmlInstanceChild);
+								xmlInstanceChild = xmlInstanceChild->NextSiblingElement();
+							}
+
+							Object3D->InsertInstance(false);
+							auto& Instance{ Object3D->GetInstance(iInstance) };
+							for (auto& xmlInstanceChild : vxmlInstanceChildren)
+							{
+								const char* ID{ xmlInstanceChild->Attribute("ID") };
+								if (strcmp(ID, "Translation") == 0)
+								{
+									float x{ xmlInstanceChild->FloatAttribute("x") };
+									float y{ xmlInstanceChild->FloatAttribute("y") };
+									float z{ xmlInstanceChild->FloatAttribute("z") };
+									Instance.Translation = XMVectorSet(x, y, z, 1.0f);
+								}
+
+								if (strcmp(ID, "Rotation") == 0)
+								{
+									float Pitch{ xmlInstanceChild->FloatAttribute("Pitch") };
+									float Yaw{ xmlInstanceChild->FloatAttribute("Yaw") };
+									float Roll{ xmlInstanceChild->FloatAttribute("Roll") };
+									Instance.Pitch = Pitch;
+									Instance.Yaw = Yaw;
+									Instance.Roll = Roll;
+								}
+
+								if (strcmp(ID, "Scaling") == 0)
+								{
+									float x{ xmlInstanceChild->FloatAttribute("x") };
+									float y{ xmlInstanceChild->FloatAttribute("y") };
+									float z{ xmlInstanceChild->FloatAttribute("z") };
+									Instance.Scaling = XMVectorSet(x, y, z, 1.0f);
+								}
+							}
+							Object3D->UpdateInstanceWorldMatrix(iInstance);
+
+							++iInstance;
+						}
+					}
+				}
+			}
+
+			// Create models using multiple threads
+			{
+				ULONGLONG StartTimePoint{ GetTickCount64() };
+				OutputDebugString((to_string(StartTimePoint) + " Loading models.\n").c_str());
+				vector<thread> vThreads{};
+				for (size_t iObject3D = 0; iObject3D < vPtrObject3D.size(); ++iObject3D)
+				{
+					vThreads.emplace_back
+					(
+						[](CObject3D* const P, const string& ModelFileName, bool bIsRigged)
+						{
+							P->CreateFromFile(ModelFileName, bIsRigged);
+							if (P->IsInstanced()) P->CreateInstanceBuffers();
+						}
+						, vPtrObject3D[iObject3D], vModelDatas[iObject3D].first, vModelDatas[iObject3D].second
+							);
+				}
+				for (auto& Thread : vThreads)
+				{
+					Thread.join();
+				}
+				OutputDebugString((to_string(GetTickCount64()) + " All models are loaded. ["
+					+ to_string(GetTickCount64() - StartTimePoint) + "] elapsed.\n").c_str());
+			}
+		}
+
+		if (strcmp(ID, "Terrain") == 0)
+		{
+			const char* TerrainFileName{ xmlSceneChild->Attribute("FileName") };
+			if (TerrainFileName) LoadTerrain(TerrainFileName);
+		}
+
+		if (strcmp(ID, "Sky") == 0)
+		{
+			const char* SkyFileName{ xmlSceneChild->Attribute("FileName") };
+			float ScalingFactor{ xmlSceneChild->FloatAttribute("ScalingFactor") };
+			if (SkyFileName) SetSky(SkyFileName, ScalingFactor);
+		}
+	}
+}
+
+void CGame::SaveScene(const string& FileName)
+{
+	using namespace tinyxml2;
+
+	if (m_Terrain)
+	{
+		if (m_Terrain->GetFileName().size() == 0)
+		{
+			MB_WARN("지형이 존재하지만 저장되지 않았습니다.\n먼저 지형을 저장해 주세요.", "장면 저장 실패");
+			return;
+		}
+		else
+		{
+			m_Terrain->Save(m_Terrain->GetFileName());
+		}
+	}
+
+	tinyxml2::XMLDocument xmlDocument{};
+	XMLElement* xmlRoot{ xmlDocument.NewElement("Scene") };
+	{
+		XMLElement* xmlObjectList{ xmlDocument.NewElement("ObjectList") };
+		xmlObjectList->SetAttribute("ID", "ObjectList");
+		{
+			for (const auto& Object3D : m_vObject3Ds)
+			{
+				XMLElement* xmlObject{ xmlDocument.NewElement("Object") };
+				xmlObject->SetAttribute("Name", Object3D->GetName().c_str());
+
+				XMLElement* xmlModelFileName{ xmlDocument.NewElement("Model") };
+				{
+					xmlModelFileName->SetAttribute("ID", "Model");
+					xmlModelFileName->SetAttribute("FileName", Object3D->GetModelFileName().c_str());
+					xmlModelFileName->SetAttribute("IsRigged", Object3D->IsRiggedModel());
+					xmlObject->InsertEndChild(xmlModelFileName);
+				}
+
+				XMLElement* xmlTranslation{ xmlDocument.NewElement("Translation") };
+				{
+					xmlTranslation->SetAttribute("ID", "Translation");
+					XMFLOAT4 Translation{};
+					XMStoreFloat4(&Translation, Object3D->ComponentTransform.Translation);
+					xmlTranslation->SetAttribute("x", Translation.x);
+					xmlTranslation->SetAttribute("y", Translation.y);
+					xmlTranslation->SetAttribute("z", Translation.z);
+					xmlObject->InsertEndChild(xmlTranslation);
+				}
+
+				XMLElement* xmlRotation{ xmlDocument.NewElement("Rotation") };
+				{
+					xmlRotation->SetAttribute("ID", "Rotation");
+					xmlRotation->SetAttribute("Pitch", Object3D->ComponentTransform.Pitch);
+					xmlRotation->SetAttribute("Yaw", Object3D->ComponentTransform.Yaw);
+					xmlRotation->SetAttribute("Roll", Object3D->ComponentTransform.Roll);
+					xmlObject->InsertEndChild(xmlRotation);
+				}
+
+				XMLElement* xmlScaling{ xmlDocument.NewElement("Scaling") };
+				{
+					xmlScaling->SetAttribute("ID", "Scaling");
+					XMFLOAT4 Scaling{};
+					XMStoreFloat4(&Scaling, Object3D->ComponentTransform.Scaling);
+					xmlScaling->SetAttribute("x", Scaling.x);
+					xmlScaling->SetAttribute("y", Scaling.y);
+					xmlScaling->SetAttribute("z", Scaling.z);
+					xmlObject->InsertEndChild(xmlScaling);
+				}
+
+				XMLElement* xmlBSCenterOffset{ xmlDocument.NewElement("BSCenterOffset") };
+				{
+					xmlBSCenterOffset->SetAttribute("ID", "BSCenterOffset");
+					XMFLOAT4 BSCenterOffset{};
+					XMStoreFloat4(&BSCenterOffset, Object3D->ComponentPhysics.BoundingSphere.CenterOffset);
+					xmlBSCenterOffset->SetAttribute("x", BSCenterOffset.x);
+					xmlBSCenterOffset->SetAttribute("y", BSCenterOffset.y);
+					xmlBSCenterOffset->SetAttribute("z", BSCenterOffset.z);
+					xmlObject->InsertEndChild(xmlBSCenterOffset);
+				}
+
+				XMLElement* xmlBSRadius{ xmlDocument.NewElement("BSRadius") };
+				{
+					xmlBSRadius->SetAttribute("ID", "BSRadius");
+					xmlBSRadius->SetAttribute("Value", Object3D->ComponentPhysics.BoundingSphere.Radius);
+					xmlObject->InsertEndChild(xmlBSRadius);
+				}
+
+				if (Object3D->IsInstanced())
+				{
+					XMLElement* xmlInstanceList{ xmlDocument.NewElement("InstanceList") };
+					{
+						xmlInstanceList->SetAttribute("ID", "InstanceList");
+
+						for (const auto& InstancePair : Object3D->GetInstanceMap())
+						{
+							XMLElement* xmlInstance{ xmlDocument.NewElement("Instance") };
+							{
+								xmlInstance->SetAttribute("Name", InstancePair.first.c_str());
+
+								const auto& Instance{ Object3D->GetInstance(InstancePair.first) };
+
+								XMLElement* xmlTranslation{ xmlDocument.NewElement("Translation") };
+								{
+									xmlTranslation->SetAttribute("ID", "Translation");
+									XMFLOAT4 Translation{};
+									XMStoreFloat4(&Translation, Instance.Translation);
+									xmlTranslation->SetAttribute("x", Translation.x);
+									xmlTranslation->SetAttribute("y", Translation.y);
+									xmlTranslation->SetAttribute("z", Translation.z);
+									xmlInstance->InsertEndChild(xmlTranslation);
+								}
+
+								XMLElement* xmlRotation{ xmlDocument.NewElement("Rotation") };
+								{
+									xmlRotation->SetAttribute("ID", "Rotation");
+									xmlRotation->SetAttribute("Pitch", Instance.Pitch);
+									xmlRotation->SetAttribute("Yaw", Instance.Yaw);
+									xmlRotation->SetAttribute("Roll", Instance.Roll);
+									xmlInstance->InsertEndChild(xmlRotation);
+								}
+
+								XMLElement* xmlScaling{ xmlDocument.NewElement("Scaling") };
+								{
+									xmlScaling->SetAttribute("ID", "Scaling");
+									XMFLOAT4 Scaling{};
+									XMStoreFloat4(&Scaling, Instance.Scaling);
+									xmlScaling->SetAttribute("x", Scaling.x);
+									xmlScaling->SetAttribute("y", Scaling.y);
+									xmlScaling->SetAttribute("z", Scaling.z);
+									xmlInstance->InsertEndChild(xmlScaling);
+								}
+
+								xmlInstanceList->InsertEndChild(xmlInstance);
+							}
+						}
+
+						xmlObject->InsertEndChild(xmlInstanceList);
+					}
+				}
+
+				xmlObjectList->InsertEndChild(xmlObject);
+			}
+			xmlRoot->InsertEndChild(xmlObjectList);
+		}
+
+		XMLElement* xmlTerrain{ xmlDocument.NewElement("Terrain") };
+		xmlTerrain->SetAttribute("ID", "Terrain");
+		{
+			if (m_Terrain)
+			{
+				xmlTerrain->SetAttribute("FileName", m_Terrain->GetFileName().c_str());
+			}
+
+			xmlRoot->InsertEndChild(xmlTerrain);
+		}
+
+		XMLElement* xmlSky{ xmlDocument.NewElement("Sky") };
+		xmlSky->SetAttribute("ID", "Sky");
+		{
+			if (m_SkyData.bIsDataSet)
+			{
+				xmlSky->SetAttribute("FileName", m_SkyFileName.c_str());
+				xmlSky->SetAttribute("ScalingFactor", m_SkyScalingFactor);
+			}
+
+			xmlRoot->InsertEndChild(xmlSky);
+		}
+	}
+	xmlDocument.InsertEndChild(xmlRoot);
+
+	xmlDocument.SaveFile(FileName.c_str());
+}
+
+void CGame::SetPerspective(float FOV, float NearZ, float FarZ)
+{
+	m_NearZ = NearZ;
+	m_FarZ = FarZ;
+
+	m_MatrixProjection = XMMatrixPerspectiveFovLH(FOV, m_WindowSize.x / m_WindowSize.y, m_NearZ, m_FarZ);
+}
+
+void CGame::SetGameRenderingFlags(EFlagsRendering Flags)
+{
+	m_eFlagsRendering = Flags;
+}
+
+void CGame::ToggleGameRenderingFlags(EFlagsRendering Flags)
+{
+	m_eFlagsRendering ^= Flags;
+}
+
+void CGame::Set3DGizmoMode(E3DGizmoMode Mode)
+{
+	m_e3DGizmoMode = Mode;
+}
+
+void CGame::SetUniversalRSState()
+{
+	switch (m_eRasterizerState)
+	{
+	case ERasterizerState::CullNone:
+		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
+		break;
+	case ERasterizerState::CullClockwise:
+		m_DeviceContext->RSSetState(m_CommonStates->CullClockwise());
+		break;
+	case ERasterizerState::CullCounterClockwise:
+		m_DeviceContext->RSSetState(m_CommonStates->CullCounterClockwise());
+		break;
+	case ERasterizerState::WireFrame:
+		m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
+		break;
+	default:
+		break;
+	}
+}
+
+void CGame::SetUniversalbUseLighiting()
+{
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseLighting))
+	{
+		m_cbPSBaseFlagsData.bUseLighting = TRUE;
+	}
+}
+
+void CGame::UpdateCBSpace(const XMMATRIX& World)
+{
+	m_CBSpaceWVPData.World = m_CBSpace2DData.World = XMMatrixTranspose(World);
+	m_CBSpaceWVPData.ViewProjection = GetTransposedViewProjectionMatrix();
+	m_CBSpaceVPData.ViewProjection = GetTransposedViewProjectionMatrix();
+
+	m_CBSpace2DData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
+}
+
+void CGame::UpdateCBAnimationBoneMatrices(const XMMATRIX* const BoneMatrices)
+{
+	memcpy(m_CBAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBAnimationBonesData));
+}
+
+void CGame::UpdateCBAnimationData(const CObject3D::SCBAnimationData& Data)
+{
+	m_CBAnimationData = Data;
+}
+
+void CGame::UpdateCBTerrainData(const CTerrain::SCBTerrainData& Data)
+{
+	m_CBTerrainData = Data;
+}
+
+void CGame::UpdateCBWindData(const CTerrain::SCBWindData& Data)
+{
+	m_CBWindData = Data;
+}
+
+void CGame::UpdateCBTessFactor(float TessFactor)
+{
+	m_CBTessFactorData.TessFactor = TessFactor;
+}
+
+void CGame::UpdateCBDisplacementData(bool bUseDisplacement)
+{
+	m_CBDisplacementData.bUseDisplacement = bUseDisplacement;
+
+	m_DSTerrain->UpdateAllConstantBuffers();
+}
+
+void CGame::UpdateCBMaterial(const CMaterial& Material)
+{
+	m_CBMaterialData.MaterialAmbient = Material.GetAmbientColor();
+	m_CBMaterialData.MaterialDiffuse = Material.GetDiffuseColor();
+	m_CBMaterialData.MaterialSpecular = Material.GetSpecularColor();
+	m_CBMaterialData.SpecularExponent = Material.GetSpecularExponent();
+	m_CBMaterialData.SpecularIntensity = Material.GetSpecularIntensity();
+
+	m_CBMaterialData.bHasDiffuseTexture = Material.HasTexture(CMaterial::CTexture::EType::DiffuseTexture);
+	m_CBMaterialData.bHasNormalTexture = Material.HasTexture(CMaterial::CTexture::EType::NormalTexture);
+	m_CBMaterialData.bHasOpacityTexture = Material.HasTexture(CMaterial::CTexture::EType::OpacityTexture);
+
+	m_PSBase->UpdateConstantBuffer(2);
+	m_PSFoliage->UpdateConstantBuffer(2);
+}
+
+void CGame::UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix)
+{
+	m_CBTerrainMaskingSpaceData.Matrix = XMMatrixTranspose(Matrix);
+}
+
+void CGame::UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection)
+{
+	m_CBTerrainSelectionData = Selection;
+}
+
+void CGame::UpdatePSBase2DFlagOn(EFlagPSBase2D Flag)
+{
+	switch (Flag)
+	{
+	case EFlagPSBase2D::UseTexture:
+		m_cbPS2DFlagsData.bUseTexture = TRUE;
+		break;
+	default:
+		break;
+	}
+	m_PSBase2D->UpdateConstantBuffer(0);
+}
+
+void CGame::UpdatePSBase2DFlagOff(EFlagPSBase2D Flag)
+{
+	switch (Flag)
+	{
+	case EFlagPSBase2D::UseTexture:
+		m_cbPS2DFlagsData.bUseTexture = FALSE;
+		break;
+	default:
+		break;
+	}
+	m_PSBase2D->UpdateConstantBuffer(0);
+}
+
+void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
+{
+	using namespace tinyxml2;
+
+	m_SkyFileName = SkyDataFileName;
+	m_SkyScalingFactor = ScalingFactor;
+
+	size_t Point{ SkyDataFileName.find_last_of('.') };
+	string Extension{ SkyDataFileName.substr(Point + 1) };
+	for (auto& c : Extension)
+	{
+		c = toupper(c);
+	}
+	assert(Extension == "XML");
+	
+	tinyxml2::XMLDocument xmlDocument{};
+	if (xmlDocument.LoadFile(SkyDataFileName.c_str()) != XML_SUCCESS)
+	{
+		MB_WARN(("Sky 설정 파일을 찾을 수 없습니다. (" + SkyDataFileName + ")").c_str(), "Sky 설정 불러오기 실패");
+		return;
+	}
+	
+	XMLElement* xmlRoot{ xmlDocument.FirstChildElement() };
+	XMLElement* xmlTexture{ xmlRoot->FirstChildElement() };
+	m_SkyData.TextureFileName = xmlTexture->GetText();
+
+	XMLElement* xmlSun{ xmlTexture->NextSiblingElement() };
+	{
+		LoadSkyObjectData(xmlSun, m_SkyData.Sun);
+	}
+
+	XMLElement* xmlMoon{ xmlSun->NextSiblingElement() };
+	{
+		LoadSkyObjectData(xmlMoon, m_SkyData.Moon);
+	}
+
+	XMLElement* xmlCloud{ xmlMoon->NextSiblingElement() };
+	{
+		LoadSkyObjectData(xmlCloud, m_SkyData.Cloud);
+	}
+
+	m_SkyMaterial.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, m_SkyData.TextureFileName);
+
+	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterial);
+	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
+	m_Object3DSkySphere->ComponentRender.PtrVS = m_VSSky.get();
+	m_Object3DSkySphere->ComponentRender.PtrPS = m_PSSky.get();
+	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
+	m_Object3DSkySphere->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
+
+	m_Object3DSun = make_unique<CObject3D>("Sun", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DSun->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
+	m_Object3DSun->UpdateQuadUV(m_SkyData.Sun.UVOffset, m_SkyData.Sun.UVSize);
+	m_Object3DSun->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Sun.WidthHeightRatio, 0);
+	m_Object3DSun->ComponentRender.PtrVS = m_VSSky.get();
+	m_Object3DSun->ComponentRender.PtrPS = m_PSBase.get();
+	m_Object3DSun->ComponentRender.bIsTransparent = true;
+	m_Object3DSun->ComponentPhysics.bIsPickable = false;
+	m_Object3DSun->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
+	
+	m_Object3DMoon = make_unique<CObject3D>("Moon", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DMoon->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
+	m_Object3DMoon->UpdateQuadUV(m_SkyData.Moon.UVOffset, m_SkyData.Moon.UVSize);
+	m_Object3DMoon->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Moon.WidthHeightRatio, 0);
+	m_Object3DMoon->ComponentRender.PtrVS = m_VSSky.get();
+	m_Object3DMoon->ComponentRender.PtrPS = m_PSBase.get();
+	m_Object3DMoon->ComponentRender.bIsTransparent = true;
+	m_Object3DMoon->ComponentPhysics.bIsPickable = false;
+	m_Object3DMoon->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
+	
+	/*
+	SModel CloudModel{};
+	CloudModel.vMeshes.emplace_back(GenerateSphere(64));
+	CloudModel.vMaterials.resize(1);
+	CloudModel.vMaterials[0].SetDiffuseTextureFileName("Asset\\earth_clouds.png");
+
+	m_Object3DCloud = make_unique<CObject3D>("Cloud", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DCloud->Create(CloudModel);
+	m_Object3DCloud->ComponentTransform.Scaling = XMVectorSet(KSkyDistance * 2, KSkyDistance * 4, KSkyDistance * 2, 0);
+	m_Object3DCloud->ComponentTransform.Roll = -XM_PIDIV2;
+	m_Object3DCloud->ComponentRender.PtrVS = m_VSSky.get();
+	m_Object3DCloud->ComponentRender.PtrPS = m_PSCloud.get();
+	m_Object3DCloud->ComponentRender.bIsTransparent = true;
+	m_Object3DCloud->ComponentPhysics.bIsPickable = false;
+	m_Object3DCloud->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
+	*/
+
+	m_SkyData.bIsDataSet = true;
+
+	return;
+}
+
+void CGame::UnsetSky()
+{
+	m_SkyData.bIsDataSet = false;
+}
+
+void CGame::LoadSkyObjectData(const tinyxml2::XMLElement* const xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData)
+{
+	using namespace tinyxml2;
+
+	const XMLElement* xmlUVOffset{ xmlSkyObject->FirstChildElement() };
+	SkyObjectData.UVOffset.x = xmlUVOffset->FloatAttribute("U");
+	SkyObjectData.UVOffset.y = xmlUVOffset->FloatAttribute("V");
+
+	const XMLElement* xmlUVSize{ xmlUVOffset->NextSiblingElement() };
+	SkyObjectData.UVSize.x = xmlUVSize->FloatAttribute("U");
+	SkyObjectData.UVSize.y = xmlUVSize->FloatAttribute("V");
+
+	const XMLElement* xmlWidthHeightRatio{ xmlUVSize->NextSiblingElement() };
+	SkyObjectData.WidthHeightRatio = stof(xmlWidthHeightRatio->GetText());
+}
+
+void CGame::SetDirectionalLight(const XMVECTOR& LightSourcePosition)
+{
+	m_CBLightData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
+}
+
+void CGame::SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color)
+{
+	m_CBLightData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
+	m_CBLightData.DirectionalLightColor = Color;
+}
+
+const XMVECTOR& CGame::GetDirectionalLightDirection() const
+{
+	return m_CBLightData.DirectionalLightDirection;
+}
+
+void CGame::SetAmbientlLight(const XMFLOAT3& Color, float Intensity)
+{
+	m_CBLightData.AmbientLightColor = Color;
+	m_CBLightData.AmbientLightIntensity = Intensity;
+}
+
+const XMFLOAT3& CGame::GetAmbientLightColor() const
+{
+	return m_CBLightData.AmbientLightColor;
+}
+
+float CGame::GetAmbientLightIntensity() const
+{
+	return m_CBLightData.AmbientLightIntensity;
+}
+
+void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, uint32_t MaskingDetail, float UniformScaling)
+{
+	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Terrain->Create(TerrainSize, Material, MaskingDetail, UniformScaling);
+	
+	ID3D11ShaderResourceView* NullSRVs[11]{};
+	m_DeviceContext->DSSetShaderResources(0, 1, NullSRVs);
+	m_DeviceContext->PSSetShaderResources(0, 11, NullSRVs);
+}
+
+void CGame::LoadTerrain(const string& TerrainFileName)
+{
+	if (TerrainFileName.empty()) return;
+
+	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Terrain->Load(TerrainFileName);
+	
+	ClearMaterials();
+	int MaterialCount{ m_Terrain->GetMaterialCount() };
+	for (int iMaterial = 0; iMaterial < MaterialCount; ++iMaterial)
+	{
+		const CMaterial& Material{ m_Terrain->GetMaterial(iMaterial) };
+
+		AddMaterial(Material);
+	}
+}
+
+void CGame::SaveTerrain(const string& TerrainFileName)
+{
+	if (!m_Terrain) return;
+	if (TerrainFileName.empty()) return;
+
+	m_Terrain->Save(TerrainFileName);
+}
+
+void CGame::AddTerrainMaterial(const CMaterial& Material)
+{
+	if (!m_Terrain) return;
+
+	m_Terrain->AddMaterial(Material);
+}
+
+void CGame::SetTerrainMaterial(int MaterialID, const CMaterial& Material)
+{
+	if (!m_Terrain) return;
+
+	m_Terrain->SetMaterial(MaterialID, Material);
+}
+
+CCamera* CGame::AddCamera(const CCamera::SCameraData& CameraData)
+{
+	m_vCameras.emplace_back(CameraData);
+
+	return &m_vCameras.back();
+}
+
+CCamera* CGame::GetCamera(size_t Index)
+{
+	assert(Index < m_vCameras.size());
+	return &m_vCameras[Index];
+}
+
+CShader* CGame::AddCustomShader()
 {
 	m_vShaders.emplace_back(make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get()));
 	return m_vShaders.back().get();
 }
 
-CShader* CGame::GetShader(size_t Index) const
+CShader* CGame::GetCustomShader(size_t Index) const
 {
 	assert(Index < m_vShaders.size());
 	return m_vShaders[Index].get();
@@ -1382,18 +1426,18 @@ void CGame::InsertObject3D(const string& Name)
 {
 	if (m_mapObject3DNameToIndex.find(Name) != m_mapObject3DNameToIndex.end())
 	{
-		MessageBox(nullptr, string("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "이름 충돌", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Object3D 생성 실패");
 		return;
 	}
 
 	if (Name.size() >= KObject3DNameMaxLength)
 	{
-		MessageBox(nullptr, string("이름이 너무 깁니다. (" + Name + ")").c_str(), "이름 길이 제한 초과", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Object3D 생성 실패");
 		return;
 	}
 	else if (Name.size() == 0)
 	{
-		MessageBox(nullptr, "이름은 공백일 수 없습니다.", "이름 조건 불일치", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN("이름은 공백일 수 없습니다.", "Object3D 생성 실패");
 		return;
 	}
 
@@ -1404,13 +1448,13 @@ void CGame::InsertObject3D(const string& Name)
 	m_mapObject3DNameToIndex[Name] = m_vObject3Ds.size() - 1;
 }
 
-void CGame::EraseObject3D(const string& Name)
+void CGame::DeleteObject3D(const string& Name)
 {
 	if (!m_vObject3Ds.size()) return;
 	if (Name.length() == 0) return;
 	if (m_mapObject3DNameToIndex.find(Name) == m_mapObject3DNameToIndex.end())
 	{
-		MessageBox(nullptr, string("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "이름 검색 실패", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Object3D 삭제 실패");
 		return;
 	}
 
@@ -1448,7 +1492,7 @@ CObject3D* CGame::GetObject3D(const string& Name) const
 {
 	if (m_mapObject3DNameToIndex.find(Name) == m_mapObject3DNameToIndex.end())
 	{
-		MessageBox(nullptr, string("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "이름 검색 실패", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Object3D 얻어오기 실패");
 		return nullptr;
 	}
 	return m_vObject3Ds[m_mapObject3DNameToIndex.at(Name)].get();
@@ -1495,7 +1539,7 @@ CMaterial* CGame::AddMaterial(const CMaterial& Material)
 
 	m_mapMaterialNameToIndex[Material.GetName()] = m_vMaterials.size() - 1;
 
-	LoadMaterial(Material.GetName());
+	ReloadMaterial(Material.GetName());
 
 	return m_vMaterials.back().get();
 }
@@ -1532,7 +1576,7 @@ void CGame::ChangeMaterialName(const string& OldName, const string& NewName)
 	Material->SetName(NewName);
 }
 
-void CGame::LoadMaterial(const string& Name)
+void CGame::ReloadMaterial(const string& Name)
 {
 	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end()) return;
 
@@ -1615,15 +1659,15 @@ CMaterial::CTexture* CGame::GetMaterialTexture(CMaterial::CTexture::EType eType,
 	}
 }
 
-void CGame::SetEditMode(EEditMode Mode, bool bForcedSet)
+void CGame::SetMode(EMode eMode, bool bForcedSet)
 {
 	if (!bForcedSet)
 	{
-		if (m_eEditMode == Mode) return;
+		if (m_eMode == eMode) return;
 	}
 
-	m_eEditMode = Mode;
-	if (m_eEditMode == EEditMode::EditTerrain)
+	m_eMode = eMode;
+	if (m_eMode == EMode::EditTerrain)
 	{
 		if (m_Terrain) m_Terrain->ShouldShowSelection(TRUE);
 		DeselectObject3D();
@@ -1631,12 +1675,17 @@ void CGame::SetEditMode(EEditMode Mode, bool bForcedSet)
 	else
 	{
 		if (m_Terrain) m_Terrain->ShouldShowSelection(FALSE);
+
+		if (m_eMode == EMode::Play)
+		{
+			DeselectObject3D();
+		}
 	}
 }
 
 bool CGame::Pick()
 {
-	if (m_eEditMode != EEditMode::EditObject) return false;
+	if (m_eMode == EMode::EditTerrain) return false;
 
 	CastPickingRay();
 
@@ -1650,9 +1699,23 @@ bool CGame::Pick()
 	return false;
 }
 
+const string& CGame::GetPickedObject3DName() const
+{
+	if (m_PtrPickedObject3D)
+	{
+		return m_PtrPickedObject3D->GetName();
+	}
+	return m_NullString;
+}
+
+int CGame::GetPickedInstanceID() const
+{
+	return m_PickedInstanceID;
+}
+
 void CGame::SelectObject3D(const string& Name)
 {
-	if (m_eEditMode != EEditMode::EditObject) return;
+	if (m_eMode != EMode::EditObject) return;
 
 	m_PtrSelectedObject3D = GetObject3D(Name);
 	if (m_PtrSelectedObject3D)
@@ -1663,6 +1726,22 @@ void CGame::SelectObject3D(const string& Name)
 			Interact3DGizmos();
 		}
 	}
+}
+
+void CGame::DeselectObject3D()
+{
+	m_PtrSelectedObject3D = nullptr;
+	m_SelectedInstanceID = -1;
+}
+
+bool CGame::IsAnyObject3DSelected() const
+{
+	return (m_PtrSelectedObject3D) ? true : false;
+}
+
+CObject3D* CGame::GetSelectedObject3D()
+{
+	return m_PtrSelectedObject3D;
 }
 
 const string& CGame::GetSelectedObject3DName() const
@@ -1676,6 +1755,8 @@ const string& CGame::GetSelectedObject3DName() const
 
 void CGame::SelectInstance(int InstanceID)
 {
+	if (m_eMode != EMode::EditObject) return;
+
 	m_SelectedInstanceID = InstanceID;
 
 	if (IsAnyObject3DSelected() && IsAnyInstanceSelected())
@@ -1694,622 +1775,25 @@ bool CGame::IsAnyInstanceSelected() const
 	return (m_SelectedInstanceID != -1) ? true : false;
 }
 
-int CGame::GetPickedInstanceID() const
-{
-	return m_PickedInstanceID;
-}
-
-bool CGame::IsAnyObject3DSelected() const
-{
-	return (m_PtrSelectedObject3D) ? true : false;
-}
-
-const string& CGame::GetPickedObject3DName() const
-{
-	if (m_PtrPickedObject3D)
-	{
-		return m_PtrPickedObject3D->GetName();
-	}
-	return m_NullString;
-}
-
-CObject3D* CGame::GetSelectedObject3D()
-{
-	return m_PtrSelectedObject3D;
-}
-
 int CGame::GetSelectedInstanceID() const
 {
 	return m_SelectedInstanceID;
 }
 
-void CGame::DeselectObject3D()
-{
-	const Mouse::State& MouseState{ m_Mouse->GetState() };
-
-	m_PtrSelectedObject3D = nullptr;
-	m_SelectedInstanceID = -1;
-}
-
-void CGame::CastPickingRay()
-{
-	const Mouse::State& MouseState{ m_Mouse->GetState() };
-
-	float ViewSpaceRayDirectionX{ (MouseState.x / (m_WindowSize.x / 2.0f) - 1.0f) / XMVectorGetX(m_MatrixProjection.r[0]) };
-	float ViewSpaceRayDirectionY{ (-(MouseState.y / (m_WindowSize.y / 2.0f) - 1.0f)) / XMVectorGetY(m_MatrixProjection.r[1]) };
-	static float ViewSpaceRayDirectionZ{ 1.0f };
-
-	static XMVECTOR ViewSpaceRayOrigin{ XMVectorSet(0, 0, 0, 1) };
-	XMVECTOR ViewSpaceRayDirection{ XMVectorSet(ViewSpaceRayDirectionX, ViewSpaceRayDirectionY, ViewSpaceRayDirectionZ, 0) };
-
-	XMMATRIX MatrixViewInverse{ XMMatrixInverse(nullptr, m_MatrixView) };
-	m_PickingRayWorldSpaceOrigin = XMVector3TransformCoord(ViewSpaceRayOrigin, MatrixViewInverse);
-	m_PickingRayWorldSpaceDirection = XMVector3TransformNormal(ViewSpaceRayDirection, MatrixViewInverse);
-}
-
-void CGame::PickBoundingSphere()
-{
-	m_PtrPickedObject3D = nullptr;
-	m_PickedInstanceID = -1;
-
-	XMVECTOR T{ KVectorGreatest };
-	for (auto& i : m_vObject3Ds)
-	{
-		auto* Object3D{ i.get() };
-		if (Object3D->ComponentPhysics.bIsPickable)
-		{
-			if (Object3D->ComponentPhysics.bIgnoreBoundingSphere)
-			{
-				m_PtrPickedObject3D = Object3D;
-
-				if (PickTriangle())
-				{
-					break;
-				}
-				else
-				{
-					m_PtrPickedObject3D = nullptr;
-				}
-			}
-			else
-			{
-				if (Object3D->IsInstanced())
-				{
-					int InstanceCount{ (int)Object3D->GetInstanceCount() };
-					for (int iInstance = 0; iInstance < InstanceCount; ++iInstance)
-					{
-						auto& Instance{ Object3D->GetInstance(iInstance) };
-						XMVECTOR NewT{ KVectorGreatest };
-						if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-							Object3D->ComponentPhysics.BoundingSphere.Radius, Instance.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
-						{
-							if (XMVector3Less(NewT, T))
-							{
-								T = NewT;
-								m_PtrPickedObject3D = Object3D;
-								m_PickedInstanceID = iInstance;
-							}
-						}
-					}
-				}
-				else
-				{
-					XMVECTOR NewT{ KVectorGreatest };
-					if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-						Object3D->ComponentPhysics.BoundingSphere.Radius, Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
-					{
-						if (XMVector3Less(NewT, T))
-						{
-							T = NewT;
-							m_PtrPickedObject3D = Object3D;
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-bool CGame::PickTriangle()
-{
-	XMVECTOR T{ KVectorGreatest };
-	if (m_PtrPickedObject3D)
-	{
-		// Pick only static models' triangle.
-		if (m_PtrPickedObject3D->GetModel().bIsModelAnimated) return false;
-
-		const XMMATRIX& WorldMatrix{ m_PtrPickedObject3D->ComponentTransform.MatrixWorld };
-		for (const SMesh& Mesh : m_PtrPickedObject3D->GetModel().vMeshes)
-		{
-			for (const STriangle& Triangle : Mesh.vTriangles)
-			{
-				XMVECTOR V0{ Mesh.vVertices[Triangle.I0].Position };
-				XMVECTOR V1{ Mesh.vVertices[Triangle.I1].Position };
-				XMVECTOR V2{ Mesh.vVertices[Triangle.I2].Position };
-				V0 = XMVector3TransformCoord(V0, WorldMatrix);
-				V1 = XMVector3TransformCoord(V1, WorldMatrix);
-				V2 = XMVector3TransformCoord(V2, WorldMatrix);
-
-				XMVECTOR NewT{};
-				if (IntersectRayTriangle(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, V0, V1, V2, &NewT))
-				{
-					if (XMVector3Less(NewT, T))
-					{
-						T = NewT;
-
-						XMVECTOR N{ CalculateTriangleNormal(V0, V1, V2) };
-
-						m_PickedTriangleV0 = V0 + N * 0.01f;
-						m_PickedTriangleV1 = V1 + N * 0.01f;
-						m_PickedTriangleV2 = V2 + N * 0.01f;
-
-						return true;
-					}
-				}
-			}
-		}
-	}
-	return false;
-}
-
 void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
 {
 	if (!m_Terrain) return;
-	if (m_eEditMode != EEditMode::EditTerrain) return;
+	if (m_eMode != EMode::EditTerrain) return;
 
 	CastPickingRay();
 
 	m_Terrain->Select(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, bShouldEdit, bIsLeftButton);
 }
 
-void CGame::BeginRendering(const FLOAT* ClearColor)
-{
-	m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), Colors::CornflowerBlue);
-	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-	ID3D11SamplerState* SamplerState{ m_CommonStates->LinearWrap() };
-	m_DeviceContext->PSSetSamplers(0, 1, &SamplerState);
-	m_DeviceContext->DSSetSamplers(0, 1, &SamplerState); // @important: in order to use displacement mapping
-
-	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
-
-	SetUniversalRSState();
-
-	m_MatrixView = XMMatrixLookAtLH(m_vCameras[m_CurrentCameraIndex].GetEyePosition(), 
-		m_vCameras[m_CurrentCameraIndex].GetFocusPosition(),
-		m_vCameras[m_CurrentCameraIndex].GetUpDirection());
-}
-
-void CGame::Animate(float DeltaTime)
-{
-	for (auto& Object3D : m_vObject3Ds)
-	{
-		if (Object3D) Object3D->Animate(DeltaTime);
-	}
-}
-
-void CGame::Draw(float DeltaTime)
-{
-	m_CBEditorTimeData.NormalizedTime += DeltaTime;
-	m_CBEditorTimeData.NormalizedTimeHalfSpeed += DeltaTime * 0.5f;
-	if (m_CBEditorTimeData.NormalizedTime > 1.0f) m_CBEditorTimeData.NormalizedTime = 0.0f;
-	if (m_CBEditorTimeData.NormalizedTimeHalfSpeed > 1.0f) m_CBEditorTimeData.NormalizedTimeHalfSpeed = 0.0f;
-
-	m_CBWaterTimeData.Time += DeltaTime * 0.1f;
-	if (m_CBWaterTimeData.Time > 1.0f) m_CBWaterTimeData.Time = 0.0f;
-
-	m_CBTerrainData.Time = m_CBEditorTimeData.NormalizedTime;
-
-	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
-
-	m_cbPSLightsData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
-
-	UpdateGSSpace();
-
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawWireFrame))
-	{
-		m_eRasterizerState = ERasterizerState::WireFrame;
-	}
-	else
-	{
-		m_eRasterizerState = ERasterizerState::CullCounterClockwise;
-	}
-
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawMiniAxes))
-	{
-		DrawMiniAxes();
-	}
-
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawPickingData))
-	{
-		DrawPickingRay();
-
-		DrawPickedTriangle();
-	}
-
-	if (m_SkyData.bIsDataSet)
-	{
-		DrawSky(DeltaTime);
-	}
-
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
-	{
-		Draw3DGizmos();
-	}
-
-	DrawTerrain(DeltaTime);
-
-	DrawObject3DLines();
-
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals))
-	{
-		m_GSNormal->Use();
-		m_GSNormal->UpdateAllConstantBuffers();
-	}
-	for (auto& Object3D : m_vObject3Ds)
-	{
-		if (Object3D->ComponentRender.bIsTransparent) continue;
-
-		UpdateObject3D(Object3D.get());
-		DrawObject3D(Object3D.get());
-
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
-		{
-			DrawObject3DBoundingSphere(Object3D.get());
-		}
-	}
-
-	// Transparent Object3Ds
-	for (auto& Object3D : m_vObject3Ds)
-	{
-		if (!Object3D->ComponentRender.bIsTransparent) continue;
-
-		UpdateObject3D(Object3D.get());
-		DrawObject3D(Object3D.get());
-
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
-		{
-			DrawObject3DBoundingSphere(Object3D.get());
-		}
-	}
-	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
-
-	DrawObject2Ds();
-}
-
-void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
-{
-	if (!PtrObject3D) return;
-
-	assert(PtrObject3D->ComponentRender.PtrVS);
-	assert(PtrObject3D->ComponentRender.PtrPS);
-	CShader* VS{ PtrObject3D->ComponentRender.PtrVS };
-	CShader* PS{ PtrObject3D->ComponentRender.PtrPS };
-
-	m_cbVSSpaceData.World = XMMatrixTranspose(PtrObject3D->ComponentTransform.MatrixWorld);
-	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-	PtrObject3D->UpdateWorldMatrix();
-
-	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::UseRawVertexColor))
-	{
-		PS = m_PSVertexColor.get();
-	}
-
-	SetUniversalbUseLighiting();
-	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoLighting))
-	{
-		m_cbPSBaseFlagsData.bUseLighting = FALSE;
-	}
-
-	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoTexture))
-	{
-		m_cbPSBaseFlagsData.bUseTexture = FALSE;
-	}
-	else
-	{
-		m_cbPSBaseFlagsData.bUseTexture = TRUE;
-	}
-	
-	VS->Use();
-	VS->UpdateAllConstantBuffers();
-
-	PS->Use();
-	PS->UpdateAllConstantBuffers();
-}
-
-void CGame::DrawObject3D(const CObject3D* const PtrObject3D)
-{
-	if (!PtrObject3D) return;
-
-	if (PtrObject3D->ShouldTessellate())
-	{
-		m_HSTerrain->Use();
-		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
-		m_HSTerrain->UpdateConstantBuffer(0);
-
-		m_DSTerrain->Use();
-		m_cbDSSpaceData.ViewProjection = GetTransposedViewProjectionMatrix();
-		m_DSTerrain->UpdateConstantBuffer(0);
-	}
-	else
-	{
-		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
-		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
-	}
-
-	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoCulling))
-	{
-		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
-	}
-	else
-	{
-		SetUniversalRSState();
-	}
-
-	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoDepthComparison))
-	{
-		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
-	}
-	else
-	{
-		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
-	}
-
-	PtrObject3D->Draw();
-}
-
-void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
-{
-	m_VSBase->Use();
-
-	XMMATRIX Translation{ XMMatrixTranslationFromVector(PtrObject3D->ComponentTransform.Translation + 
-		PtrObject3D->ComponentPhysics.BoundingSphere.CenterOffset) };
-	XMMATRIX Scaling{ XMMatrixScaling(PtrObject3D->ComponentPhysics.BoundingSphere.Radius,
-		PtrObject3D->ComponentPhysics.BoundingSphere.Radius, PtrObject3D->ComponentPhysics.BoundingSphere.Radius) };
-	XMMATRIX World{ Scaling * Translation };
-	m_cbVSSpaceData.World = XMMatrixTranspose(World);
-	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-	m_VSBase->UpdateConstantBuffer(0);
-
-	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
-
-	m_Object3DBoundingSphere->Draw();
-
-	SetUniversalRSState();
-}
-
-void CGame::DrawObject3DLines()
-{
-	m_VSLine->Use();
-	m_PSLine->Use();
-
-	for (auto& Object3DLine : m_vObject3DLines)
-	{
-		if (Object3DLine)
-		{
-			if (!Object3DLine->bIsVisible) continue;
-
-			Object3DLine->UpdateWorldMatrix();
-
-			m_cbVSSpaceData.World = XMMatrixTranspose(Object3DLine->ComponentTransform.MatrixWorld);
-			m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-			m_VSLine->UpdateConstantBuffer(0);
-
-			Object3DLine->Draw();
-		}
-	}
-}
-
-void CGame::DrawObject2Ds()
-{
-	m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
-	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
-	
-	m_cbVS2DSpaceData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
-
-	m_VSBase2D->Use();
-	m_PSBase2D->Use();
-
-	for (auto& Object2D : m_vObject2Ds)
-	{
-		if (Object2D)
-		{
-			if (!Object2D->bIsVisible) continue;
-
-			Object2D->UpdateWorldMatrix();
-			m_cbVS2DSpaceData.World = XMMatrixTranspose(Object2D->ComponentTransform.MatrixWorld);
-			m_VSBase2D->UpdateConstantBuffer(0);
-
-			/*
-			if (GO2D->ComponentRender.PtrTexture)
-			{
-				GO2D->ComponentRender.PtrTexture->Use();
-				m_cbPS2DFlagsData.bUseTexture = TRUE;
-				m_PSBase2D->UpdateConstantBuffer(0);
-			}
-			else
-			{
-				m_cbPS2DFlagsData.bUseTexture = FALSE;
-				m_PSBase2D->UpdateConstantBuffer(0);
-			}
-			*/
-
-			Object2D->Draw();
-		}
-	}
-
-	m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
-}
-
-void CGame::DrawMiniAxes()
-{
-	m_DeviceContext->RSSetViewports(1, &m_vViewports[1]);
-
-	for (auto& Object3D : m_vObject3DMiniAxes)
-	{
-		UpdateObject3D(Object3D.get());
-		DrawObject3D(Object3D.get());
-
-		Object3D->ComponentTransform.Translation = 
-			m_vCameras[m_CurrentCameraIndex].GetEyePosition() +
-			m_vCameras[m_CurrentCameraIndex].GetForward();
-
-		Object3D->UpdateWorldMatrix();
-	}
-
-	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
-}
-
-void CGame::UpdatePickingRay()
-{
-	m_Object3DLinePickingRay->GetVertices().at(0).Position = m_PickingRayWorldSpaceOrigin;
-	m_Object3DLinePickingRay->GetVertices().at(1).Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
-	m_Object3DLinePickingRay->UpdateVertexBuffer();
-}
-
-void CGame::DrawPickingRay()
-{
-	m_VSLine->Use();
-	m_cbVSSpaceData.World = XMMatrixTranspose(KMatrixIdentity);
-	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-	m_VSLine->UpdateConstantBuffer(0);
-
-	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
-	
-	m_PSLine->Use();
-
-	m_Object3DLinePickingRay->Draw();
-}
-
-void CGame::DrawPickedTriangle()
-{
-	m_VSBase->Use();
-	m_cbVSSpaceData.World = XMMatrixTranspose(KMatrixIdentity);
-	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-	m_VSBase->UpdateConstantBuffer(0);
-
-	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
-	
-	m_PSVertexColor->Use();
-
-	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[0].Position = m_PickedTriangleV0;
-	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[1].Position = m_PickedTriangleV1;
-	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[2].Position = m_PickedTriangleV2;
-	m_Object3DPickedTriangle->UpdateMeshBuffer();
-
-	m_Object3DPickedTriangle->Draw();
-}
-
-void CGame::DrawSky(float DeltaTime)
-{
-	// Elapse SkyTime [0.0f, 1.0f]
-	m_cbPSSkyTimeData.SkyTime += KSkyTimeFactorAbsolute * DeltaTime;
-	if (m_cbPSSkyTimeData.SkyTime > 1.0f) m_cbPSSkyTimeData.SkyTime = 0.0f;
-
-	// Update directional light source position
-	static float DirectionalLightRoll{};
-	if (m_cbPSSkyTimeData.SkyTime <= 0.25f)
-	{
-		DirectionalLightRoll = XM_2PI * (m_cbPSSkyTimeData.SkyTime + 0.25f);
-	}
-	else if (m_cbPSSkyTimeData.SkyTime > 0.25f && m_cbPSSkyTimeData.SkyTime <= 0.75f)
-	{
-		DirectionalLightRoll = XM_2PI * (m_cbPSSkyTimeData.SkyTime - 0.25f);
-	}
-	else
-	{
-		DirectionalLightRoll = XM_2PI * (m_cbPSSkyTimeData.SkyTime - 0.75f);
-	}
-	XMVECTOR DirectionalLightSourcePosition{ XMVector3TransformCoord(XMVectorSet(1, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, DirectionalLightRoll)) };
-	SetDirectionalLight(DirectionalLightSourcePosition);
-
-	// SkySphere
-	{
-		m_Object3DSkySphere->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
-	}
-
-	// Sun
-	{
-		float SunRoll{ XM_2PI * m_cbPSSkyTimeData.SkyTime - XM_PIDIV2 };
-		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, SunRoll)) };
-		m_Object3DSun->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
-		m_Object3DSun->ComponentTransform.Roll = SunRoll;
-	}
-
-	// Moon
-	{
-		float MoonRoll{ XM_2PI * m_cbPSSkyTimeData.SkyTime + XM_PIDIV2 };
-		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, MoonRoll)) };
-		m_Object3DMoon->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
-		m_Object3DMoon->ComponentTransform.Roll = (MoonRoll > XM_2PI) ? (MoonRoll - XM_2PI) : MoonRoll;
-	}
-
-	UpdateObject3D(m_Object3DSkySphere.get());
-	DrawObject3D(m_Object3DSkySphere.get());
-
-	UpdateObject3D(m_Object3DSun.get());
-	DrawObject3D(m_Object3DSun.get());
-
-	UpdateObject3D(m_Object3DMoon.get());
-	DrawObject3D(m_Object3DMoon.get());
-}
-
-void CGame::DrawTerrain(float DeltaTime)
-{
-	if (!m_Terrain) return;
-	
-	SetUniversalRSState();
-
-	SetUniversalbUseLighiting();
-
-	m_Terrain->UpdateWind(DeltaTime);
-
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain))
-	{
-		m_cbHSCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
-		m_cbHSTessFactor.TessFactor = m_Terrain->GetTerrainTessFactor();
-		m_HSTerrain->UpdateAllConstantBuffers();
-		m_HSTerrain->Use();
-
-		m_cbDSSpaceData.ViewProjection = GetTransposedViewProjectionMatrix();
-		m_DSTerrain->UpdateAllConstantBuffers();
-		m_DSTerrain->Use();
-
-		m_Terrain->Draw(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals));
-
-		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
-		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
-	}
-	else
-	{
-		m_Terrain->Draw(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals));
-	}
-	
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainHeightMapTexture))
-	{
-		m_DeviceContext->RSSetViewports(1, &m_vViewports[2]);
-		m_Terrain->DrawHeightMapTexture();
-	}
-
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainMaskingTexture))
-	{
-		m_DeviceContext->RSSetViewports(1, &m_vViewports[3]);
-		m_Terrain->DrawMaskingTexture();
-	}
-
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainFoliagePlacingTexture))
-	{
-		m_DeviceContext->RSSetViewports(1, &m_vViewports[4]);
-		m_Terrain->DrawFoliagePlacingTexture();
-	}
-
-	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
-}
-
 void CGame::Interact3DGizmos()
 {
 	if (EFLAG_HAS_NO(m_eFlagsRendering, EFlagsRendering::Use3DGizmos)) return;
-	
+
 	if (IsAnyObject3DSelected())
 	{
 		if (m_PtrSelectedObject3D->IsInstanced() && !IsAnyInstanceSelected()) return;
@@ -2514,6 +1998,7 @@ void CGame::Interact3DGizmos()
 	m_PrevMouseY = MouseState.y;
 }
 
+
 bool CGame::ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis)
 {
 	XMVECTOR PlaneNormal{};
@@ -2574,6 +2059,553 @@ bool CGame::ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3
 	if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, 0.5f * m_3DGizmoDistanceScalar, Center, nullptr)) return true;
 
 	return false;
+}
+
+void CGame::CastPickingRay()
+{
+	const Mouse::State& MouseState{ m_Mouse->GetState() };
+
+	float ViewSpaceRayDirectionX{ (MouseState.x / (m_WindowSize.x / 2.0f) - 1.0f) / XMVectorGetX(m_MatrixProjection.r[0]) };
+	float ViewSpaceRayDirectionY{ (-(MouseState.y / (m_WindowSize.y / 2.0f) - 1.0f)) / XMVectorGetY(m_MatrixProjection.r[1]) };
+	static float ViewSpaceRayDirectionZ{ 1.0f };
+
+	static XMVECTOR ViewSpaceRayOrigin{ XMVectorSet(0, 0, 0, 1) };
+	XMVECTOR ViewSpaceRayDirection{ XMVectorSet(ViewSpaceRayDirectionX, ViewSpaceRayDirectionY, ViewSpaceRayDirectionZ, 0) };
+
+	XMMATRIX MatrixViewInverse{ XMMatrixInverse(nullptr, m_MatrixView) };
+	m_PickingRayWorldSpaceOrigin = XMVector3TransformCoord(ViewSpaceRayOrigin, MatrixViewInverse);
+	m_PickingRayWorldSpaceDirection = XMVector3TransformNormal(ViewSpaceRayDirection, MatrixViewInverse);
+}
+
+void CGame::PickBoundingSphere()
+{
+	m_PtrPickedObject3D = nullptr;
+	m_PickedInstanceID = -1;
+
+	XMVECTOR T{ KVectorGreatest };
+	for (auto& i : m_vObject3Ds)
+	{
+		auto* Object3D{ i.get() };
+		if (Object3D->ComponentPhysics.bIsPickable)
+		{
+			if (Object3D->ComponentPhysics.bIgnoreBoundingSphere)
+			{
+				m_PtrPickedObject3D = Object3D;
+
+				if (PickTriangle())
+				{
+					break;
+				}
+				else
+				{
+					m_PtrPickedObject3D = nullptr;
+				}
+			}
+			else
+			{
+				if (Object3D->IsInstanced())
+				{
+					int InstanceCount{ (int)Object3D->GetInstanceCount() };
+					for (int iInstance = 0; iInstance < InstanceCount; ++iInstance)
+					{
+						auto& Instance{ Object3D->GetInstance(iInstance) };
+						XMVECTOR NewT{ KVectorGreatest };
+						if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
+							Object3D->ComponentPhysics.BoundingSphere.Radius, Instance.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
+						{
+							if (XMVector3Less(NewT, T))
+							{
+								T = NewT;
+								m_PtrPickedObject3D = Object3D;
+								m_PickedInstanceID = iInstance;
+							}
+						}
+					}
+				}
+				else
+				{
+					XMVECTOR NewT{ KVectorGreatest };
+					if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
+						Object3D->ComponentPhysics.BoundingSphere.Radius, Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
+					{
+						if (XMVector3Less(NewT, T))
+						{
+							T = NewT;
+							m_PtrPickedObject3D = Object3D;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+bool CGame::PickTriangle()
+{
+	XMVECTOR T{ KVectorGreatest };
+	if (m_PtrPickedObject3D)
+	{
+		// Pick only static models' triangle.
+		if (m_PtrPickedObject3D->GetModel().bIsModelAnimated) return false;
+
+		const XMMATRIX& WorldMatrix{ m_PtrPickedObject3D->ComponentTransform.MatrixWorld };
+		for (const SMesh& Mesh : m_PtrPickedObject3D->GetModel().vMeshes)
+		{
+			for (const STriangle& Triangle : Mesh.vTriangles)
+			{
+				XMVECTOR V0{ Mesh.vVertices[Triangle.I0].Position };
+				XMVECTOR V1{ Mesh.vVertices[Triangle.I1].Position };
+				XMVECTOR V2{ Mesh.vVertices[Triangle.I2].Position };
+				V0 = XMVector3TransformCoord(V0, WorldMatrix);
+				V1 = XMVector3TransformCoord(V1, WorldMatrix);
+				V2 = XMVector3TransformCoord(V2, WorldMatrix);
+
+				XMVECTOR NewT{};
+				if (IntersectRayTriangle(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, V0, V1, V2, &NewT))
+				{
+					if (XMVector3Less(NewT, T))
+					{
+						T = NewT;
+
+						XMVECTOR N{ CalculateTriangleNormal(V0, V1, V2) };
+
+						m_PickedTriangleV0 = V0 + N * 0.01f;
+						m_PickedTriangleV1 = V1 + N * 0.01f;
+						m_PickedTriangleV2 = V2 + N * 0.01f;
+
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
+void CGame::BeginRendering(const FLOAT* ClearColor)
+{
+	m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), Colors::CornflowerBlue);
+	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+	ID3D11SamplerState* SamplerState{ m_CommonStates->LinearWrap() };
+	m_DeviceContext->PSSetSamplers(0, 1, &SamplerState);
+	m_DeviceContext->DSSetSamplers(0, 1, &SamplerState); // @important: in order to use displacement mapping
+
+	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
+
+	SetUniversalRSState();
+
+	m_MatrixView = XMMatrixLookAtLH(m_vCameras[m_CurrentCameraIndex].GetEyePosition(), 
+		m_vCameras[m_CurrentCameraIndex].GetFocusPosition(),
+		m_vCameras[m_CurrentCameraIndex].GetUpDirection());
+}
+
+void CGame::Animate(float DeltaTime)
+{
+	for (auto& Object3D : m_vObject3Ds)
+	{
+		if (Object3D) Object3D->Animate(DeltaTime);
+	}
+}
+
+void CGame::Draw(float DeltaTime)
+{
+	m_CBEditorTimeData.NormalizedTime += DeltaTime;
+	m_CBEditorTimeData.NormalizedTimeHalfSpeed += DeltaTime * 0.5f;
+	if (m_CBEditorTimeData.NormalizedTime > 1.0f) m_CBEditorTimeData.NormalizedTime = 0.0f;
+	if (m_CBEditorTimeData.NormalizedTimeHalfSpeed > 1.0f) m_CBEditorTimeData.NormalizedTimeHalfSpeed = 0.0f;
+
+	m_CBWaterTimeData.Time += DeltaTime * 0.1f;
+	if (m_CBWaterTimeData.Time > 1.0f) m_CBWaterTimeData.Time = 0.0f;
+
+	m_CBTerrainData.Time = m_CBEditorTimeData.NormalizedTime;
+
+	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
+
+	m_CBLightData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
+
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawWireFrame))
+	{
+		m_eRasterizerState = ERasterizerState::WireFrame;
+	}
+	else
+	{
+		m_eRasterizerState = ERasterizerState::CullCounterClockwise;
+	}
+
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawMiniAxes))
+	{
+		DrawMiniAxes();
+	}
+
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawPickingData))
+	{
+		DrawPickingRay();
+
+		DrawPickedTriangle();
+	}
+
+	if (m_SkyData.bIsDataSet)
+	{
+		DrawSky(DeltaTime);
+	}
+
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
+	{
+		Draw3DGizmos();
+	}
+
+	DrawTerrain(DeltaTime);
+
+	DrawObject3DLines();
+
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals))
+	{
+		m_GSNormal->Use();
+		m_GSNormal->UpdateAllConstantBuffers();
+	}
+	for (auto& Object3D : m_vObject3Ds)
+	{
+		if (Object3D->ComponentRender.bIsTransparent) continue;
+
+		UpdateObject3D(Object3D.get());
+		DrawObject3D(Object3D.get());
+
+		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
+		{
+			DrawObject3DBoundingSphere(Object3D.get());
+		}
+	}
+
+	// Transparent Object3Ds
+	for (auto& Object3D : m_vObject3Ds)
+	{
+		if (!Object3D->ComponentRender.bIsTransparent) continue;
+
+		UpdateObject3D(Object3D.get());
+		DrawObject3D(Object3D.get());
+
+		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
+		{
+			DrawObject3DBoundingSphere(Object3D.get());
+		}
+	}
+	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
+
+	DrawObject2Ds();
+}
+
+void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
+{
+	if (!PtrObject3D) return;
+
+	PtrObject3D->UpdateWorldMatrix();
+	UpdateCBSpace(PtrObject3D->ComponentTransform.MatrixWorld);
+
+	SetUniversalbUseLighiting();
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoLighting))
+	{
+		m_cbPSBaseFlagsData.bUseLighting = FALSE;
+	}
+
+	m_cbPSBaseFlagsData.bUseTexture = TRUE;
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoTexture))
+	{
+		m_cbPSBaseFlagsData.bUseTexture = FALSE;
+	}
+
+	assert(PtrObject3D->ComponentRender.PtrVS);
+	assert(PtrObject3D->ComponentRender.PtrPS);
+	CShader* VS{ PtrObject3D->ComponentRender.PtrVS };
+	CShader* PS{ PtrObject3D->ComponentRender.PtrPS };
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::UseRawVertexColor))
+	{
+		PS = m_PSVertexColor.get();
+	}
+
+	VS->Use();
+	VS->UpdateAllConstantBuffers();
+	PS->Use();
+	PS->UpdateAllConstantBuffers();
+}
+
+void CGame::DrawObject3D(const CObject3D* const PtrObject3D)
+{
+	if (!PtrObject3D) return;
+
+	if (PtrObject3D->ShouldTessellate())
+	{
+		UpdateCBSpace();
+		m_CBCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
+
+		m_HSTerrain->UpdateAllConstantBuffers();
+		m_HSTerrain->Use();
+		m_DSTerrain->UpdateAllConstantBuffers();
+		m_DSTerrain->Use();
+	}
+
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoCulling))
+	{
+		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
+	}
+	else
+	{
+		SetUniversalRSState();
+	}
+
+	PtrObject3D->Draw();
+
+	if (PtrObject3D->ShouldTessellate())
+	{
+		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
+		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
+	}
+}
+
+void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
+{
+	m_VSBase->Use();
+
+	XMMATRIX Translation{ XMMatrixTranslationFromVector(PtrObject3D->ComponentTransform.Translation + 
+		PtrObject3D->ComponentPhysics.BoundingSphere.CenterOffset) };
+	XMMATRIX Scaling{ XMMatrixScaling(PtrObject3D->ComponentPhysics.BoundingSphere.Radius,
+		PtrObject3D->ComponentPhysics.BoundingSphere.Radius, PtrObject3D->ComponentPhysics.BoundingSphere.Radius) };
+	UpdateCBSpace(Scaling * Translation);
+	m_VSBase->UpdateConstantBuffer(0);
+
+	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
+
+	m_Object3DBoundingSphere->Draw();
+
+	SetUniversalRSState();
+}
+
+void CGame::DrawObject3DLines()
+{
+	m_VSLine->Use();
+	m_PSLine->Use();
+
+	for (auto& Object3DLine : m_vObject3DLines)
+	{
+		if (Object3DLine)
+		{
+			if (!Object3DLine->bIsVisible) continue;
+
+			Object3DLine->UpdateWorldMatrix();
+
+			m_CBSpaceWVPData.World = XMMatrixTranspose(Object3DLine->ComponentTransform.MatrixWorld);
+			m_CBSpaceWVPData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
+			m_VSLine->UpdateConstantBuffer(0);
+
+			Object3DLine->Draw();
+		}
+	}
+}
+
+void CGame::DrawObject2Ds()
+{
+	m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
+	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
+	
+	m_CBSpace2DData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
+
+	m_VSBase2D->Use();
+	m_PSBase2D->Use();
+
+	for (auto& Object2D : m_vObject2Ds)
+	{
+		if (Object2D)
+		{
+			if (!Object2D->bIsVisible) continue;
+
+			Object2D->UpdateWorldMatrix();
+			m_CBSpace2DData.World = XMMatrixTranspose(Object2D->ComponentTransform.MatrixWorld);
+			m_VSBase2D->UpdateConstantBuffer(0);
+
+			/*
+			if (GO2D->ComponentRender.PtrTexture)
+			{
+				GO2D->ComponentRender.PtrTexture->Use();
+				m_cbPS2DFlagsData.bUseTexture = TRUE;
+				m_PSBase2D->UpdateConstantBuffer(0);
+			}
+			else
+			{
+				m_cbPS2DFlagsData.bUseTexture = FALSE;
+				m_PSBase2D->UpdateConstantBuffer(0);
+			}
+			*/
+
+			Object2D->Draw();
+		}
+	}
+
+	m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
+}
+
+void CGame::DrawMiniAxes()
+{
+	m_DeviceContext->RSSetViewports(1, &m_vViewports[1]);
+
+	for (auto& Object3D : m_vObject3DMiniAxes)
+	{
+		UpdateObject3D(Object3D.get());
+		DrawObject3D(Object3D.get());
+
+		Object3D->ComponentTransform.Translation = 
+			m_vCameras[m_CurrentCameraIndex].GetEyePosition() +
+			m_vCameras[m_CurrentCameraIndex].GetForward();
+
+		Object3D->UpdateWorldMatrix();
+	}
+
+	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
+}
+
+void CGame::UpdatePickingRay()
+{
+	m_Object3DLinePickingRay->GetVertices().at(0).Position = m_PickingRayWorldSpaceOrigin;
+	m_Object3DLinePickingRay->GetVertices().at(1).Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
+	m_Object3DLinePickingRay->UpdateVertexBuffer();
+}
+
+void CGame::DrawPickingRay()
+{
+	m_VSLine->Use();
+	m_CBSpaceWVPData.World = XMMatrixTranspose(KMatrixIdentity);
+	m_CBSpaceWVPData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
+	m_VSLine->UpdateConstantBuffer(0);
+
+	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
+	
+	m_PSLine->Use();
+
+	m_Object3DLinePickingRay->Draw();
+}
+
+void CGame::DrawPickedTriangle()
+{
+	m_VSBase->Use();
+	m_CBSpaceWVPData.World = XMMatrixTranspose(KMatrixIdentity);
+	m_CBSpaceWVPData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
+	m_VSBase->UpdateConstantBuffer(0);
+
+	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
+	
+	m_PSVertexColor->Use();
+
+	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[0].Position = m_PickedTriangleV0;
+	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[1].Position = m_PickedTriangleV1;
+	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[2].Position = m_PickedTriangleV2;
+	m_Object3DPickedTriangle->UpdateMeshBuffer();
+
+	m_Object3DPickedTriangle->Draw();
+}
+
+void CGame::DrawSky(float DeltaTime)
+{
+	// Elapse SkyTime [0.0f, 1.0f]
+	m_CBSkyTimeData.SkyTime += KSkyTimeFactorAbsolute * DeltaTime;
+	if (m_CBSkyTimeData.SkyTime > 1.0f) m_CBSkyTimeData.SkyTime = 0.0f;
+
+	// Update directional light source position
+	static float DirectionalLightRoll{};
+	if (m_CBSkyTimeData.SkyTime <= 0.25f)
+	{
+		DirectionalLightRoll = XM_2PI * (m_CBSkyTimeData.SkyTime + 0.25f);
+	}
+	else if (m_CBSkyTimeData.SkyTime > 0.25f && m_CBSkyTimeData.SkyTime <= 0.75f)
+	{
+		DirectionalLightRoll = XM_2PI * (m_CBSkyTimeData.SkyTime - 0.25f);
+	}
+	else
+	{
+		DirectionalLightRoll = XM_2PI * (m_CBSkyTimeData.SkyTime - 0.75f);
+	}
+	XMVECTOR DirectionalLightSourcePosition{ XMVector3TransformCoord(XMVectorSet(1, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, DirectionalLightRoll)) };
+	SetDirectionalLight(DirectionalLightSourcePosition);
+
+	// SkySphere
+	{
+		m_Object3DSkySphere->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
+
+		UpdateObject3D(m_Object3DSkySphere.get());
+		DrawObject3D(m_Object3DSkySphere.get());
+	}
+
+	// Sun
+	{
+		float SunRoll{ XM_2PI * m_CBSkyTimeData.SkyTime - XM_PIDIV2 };
+		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, SunRoll)) };
+		m_Object3DSun->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
+		m_Object3DSun->ComponentTransform.Roll = SunRoll;
+
+		UpdateObject3D(m_Object3DSun.get());
+		DrawObject3D(m_Object3DSun.get());
+	}
+
+	// Moon
+	{
+		float MoonRoll{ XM_2PI * m_CBSkyTimeData.SkyTime + XM_PIDIV2 };
+		XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, MoonRoll)) };
+		m_Object3DMoon->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
+		m_Object3DMoon->ComponentTransform.Roll = (MoonRoll > XM_2PI) ? (MoonRoll - XM_2PI) : MoonRoll;
+
+		UpdateObject3D(m_Object3DMoon.get());
+		DrawObject3D(m_Object3DMoon.get());
+	}
+}
+
+void CGame::DrawTerrain(float DeltaTime)
+{
+	if (!m_Terrain) return;
+	
+	SetUniversalRSState();
+
+	SetUniversalbUseLighiting();
+
+	m_Terrain->UpdateWind(DeltaTime);
+
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain))
+	{
+		m_CBCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
+		m_CBTessFactorData.TessFactor = m_Terrain->GetTerrainTessFactor();
+		m_HSTerrain->UpdateAllConstantBuffers();
+		m_HSTerrain->Use();
+
+		m_CBSpaceVPData.ViewProjection = GetTransposedViewProjectionMatrix();
+		m_DSTerrain->UpdateAllConstantBuffers();
+		m_DSTerrain->Use();
+
+		m_Terrain->Draw(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals));
+
+		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
+		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
+	}
+	else
+	{
+		m_Terrain->Draw(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals));
+	}
+	
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainHeightMapTexture))
+	{
+		m_DeviceContext->RSSetViewports(1, &m_vViewports[2]);
+		m_Terrain->DrawHeightMapTexture();
+	}
+
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainMaskingTexture))
+	{
+		m_DeviceContext->RSSetViewports(1, &m_vViewports[3]);
+		m_Terrain->DrawMaskingTexture();
+	}
+
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainFoliagePlacingTexture))
+	{
+		m_DeviceContext->RSSetViewports(1, &m_vViewports[4]);
+		m_Terrain->DrawFoliagePlacingTexture();
+	}
+
+	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 }
 
 void CGame::Draw3DGizmos()
@@ -2691,52 +2723,23 @@ void CGame::Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight)
 
 	Gizmo->ComponentTransform.Scaling = XMVectorSet(Scalar, Scalar, Scalar, 0.0f);
 	Gizmo->UpdateWorldMatrix();
-	m_cbVSSpaceData.World = XMMatrixTranspose(Gizmo->ComponentTransform.MatrixWorld);
-	m_cbVSSpaceData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
+	m_CBSpaceWVPData.World = XMMatrixTranspose(Gizmo->ComponentTransform.MatrixWorld);
+	m_CBSpaceWVPData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
 	VS->UpdateConstantBuffer(0);
 	VS->Use();
 
 	if (bShouldHighlight)
 	{
-		m_cbPSGizmoColorFactorData.ColorFactor = XMVectorSet(1.0f, 1.0f, 1.0f, 0.95f);
+		m_CBGizmoColorFactorData.ColorFactor = XMVectorSet(1.25f, 1.25f, 1.25f, 0.95f);
 	}
 	else
 	{
-		m_cbPSGizmoColorFactorData.ColorFactor = XMVectorSet(0.75f, 0.75f, 0.75f, 0.75f);
+		m_CBGizmoColorFactorData.ColorFactor = XMVectorSet(0.75f, 0.75f, 0.75f, 0.75f);
 	}
 	PS->UpdateConstantBuffer(0);
 	PS->Use();
 
 	Gizmo->Draw();
-}
-
-void CGame::SetUniversalRSState()
-{
-	switch (m_eRasterizerState)
-	{
-	case ERasterizerState::CullNone:
-		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
-		break;
-	case ERasterizerState::CullClockwise:
-		m_DeviceContext->RSSetState(m_CommonStates->CullClockwise());
-		break;
-	case ERasterizerState::CullCounterClockwise:
-		m_DeviceContext->RSSetState(m_CommonStates->CullCounterClockwise());
-		break;
-	case ERasterizerState::WireFrame:
-		m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
-		break;
-	default:
-		break;
-	}
-}
-
-void CGame::SetUniversalbUseLighiting()
-{
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseLighting))
-	{
-		m_cbPSBaseFlagsData.bUseLighting = TRUE;
-	}
 }
 
 void CGame::EndRendering()
@@ -2765,7 +2768,7 @@ const XMFLOAT2& CGame::GetWindowSize() const
 
 float CGame::GetSkyTime() const
 {
-	return m_cbPSSkyTimeData.SkyTime;
+	return m_CBSkyTimeData.SkyTime;
 }
 
 XMMATRIX CGame::GetTransposedViewProjectionMatrix() const

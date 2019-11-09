@@ -5,6 +5,10 @@
 #include "ImGui/imgui_impl_win32.h"
 #include "ImGui/imgui_impl_dx11.h"
 
+using std::min;
+using std::vector;
+using std::string;
+using std::to_string;
 using std::chrono::steady_clock;
 
 static ImVec2 operator+(const ImVec2& a, const ImVec2& b)
@@ -17,9 +21,13 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
 {
-	CGame Game{ hInstance, XMFLOAT2(800, 600) };
-	Game.CreateWin32(WndProc, TEXT("Game Editor"), L"Asset\\dotumche_10_korean.spritefont", true);
-	
+	static constexpr XMFLOAT2 KGameWindowSize{ 1280.0f, 720.0f };
+	CGame Game{ hInstance, KGameWindowSize };
+
+	Game.CreateWin32(WndProc, TEXT("Game Editor"), true);
+	Game.CreateSpriteFont(L"Asset\\dotumche_10_korean.spritefont");
+	Game.SetMode(CGame::EMode::EditTerrain);
+
 	Game.SetAmbientlLight(XMFLOAT3(1, 1, 1), 0.2f);
 	Game.SetDirectionalLight(XMVectorSet(0, 1, 0, 0), XMVectorSet(1, 1, 1, 1));
 
@@ -31,7 +39,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	CCamera* MainCamera{ Game.AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
 	MainCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
 
-	//Game.SetSky("Asset\\Sky.xml", 30.0f);
+	Game.SetSky("Asset\\Sky.xml", 30.0f);
+	Game.UnsetSky();
 
 	Game.InsertObject3DLine("Grid");
 	{
@@ -135,6 +144,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			static long long PreviousFrameTime{};
 			static int FrameCount{};
 			static int CapturedFPS{};
+			static float CameraMovementFactor{ 10.0f };
 
 			Game.BeginRendering(Colors::CornflowerBlue);
 
@@ -152,19 +162,19 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			{
 				if (KeyState.W)
 				{
-					MainCamera->Move(CCamera::EMovementDirection::Forward, DeltaTimeF * 10.0f);
+					MainCamera->Move(CCamera::EMovementDirection::Forward, DeltaTimeF * CameraMovementFactor);
 				}
 				if (KeyState.S)
 				{
-					MainCamera->Move(CCamera::EMovementDirection::Backward, DeltaTimeF * 10.0f);
+					MainCamera->Move(CCamera::EMovementDirection::Backward, DeltaTimeF * CameraMovementFactor);
 				}
 				if (KeyState.A)
 				{
-					MainCamera->Move(CCamera::EMovementDirection::Leftward, DeltaTimeF * 10.0f);
+					MainCamera->Move(CCamera::EMovementDirection::Leftward, DeltaTimeF * CameraMovementFactor);
 				}
 				if (KeyState.D)
 				{
-					MainCamera->Move(CCamera::EMovementDirection::Rightward, DeltaTimeF * 10.0f);
+					MainCamera->Move(CCamera::EMovementDirection::Rightward, DeltaTimeF * CameraMovementFactor);
 				}
 				if (KeyState.D1)
 				{
@@ -263,10 +273,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 			ImGui::PushFont(igFont);
 
+			if (Game.GetMode() != CGame::EMode::Play)
 			{
 				static bool bShowPropertyEditor{ true };
 				static bool bShowSceneEditor{ true };
-				static bool bShowFPSWindow{ false };
 				static bool bShowTerrainGenerator{ false };
 				static bool bShowOpenFileDialog{ false };
 				static bool bShowSaveFileDialog{ false };
@@ -315,7 +325,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					{
 						ImGui::MenuItem(u8"속성 편집기", nullptr, &bShowPropertyEditor);
 						ImGui::MenuItem(u8"장면 편집기", nullptr, &bShowSceneEditor);
-						ImGui::MenuItem(u8"FPS 표시기", nullptr, &bShowFPSWindow);
 						
 						ImGui::EndMenu();
 					}
@@ -352,7 +361,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					ImGui::Text(u8"마스킹 디테일:");
 					ImGui::SameLine(120);
 					ImGui::SetNextItemWidth(80);
-					ImGui::DragInt("##2", &MaskingDetail, 1.0f, CTerrain::KMaskingMinDetail, CTerrain::KMaskingMaxDetail);
+					ImGui::SliderInt("##2", &MaskingDetail, CTerrain::KMaskingMinDetail, CTerrain::KMaskingMaxDetail);
 					
 					ImGui::Text(u8"스케일링:");
 					ImGui::SameLine(120);
@@ -370,7 +379,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						Game.CreateTerrain(TerrainSize, MaterialDefaultGround0, MaskingDetail, UniformScaling);
 						
 						CTerrain* const Terrain{ Game.GetTerrain() };
-						Game.SetEditMode(Game.GetEditMode(), true);
+						Game.SetMode(Game.GetMode(), true);
 						Terrain->SetEditMode(eTerrainEditMode);
 
 						SizeX = CTerrain::KDefaultSize;
@@ -396,12 +405,15 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				// ### 속성 편집기 윈도우 ###
 				if (bShowPropertyEditor)
 				{
-					ImGui::SetNextWindowPos(ImVec2(400, 22), ImGuiCond_Appearing);
-					ImGui::SetNextWindowSizeConstraints(ImVec2(400, 100), ImVec2(400, 578));
+					static constexpr float KInitialWindowWidth{ 400 };
+					ImGui::SetNextWindowPos(ImVec2(KGameWindowSize.x - KInitialWindowWidth, 21), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSize(ImVec2(KInitialWindowWidth, 0), ImGuiCond_Appearing);
+					ImGui::SetNextWindowSizeConstraints(
+						ImVec2(KGameWindowSize.x * 0.25f, KGameWindowSize.y), ImVec2(KGameWindowSize.x * 0.5f, KGameWindowSize.y));
 					
-					if (ImGui::Begin(u8"속성 편집기", &bShowPropertyEditor, ImGuiWindowFlags_AlwaysAutoResize))
+					if (ImGui::Begin(u8"속성 편집기", &bShowPropertyEditor, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar))
 					{
-						const float KWindowWidth{ ImGui::GetWindowWidth() };
+						float WindowWidth{ ImGui::GetWindowWidth() };
 
 						if (ImGui::BeginTabBar(u8"탭바", ImGuiTabBarFlags_None))
 						{
@@ -411,204 +423,229 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								static bool bShowAnimationEditor{ false };
 								static int iSelectedAnimationID{};
 
-								Game.SetEditMode(CGame::EEditMode::EditObject);
+								Game.SetMode(CGame::EMode::EditObject);
+
+								static constexpr float KLabelsWidth{ 200 };
+								static constexpr float KItemsMaxWidth{ 240 };
+								float ItemsWidth{ WindowWidth - KLabelsWidth };
+								ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
+								float ItemsOffsetX{ WindowWidth - ItemsWidth };
 
 								if (Game.IsAnyObject3DSelected())
 								{
-									CObject3D* const Object3D{ Game.GetSelectedObject3D() };
-
-									ImGui::Text(u8"선택된 오브젝트: <%s>", Game.GetSelectedObject3DName().c_str());
-
-									if (Object3D->IsInstanced())
+									ImGui::PushItemWidth(ItemsWidth);
 									{
-										int iSelectedInstance{ Game.GetSelectedInstanceID() };
-										if (iSelectedInstance == -1)
+										CObject3D* const Object3D{ Game.GetSelectedObject3D() };
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"선택된 오브젝트:");
+										ImGui::SameLine(ItemsOffsetX);
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"<%s>", Game.GetSelectedObject3DName().c_str());
+
+										ImGui::Separator();
+
+										if (Object3D->IsInstanced())
 										{
-											ImGui::Text(u8"<인스턴스를 선택해 주세요.>");
+											int iSelectedInstance{ Game.GetSelectedInstanceID() };
+											if (iSelectedInstance == -1)
+											{
+												ImGui::Text(u8"<인스턴스를 선택해 주세요.>");
+											}
+											else
+											{
+												auto& Instance{ Object3D->GetInstance(Game.GetSelectedInstanceID()) };
+
+												ImGui::AlignTextToFramePadding();
+												ImGui::Text(u8"선택된 인스턴스:");
+												ImGui::SameLine(ItemsOffsetX);
+												ImGui::AlignTextToFramePadding();
+												ImGui::Text(u8"<%s>", Instance.Name.c_str());
+
+												ImGui::Separator();
+
+												ImGui::AlignTextToFramePadding();
+												ImGui::Text(u8"위치");
+												ImGui::SameLine(ItemsOffsetX);
+												float Translation[3]{ XMVectorGetX(Instance.Translation),
+													XMVectorGetY(Instance.Translation), XMVectorGetZ(Instance.Translation) };
+												if (ImGui::DragFloat3(u8"##위치", Translation, CGame::KTranslationUnit,
+													CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.2f"))
+												{
+													Instance.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
+													Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
+												}
+
+												ImGui::AlignTextToFramePadding();
+												ImGui::Text(u8"회전");
+												ImGui::SameLine(ItemsOffsetX);
+												int PitchYawRoll360[3]{ (int)(Instance.Pitch * CGame::KRotation2PITo360),
+													(int)(Instance.Yaw * CGame::KRotation2PITo360),
+													(int)(Instance.Roll * CGame::KRotation2PITo360) };
+												if (ImGui::DragInt3(u8"##회전", PitchYawRoll360, CGame::KRotation360Unit,
+													CGame::KRotation360MinLimit, CGame::KRotation360MaxLimit))
+												{
+													Instance.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
+													Instance.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
+													Instance.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
+													Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
+												}
+
+												ImGui::AlignTextToFramePadding();
+												ImGui::Text(u8"크기");
+												ImGui::SameLine(ItemsOffsetX);
+												float Scaling[3]{ XMVectorGetX(Instance.Scaling),
+													XMVectorGetY(Instance.Scaling), XMVectorGetZ(Instance.Scaling) };
+												if (ImGui::DragFloat3(u8"##크기", Scaling, CGame::KScalingUnit,
+													CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.3f"))
+												{
+													Instance.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
+													Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
+												}
+											}
 										}
 										else
 										{
-											auto& Instance{ Object3D->GetInstance(Game.GetSelectedInstanceID()) };
-											ImGui::Text(u8"선택된 인스턴스: <%s>", Instance.Name.c_str());
+											// Non-instanced Object3D
 
 											ImGui::AlignTextToFramePadding();
 											ImGui::Text(u8"위치");
-											ImGui::SameLine(120);
-											float Translation[3]{ XMVectorGetX(Instance.Translation),
-												XMVectorGetY(Instance.Translation), XMVectorGetZ(Instance.Translation) };
+											ImGui::SameLine(ItemsOffsetX);
+											float Translation[3]{ XMVectorGetX(Object3D->ComponentTransform.Translation),
+											XMVectorGetY(Object3D->ComponentTransform.Translation), XMVectorGetZ(Object3D->ComponentTransform.Translation) };
 											if (ImGui::DragFloat3(u8"##위치", Translation, CGame::KTranslationUnit,
-												CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.1f"))
+												CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.2f"))
 											{
-												Instance.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
-												Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
+												Object3D->ComponentTransform.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
+												Object3D->UpdateWorldMatrix();
 											}
 
 											ImGui::AlignTextToFramePadding();
 											ImGui::Text(u8"회전");
-											ImGui::SameLine(120);
-											int PitchYawRoll360[3]{ (int)(Instance.Pitch * CGame::KRotation2PITo360),
-												(int)(Instance.Yaw * CGame::KRotation2PITo360),
-												(int)(Instance.Roll * CGame::KRotation2PITo360) };
+											ImGui::SameLine(ItemsOffsetX);
+											int PitchYawRoll360[3]{ (int)(Object3D->ComponentTransform.Pitch * CGame::KRotation2PITo360),
+												(int)(Object3D->ComponentTransform.Yaw * CGame::KRotation2PITo360),
+												(int)(Object3D->ComponentTransform.Roll * CGame::KRotation2PITo360) };
 											if (ImGui::DragInt3(u8"##회전", PitchYawRoll360, CGame::KRotation360Unit,
 												CGame::KRotation360MinLimit, CGame::KRotation360MaxLimit))
 											{
-												Instance.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
-												Instance.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
-												Instance.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
-												Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
+												Object3D->ComponentTransform.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
+												Object3D->ComponentTransform.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
+												Object3D->ComponentTransform.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
+												Object3D->UpdateWorldMatrix();
 											}
 
 											ImGui::AlignTextToFramePadding();
 											ImGui::Text(u8"크기");
-											ImGui::SameLine(120);
-											float Scaling[3]{ XMVectorGetX(Instance.Scaling),
-												XMVectorGetY(Instance.Scaling), XMVectorGetZ(Instance.Scaling) };
+											ImGui::SameLine(ItemsOffsetX);
+											float Scaling[3]{ XMVectorGetX(Object3D->ComponentTransform.Scaling),
+												XMVectorGetY(Object3D->ComponentTransform.Scaling), XMVectorGetZ(Object3D->ComponentTransform.Scaling) };
 											if (ImGui::DragFloat3(u8"##크기", Scaling, CGame::KScalingUnit,
 												CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.3f"))
 											{
-												Instance.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
-												Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
+												Object3D->ComponentTransform.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
+												Object3D->UpdateWorldMatrix();
 											}
 										}
-									}
-									else
-									{
-										// Non-instanced Object3D
 
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"위치");
-										ImGui::SameLine(120);
-										float Translation[3]{ XMVectorGetX(Object3D->ComponentTransform.Translation),
-										XMVectorGetY(Object3D->ComponentTransform.Translation), XMVectorGetZ(Object3D->ComponentTransform.Translation) };
-										if (ImGui::DragFloat3(u8"##위치", Translation, CGame::KTranslationUnit,
-											CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.1f"))
-										{
-											Object3D->ComponentTransform.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
-											Object3D->UpdateWorldMatrix();
-										}
-
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"회전");
-										ImGui::SameLine(120);
-										int PitchYawRoll360[3]{ (int)(Object3D->ComponentTransform.Pitch * CGame::KRotation2PITo360),
-											(int)(Object3D->ComponentTransform.Yaw * CGame::KRotation2PITo360),
-											(int)(Object3D->ComponentTransform.Roll * CGame::KRotation2PITo360) };
-										if (ImGui::DragInt3(u8"##회전", PitchYawRoll360, CGame::KRotation360Unit,
-											CGame::KRotation360MinLimit, CGame::KRotation360MaxLimit))
-										{
-											Object3D->ComponentTransform.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
-											Object3D->ComponentTransform.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
-											Object3D->ComponentTransform.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
-											Object3D->UpdateWorldMatrix();
-										}
-
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"크기");
-										ImGui::SameLine(120);
-										float Scaling[3]{ XMVectorGetX(Object3D->ComponentTransform.Scaling),
-											XMVectorGetY(Object3D->ComponentTransform.Scaling), XMVectorGetZ(Object3D->ComponentTransform.Scaling) };
-										if (ImGui::DragFloat3(u8"##크기", Scaling, CGame::KScalingUnit,
-											CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.3f"))
-										{
-											Object3D->ComponentTransform.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
-											Object3D->UpdateWorldMatrix();
-										}
-									}
-
-									ImGui::AlignTextToFramePadding();
-									ImGui::Text(u8"BS 중심");
-									ImGui::SameLine(120);
-									float BSCenterOffset[3]{
-										XMVectorGetX(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
-										XMVectorGetY(Object3D->ComponentPhysics.BoundingSphere.CenterOffset), 
-										XMVectorGetZ(Object3D->ComponentPhysics.BoundingSphere.CenterOffset) };
-									if (ImGui::DragFloat3(u8"##BS중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
-										CGame::KBSCenterOffsetMinLimit, CGame::KBSCenterOffsetMaxLimit, "%.2f"))
-									{
-										Object3D->ComponentPhysics.BoundingSphere.CenterOffset =
-											XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f);
-									}
-
-									ImGui::AlignTextToFramePadding();
-									ImGui::Text(u8"BS 반지름");
-									ImGui::SameLine(120);
-									float BSRadius{ Object3D->ComponentPhysics.BoundingSphere.Radius };
-									if (ImGui::DragFloat(u8"##BS반지름", &BSRadius, CGame::KBSRadiusUnit,
-										CGame::KBSRadiusMinLimit, CGame::KBSRadiusMaxLimit, "%.2f"))
-									{
-										Object3D->ComponentPhysics.BoundingSphere.Radius = BSRadius;
-									}
-
-									// Rigged model
-									if (Object3D->IsRiggedModel())
-									{
 										ImGui::Separator();
 
 										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"애니메이션 개수:");
-										ImGui::SameLine(150);
-										int AnimationCount{ Object3D->GetAnimationCount() };
-										ImGui::Text(u8"%d", AnimationCount);
-
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"애니메이션 ID");
-										ImGui::SameLine(150);
-										int AnimationID{ Object3D->GetAnimationID() };
-										if (ImGui::SliderInt(u8"##애니메이션 ID", &AnimationID, 0, Object3D->GetAnimationCount() - 1))
+										ImGui::Text(u8"BS 중심");
+										ImGui::SameLine(ItemsOffsetX);
+										float BSCenterOffset[3]{
+											XMVectorGetX(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
+											XMVectorGetY(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
+											XMVectorGetZ(Object3D->ComponentPhysics.BoundingSphere.CenterOffset) };
+										if (ImGui::DragFloat3(u8"##BS중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
+											CGame::KBSCenterOffsetMinLimit, CGame::KBSCenterOffsetMaxLimit, "%.2f"))
 										{
-											Object3D->SetAnimationID(AnimationID);
+											Object3D->ComponentPhysics.BoundingSphere.CenterOffset =
+												XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f);
 										}
 
 										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"애니메이션 목록");
-										
-										if (ImGui::Button(u8"추가")) bShowAnimationAdder = true;
-										
-										ImGui::SameLine();
-
-										if (ImGui::Button(u8"수정")) bShowAnimationEditor = true;
-
-										if (Object3D->CanBakeAnimationTexture())
+										ImGui::Text(u8"BS 반지름");
+										ImGui::SameLine(ItemsOffsetX);
+										float BSRadius{ Object3D->ComponentPhysics.BoundingSphere.Radius };
+										if (ImGui::DragFloat(u8"##BS반지름", &BSRadius, CGame::KBSRadiusUnit,
+											CGame::KBSRadiusMinLimit, CGame::KBSRadiusMaxLimit, "%.2f"))
 										{
+											Object3D->ComponentPhysics.BoundingSphere.Radius = BSRadius;
+										}
+
+										// Rigged model
+										if (Object3D->IsRiggedModel())
+										{
+											ImGui::Separator();
+
+											ImGui::AlignTextToFramePadding();
+											ImGui::Text(u8"애니메이션 개수:");
+											ImGui::SameLine(ItemsOffsetX);
+											int AnimationCount{ Object3D->GetAnimationCount() };
+											ImGui::Text(u8"%d", AnimationCount);
+
+											ImGui::AlignTextToFramePadding();
+											ImGui::Text(u8"애니메이션 ID");
+											ImGui::SameLine(ItemsOffsetX);
+											int AnimationID{ Object3D->GetAnimationID() };
+											if (ImGui::SliderInt(u8"##애니메이션 ID", &AnimationID, 0, Object3D->GetAnimationCount() - 1))
+											{
+												Object3D->SetAnimationID(AnimationID);
+											}
+
+											ImGui::AlignTextToFramePadding();
+											ImGui::Text(u8"애니메이션 목록");
+
+											if (ImGui::Button(u8"추가")) bShowAnimationAdder = true;
+
 											ImGui::SameLine();
 
-											if (ImGui::Button(u8"저장"))
+											if (ImGui::Button(u8"수정")) bShowAnimationEditor = true;
+
+											if (Object3D->CanBakeAnimationTexture())
+											{
+												ImGui::SameLine();
+
+												if (ImGui::Button(u8"저장"))
+												{
+													static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
+													if (FileDialog.SaveFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 저장", ".dds"))
+													{
+														Object3D->BakeAnimationTexture();
+														Object3D->SaveBakedAnimationTexture(FileDialog.GetFileName());
+													}
+												}
+											}
+
+											ImGui::SameLine();
+
+											if (ImGui::Button(u8"열기"))
 											{
 												static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
-												if (FileDialog.SaveFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 저장", ".dds"))
+												if (FileDialog.OpenFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 불러오기"))
 												{
-													Object3D->BakeAnimationTexture();
-													Object3D->SaveBakedAnimationTexture(FileDialog.GetFileName());
+													Object3D->LoadBakedAnimationTexture(FileDialog.GetFileName());
 												}
 											}
-										}
 
-										ImGui::SameLine();
-
-										if (ImGui::Button(u8"열기"))
-										{
-											static CFileDialog FileDialog{ Game.GetWorkingDirectory() };
-											if (FileDialog.OpenFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 불러오기"))
+											if (ImGui::ListBoxHeader(u8"##애니메이션 목록", ImVec2(WindowWidth, 0)))
 											{
-												Object3D->LoadBakedAnimationTexture(FileDialog.GetFileName());
-											}
-										}
-
-										if (ImGui::ListBoxHeader(u8"##애니메이션 목록", ImVec2(KWindowWidth, 0)))
-										{
-											for (int iAnimation = 0; iAnimation < AnimationCount; ++iAnimation)
-											{
-												ImGui::PushID(iAnimation);
-												if (ImGui::Selectable(Object3D->GetAnimationName(iAnimation).c_str(), (iAnimation == iSelectedAnimationID)))
+												for (int iAnimation = 0; iAnimation < AnimationCount; ++iAnimation)
 												{
-													iSelectedAnimationID = iAnimation;
+													ImGui::PushID(iAnimation);
+													if (ImGui::Selectable(Object3D->GetAnimationName(iAnimation).c_str(), (iAnimation == iSelectedAnimationID)))
+													{
+														iSelectedAnimationID = iAnimation;
+													}
+													ImGui::PopID();
 												}
-												ImGui::PopID();
-											}
 
-											ImGui::ListBoxFooter();
+												ImGui::ListBoxFooter();
+											}
 										}
 									}
+									ImGui::PopItemWidth();
 								}
 								else
 								{
@@ -646,7 +683,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									{
 										if (FileName[0] == '\0')
 										{
-											MessageBox(nullptr, "파일을 먼저 불러오세요.", "파일", MB_OK | MB_ICONEXCLAMATION);
+											MB_WARN("파일을 먼저 불러오세요.", "오류");
 										}
 										else
 										{
@@ -714,9 +751,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 							static bool bShowFoliageClusterGenerator{ false };
 							if (ImGui::BeginTabItem(u8"지형"))
 							{
-								const float KUniformItemsWidth{ 200 };
+								static constexpr float KLabelsWidth{ 200 };
+								static constexpr float KItemsMaxWidth{ 240 };
+								float ItemsWidth{ WindowWidth - KLabelsWidth };
+								ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
+								float ItemsOffsetX{ WindowWidth - ItemsWidth };
 
-								Game.SetEditMode(CGame::EEditMode::EditTerrain);
+								Game.SetMode(CGame::EMode::EditTerrain);
 
 								CTerrain* const Terrain{ Game.GetTerrain() };
 								if (Terrain)
@@ -727,25 +768,25 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 									const XMFLOAT2& KTerrainSize{ Terrain->GetSize() };
 									
-									ImGui::PushItemWidth(KUniformItemsWidth);
+									ImGui::PushItemWidth(ItemsWidth);
 									{
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"가로 x 세로:");
-										ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+										ImGui::SameLine(ItemsOffsetX);
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"%d x %d", (int)KTerrainSize.x, (int)KTerrainSize.y);
 
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"마스킹 디테일:");
-										ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+										ImGui::SameLine(ItemsOffsetX);
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"%d", Game.GetTerrain()->GetMaskingDetail());
 
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"지형 테셀레이션 계수");
-										ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+										ImGui::SameLine(ItemsOffsetX);
 										float TerrainTessFactor{ Terrain->GetTerrainTessFactor() };
-										if (ImGui::DragFloat(u8"##지형 테셀레이션 계수", &TerrainTessFactor, CTerrain::KTessFactorUnit,
+										if (ImGui::SliderFloat(u8"##지형 테셀레이션 계수", &TerrainTessFactor,
 											CTerrain::KTessFactorMin, CTerrain::KTessFactorMax, "%.1f"))
 										{
 											Terrain->SetTerrainTessFactor(TerrainTessFactor);
@@ -755,7 +796,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"물 그리기");
-										ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+										ImGui::SameLine(ItemsOffsetX);
 										bool bDrawWater{ Terrain->ShouldDrawWater() };
 										if (ImGui::Checkbox(u8"##물 그리기", &bDrawWater))
 										{
@@ -764,7 +805,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"물 높이");
-										ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+										ImGui::SameLine(ItemsOffsetX);
 										float WaterHeight{ Terrain->GetWaterHeight() };
 										if (ImGui::DragFloat(u8"##물 높이", &WaterHeight, CTerrain::KWaterHeightUnit,
 											CTerrain::KWaterMinHeight, CTerrain::KWaterMaxHeight, "%.1f"))
@@ -774,9 +815,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"물 테셀레이션 계수");
-										ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+										ImGui::SameLine(ItemsOffsetX);
 										float WaterTessFactor{ Terrain->GetWaterTessFactor() };
-										if (ImGui::DragFloat(u8"##물 테셀레이션 계수", &WaterTessFactor, CTerrain::KTessFactorUnit,
+										if (ImGui::SliderFloat(u8"##물 테셀레이션 계수", &WaterTessFactor,
 											CTerrain::KTessFactorMin, CTerrain::KTessFactorMax, "%.1f"))
 										{
 											Terrain->SetWaterTessFactor(WaterTessFactor);
@@ -814,7 +855,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										{
 											ImGui::AlignTextToFramePadding();
 											ImGui::Text(u8"지정할 높이");
-											ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+											ImGui::SameLine(ItemsOffsetX);
 											float TerrainSetHeightValue{ Terrain->GetSetHeightValue() };
 											if (ImGui::DragFloat(u8"##지정할 높이", &TerrainSetHeightValue, CTerrain::KHeightUnit,
 												CTerrain::KMinHeight, CTerrain::KMaxHeight, "%.1f"))
@@ -826,7 +867,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										{
 											ImGui::AlignTextToFramePadding();
 											ImGui::Text(u8"마스킹 레이어");
-											ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+											ImGui::SameLine(ItemsOffsetX);
 											int TerrainMaskingLayer{ (int)Terrain->GetMaskingLayer() };
 											if (ImGui::SliderInt(u8"##마스킹 레이어", &TerrainMaskingLayer, 0, CTerrain::KMaterialMaxCount - 2))
 											{
@@ -851,9 +892,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 											ImGui::AlignTextToFramePadding();
 											ImGui::Text(u8"마스킹 배합 비율");
-											ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+											ImGui::SameLine(ItemsOffsetX);
 											float TerrainMaskingRatio{ Terrain->GetMaskingRatio() };
-											if (ImGui::DragFloat(u8"##마스킹 배합 비율", &TerrainMaskingRatio, CTerrain::KMaskingRatioUnit,
+											if (ImGui::SliderFloat(u8"##마스킹 배합 비율", &TerrainMaskingRatio,
 												CTerrain::KMaskingMinRatio, CTerrain::KMaskingMaxRatio, "%.3f"))
 											{
 												Terrain->SetMaskingRatio(TerrainMaskingRatio);
@@ -861,9 +902,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 											ImGui::AlignTextToFramePadding();
 											ImGui::Text(u8"마스킹 감쇠");
-											ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+											ImGui::SameLine(ItemsOffsetX);
 											float TerrainMaskingAttenuation{ Terrain->GetMaskingAttenuation() };
-											if (ImGui::DragFloat(u8"##마스킹 감쇠", &TerrainMaskingAttenuation, CTerrain::KMaskingAttenuationUnit,
+											if (ImGui::SliderFloat(u8"##마스킹 감쇠", &TerrainMaskingAttenuation,
 												CTerrain::KMaskingMinAttenuation, CTerrain::KMaskingMaxAttenuation, "%.3f"))
 											{
 												Terrain->SetMaskingAttenuation(TerrainMaskingAttenuation);
@@ -873,32 +914,32 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										{
 											if (Terrain->HasFoliageCluster())
 											{
-												ImGui::SetCursorPosX(KWindowWidth - KUniformItemsWidth);
-												if (ImGui::Button(u8"초목 클러스터 재생성", ImVec2(KUniformItemsWidth, 0)))
+												ImGui::SetCursorPosX(ItemsOffsetX);
+												if (ImGui::Button(u8"초목 클러스터 재생성", ImVec2(ItemsWidth, 0)))
 												{
 													bShowFoliageClusterGenerator = true;
 												}
 
 												ImGui::AlignTextToFramePadding();
 												ImGui::Text(u8"초목 배치 디테일");
-												ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+												ImGui::SameLine(ItemsOffsetX);
 												ImGui::AlignTextToFramePadding();
 												ImGui::Text(u8"%d", Terrain->GetFoliagePlacingDetail());
 
 												ImGui::AlignTextToFramePadding();
 												ImGui::Text(u8"초목 밀도");
-												ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+												ImGui::SameLine(ItemsOffsetX);
 												float FoliageDenstiy{ Terrain->GetFoliageDenstiy() };
-												if (ImGui::DragFloat(u8"##초목밀도", &FoliageDenstiy, 0.01f, 0.0f, 1.0f, "%.2f"))
+												if (ImGui::SliderFloat(u8"##초목밀도", &FoliageDenstiy, 0.0f, 1.0f, "%.2f"))
 												{
 													Terrain->SetFoliageDensity(FoliageDenstiy);
 												}
 
 												ImGui::AlignTextToFramePadding();
 												ImGui::Text(u8"바람 속도");
-												ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+												ImGui::SameLine(ItemsOffsetX);
 												XMFLOAT3 WindVelocity{}; XMStoreFloat3(&WindVelocity, Terrain->GetWindVelocity());
-												if (ImGui::DragFloat3(u8"##바람속도", &WindVelocity.x, 0.01f,
+												if (ImGui::SliderFloat3(u8"##바람속도", &WindVelocity.x,
 													CTerrain::KMinWindVelocityElement, CTerrain::KMaxWindVelocityElement, "%.2f"))
 												{
 													Terrain->SetWindVelocity(WindVelocity);
@@ -906,17 +947,18 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 												ImGui::AlignTextToFramePadding();
 												ImGui::Text(u8"바람 반지름");
-												ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+												ImGui::SameLine(ItemsOffsetX);
 												float WindRadius{ Terrain->GetWindRadius() };
-												if (ImGui::DragFloat(u8"##바람반지름", &WindRadius, 0.01f, 0.1f, 10.0f, "%.2f"))
+												if (ImGui::SliderFloat(u8"##바람반지름", &WindRadius,
+													CTerrain::KMinWindRadius, CTerrain::KMaxWindRadius, "%.2f"))
 												{
 													Terrain->SetWindRadius(WindRadius);
 												}
 											}
 											else
 											{
-												ImGui::SetCursorPosX(KWindowWidth - KUniformItemsWidth);
-												if (ImGui::Button(u8"초목 클러스터 생성", ImVec2(KUniformItemsWidth, 0)))
+												ImGui::SetCursorPosX(ItemsOffsetX);
+												if (ImGui::Button(u8"초목 클러스터 생성", ImVec2(ItemsWidth, 0)))
 												{
 													bShowFoliageClusterGenerator = true;
 												}
@@ -925,9 +967,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"선택 반지름");
-										ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+										ImGui::SameLine(ItemsOffsetX);
 										float TerrainMaskingRadius{ Terrain->GetSelectionRadius() };
-										if (ImGui::DragFloat(u8"##선택 반지름", &TerrainMaskingRadius, CTerrain::KSelectionRadiusUnit,
+										if (ImGui::SliderFloat(u8"##선택 반지름", &TerrainMaskingRadius, 
 											CTerrain::KMinSelectionRadius, CTerrain::KMaxSelectionRadius, "%.1f"))
 										{
 											Terrain->SetSelectionRadius(TerrainMaskingRadius);
@@ -943,7 +985,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"현재 선택 위치:");
-										ImGui::SameLine(KWindowWidth - KUniformItemsWidth);
+										ImGui::SameLine(ItemsOffsetX);
 										ImGui::Text(u8"(%.2f, %.2f)", Terrain->GetSelectionPosition().x, Terrain->GetSelectionPosition().y);
 
 										ImGui::Separator();
@@ -1128,7 +1170,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								ImGui::EndPopup();
 							}
 
-
 							if (ImGui::BeginTabItem(u8"재질"))
 							{
 								ImGui::PushID(0);
@@ -1237,7 +1278,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 												if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 												{
 													Material->SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, FileDialog.GetRelativeFileName());
-													Game.LoadMaterial(pairMaterial.first);
+													Game.ReloadMaterial(pairMaterial.first);
 												}
 											}
 											ImGui::PopID();
@@ -1274,7 +1315,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 												if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 												{
 													Material->SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, FileDialog.GetRelativeFileName());
-													Game.LoadMaterial(pairMaterial.first);
+													Game.ReloadMaterial(pairMaterial.first);
 												}
 											}
 											ImGui::PopID();
@@ -1311,7 +1352,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 												if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 												{
 													Material->SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, FileDialog.GetRelativeFileName());
-													Game.LoadMaterial(pairMaterial.first);
+													Game.ReloadMaterial(pairMaterial.first);
 												}
 											}
 											ImGui::PopID();
@@ -1336,8 +1377,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 										{
 											if (mapMaterialList.find(NewName) != mapMaterialList.end())
 											{
-												MessageBox(nullptr, "이미 존재하는 이름입니다. 다른 이름을 골라 주세요.",
-													"이름 충돌", MB_OK | MB_ICONWARNING);
+												MB_WARN("이미 존재하는 이름입니다. 다른 이름을 골라 주세요.", "오류");
 											}
 											else
 											{
@@ -1363,60 +1403,104 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 								ImGui::EndTabItem();
 							}
 
-							if (ImGui::BeginTabItem(u8"조명"))
+							if (ImGui::BeginTabItem(u8"기타"))
 							{
 								const XMVECTOR& KDirectionalLightDirection{ Game.GetDirectionalLightDirection() };
 								float DirectionalLightDirection[3]{ XMVectorGetX(KDirectionalLightDirection), XMVectorGetY(KDirectionalLightDirection),
 									XMVectorGetZ(KDirectionalLightDirection) };
 
-								ImGui::SetNextItemWidth(180);
-								if (ImGui::DragFloat3(u8" Directional 위치", DirectionalLightDirection, 0.02f, -1.0f, +1.0f, "%.2f"))
-								{
-									Game.SetDirectionalLight(XMVectorSet(DirectionalLightDirection[0], DirectionalLightDirection[1],
-										DirectionalLightDirection[2], 0.0f));
-								}
-
-								XMFLOAT3 AmbientLightColor{ Game.GetAmbientLightColor() };
-								ImGui::SetNextItemWidth(180);
-								if (ImGui::DragFloat3(u8" Ambient 색상", &AmbientLightColor.x, 0.02f, 0.0f, +1.0f, "%.2f"))
-								{
-									Game.SetAmbientlLight(AmbientLightColor, Game.GetAmbientLightIntensity());
-								}
-
-								float AmbientLightIntensity{ Game.GetAmbientLightIntensity() };
-								ImGui::SetNextItemWidth(180);
-								if (ImGui::DragFloat(u8" Ambient 강도", &AmbientLightIntensity, 0.02f, 0.0f, +1.0f, "%.2f"))
-								{
-									Game.SetAmbientlLight(Game.GetAmbientLightColor(), AmbientLightIntensity);
-								}
-
-								ImGui::EndTabItem();
-							}
-
-							if (ImGui::BeginTabItem(u8"카메라"))
-							{
 								const XMVECTOR& KEyePosition{ MainCamera->GetEyePosition() };
 								float EyePosition[3]{ XMVectorGetX(KEyePosition), XMVectorGetY(KEyePosition), XMVectorGetZ(KEyePosition) };
 								float Pitch{ MainCamera->GetPitch() };
 								float Yaw{ MainCamera->GetYaw() };
 
-								ImGui::SetNextItemWidth(180);
-								if (ImGui::DragFloat3(u8"위치", EyePosition, 0.01f, -10000.0f, +10000.0f, "%.3f"))
+								static constexpr float KLabelsWidth{ 200 };
+								static constexpr float KItemsMaxWidth{ 240 };
+								float ItemsWidth{ WindowWidth - KLabelsWidth };
+								ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
+								float ItemsOffsetX{ WindowWidth - ItemsWidth };
+								ImGui::PushItemWidth(ItemsWidth);
 								{
-									MainCamera->SetEyePosition(XMVectorSet(EyePosition[0], EyePosition[1], EyePosition[2], 1.0f));
-								}
+									if (ImGui::TreeNodeEx(u8"조명", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen))
+									{
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Directional Light 위치");
+										ImGui::SameLine(ItemsOffsetX);
+										if (ImGui::DragFloat3(u8"##Directional Light 위치", DirectionalLightDirection, 0.02f, -1.0f, +1.0f, "%.2f"))
+										{
+											Game.SetDirectionalLight(XMVectorSet(DirectionalLightDirection[0], DirectionalLightDirection[1],
+												DirectionalLightDirection[2], 0.0f));
+										}
 
-								ImGui::SetNextItemWidth(180);
-								if (ImGui::DragFloat(u8"회전 Pitch", &Pitch, 0.01f, -10000.0f, +10000.0f, "%.3f"))
-								{
-									MainCamera->SetPitch(Pitch);
-								}
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Ambient Light 색상");
+										ImGui::SameLine(ItemsOffsetX);
+										XMFLOAT3 AmbientLightColor{ Game.GetAmbientLightColor() };
+										if (ImGui::DragFloat3(u8"##Ambient Light 색상", &AmbientLightColor.x, 0.02f, 0.0f, +1.0f, "%.2f"))
+										{
+											Game.SetAmbientlLight(AmbientLightColor, Game.GetAmbientLightIntensity());
+										}
 
-								ImGui::SetNextItemWidth(180);
-								if (ImGui::DragFloat(u8"회전 Yaw", &Yaw, 0.01f, -10000.0f, +10000.0f, "%.3f"))
-								{
-									MainCamera->SetYaw(Yaw);
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Ambient Light 강도");
+										ImGui::SameLine(ItemsOffsetX);
+										float AmbientLightIntensity{ Game.GetAmbientLightIntensity() };
+										if (ImGui::DragFloat(u8"##Ambient Light 강도", &AmbientLightIntensity, 0.02f, 0.0f, +1.0f, "%.2f"))
+										{
+											Game.SetAmbientlLight(Game.GetAmbientLightColor(), AmbientLightIntensity);
+										}
+
+										ImGui::TreePop();
+									}
+									
+									ImGui::Separator();
+									
+									if (ImGui::TreeNodeEx(u8"카메라", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen))
+									{
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"위치");
+										ImGui::SameLine(ItemsOffsetX);
+										if (ImGui::DragFloat3(u8"##위치", EyePosition, 0.01f, -10000.0f, +10000.0f, "%.3f"))
+										{
+											MainCamera->SetEyePosition(XMVectorSet(EyePosition[0], EyePosition[1], EyePosition[2], 1.0f));
+										}
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"회전 Pitch");
+										ImGui::SameLine(ItemsOffsetX);
+										if (ImGui::DragFloat(u8"##회전 Pitch", &Pitch, 0.01f, -10000.0f, +10000.0f, "%.3f"))
+										{
+											MainCamera->SetPitch(Pitch);
+										}
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"회전 Yaw");
+										ImGui::SameLine(ItemsOffsetX);
+										if (ImGui::DragFloat(u8"##회전 Yaw", &Yaw, 0.01f, -10000.0f, +10000.0f, "%.3f"))
+										{
+											MainCamera->SetYaw(Yaw);
+										}
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"카메라 이동 속도");
+										ImGui::SameLine(ItemsOffsetX);
+										ImGui::SliderFloat(u8"##카메라 이동 속도", &CameraMovementFactor, 1.0f, 100.0f, "%.0f");
+
+										ImGui::TreePop();
+									}
+
+									if (ImGui::TreeNodeEx(u8"FPS", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen))
+									{
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Frames per second:");
+										ImGui::SameLine(ItemsOffsetX);
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"%d", CapturedFPS);
+
+										ImGui::TreePop();
+									}
 								}
+								ImGui::PopItemWidth();
 
 								ImGui::EndTabItem();
 							}
@@ -1476,7 +1560,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 						// 오브젝트 제거
 						if (ImGui::Button(u8"오브젝트 제거"))
 						{
-							Game.EraseObject3D(Game.GetSelectedObject3DName());
+							Game.DeleteObject3D(Game.GetSelectedObject3DName());
 						}
 
 						ImGui::Separator();
@@ -1602,11 +1686,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					{
 						if (ModelFileNameWithPath[0] == 0)
 						{
-							MessageBox(nullptr, "모델을 불러오세요.", "모델 미지정", MB_OK | MB_ICONEXCLAMATION);
+							MB_WARN("모델을 불러오세요.", "오류");
 						}
 						else if (strlen(NewObejct3DName) == 0)
 						{
-							MessageBox(nullptr, "이름을 정하세요.", "이름 미지정", MB_OK | MB_ICONEXCLAMATION);
+							MB_WARN("이름을 정하세요.", "오류");
 						}
 						else
 						{
@@ -1645,18 +1729,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					}
 
 					ImGui::EndPopup();
-				}
-
-				// ### FPS 표시기 ###
-				if (bShowFPSWindow)
-				{
-					ImGui::SetNextWindowPos(ImVec2(120, 22), ImGuiCond_Appearing);
-					if (ImGui::Begin(u8"FPS 표시기", &bShowSceneEditor, ImGuiWindowFlags_AlwaysAutoResize))
-					{
-						ImGui::Text(u8"FPS: %d", CapturedFPS);
-
-						ImGui::End();
-					}
 				}
 			}
 

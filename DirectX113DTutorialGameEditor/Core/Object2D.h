@@ -26,12 +26,12 @@ class CObject2D
 public:
 	struct SData
 	{
-		vector<SVertex2D>	vVertices{};
-		vector<STriangle>	vTriangles{};
+		std::vector<SVertex2D>	vVertices{};
+		std::vector<STriangle>	vTriangles{};
 	};
 
 public:
-	CObject2D(const string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
+	CObject2D(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
 		m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
 	{
 		assert(m_PtrDevice);
@@ -83,7 +83,7 @@ private:
 	ID3D11DeviceContext* const	m_PtrDeviceContext{};
 
 private:
-	string						m_Name{};
+	std::string					m_Name{};
 	SData						m_Data{};
 
 	ComPtr<ID3D11Buffer>		m_VertexBuffer{};

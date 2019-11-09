@@ -1,6 +1,11 @@
 #include "ParticlePool.h"
 #include "Math.h"
 
+using std::max;
+using std::min;
+using std::string;
+using std::make_unique;
+
 void CParticlePool::Create(size_t MaxParticleCount)
 {
 	m_MaxParticleCount = MaxParticleCount;

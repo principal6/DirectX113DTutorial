@@ -1,30 +1,34 @@
 #include "BinaryFile.h"
 
+using std::string;
+using std::ifstream;
+using std::ofstream;
+
 CBinaryFile::~CBinaryFile()
 {
 	Close();
 }
 
-void CBinaryFile::OpenToRead(const std::string FileName)
+void CBinaryFile::OpenToRead(const string FileName)
 {
 	m_IFStream.close();
 
-	m_IFStream.open(FileName, std::ofstream::binary);
+	m_IFStream.open(FileName, ofstream::binary);
 	if (!m_IFStream.is_open())
 	{
-		MessageBox(nullptr, "파일을 열 수 없습니다.", "파일 열기 오류", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN("파일을 열 수 없습니다.", "파일 열기 실패");
 		return;
 	}
 }
 
-void CBinaryFile::OpenToWrite(const std::string FileName)
+void CBinaryFile::OpenToWrite(const string FileName)
 {
 	m_OFStream.close();
 
-	m_OFStream.open(FileName, std::ofstream::binary);
+	m_OFStream.open(FileName, ofstream::binary);
 	if (!m_OFStream.is_open())
 	{
-		MessageBox(nullptr, "파일을 열 수 없습니다.", "파일 열기 오류", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN("파일을 열 수 없습니다.", "파일 열기 실패");
 		return;
 	}
 }
@@ -107,16 +111,16 @@ void CBinaryFile::WriteXMVECTOR(const XMVECTOR& Value)
 	m_OFStream.write((const char*)&Value, sizeof(XMVECTOR));
 }
 
-void CBinaryFile::WriteString(const std::string& Value)
+void CBinaryFile::WriteString(const string& Value)
 {
 	if (!m_OFStream.is_open()) return;
 	m_OFStream.write(Value.c_str(), Value.length());
 }
 
-void CBinaryFile::WriteString(const std::string& Value, int32_t Length)
+void CBinaryFile::WriteString(const string& Value, int32_t Length)
 {
 	if (!m_OFStream.is_open()) return;
-	std::string Resized{ Value };
+	string Resized{ Value };
 	Resized.resize(Length);
 	m_OFStream.write(Resized.c_str(), Length);
 }
@@ -244,13 +248,13 @@ XMVECTOR CBinaryFile::ReadXMVECTOR()
 	return Result;
 }
 
-std::string CBinaryFile::ReadString(int32_t Length)
+string CBinaryFile::ReadString(int32_t Length)
 {
 	char* DString{ new char[Length]{} };
 
 	m_IFStream.read(DString, Length);
 
-	std::string Result{ DString };
+	string Result{ DString };
 	
 	delete[] DString;
 	DString = nullptr;

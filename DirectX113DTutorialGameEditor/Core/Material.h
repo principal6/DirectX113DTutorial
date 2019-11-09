@@ -54,11 +54,11 @@ public:
 		~CTexture() {}
 
 	public:
-		void CreateTextureFromFile(const string& FileName, bool bShouldGenerateMipMap);
-		void CreateTextureFromMemory(const vector<uint8_t>& RawData, bool bShouldGenerateMipMap);
+		void CreateTextureFromFile(const std::string& FileName, bool bShouldGenerateMipMap);
+		void CreateTextureFromMemory(const std::vector<uint8_t>& RawData, bool bShouldGenerateMipMap);
 		void CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize);
 
-		void SaveToDDSFile(const string& FileName);
+		void SaveToDDSFile(const std::string& FileName);
 		
 	private:
 		void UpdateTextureSize();
@@ -73,7 +73,7 @@ public:
 
 	public:
 		bool IsCreated() const { return m_bIsCreated; }
-		const string& GetFileName() const { return m_FileName; }
+		const std::string& GetFileName() const { return m_FileName; }
 		const XMFLOAT2& GetTextureSize() const { return m_TextureSize; }
 		ID3D11Texture2D* GetTexture2DPtr() const { return m_Texture2D.Get(); }
 		ID3D11ShaderResourceView* GetShaderResourceViewPtr() { return m_ShaderResourceView.Get(); }
@@ -83,7 +83,7 @@ public:
 		ID3D11DeviceContext* const			m_PtrDeviceContext{};
 
 	private:
-		string								m_FileName{};
+		std::string							m_FileName{};
 		XMFLOAT2							m_TextureSize{};
 		UINT								m_Slot{};
 		EShaderType							m_eShaderType{ EShaderType::PixelShader };
@@ -138,11 +138,11 @@ public:
 	}
 
 public:
-	void SetName(const string& Name);
+	void SetName(const std::string& Name);
 	void SetIndex(size_t Index);
 
-	void SetTextureRawData(CTexture::EType eType, const vector<uint8_t>& Data);
-	void SetTextureFileName(CTexture::EType eType, const string& FileName);
+	void SetTextureRawData(CTexture::EType eType, const std::vector<uint8_t>& Data);
+	void SetTextureFileName(CTexture::EType eType, const std::string& FileName);
 
 	void CreateTextures(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext);
 	void UseTextures() const;
@@ -159,14 +159,14 @@ public:
 	void SetSpecularIntensity(float Intensity);
 
 public:
-	const string& GetName() const { return m_Name; }
+	const std::string& GetName() const { return m_Name; }
 	bool HasTexture() const { return m_bHasTexture; }
 
 	void ClearEmbeddedTextureData(CTexture::EType eType);
 	bool HasTexture(CTexture::EType eType) const;
 	bool IsTextureEmbedded(CTexture::EType eType) const;
-	const string& GetTextureFileName(CTexture::EType eType) const;
-	const vector<uint8_t>& GetTextureRawData(CTexture::EType eType) const;
+	const std::string& GetTextureFileName(CTexture::EType eType) const;
+	const std::vector<uint8_t>& GetTextureRawData(CTexture::EType eType) const;
 
 	void ShouldGenerateAutoMipMap(bool Value) { m_bShouldGenerateAutoMipMap = Value; }
 	bool ShouldGenerateAutoMipMap() const { return m_bShouldGenerateAutoMipMap; }
@@ -184,7 +184,7 @@ public:
 	static constexpr UINT	KDisplacementTextureSlotOffset{ 0 }; // DS
 
 private:
-	string			m_Name{};
+	std::string		m_Name{};
 	size_t			m_Index{};
 
 private:
@@ -196,25 +196,25 @@ private:
 
 	bool			m_bHasTexture{ false };
 
-	bool			m_bHasDiffuseTexture{ false };
-	string			m_DiffuseTextureFileName{};
-	vector<uint8_t>	m_vEmbeddedDiffuseTextureRawData{};
-	unique_ptr<CMaterial::CTexture>	m_DiffuseTexture{};
+	bool									m_bHasDiffuseTexture{ false };
+	std::string								m_DiffuseTextureFileName{};
+	std::vector<uint8_t>					m_vEmbeddedDiffuseTextureRawData{};
+	std::unique_ptr<CMaterial::CTexture>	m_DiffuseTexture{};
 
-	bool			m_bHasNormalTexture{ false };
-	string			m_NormalTextureFileName{};
-	vector<uint8_t>	m_vEmbeddedNormalTextureRawData{};
-	unique_ptr<CMaterial::CTexture>	m_NormalTexture{};
+	bool									m_bHasNormalTexture{ false };
+	std::string								m_NormalTextureFileName{};
+	std::vector<uint8_t>					m_vEmbeddedNormalTextureRawData{};
+	std::unique_ptr<CMaterial::CTexture>	m_NormalTexture{};
 
-	bool			m_bHasDisplacementTexture{ false };
-	string			m_DisplacementTextureFileName{};
-	vector<uint8_t>	m_vEmbeddedDisplacementTextureRawData{};
-	unique_ptr<CMaterial::CTexture>	m_DisplacementTexture{};
+	bool									m_bHasDisplacementTexture{ false };
+	std::string								m_DisplacementTextureFileName{};
+	std::vector<uint8_t>					m_vEmbeddedDisplacementTextureRawData{};
+	std::unique_ptr<CMaterial::CTexture>	m_DisplacementTexture{};
 
-	bool			m_bHasOpacityTexture{ false };
-	string			m_OpacityTextureFileName{};
-	vector<uint8_t>	m_vEmbeddedOpacityTextureRawData{};
-	unique_ptr<CMaterial::CTexture>	m_OpacityTexture{};
+	bool									m_bHasOpacityTexture{ false };
+	std::string								m_OpacityTextureFileName{};
+	std::vector<uint8_t>					m_vEmbeddedOpacityTextureRawData{};
+	std::unique_ptr<CMaterial::CTexture>	m_OpacityTexture{};
 	
 	bool			m_bShouldGenerateAutoMipMap{};
 };

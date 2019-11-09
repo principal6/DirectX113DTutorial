@@ -12,7 +12,7 @@ cbuffer cbFlags : register(b0)
 	bool2 Pads;
 }
 
-cbuffer cbLights : register(b1)
+cbuffer cbLight : register(b1)
 {
 	float4	DirectionalLightDirection;
 	float4	DirectionalLightColor;

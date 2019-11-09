@@ -1,5 +1,8 @@
 #include "Object3DLine.h"
 
+using std::vector;
+using std::string;
+
 void CObject3DLine::Create(const vector<SVertex3DLine>& vVertices)
 {
 	m_vVertices = vVertices;

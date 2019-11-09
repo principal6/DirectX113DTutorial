@@ -53,123 +53,118 @@ enum class EBaseShader
 	PSHeightMap2D
 };
 
-struct SCBVS2DSpaceData
-{
-	XMMATRIX	World{};
-	XMMATRIX	Projection{};
-};
-
-struct SCBVSSpaceData
-{
-	XMMATRIX	World{};
-	XMMATRIX	ViewProjection{};
-};
-
-struct SCBAnimationBonesData
-{
-	XMMATRIX	BoneMatrices[KMaxBoneMatrixCount]{};
-};
-
-struct SCBHSCameraData
-{
-	XMVECTOR	EyePosition{};
-};
-
-struct SCBHSTessFactorData
-{
-	float		TessFactor{};
-	float		Pads[3]{};
-};
-
-struct SCBDSSpaceData
-{
-	XMMATRIX	ViewProjection{};
-};
-
-struct SCBDSDisplacementData
-{
-	BOOL		bUseDisplacement{};
-	float		Pads[3]{};
-};
-
-struct SCBGSSpaceData
-{
-	XMMATRIX	ViewProjection{};
-};
-
 enum class EFlagPSBase2D
 {
 	UseTexture
 };
 
-struct SCBPSBaseFlagsData
-{
-	BOOL		bUseTexture{};
-	BOOL		bUseLighting{};
-	BOOL		Pads[2]{};
-};
-
-struct SCBPSLightsData
-{
-	XMVECTOR	DirectionalLightDirection{ XMVectorSet(0, 1, 0, 0) };
-	XMVECTOR	DirectionalLightColor{ XMVectorSet(1, 1, 1, 1) };
-	XMFLOAT3	AmbientLightColor{ 1, 1, 1 };
-	float		AmbientLightIntensity{ 0.5f };
-	XMVECTOR	EyePosition{};
-};
-
-struct SCBMaterialData
-{
-	XMFLOAT3	MaterialAmbient{};
-	float		SpecularExponent{ 1 };
-	XMFLOAT3	MaterialDiffuse{};
-	float		SpecularIntensity{ 0 };
-	XMFLOAT3	MaterialSpecular{};
-	BOOL		bHasDiffuseTexture{};
-
-	BOOL		bHasNormalTexture{};
-	BOOL		bHasOpacityTexture{};
-	BOOL		Pad[2]{};
-};
-
-struct SCBPSSkyTimeData
-{
-	float		SkyTime{};
-	float		Pads[3]{};
-};
-
-struct SCBPSGizmoColorFactorData
-{
-	XMVECTOR	ColorFactor{};
-};
-
-struct SCBPSTerrainSpaceData
-{
-	XMMATRIX	Matrix{};
-};
-
-struct SCBPS2DFlagsData
-{
-	BOOL		bUseTexture{};
-	BOOL		Pad[3]{};
-};
-
-struct SCBWaterTimeData
-{
-	float		Time{};
-	float		Pads[3]{};
-};
-
-struct SCBEditorTimeData
-{
-	float		NormalizedTime{};
-	float		NormalizedTimeHalfSpeed{};
-	float		Pads[2]{};
-};
-
 class CGame
 {
 public:
+	struct SCBSpaceWVPData
+	{
+		XMMATRIX	World{};
+		XMMATRIX	ViewProjection{};
+	};
+
+	struct SCBSpaceVPData
+	{
+		XMMATRIX	ViewProjection{};
+	};
+
+	struct SCBSpace2DData
+	{
+		XMMATRIX	World{};
+		XMMATRIX	Projection{};
+	};
+
+	struct SCBAnimationBonesData
+	{
+		XMMATRIX	BoneMatrices[KMaxBoneMatrixCount]{};
+	};
+
+	struct SCBCameraData
+	{
+		XMVECTOR	EyePosition{};
+	};
+
+	struct SCBTessFactorData
+	{
+		float		TessFactor{};
+		float		Pads[3]{};
+	};
+
+	struct SCBDisplacementData
+	{
+		BOOL		bUseDisplacement{};
+		float		Pads[3]{};
+	};
+
+	struct SCBPSBaseFlagsData
+	{
+		BOOL		bUseTexture{};
+		BOOL		bUseLighting{};
+		BOOL		Pads[2]{};
+	};
+
+	struct SCBLightData
+	{
+		XMVECTOR	DirectionalLightDirection{ XMVectorSet(0, 1, 0, 0) };
+		XMVECTOR	DirectionalLightColor{ XMVectorSet(1, 1, 1, 1) };
+		XMFLOAT3	AmbientLightColor{ 1, 1, 1 };
+		float		AmbientLightIntensity{ 0.5f };
+		XMVECTOR	EyePosition{};
+	};
+
+	struct SCBMaterialData
+	{
+		XMFLOAT3	MaterialAmbient{};
+		float		SpecularExponent{ 1 };
+		XMFLOAT3	MaterialDiffuse{};
+		float		SpecularIntensity{ 0 };
+		XMFLOAT3	MaterialSpecular{};
+		BOOL		bHasDiffuseTexture{};
+
+		BOOL		bHasNormalTexture{};
+		BOOL		bHasOpacityTexture{};
+		BOOL		Pad[2]{};
+	};
+
+	struct SCBSkyTimeData
+	{
+		float		SkyTime{};
+		float		Pads[3]{};
+	};
+
+	struct SCBGizmoColorFactorData
+	{
+		XMVECTOR	ColorFactor{};
+	};
+
+	struct SCBTerrainMaskingSpaceData
+	{
+		XMMATRIX	Matrix{};
+	};
+
+	struct SCBPS2DFlagsData
+	{
+		BOOL		bUseTexture{};
+		BOOL		Pad[3]{};
+	};
+
+	struct SCBWaterTimeData
+	{
+		float		Time{};
+		float		Pads[3]{};
+	};
+
+	struct SCBEditorTimeData
+	{
+		float		NormalizedTime{};
+		float		NormalizedTimeHalfSpeed{};
+		float		Pads[2]{};
+	};
+
 	enum class EFlagsRendering
 	{
 		None = 0x000,
@@ -209,8 +204,9 @@ public:
 		AxisZ
 	};
 
-	enum class EEditMode
+	enum class EMode
 	{
+		Play,
 		EditObject,
 		EditTerrain
 	};
@@ -225,7 +221,7 @@ public:
 		};
 
 		bool			bIsDataSet{ false };
-		string			TextureFileName{};
+		std::string		TextureFileName{};
 		SSkyObjectData	Sun{};
 		SSkyObjectData	Moon{};
 		SSkyObjectData	Cloud{};
@@ -236,15 +232,13 @@ public:
 	~CGame() {}
 
 public:
-	void CreateWin32(WNDPROC const WndProc, LPCTSTR const WindowName, const wstring& FontFileName, bool bWindowed);
+	void CreateWin32(WNDPROC const WndProc, const std::string& WindowName, bool bWindowed);
+	void CreateSpriteFont(const std::wstring& FontFileName);
 	void Destroy();
 
-	void LoadScene(const string& FileName);
-	void SaveScene(const string& FileName);
-
 private:
-	void CreateWin32Window(WNDPROC const WndProc, LPCTSTR const WindowName);
-	void InitializeDirectX(const wstring& FontFileName, bool bWindowed);
+	void CreateWin32Window(WNDPROC const WndProc, const std::string& WindowName);
+	void InitializeDirectX(bool bWindowed);
 
 private:
 	void CreateSwapChain(bool bWindowed);
@@ -260,6 +254,10 @@ private:
 	void CreatePickedTriangle();
 	void Create3DGizmos();
 
+public:
+	void LoadScene(const std::string& FileName);
+	void SaveScene(const std::string& FileName);
+
 // Advanced settings
 public:
 	void SetPerspective(float FOV, float NearZ, float FarZ);
@@ -268,23 +266,19 @@ public:
 	void Set3DGizmoMode(E3DGizmoMode Mode);
 	void SetUniversalRSState();
 	void SetUniversalbUseLighiting();
-	E3DGizmoMode Get3DGizmoMode() { return m_e3DGizmoMode; }
-	CommonStates* GetCommonStates() { return m_CommonStates.get(); }
+	E3DGizmoMode Get3DGizmoMode() const { return m_e3DGizmoMode; }
+	CommonStates* GetCommonStates() const { return m_CommonStates.get(); }
 
 // Shader-related settings
 public:
-	void UpdateVSSpace(const XMMATRIX& World);
-	void UpdateVS2DSpace(const XMMATRIX& World);
+	void UpdateCBSpace(const XMMATRIX& World = KMatrixIdentity);
 	void UpdateCBAnimationBoneMatrices(const XMMATRIX* const BoneMatrices);
 	void UpdateCBAnimationData(const CObject3D::SCBAnimationData& Data);
 	void UpdateCBTerrainData(const CTerrain::SCBTerrainData& Data);
 	void UpdateCBWindData(const CTerrain::SCBWindData& Data);
 
-	void UpdateHSTessFactor(float TessFactor);
-
-	void UpdateDSDisplacementData(bool bUseDisplacement);
-
-	void UpdateGSSpace();
+	void UpdateCBTessFactor(float TessFactor);
+	void UpdateCBDisplacementData(bool bUseDisplacement);
 
 	void UpdateCBMaterial(const CMaterial& Material);
 	void UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix);
@@ -293,8 +287,13 @@ public:
 	void UpdatePSBase2DFlagOff(EFlagPSBase2D Flag);
 
 public:
-	void SetSky(const string& SkyDataFileName, float ScalingFactor);
+	void SetSky(const std::string& SkyDataFileName, float ScalingFactor);
+	void UnsetSky();
+
+private:
+	void LoadSkyObjectData(const tinyxml2::XMLElement* const xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
 	
+public:
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition);
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color);
 	const XMVECTOR& GetDirectionalLightDirection() const;
@@ -305,75 +304,75 @@ public:
 
 public:
 	void CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, uint32_t MaskingDetail, float UniformScaling);
-	void LoadTerrain(const string& TerrainFileName);
-	void SaveTerrain(const string& TerrainFileName);
+	void LoadTerrain(const std::string& TerrainFileName);
+	void SaveTerrain(const std::string& TerrainFileName);
 	void AddTerrainMaterial(const CMaterial& Material);
 	void SetTerrainMaterial(int MaterialID, const CMaterial& Material);
 	CTerrain* GetTerrain() const { return m_Terrain.get(); }
-
-private:
-	void LoadSkyObjectData(const tinyxml2::XMLElement* const xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
 
 // Object pool
 public:
 	CCamera* AddCamera(const CCamera::SCameraData& CameraData);
 	CCamera* GetCamera(size_t Index);
 
-	CShader* AddShader();
-	CShader* GetShader(size_t Index) const;
+	CShader* AddCustomShader();
+	CShader* GetCustomShader(size_t Index) const;
 	CShader* GetBaseShader(EBaseShader eShader) const;
 
-	void InsertObject3D(const string& Name);
-	void EraseObject3D(const string& Name);
+	void InsertObject3D(const std::string& Name);
+	void DeleteObject3D(const std::string& Name);
 	void ClearObject3Ds();
-	CObject3D* GetObject3D(const string& Name) const;
-	const map<string, size_t>& GetObject3DMap() const { return m_mapObject3DNameToIndex; }
+	CObject3D* GetObject3D(const std::string& Name) const;
+	const std::map<std::string, size_t>& GetObject3DMap() const { return m_mapObject3DNameToIndex; }
 
-	void InsertObject3DLine(const string& Name);
-	CObject3DLine* GetObject3DLine(const string& Name) const;
+	void InsertObject3DLine(const std::string& Name);
+	CObject3DLine* GetObject3DLine(const std::string& Name) const;
 
-	void InsertObject2D(const string& Name);
-	CObject2D* GetObject2D(const string& Name) const;
+	void InsertObject2D(const std::string& Name);
+	CObject2D* GetObject2D(const std::string& Name) const;
 
 	CMaterial* AddMaterial(const CMaterial& Material);
-	CMaterial* GetMaterial(const string& Name) const;
+	CMaterial* GetMaterial(const std::string& Name) const;
 	void ClearMaterials();
 	size_t GetMaterialCount() const;
-	void ChangeMaterialName(const string& OldName, const string& NewName);
-	void LoadMaterial(const string& Name);
-	const map<string, size_t>& GetMaterialMap() const { return m_mapMaterialNameToIndex; }
-	CMaterial::CTexture* GetMaterialTexture(CMaterial::CTexture::EType eType, const string& Name) const;
+	void ChangeMaterialName(const std::string& OldName, const std::string& NewName);
+	void ReloadMaterial(const std::string& Name);
+	const std::map<std::string, size_t>& GetMaterialMap() const { return m_mapMaterialNameToIndex; }
+	CMaterial::CTexture* GetMaterialTexture(CMaterial::CTexture::EType eType, const std::string& Name) const;
 
 private:
 	void CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& Material);
 
 public:
-	void SetEditMode(EEditMode Mode, bool bForcedSet = false);
-	EEditMode GetEditMode() const { return m_eEditMode; }
+	void SetMode(EMode eMode, bool bForcedSet = false);
+	EMode GetMode() const { return m_eMode; }
 
+public:
 	bool Pick();
-	void SelectObject3D(const string& Name);
+	const std::string& GetPickedObject3DName() const;
+	int GetPickedInstanceID() const;
+
+	void SelectObject3D(const std::string& Name);
 	void DeselectObject3D();
 	bool IsAnyObject3DSelected() const;
-	const string& GetPickedObject3DName() const;
 	CObject3D* GetSelectedObject3D();
-	const string& GetSelectedObject3DName() const;
+	const std::string& GetSelectedObject3DName() const;
 	
 	void SelectInstance(int InstanceID);
 	void DeselectInstance();
 	bool IsAnyInstanceSelected() const;
-	int GetPickedInstanceID() const;
 	int GetSelectedInstanceID() const;
 
+	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
+
 	void Interact3DGizmos();
+	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
+	bool ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
 
 private:
 	void CastPickingRay();
 	void PickBoundingSphere();
 	bool PickTriangle();
-
-public:
-	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
 
 public:
 	void BeginRendering(const FLOAT* ClearColor);
@@ -382,19 +381,19 @@ public:
 	void EndRendering();
 
 public:
-	HWND GethWnd() const { return m_hWnd; }
-	ID3D11Device* GetDevicePtr() const { return m_Device.Get(); }
-	ID3D11DeviceContext* GetDeviceContextPtr() const { return m_DeviceContext.Get(); }
-	Keyboard::State GetKeyState() const;
-	Mouse::State GetMouseState() const;
-	SpriteBatch* GetSpriteBatchPtr() const { return m_SpriteBatch.get(); }
-	SpriteFont* GetSpriteFontPtr() const { return m_SpriteFont.get(); }
-	const XMFLOAT2& GetWindowSize() const;
-	float GetSkyTime() const;
-	XMMATRIX GetTransposedViewProjectionMatrix() const;
-	ID3D11DepthStencilState* GetDepthStencilStateLessEqualNoWrite() const { return m_DepthStencilStateLessEqualNoWrite.Get(); }
-	ID3D11BlendState* GetBlendStateAlphaToCoverage() const { return m_BlendAlphaToCoverage.Get(); }
-	const char* GetWorkingDirectory() const { return m_WorkingDirectory; }
+	auto GethWnd() const->HWND { return m_hWnd; }
+	auto GetDevicePtr() const->ID3D11Device* { return m_Device.Get(); }
+	auto GetDeviceContextPtr() const->ID3D11DeviceContext* { return m_DeviceContext.Get(); }
+	auto GetKeyState() const->Keyboard::State;
+	auto GetMouseState() const->Mouse::State;
+	auto GetSpriteBatchPtr() const->SpriteBatch* { return m_SpriteBatch.get(); }
+	auto GetSpriteFontPtr() const->SpriteFont* { return m_SpriteFont.get(); }
+	auto GetWindowSize() const->const XMFLOAT2&;
+	auto GetSkyTime() const->float;
+	auto GetTransposedViewProjectionMatrix() const->XMMATRIX;
+	auto GetDepthStencilStateLessEqualNoWrite() const->ID3D11DepthStencilState* { return m_DepthStencilStateLessEqualNoWrite.Get(); }
+	auto GetBlendStateAlphaToCoverage() const->ID3D11BlendState* { return m_BlendAlphaToCoverage.Get(); }
+	auto GetWorkingDirectory() const->const char* { return m_WorkingDirectory; }
 
 private:
 	void UpdateObject3D(CObject3D* const PtrObject3D);
@@ -414,8 +413,6 @@ private:
 	void DrawSky(float DeltaTime);
 	void DrawTerrain(float DeltaTime);
 
-	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
-	bool ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
 	void Draw3DGizmos();
 	void Draw3DGizmoRotations(E3DGizmoAxis Axis);
 	void Draw3DGizmoTranslations(E3DGizmoAxis Axis);
@@ -425,7 +422,7 @@ private:
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
 	static constexpr float KTranslationMaxLimit{ +1000.0f };
-	static constexpr float KTranslationUnit{ +0.1f };
+	static constexpr float KTranslationUnit{ +0.01f };
 	static constexpr float KRotationMaxLimit{ +XM_2PI };
 	static constexpr float KRotationMinLimit{ -XM_2PI };
 	static constexpr int KRotation360MaxLimit{ 360 };
@@ -461,115 +458,111 @@ private:
 	static constexpr float K3DGizmoMovementFactor{ 0.01f };
 
 private:
-	unique_ptr<CShader>	m_VSBase{};
-	unique_ptr<CShader>	m_VSInstance{};
-	unique_ptr<CShader>	m_VSAnimation{};
-	unique_ptr<CShader>	m_VSSky{};
-	unique_ptr<CShader>	m_VSLine{};
-	unique_ptr<CShader>	m_VSGizmo{};
-	unique_ptr<CShader>	m_VSTerrain{};
-	unique_ptr<CShader>	m_VSFoliage{};
-	unique_ptr<CShader>	m_VSParticle{};
+	std::unique_ptr<CShader>	m_VSBase{};
+	std::unique_ptr<CShader>	m_VSInstance{};
+	std::unique_ptr<CShader>	m_VSAnimation{};
+	std::unique_ptr<CShader>	m_VSSky{};
+	std::unique_ptr<CShader>	m_VSLine{};
+	std::unique_ptr<CShader>	m_VSGizmo{};
+	std::unique_ptr<CShader>	m_VSTerrain{};
+	std::unique_ptr<CShader>	m_VSFoliage{};
+	std::unique_ptr<CShader>	m_VSParticle{};
 
-	unique_ptr<CShader>	m_VSBase2D{};
+	std::unique_ptr<CShader>	m_VSBase2D{};
 
-	unique_ptr<CShader>	m_HSTerrain{};
-	unique_ptr<CShader>	m_HSWater{};
+	std::unique_ptr<CShader>	m_HSTerrain{};
+	std::unique_ptr<CShader>	m_HSWater{};
 	
-	unique_ptr<CShader>	m_DSTerrain{};
-	unique_ptr<CShader>	m_DSWater{};
+	std::unique_ptr<CShader>	m_DSTerrain{};
+	std::unique_ptr<CShader>	m_DSWater{};
 
-	unique_ptr<CShader>	m_GSNormal{};
-	unique_ptr<CShader>	m_GSParticle{};
+	std::unique_ptr<CShader>	m_GSNormal{};
+	std::unique_ptr<CShader>	m_GSParticle{};
 
-	unique_ptr<CShader>	m_PSBase{};
-	unique_ptr<CShader>	m_PSVertexColor{};
-	unique_ptr<CShader>	m_PSSky{};
-	unique_ptr<CShader>	m_PSCloud{};
-	unique_ptr<CShader>	m_PSLine{};
-	unique_ptr<CShader>	m_PSGizmo{};
-	unique_ptr<CShader>	m_PSTerrain{};
-	unique_ptr<CShader>	m_PSWater{};
-	unique_ptr<CShader>	m_PSFoliage{};
-	unique_ptr<CShader>	m_PSParticle{};
+	std::unique_ptr<CShader>	m_PSBase{};
+	std::unique_ptr<CShader>	m_PSVertexColor{};
+	std::unique_ptr<CShader>	m_PSSky{};
+	std::unique_ptr<CShader>	m_PSCloud{};
+	std::unique_ptr<CShader>	m_PSLine{};
+	std::unique_ptr<CShader>	m_PSGizmo{};
+	std::unique_ptr<CShader>	m_PSTerrain{};
+	std::unique_ptr<CShader>	m_PSWater{};
+	std::unique_ptr<CShader>	m_PSFoliage{};
+	std::unique_ptr<CShader>	m_PSParticle{};
 
-	unique_ptr<CShader>	m_PSBase2D{};
-	unique_ptr<CShader>	m_PSMasking2D{};
-	unique_ptr<CShader>	m_PSHeightMap2D{};
+	std::unique_ptr<CShader>	m_PSBase2D{};
+	std::unique_ptr<CShader>	m_PSMasking2D{};
+	std::unique_ptr<CShader>	m_PSHeightMap2D{};
 
 private:
-	SCBVSSpaceData				m_cbVSSpaceData{};
+	SCBSpaceWVPData				m_CBSpaceWVPData{};
+	SCBSpaceVPData				m_CBSpaceVPData{};
+	SCBSpace2DData				m_CBSpace2DData{};
 	SCBAnimationBonesData		m_CBAnimationBonesData{};
 	CObject3D::SCBAnimationData	m_CBAnimationData{};
 	CTerrain::SCBTerrainData	m_CBTerrainData{};
-	CTerrain::SCBWindData		m_cbWindData{};
+	CTerrain::SCBWindData		m_CBWindData{};
 
-	SCBVS2DSpaceData			m_cbVS2DSpaceData{};
+	SCBCameraData				m_CBCameraData{};
+	SCBTessFactorData			m_CBTessFactorData{};
+	SCBDisplacementData			m_CBDisplacementData{};
 
-	SCBHSCameraData				m_cbHSCameraData{};
-	SCBHSTessFactorData			m_cbHSTessFactor{};
-
-	SCBDSSpaceData				m_cbDSSpaceData{};
-	SCBDSDisplacementData		m_cbDSDisplacementData{};
-
-	SCBGSSpaceData				m_cbGSSpaceData{};
-
-	SCBPSLightsData				m_cbPSLightsData{};
-	SCBPSBaseFlagsData			m_cbPSBaseFlagsData{};
+	SCBLightData				m_CBLightData{};
 	SCBMaterialData				m_CBMaterialData{};
-	SCBPSGizmoColorFactorData	m_cbPSGizmoColorFactorData{};
-	SCBPSSkyTimeData			m_cbPSSkyTimeData{};
-	SCBWaterTimeData			m_CBWaterTimeData{};
+	SCBPSBaseFlagsData			m_cbPSBaseFlagsData{};
+	SCBGizmoColorFactorData		m_CBGizmoColorFactorData{};
 
 	SCBPS2DFlagsData					m_cbPS2DFlagsData{};
-	SCBPSTerrainSpaceData				m_CBTerrainMaskingSpaceData{};
+	SCBTerrainMaskingSpaceData			m_CBTerrainMaskingSpaceData{};
 	CTerrain::SCBTerrainSelectionData	m_CBTerrainSelectionData{};
+	SCBSkyTimeData						m_CBSkyTimeData{};
+	SCBWaterTimeData					m_CBWaterTimeData{};
 	SCBEditorTimeData					m_CBEditorTimeData{};
 
 private:
-	vector<unique_ptr<CShader>>				m_vShaders{};
-	vector<unique_ptr<CObject3D>>			m_vObject3Ds{};
-	vector<unique_ptr<CObject3DLine>>		m_vObject3DLines{};
-	vector<unique_ptr<CObject2D>>			m_vObject2Ds{};
-	vector<unique_ptr<CMaterial>>			m_vMaterials{};
-	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialDiffuseTextures{};
-	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialNormalTextures{};
-	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialDisplacementTextures{};
-	vector<unique_ptr<CMaterial::CTexture>>	m_vMaterialOpacityTextures{};
+	std::vector<std::unique_ptr<CShader>>				m_vShaders{};
+	std::vector<std::unique_ptr<CObject3D>>				m_vObject3Ds{};
+	std::vector<std::unique_ptr<CObject3DLine>>			m_vObject3DLines{};
+	std::vector<std::unique_ptr<CObject2D>>				m_vObject2Ds{};
+	std::vector<std::unique_ptr<CMaterial>>				m_vMaterials{};
+	std::vector<std::unique_ptr<CMaterial::CTexture>>	m_vMaterialDiffuseTextures{};
+	std::vector<std::unique_ptr<CMaterial::CTexture>>	m_vMaterialNormalTextures{};
+	std::vector<std::unique_ptr<CMaterial::CTexture>>	m_vMaterialDisplacementTextures{};
+	std::vector<std::unique_ptr<CMaterial::CTexture>>	m_vMaterialOpacityTextures{};
 
-	unique_ptr<CObject3DLine>				m_Object3DLinePickingRay{};
-	unique_ptr<CObject3D>					m_Object3DPickedTriangle{};
+	std::unique_ptr<CObject3DLine>				m_Object3DLinePickingRay{};
+	std::unique_ptr<CObject3D>					m_Object3DPickedTriangle{};
 
-	unique_ptr<CObject3D>					m_Object3DBoundingSphere{};
+	std::unique_ptr<CObject3D>					m_Object3DBoundingSphere{};
 
-	vector<unique_ptr<CObject3D>>			m_vObject3DMiniAxes{};
+	std::vector<std::unique_ptr<CObject3D>>		m_vObject3DMiniAxes{};
 
-	string									m_SkyFileName{};
+	std::string								m_SkyFileName{};
 	float									m_SkyScalingFactor{};
 	SSkyData								m_SkyData{};
 	CMaterial								m_SkyMaterial{};
-	unique_ptr<CObject3D>					m_Object3DSkySphere{};
-	unique_ptr<CObject3D>					m_Object3DSun{};
-	unique_ptr<CObject3D>					m_Object3DMoon{};
-	unique_ptr<CObject3D>					m_Object3DCloud{};
+	std::unique_ptr<CObject3D>				m_Object3DSkySphere{};
+	std::unique_ptr<CObject3D>				m_Object3DSun{};
+	std::unique_ptr<CObject3D>				m_Object3DMoon{};
+	std::unique_ptr<CObject3D>				m_Object3DCloud{};
 
-	map<string, size_t>						m_mapMaterialNameToIndex{};
-	map<string, size_t>						m_mapObject3DNameToIndex{};
-	unordered_map<string, size_t>			m_umapObject3DLineNameToIndex{};
-	unordered_map<string, size_t>			m_umapObject2DNameToIndex{};
+	std::map<std::string, size_t>			m_mapMaterialNameToIndex{};
+	std::map<std::string, size_t>			m_mapObject3DNameToIndex{};
+	std::unordered_map<std::string, size_t>	m_umapObject3DLineNameToIndex{};
+	std::unordered_map<std::string, size_t>	m_umapObject2DNameToIndex{};
 
 private:
-	unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationPitch{};
-	unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationYaw{};
-	unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationRoll{};
+	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationPitch{};
+	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationYaw{};
+	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationRoll{};
 
-	unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationX{};
-	unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationY{};
-	unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationZ{};
+	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationX{};
+	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationY{};
+	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationZ{};
 
-	unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingX{};
-	unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingY{};
-	unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingZ{};
+	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingX{};
+	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingY{};
+	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingZ{};
 
 	bool						m_bIsGizmoSelected{ false };
 	E3DGizmoAxis				m_e3DGizmoSelectedAxis{};
@@ -577,7 +570,7 @@ private:
 	float						m_3DGizmoDistanceScalar{};
 
 private:
-	vector<D3D11_VIEWPORT>	m_vViewports{};
+	std::vector<D3D11_VIEWPORT>	m_vViewports{};
 
 private:
 	HWND			m_hWnd{};
@@ -592,7 +585,7 @@ private:
 	float			m_FarZ{};
 
 	XMMATRIX		m_MatrixView{};
-	vector<CCamera>	m_vCameras{};
+	std::vector<CCamera>	m_vCameras{};
 	size_t			m_CurrentCameraIndex{};
 	
 private:
@@ -600,16 +593,16 @@ private:
 	XMVECTOR	m_PickingRayWorldSpaceDirection{};
 	CObject3D*	m_PtrPickedObject3D{};
 	CObject3D*	m_PtrSelectedObject3D{};
-	string		m_NullString{};
+	std::string	m_NullString{};
 	int			m_PickedInstanceID{ -1 };
 	int			m_SelectedInstanceID{ -1 };
 	XMVECTOR	m_PickedTriangleV0{};
 	XMVECTOR	m_PickedTriangleV1{};
 	XMVECTOR	m_PickedTriangleV2{};
-	EEditMode	m_eEditMode{};
+	EMode	m_eMode{};
 
 private:
-	unique_ptr<CTerrain>	m_Terrain{};
+	std::unique_ptr<CTerrain>	m_Terrain{};
 
 private:
 	ERasterizerState	m_eRasterizerState{ ERasterizerState::CullCounterClockwise };
@@ -626,13 +619,13 @@ private:
 	ComPtr<ID3D11DepthStencilState>	m_DepthStencilStateAlways{};
 	ComPtr<ID3D11BlendState>		m_BlendAlphaToCoverage{};
 
-	unique_ptr<Keyboard>			m_Keyboard{};
-	unique_ptr<Mouse>				m_Mouse{};
-	int								m_PrevMouseX{};
-	int								m_PrevMouseY{};
-	unique_ptr<SpriteBatch>			m_SpriteBatch{};
-	unique_ptr<SpriteFont>			m_SpriteFont{};
-	unique_ptr<CommonStates>		m_CommonStates{};
+	std::unique_ptr<Keyboard>			m_Keyboard{};
+	std::unique_ptr<Mouse>				m_Mouse{};
+	int									m_PrevMouseX{};
+	int									m_PrevMouseY{};
+	std::unique_ptr<SpriteBatch>		m_SpriteBatch{};
+	std::unique_ptr<SpriteFont>			m_SpriteFont{};
+	std::unique_ptr<CommonStates>		m_CommonStates{};
 };
 
 ENUM_CLASS_FLAG(CGame::EFlagsRendering)

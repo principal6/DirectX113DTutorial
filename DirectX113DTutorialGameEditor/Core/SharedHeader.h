@@ -16,21 +16,8 @@
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "DirectXTK.lib")
 
-using namespace Microsoft::WRL;
+using Microsoft::WRL::ComPtr;
 using namespace DirectX;
-
-using std::string;
-using std::wstring;
-using std::to_string;
-using std::to_wstring;
-using std::stof;
-using std::vector;
-using std::unique_ptr;
-using std::make_unique;
-using std::min;
-using std::max;
-using std::map;
-using std::unordered_map;
 
 enum class EShaderType
 {
@@ -88,3 +75,5 @@ static enum_type operator~(enum_type a)\
 
 #define EFLAG_HAS(Object, eFlag) (Object & eFlag) == eFlag
 #define EFLAG_HAS_NO(Object, eFlag) (Object & eFlag) != eFlag
+
+#define MB_WARN(Text, Title) MessageBox(nullptr, Text, Title, MB_OK | MB_ICONEXCLAMATION)

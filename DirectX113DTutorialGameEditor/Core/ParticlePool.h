@@ -42,7 +42,7 @@ public:
 	virtual void Create(size_t MaxParticleCount);
 
 	virtual void SetSpawningInterval(float Value);
-	virtual void SetTexture(const string& FileName);
+	virtual void SetTexture(const std::string& FileName);
 	virtual void SetUniversalScalingFactor(const XMFLOAT2& Factor);
 	virtual void SetUniversalDuration(float Value);
 
@@ -82,11 +82,11 @@ protected:
 	float							m_SpawningInterval{ KSpawningIntervalDefault };
 	float							m_SpawningTimer{};
 
-	vector<SVertexParticle>			m_vVertexParticles{};
-	vector<SParticleData>			m_vParticleData{};
-
-	bool							m_bUseTexture{ false };
-	unique_ptr<CMaterial::CTexture>	m_ParticleTexture{};
+	std::vector<SVertexParticle>			m_vVertexParticles{};
+	std::vector<SParticleData>				m_vParticleData{};
+	
+	bool									m_bUseTexture{ false };
+	std::unique_ptr<CMaterial::CTexture>	m_ParticleTexture{};
 
 	XMFLOAT2						m_ParticleScalingFactor{ 1.0f, 1.0f };
 	float							m_ParticleDuration{ 1.0f };

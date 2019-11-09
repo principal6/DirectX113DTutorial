@@ -7,11 +7,11 @@
 
 static const XMVECTOR KColorWhite{ XMVectorSet(1, 1, 1 ,1) };
 
-static string ConvertXMVECTORToString(const XMVECTOR& Vector);
+static std::string ConvertXMVECTORToString(const XMVECTOR& Vector);
 static void CalculateNormals(SMesh& Mesh);
 static void AverageNormals(SMesh& Mesh);
 static void CalculateTangents(SMesh& Mesh);
-static vector<STriangle> GenerateContinuousQuads(int QuadCount);
+static std::vector<STriangle> GenerateContinuousQuads(int QuadCount);
 static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVECTOR& V2, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVECTOR& V2, const XMVECTOR& Color0, const XMVECTOR& Color1, const XMVECTOR& Color2);
 static SMesh GenerateSquareXYPlane(const XMVECTOR& Color = KColorWhite);
@@ -31,8 +31,8 @@ static void RotateMesh(SMesh& Mesh, float Pitch, float Yaw, float Roll);
 static void ScaleMesh(SMesh& Mesh, const XMVECTOR& Scaling);
 static void ScaleMeshTexCoord(SMesh& Mesh, const XMVECTOR& Scaling);
 static SMesh MergeStaticMeshes(const SMesh& MeshA, const SMesh& MeshB);
-static vector<SVertex3DLine> Generate3DLineCircleYZ(const XMVECTOR& Color = KColorWhite, uint32_t SegmentCount = 32);
-static vector<SVertex3DLine> Generate3DGrid(int GuidelineCount = 10, float Interval = 1.0f);
+static std::vector<SVertex3DLine> Generate3DLineCircleYZ(const XMVECTOR& Color = KColorWhite, uint32_t SegmentCount = 32);
+static std::vector<SVertex3DLine> Generate3DGrid(int GuidelineCount = 10, float Interval = 1.0f);
 static CObject2D::SData Generate2DRectangle(const XMFLOAT2& RectangleSize);
 
 static bool operator==(const XMVECTOR& A, const XMVECTOR& B)
@@ -40,14 +40,16 @@ static bool operator==(const XMVECTOR& A, const XMVECTOR& B)
 	return XMVector3Equal(A, B);
 }
 
-static string ConvertXMVECTORToString(const XMVECTOR& Vector)
+static std::string ConvertXMVECTORToString(const XMVECTOR& Vector)
 {
+	using std::to_string;
+
 	float X{ XMVectorGetX(Vector) };
 	float Y{ XMVectorGetY(Vector) };
 	float Z{ XMVectorGetZ(Vector) };
 	float W{ XMVectorGetW(Vector) };
 
-	string Result{ to_string(X) + "#" + to_string(Y) + "#" + to_string(Z) + "#" + to_string(W) };
+	std::string Result{ to_string(X) + "#" + to_string(Y) + "#" + to_string(Z) + "#" + to_string(W) };
 	return Result;
 }
 
@@ -70,30 +72,30 @@ static void CalculateNormals(SMesh& Mesh)
 
 static void AverageNormals(SMesh& Mesh)
 {
-	std::unordered_map<string, vector<XMVECTOR>> mapVertexToNormals{};
+	std::unordered_map<std::string, std::vector<XMVECTOR>> mapVertexToNormals{};
 	for (const STriangle& Triangle : Mesh.vTriangles)
 	{
 		const SVertex3D& V0{ Mesh.vVertices[Triangle.I0] };
 		const SVertex3D& V1{ Mesh.vVertices[Triangle.I1] };
 		const SVertex3D& V2{ Mesh.vVertices[Triangle.I2] };
 
-		string V0PositionStr{ ConvertXMVECTORToString(V0.Position) };
-		string V1PositionStr{ ConvertXMVECTORToString(V1.Position) };
-		string V2PositionStr{ ConvertXMVECTORToString(V2.Position) };
+		std::string V0PositionStr{ ConvertXMVECTORToString(V0.Position) };
+		std::string V1PositionStr{ ConvertXMVECTORToString(V1.Position) };
+		std::string V2PositionStr{ ConvertXMVECTORToString(V2.Position) };
 
-		const vector<XMVECTOR>& vV0Normals{ mapVertexToNormals[V0PositionStr] };
+		const std::vector<XMVECTOR>& vV0Normals{ mapVertexToNormals[V0PositionStr] };
 		{
 			auto found{ std::find(vV0Normals.begin(), vV0Normals.end(), V0.Normal) };
 			if (found == vV0Normals.end()) mapVertexToNormals[V0PositionStr].emplace_back(V0.Normal);
 		}
 
-		const vector<XMVECTOR>& vV1Normals{ mapVertexToNormals[V1PositionStr] };
+		const std::vector<XMVECTOR>& vV1Normals{ mapVertexToNormals[V1PositionStr] };
 		{
 			auto found{ std::find(vV1Normals.begin(), vV1Normals.end(), V1.Normal) };
 			if (found == vV1Normals.end()) mapVertexToNormals[V1PositionStr].emplace_back(V1.Normal);
 		}
 
-		const vector<XMVECTOR>& vV2Normals{ mapVertexToNormals[V2PositionStr] };
+		const std::vector<XMVECTOR>& vV2Normals{ mapVertexToNormals[V2PositionStr] };
 		{
 			auto found{ std::find(vV2Normals.begin(), vV2Normals.end(), V2.Normal) };
 			if (found == vV2Normals.end()) mapVertexToNormals[V2PositionStr].emplace_back(V2.Normal);
@@ -102,9 +104,9 @@ static void AverageNormals(SMesh& Mesh)
 
 	for (SVertex3D& Vertex : Mesh.vVertices)
 	{
-		string VStr{ ConvertXMVECTORToString(Vertex.Position) };
+		std::string VStr{ ConvertXMVECTORToString(Vertex.Position) };
 
-		const vector<XMVECTOR>& vNormals{ mapVertexToNormals[VStr] };
+		const std::vector<XMVECTOR>& vNormals{ mapVertexToNormals[VStr] };
 
 		XMVECTOR NormalSum{};
 		for (const auto& Normal : vNormals)
@@ -156,30 +158,30 @@ static void CalculateTangents(SMesh& Mesh)
 
 static void AverageTangents(SMesh& Mesh)
 {
-	std::unordered_map<string, vector<XMVECTOR>> mapVertexToTangents{};
+	std::unordered_map<std::string, std::vector<XMVECTOR>> mapVertexToTangents{};
 	for (const STriangle& Triangle : Mesh.vTriangles)
 	{
 		const SVertex3D& V0{ Mesh.vVertices[Triangle.I0] };
 		const SVertex3D& V1{ Mesh.vVertices[Triangle.I1] };
 		const SVertex3D& V2{ Mesh.vVertices[Triangle.I2] };
 
-		string V0PositionStr{ ConvertXMVECTORToString(V0.Position) };
-		string V1PositionStr{ ConvertXMVECTORToString(V1.Position) };
-		string V2PositionStr{ ConvertXMVECTORToString(V2.Position) };
+		std::string V0PositionStr{ ConvertXMVECTORToString(V0.Position) };
+		std::string V1PositionStr{ ConvertXMVECTORToString(V1.Position) };
+		std::string V2PositionStr{ ConvertXMVECTORToString(V2.Position) };
 
-		const vector<XMVECTOR>& vV0Tangents{ mapVertexToTangents[V0PositionStr] };
+		const std::vector<XMVECTOR>& vV0Tangents{ mapVertexToTangents[V0PositionStr] };
 		{
 			auto found{ std::find(vV0Tangents.begin(), vV0Tangents.end(), V0.Tangent) };
 			if (found == vV0Tangents.end()) mapVertexToTangents[V0PositionStr].emplace_back(V0.Tangent);
 		}
 
-		const vector<XMVECTOR>& vV1Tangents{ mapVertexToTangents[V1PositionStr] };
+		const std::vector<XMVECTOR>& vV1Tangents{ mapVertexToTangents[V1PositionStr] };
 		{
 			auto found{ std::find(vV1Tangents.begin(), vV1Tangents.end(), V1.Tangent) };
 			if (found == vV1Tangents.end()) mapVertexToTangents[V1PositionStr].emplace_back(V1.Tangent);
 		}
 
-		const vector<XMVECTOR>& vV2Tangents{ mapVertexToTangents[V2PositionStr] };
+		const std::vector<XMVECTOR>& vV2Tangents{ mapVertexToTangents[V2PositionStr] };
 		{
 			auto found{ std::find(vV2Tangents.begin(), vV2Tangents.end(), V2.Tangent) };
 			if (found == vV2Tangents.end()) mapVertexToTangents[V2PositionStr].emplace_back(V2.Tangent);
@@ -188,9 +190,9 @@ static void AverageTangents(SMesh& Mesh)
 
 	for (SVertex3D& Vertex : Mesh.vVertices)
 	{
-		string VStr{ ConvertXMVECTORToString(Vertex.Position) };
+		std::string VStr{ ConvertXMVECTORToString(Vertex.Position) };
 
-		const vector<XMVECTOR>& vTangents{ mapVertexToTangents[VStr] };
+		const std::vector<XMVECTOR>& vTangents{ mapVertexToTangents[VStr] };
 
 		XMVECTOR TangentSum{};
 		for (const auto& Tangent : vTangents)
@@ -203,9 +205,9 @@ static void AverageTangents(SMesh& Mesh)
 	}
 }
 
-static vector<STriangle> GenerateContinuousQuads(int QuadCount)
+static std::vector<STriangle> GenerateContinuousQuads(int QuadCount)
 {
-	vector<STriangle> vTriangles{};
+	std::vector<STriangle> vTriangles{};
 
 	for (int iQuad = 0; iQuad < QuadCount; ++iQuad)
 	{
@@ -303,6 +305,8 @@ static SMesh GenerateSquareYZPlane(const XMVECTOR& Color)
 
 static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord, const XMVECTOR& Color)
 {
+	using std::max;
+
 	int SizeX{ max((int)Size.x, 2) };
 	int SizeZ{ max((int)Size.y, 2) };
 	if (SizeX % 2) ++SizeX;
@@ -326,13 +330,6 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord, 
 			{
 				U0 = V0 = 0.0f;
 				U1 = V1 = 1.0f;
-
-				/*
-				U0 = (float)(x % 4) * 0.25f;
-				U1 = (float)((x % 4) + 1) * 0.25f;
-				V0 = (float)(z % 4) * 0.25f;
-				V1 = (float)((z % 4) + 1) * 0.25f;
-				*/
 			}
 			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z + 0), 1), Color, XMVectorSet(U0, V0, 0, 0));
 			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(-z + 0), 1), Color, XMVectorSet(U1, V0, 0, 0));
@@ -354,6 +351,8 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord, 
 
 static SMesh GenerateCircleXZPlane(uint32_t SideCount, const XMVECTOR& Color)
 {
+	using std::max;
+
 	constexpr float KRadius{ 1.0f };
 
 	SideCount = max(SideCount, (uint32_t)8);
@@ -495,6 +494,8 @@ static SMesh GenerateCube(const XMVECTOR& Color)
 
 static SMesh GenerateCone(float RadiusRatio, float Radius, float Height, uint32_t SideCount, const XMVECTOR& Color)
 {
+	using std::max;
+
 	SideCount = max(SideCount, (uint32_t)3);
 	const float KHalfHeight{ Height / 2.0f };
 	const float KThetaUnit{ XM_2PI / SideCount };
@@ -550,6 +551,8 @@ static SMesh GenerateCylinder(float Radius, float Height, uint32_t SideCount, co
 
 static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& ColorTop, const XMVECTOR& ColorBottom)
 {
+	using std::max;
+
 	SegmentCount = max(SegmentCount, (uint32_t)4);
 	if (SegmentCount % 2) ++SegmentCount;
 	const float KThetaUnit{ XM_2PI / SegmentCount };
@@ -623,6 +626,8 @@ static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& Color)
 
 static SMesh GenerateTorus(const XMVECTOR& Color, float InnerRadius, uint32_t SideCount, uint32_t SegmentCount)
 {
+	using std::max;
+
 	SegmentCount = max(SegmentCount, (uint32_t)3);
 	SideCount = max(SideCount, (uint32_t)3);
 	const float KThetaUnit{ XM_2PI / SegmentCount };
@@ -748,9 +753,9 @@ static SMesh MergeStaticMeshes(const SMesh& MeshA, const SMesh& MeshB)
 	return MergedMesh;
 }
 
-static vector<SVertex3DLine> Generate3DLineCircleYZ(const XMVECTOR& Color, uint32_t SegmentCount)
+static std::vector<SVertex3DLine> Generate3DLineCircleYZ(const XMVECTOR& Color, uint32_t SegmentCount)
 {
-	vector<SVertex3DLine> vVertices{};
+	std::vector<SVertex3DLine> vVertices{};
 
 	for (uint32_t iSegment = 0; iSegment < SegmentCount; ++iSegment)
 	{
@@ -764,8 +769,10 @@ static vector<SVertex3DLine> Generate3DLineCircleYZ(const XMVECTOR& Color, uint3
 	return vVertices;
 }
 
-static vector<SVertex3DLine> Generate3DGrid(int GuidelineCount, float Interval)
+static std::vector<SVertex3DLine> Generate3DGrid(int GuidelineCount, float Interval)
 {
+	using std::max;
+
 	static constexpr float KAxisHalfLength{ 1000.0f };
 	static const XMVECTOR KColorAxisX{ XMVectorSet(1, 0, 0, 1) };
 	static const XMVECTOR KColorAxisY{ XMVectorSet(0, 1, 0, 1) };
@@ -775,7 +782,7 @@ static vector<SVertex3DLine> Generate3DGrid(int GuidelineCount, float Interval)
 	Interval = max(Interval, 0.1f);
 	float EndPosition{ -GuidelineCount * Interval };
 	
-	vector<SVertex3DLine> vVertices{};
+	std::vector<SVertex3DLine> vVertices{};
 
 	for (int z = 0; z < GuidelineCount * 2 + 1; ++z)
 	{

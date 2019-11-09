@@ -22,7 +22,7 @@ class CObject3DLine
 	};
 
 public:
-	CObject3DLine(const string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
+	CObject3DLine(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
 		m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
 	{
 		assert(m_PtrDevice);
@@ -42,14 +42,14 @@ public:
 	}
 
 public:
-	void Create(const vector<SVertex3DLine>& vVertices);
+	void Create(const std::vector<SVertex3DLine>& vVertices);
 	void UpdateVertexBuffer();
 	void UpdateWorldMatrix();
 	void Draw() const;
 
 public:
-	vector<SVertex3DLine>& GetVertices() { return m_vVertices; }
-	const vector<SVertex3DLine>& GetVertices() const { return m_vVertices; }
+	std::vector<SVertex3DLine>& GetVertices() { return m_vVertices; }
+	const std::vector<SVertex3DLine>& GetVertices() const { return m_vVertices; }
 
 public:
 	static constexpr D3D11_INPUT_ELEMENT_DESC KInputElementDescs[]
@@ -67,8 +67,8 @@ private:
 	ID3D11DeviceContext* const	m_PtrDeviceContext{};
 
 private:
-	string						m_Name{};
-	vector<SVertex3DLine>		m_vVertices{};
+	std::string						m_Name{};
+	std::vector<SVertex3DLine>		m_vVertices{};
 
 	ComPtr<ID3D11Buffer>		m_VertexBuffer{};
 	UINT						m_VertexBufferStride{ sizeof(SVertex3DLine) };

@@ -44,7 +44,7 @@ public:
 	}
 	~CShader() {}
 
-	void Create(EShaderType Type, const wstring& FileName, const string& EntryPoint, 
+	void Create(EShaderType Type, const std::wstring& FileName, const std::string& EntryPoint,
 		const D3D11_INPUT_ELEMENT_DESC* InputElementDescs = nullptr, UINT NumElements = 0);
 
 	void AddConstantBuffer(const void* const PtrData, size_t DataByteWidth);
@@ -71,5 +71,5 @@ private:
 	EShaderType							m_ShaderType{};
 
 private:
-	vector<unique_ptr<CConstantBuffer>>	m_vConstantBuffers{};
+	std::vector<std::unique_ptr<CConstantBuffer>>	m_vConstantBuffers{};
 };

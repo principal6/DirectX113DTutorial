@@ -1,6 +1,13 @@
 #include "Object3D.h"
 #include "Game.h"
 
+using std::max;
+using std::min;
+using std::vector;
+using std::string;
+using std::to_string;
+using std::make_unique;
+
 void CObject3D::Create(const SMesh& Mesh)
 {
 	m_Model.vMeshes.clear();
@@ -98,8 +105,7 @@ void CObject3D::AddAnimationFromFile(const string& FileName, const string& Anima
 
 void CObject3D::SetAnimationID(int ID)
 {
-	ID = min(ID, (int)(m_Model.vAnimations.size() - 1));
-	ID = max(ID, 0);
+	ID = max(min(ID, (int)(m_Model.vAnimations.size() - 1)), 0);
 
 	m_CurrentAnimationID = ID;
 }
@@ -118,14 +124,13 @@ void CObject3D::SetAnimationName(int ID, const string& Name)
 {
 	if (m_Model.vAnimations.empty())
 	{
-		MessageBox(nullptr, "애니메이션이 존재하지 않습니다.", "리깅 오류", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN("애니메이션이 존재하지 않습니다.", "애니메이션 이름 지정 실패");
 		return;
 	}
 
 	if (Name.size() > KMaxAnimationNameLength)
 	{
-		MessageBox(nullptr, ("애니메이션 이름은 최대 " + to_string(KMaxAnimationNameLength) + "자입니다.").c_str(),
-			"이름 길이 제한", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN(("애니메이션 이름은 최대 " + to_string(KMaxAnimationNameLength) + "자입니다.").c_str(), "애니메이션 이름 지정 실패");
 		return;
 	}
 
@@ -345,9 +350,8 @@ void CObject3D::InsertInstance(bool bShouldCreateInstanceBuffers)
 
 	if (Name.length() >= KInstanceNameZeroEndedMaxLength)
 	{
-		MessageBox(nullptr, ("인스턴스 이름 [" + Name + "] 이 최대 길이(" + 
-			to_string(KInstanceNameZeroEndedMaxLength - 1) + " 자)를 넘어\n인스턴스 생성에 실패했습니다.").c_str(),
-			"인스턴스 생성 실패", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN(("인스턴스 이름 [" + Name + "] 이 최대 길이(" +
+			to_string(KInstanceNameZeroEndedMaxLength - 1) + " 자)를 넘어\n인스턴스 생성에 실패했습니다.").c_str(), "인스턴스 생성 실패");
 		return;
 	}
 
@@ -378,8 +382,8 @@ void CObject3D::InsertInstance(const string& Name)
 	std::string LimitedName{ Name };
 	if (LimitedName.length() >= KInstanceNameZeroEndedMaxLength)
 	{
-		MessageBox(nullptr, ("인스턴스 이름 [" + LimitedName + "] 이 최대 길이(" + to_string(KInstanceNameZeroEndedMaxLength - 1) + " 자)를 넘어 잘려서 저장됩니다.").c_str(),
-			"이름 길이 제한", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN(("인스턴스 이름 [" + LimitedName + "] 이 최대 길이(" + to_string(KInstanceNameZeroEndedMaxLength - 1) +
+			" 자)를 넘어 잘려서 저장됩니다.").c_str(), "이름 길이 제한");
 
 		LimitedName.resize(KInstanceNameZeroEndedMaxLength - 1);
 	}
@@ -405,12 +409,12 @@ void CObject3D::DeleteInstance(const string& Name)
 
 	if (Name.empty())
 	{
-		MessageBox(nullptr, "이름이 잘못되었습니다.", "인스턴스 삭제 실패", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN("이름이 잘못되었습니다.", "인스턴스 삭제 실패");
 		return;
 	}
 	if (m_mapInstanceNameToIndex.find(Name) == m_mapInstanceNameToIndex.end())
 	{
-		MessageBox(nullptr, "해당 인스턴스는 존재하지 않습니다.", "인스턴스 삭제 실패", MB_OK | MB_ICONEXCLAMATION);
+		MB_WARN("해당 인스턴스는 존재하지 않습니다.", "인스턴스 삭제 실패");
 		return;
 	}
 
@@ -825,7 +829,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 		const CMaterial& Material{ m_Model.vMaterials[Mesh.MaterialID] };
 
 		m_PtrGame->UpdateCBMaterial(Material);
-		m_PtrGame->UpdateDSDisplacementData(false);
+		m_PtrGame->UpdateCBDisplacementData(false);
 
 		if (m_Model.bUseMultipleTexturesInSingleMesh) // This bool is for CTerrain
 		{
@@ -835,7 +839,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 				{
 					if (Material.HasTexture(CMaterial::CTexture::EType::DisplacementTexture))
 					{
-						m_PtrGame->UpdateDSDisplacementData(true);
+						m_PtrGame->UpdateCBDisplacementData(true);
 					}
 					Material.UseTextures();
 				}
@@ -848,7 +852,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 			{
 				if (Material.HasTexture(CMaterial::CTexture::EType::DisplacementTexture))
 				{
-					m_PtrGame->UpdateDSDisplacementData(true);
+					m_PtrGame->UpdateCBDisplacementData(true);
 				}
 				Material.UseTextures();
 			}

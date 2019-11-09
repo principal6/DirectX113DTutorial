@@ -446,9 +446,6 @@
     <ClInclude Include="Core\Material.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\Serializer.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Core\ParticlePool.h">
       <Filter>Core</Filter>
     </ClInclude>

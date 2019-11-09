@@ -1,5 +1,9 @@
 #include "AssimpLoader.h"
 
+using std::vector;
+using std::string;
+using std::unordered_map;
+
 void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
 {
 	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded | 

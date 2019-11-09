@@ -1,5 +1,8 @@
 #include "Camera.h"
 
+using std::max;
+using std::min;
+
 void CCamera::Move(EMovementDirection Direction, float StrideFactor)
 {
 	XMVECTOR dPosition{};

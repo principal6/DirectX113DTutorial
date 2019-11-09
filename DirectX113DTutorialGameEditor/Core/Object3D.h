@@ -14,13 +14,12 @@ public:
 		NoCulling = 0x01,
 		NoLighting = 0x02,
 		NoTexture = 0x04,
-		NoDepthComparison = 0x08,
-		UseRawVertexColor = 0x10
+		UseRawVertexColor = 0x08
 	};
 
 	struct SInstanceCPUData
 	{
-		string		Name{};
+		std::string	Name{};
 		XMVECTOR	Translation{};
 		XMVECTOR	Scaling{ XMVectorSet(1, 1, 1, 0) };
 		float		Pitch{};
@@ -90,7 +89,7 @@ private:
 	};
 
 public:
-	CObject3D(const string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext, CGame* const PtrGame) :
+	CObject3D(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext, CGame* const PtrGame) :
 		m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }, m_PtrGame{ PtrGame }
 	{
 		assert(m_PtrDevice);
@@ -113,24 +112,24 @@ public:
 public:
 	void Create(const SMesh& Mesh);
 	void Create(const SMesh& Mesh, const CMaterial& Material);
-	void Create(const vector<SMesh>& vMeshes, const vector<CMaterial>& vMaterials);
+	void Create(const std::vector<SMesh>& vMeshes, const std::vector<CMaterial>& vMaterials);
 	void Create(const SModel& Model);
 
-	void CreateFromFile(const string& FileName, bool bIsModelRigged);
+	void CreateFromFile(const std::string& FileName, bool bIsModelRigged);
 
 public:
 	bool HasAnimations();
-	void AddAnimationFromFile(const string& FileName, const string& AnimationName);
+	void AddAnimationFromFile(const std::string& FileName, const std::string& AnimationName);
 	void SetAnimationID(int ID);
 	int GetAnimationID() const;
 	int GetAnimationCount() const;
-	void SetAnimationName(int ID, const string& Name);
-	const string& GetAnimationName(int ID) const;
+	void SetAnimationName(int ID, const std::string& Name);
+	const std::string& GetAnimationName(int ID) const;
 	
 	bool CanBakeAnimationTexture() const;
 	void BakeAnimationTexture();
-	void SaveBakedAnimationTexture(const string& FileName);
-	void LoadBakedAnimationTexture(const string& FileName);
+	void SaveBakedAnimationTexture(const std::string& FileName);
+	void LoadBakedAnimationTexture(const std::string& FileName);
 
 public:
 	void AddMaterial(const CMaterial& Material);
@@ -139,10 +138,10 @@ public:
 
 	void CreateInstances(int InstanceCount);
 	void InsertInstance(bool bShouldCreateInstanceBuffers = true);
-	void InsertInstance(const string& Name);
-	void DeleteInstance(const string& Name);
+	void InsertInstance(const std::string& Name);
+	void DeleteInstance(const std::string& Name);
 	SInstanceCPUData& GetInstance(int InstanceID);
-	SInstanceCPUData& GetInstance(const string& Name);
+	SInstanceCPUData& GetInstance(const std::string& Name);
 	void CreateInstanceBuffers();
 
 	void UpdateQuadUV(const XMFLOAT2& UVOffset, const XMFLOAT2& UVSize);
@@ -168,9 +167,9 @@ public:
 	uint32_t GetInstanceCount() const { return (uint32_t)m_vInstanceCPUData.size(); }
 	const SModel& GetModel() const { return m_Model; }
 	SModel& GetModel() { return m_Model; }
-	const string& GetName() const { return m_Name; }
-	const string& GetModelFileName() const { return m_ModelFileName; }
-	const map<string, size_t>& GetInstanceMap() const { return m_mapInstanceNameToIndex; }
+	const std::string& GetName() const { return m_Name; }
+	const std::string& GetModelFileName() const { return m_ModelFileName; }
+	const std::map<std::string, size_t>& GetInstanceMap() const { return m_mapInstanceNameToIndex; }
 
 private:
 	void CreateMeshBuffers();
@@ -206,26 +205,26 @@ private:
 	CGame* const				m_PtrGame{};
 
 private:
-	string						m_Name{};
-	string						m_ModelFileName{};
-	bool						m_bIsCreated{ false };
-	SModel						m_Model{};
-	vector<SMeshBuffers>		m_vMeshBuffers{};
-	vector<SInstanceBuffer>		m_vInstanceBuffers{};
+	std::string						m_Name{};
+	std::string						m_ModelFileName{};
+	bool							m_bIsCreated{ false };
+	SModel							m_Model{};
+	std::vector<SMeshBuffers>		m_vMeshBuffers{};
+	std::vector<SInstanceBuffer>	m_vInstanceBuffers{};
 
 	XMMATRIX					m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
 	int							m_CurrentAnimationID{};
 	float						m_CurrentAnimationTick{};
 	bool						m_bShouldTesselate{ false };
 
-	unique_ptr<CMaterial::CTexture> m_BakedAnimationTexture{};
-	SCBAnimationData				m_CBAnimationData{};
-	bool							m_bIsBakedAnimationLoaded{ false };
+	std::unique_ptr<CMaterial::CTexture>	m_BakedAnimationTexture{};
+	SCBAnimationData						m_CBAnimationData{};
+	bool									m_bIsBakedAnimationLoaded{ false };
 
 private:
-	vector<SInstanceGPUData>	m_vInstanceGPUData{};
-	vector<SInstanceCPUData>	m_vInstanceCPUData{};
-	map<string, size_t>			m_mapInstanceNameToIndex{};
+	std::vector<SInstanceGPUData>	m_vInstanceGPUData{};
+	std::vector<SInstanceCPUData>	m_vInstanceCPUData{};
+	std::map<std::string, size_t>	m_mapInstanceNameToIndex{};
 
 private:
 	CAssimpLoader				m_AssimpLoader{};

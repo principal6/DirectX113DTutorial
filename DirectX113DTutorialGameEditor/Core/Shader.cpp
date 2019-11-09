@@ -1,5 +1,9 @@
 #include "Shader.h"
 
+using std::string;
+using std::wstring;
+using std::make_unique;
+
 void CShader::CConstantBuffer::Create(EShaderType ShaderType, const void* const PtrData, size_t DataByteWidth)
 {
 	assert(PtrData);

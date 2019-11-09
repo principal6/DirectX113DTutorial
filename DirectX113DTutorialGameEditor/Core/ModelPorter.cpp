@@ -1,5 +1,9 @@
 #include "ModelPorter.h"
 
+using std::vector;
+using std::unique_ptr;
+using std::make_unique;
+
 SModel CModelPorter::ImportStaticModel(const std::string& FileName)
 {
 	m_BinaryFile.OpenToRead(FileName);
