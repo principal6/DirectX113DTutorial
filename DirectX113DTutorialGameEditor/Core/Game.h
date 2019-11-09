@@ -3,6 +3,8 @@
 #define NOMINMAX 0
 
 #include <Windows.h>
+#include <chrono>
+
 #include "Math.h"
 #include "Camera.h"
 #include "Shader.h"
@@ -13,7 +15,11 @@
 #include "ParticlePool.h"
 #include "PrimitiveGenerator.h"
 #include "Terrain.h"
+
 #include "TinyXml2/tinyxml2.h"
+#include "ImGui/imgui.h"
+#include "ImGui/imgui_impl_win32.h"
+#include "ImGui/imgui_impl_dx11.h"
 
 enum class EBaseShader
 {
@@ -207,6 +213,12 @@ public:
 	enum class EMode
 	{
 		Play,
+		Edit,
+		Test
+	};
+
+	enum class EEditMode
+	{
 		EditObject,
 		EditTerrain
 	};
@@ -239,6 +251,7 @@ public:
 private:
 	void CreateWin32Window(WNDPROC const WndProc, const std::string& WindowName);
 	void InitializeDirectX(bool bWindowed);
+	void InitializeImGui();
 
 private:
 	void CreateSwapChain(bool bWindowed);
@@ -258,7 +271,7 @@ public:
 	void LoadScene(const std::string& FileName);
 	void SaveScene(const std::string& FileName);
 
-// Advanced settings
+	// Advanced settings
 public:
 	void SetPerspective(float FOV, float NearZ, float FarZ);
 	void SetGameRenderingFlags(EFlagsRendering Flags);
@@ -269,7 +282,7 @@ public:
 	E3DGizmoMode Get3DGizmoMode() const { return m_e3DGizmoMode; }
 	CommonStates* GetCommonStates() const { return m_CommonStates.get(); }
 
-// Shader-related settings
+	// Shader-related settings
 public:
 	void UpdateCBSpace(const XMMATRIX& World = KMatrixIdentity);
 	void UpdateCBAnimationBoneMatrices(const XMMATRIX* const BoneMatrices);
@@ -292,11 +305,13 @@ public:
 
 private:
 	void LoadSkyObjectData(const tinyxml2::XMLElement* const xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
-	
+
 public:
-	void SetDirectionalLight(const XMVECTOR& LightSourcePosition);
 	void SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color);
+	void SetDirectionalLightDirection(const XMVECTOR& LightSourcePosition);
+	void SetDirectionalLightColor(const XMVECTOR& Color);
 	const XMVECTOR& GetDirectionalLightDirection() const;
+	const XMVECTOR& GetDirectionalLightColor() const;
 
 	void SetAmbientlLight(const XMFLOAT3& Color, float Intensity);
 	const XMFLOAT3& GetAmbientLightColor() const;
@@ -314,6 +329,7 @@ public:
 public:
 	CCamera* AddCamera(const CCamera::SCameraData& CameraData);
 	CCamera* GetCamera(size_t Index);
+	size_t GetCameraCount() const;
 
 	CShader* AddCustomShader();
 	CShader* GetCustomShader(size_t Index) const;
@@ -344,10 +360,17 @@ private:
 	void CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& Material);
 
 public:
-	void SetMode(EMode eMode, bool bForcedSet = false);
+	void SetMode(EMode eMode);
 	EMode GetMode() const { return m_eMode; }
 
+	void SetEditMode(EEditMode eEditMode, bool bForcedSet = false);
+	EEditMode GetEditMode() const { return m_eEditMode; }
+
 public:
+	void NotifyMouseLeftDown();
+	void NotifyMouseLeftUp();
+
+private:
 	bool Pick();
 	const std::string& GetPickedObject3DName() const;
 	int GetPickedInstanceID() const;
@@ -357,12 +380,14 @@ public:
 	bool IsAnyObject3DSelected() const;
 	CObject3D* GetSelectedObject3D();
 	const std::string& GetSelectedObject3DName() const;
-	
+
+public:
 	void SelectInstance(int InstanceID);
 	void DeselectInstance();
 	bool IsAnyInstanceSelected() const;
 	int GetSelectedInstanceID() const;
 
+private:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
 
 	void Interact3DGizmos();
@@ -376,8 +401,8 @@ private:
 
 public:
 	void BeginRendering(const FLOAT* ClearColor);
-	void Animate(float DeltaTime);
-	void Draw(float DeltaTime);
+	void Update();
+	void Draw();
 	void EndRendering();
 
 public:
@@ -394,6 +419,7 @@ public:
 	auto GetDepthStencilStateLessEqualNoWrite() const->ID3D11DepthStencilState* { return m_DepthStencilStateLessEqualNoWrite.Get(); }
 	auto GetBlendStateAlphaToCoverage() const->ID3D11BlendState* { return m_BlendAlphaToCoverage.Get(); }
 	auto GetWorkingDirectory() const->const char* { return m_WorkingDirectory; }
+	auto GetDeltaTime() const->float { return m_DeltaTimeF; }
 
 private:
 	void UpdateObject3D(CObject3D* const PtrObject3D);
@@ -419,6 +445,8 @@ private:
 	void Draw3DGizmoScalings(E3DGizmoAxis Axis);
 	void Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight);
 
+	void DrawImGui();
+
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
 	static constexpr float KTranslationMaxLimit{ +1000.0f };
@@ -440,7 +468,7 @@ public:
 	static constexpr float KBSRadiusMinLimit{ 0.001f };
 	static constexpr float KBSRadiusMaxLimit{ 10.0f };
 	static constexpr int KObject3DNameMaxLength{ 100 };
-	
+
 private:
 	static constexpr float KDefaultFOV{ 50.0f / 360.0f * XM_2PI };
 	static constexpr float KDefaultNearZ{ 0.1f };
@@ -472,7 +500,7 @@ private:
 
 	std::unique_ptr<CShader>	m_HSTerrain{};
 	std::unique_ptr<CShader>	m_HSWater{};
-	
+
 	std::unique_ptr<CShader>	m_DSTerrain{};
 	std::unique_ptr<CShader>	m_DSWater{};
 
@@ -584,25 +612,39 @@ private:
 	float			m_NearZ{};
 	float			m_FarZ{};
 
-	XMMATRIX		m_MatrixView{};
+	XMMATRIX				m_MatrixView{};
 	std::vector<CCamera>	m_vCameras{};
-	size_t			m_CurrentCameraIndex{};
-	
+	size_t					m_CurrentCameraIndex{};
+	float					m_CameraMovementFactor{ 10.0f };
+
 private:
 	XMVECTOR	m_PickingRayWorldSpaceOrigin{};
 	XMVECTOR	m_PickingRayWorldSpaceDirection{};
-	CObject3D*	m_PtrPickedObject3D{};
-	CObject3D*	m_PtrSelectedObject3D{};
+	CObject3D* m_PtrPickedObject3D{};
+	CObject3D* m_PtrSelectedObject3D{};
 	std::string	m_NullString{};
 	int			m_PickedInstanceID{ -1 };
 	int			m_SelectedInstanceID{ -1 };
 	XMVECTOR	m_PickedTriangleV0{};
 	XMVECTOR	m_PickedTriangleV1{};
 	XMVECTOR	m_PickedTriangleV2{};
-	EMode	m_eMode{};
+	EMode		m_eMode{};
+	EEditMode	m_eEditMode{};
 
 private:
 	std::unique_ptr<CTerrain>	m_Terrain{};
+
+private:
+	ImFont* m_ImGuiFont{};
+
+private:
+	std::chrono::steady_clock	m_Clock{};
+	long long					m_TimeNow{};
+	long long					m_TimePrev{};
+	long long					m_PreviousFrameTime{};
+	long long					m_FPS{};
+	long long					m_FrameCount{};
+	float						m_DeltaTimeF{};
 
 private:
 	ERasterizerState	m_eRasterizerState{ ERasterizerState::CullCounterClockwise };
@@ -621,11 +663,15 @@ private:
 
 	std::unique_ptr<Keyboard>			m_Keyboard{};
 	std::unique_ptr<Mouse>				m_Mouse{};
+	Keyboard::State						m_CapturedKeyboardState{};
+	Mouse::State						m_CapturedMouseState{};
+	bool								m_bLeftButtonPressedOnce{ false };
 	int									m_PrevMouseX{};
 	int									m_PrevMouseY{};
 	std::unique_ptr<SpriteBatch>		m_SpriteBatch{};
 	std::unique_ptr<SpriteFont>			m_SpriteFont{};
 	std::unique_ptr<CommonStates>		m_CommonStates{};
+	bool								m_IsDestroyed{ false };
 };
 
 ENUM_CLASS_FLAG(CGame::EFlagsRendering)
