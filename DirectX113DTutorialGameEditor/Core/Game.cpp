@@ -671,7 +671,7 @@ float CGame::GetAmbientLightIntensity() const
 	return m_cbPSLightsData.AmbientLightIntensity;
 }
 
-void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, int MaskingDetail, float UniformScaling)
+void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, uint32_t MaskingDetail, float UniformScaling)
 {
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Create(TerrainSize, Material, MaskingDetail, UniformScaling);

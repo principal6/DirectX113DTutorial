@@ -304,7 +304,7 @@ public:
 	float GetAmbientLightIntensity() const;
 
 public:
-	void CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, int MaskingDetail, float UniformScaling);
+	void CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, uint32_t MaskingDetail, float UniformScaling);
 	void LoadTerrain(const string& TerrainFileName);
 	void SaveTerrain(const string& TerrainFileName);
 	void AddTerrainMaterial(const CMaterial& Material);

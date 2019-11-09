@@ -132,6 +132,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			long long TimeNow{ Clock.now().time_since_epoch().count() };
 			static long long TimePrev{ TimeNow };
 			float DeltaTimeF{ static_cast<float>((TimeNow - TimePrev) * 0.000'000'001) };
+			static long long PreviousFrameTime{};
+			static int FrameCount{};
+			static int CapturedFPS{};
 
 			Game.BeginRendering(Colors::CornflowerBlue);
 
@@ -243,7 +246,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				{
 					if (MouseState.middleButton)
 					{
-						MainCamera->Rotate(MouseState.x - PrevMouseX, MouseState.y - PrevMouseY, 0.01f);
+						MainCamera->Rotate(MouseState.x - PrevMouseX, MouseState.y - PrevMouseY, DeltaTimeF);
 					}
 
 					PrevMouseX = MouseState.x;
@@ -263,6 +266,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			{
 				static bool bShowPropertyEditor{ true };
 				static bool bShowSceneEditor{ true };
+				static bool bShowFPSWindow{ false };
 				static bool bShowTerrainGenerator{ false };
 				static bool bShowOpenFileDialog{ false };
 				static bool bShowSaveFileDialog{ false };
@@ -311,6 +315,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 					{
 						ImGui::MenuItem(u8"속성 편집기", nullptr, &bShowPropertyEditor);
 						ImGui::MenuItem(u8"장면 편집기", nullptr, &bShowSceneEditor);
+						ImGui::MenuItem(u8"FPS 표시기", nullptr, &bShowFPSWindow);
 						
 						ImGui::EndMenu();
 					}
@@ -1038,7 +1043,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									{ "Asset\\basic_grass0.fbx" }, { "Asset\\basic_grass2.fbx" }, { "Asset\\basic_grass3.fbx" } 
 								};
 								static vector<string> vFoliageFileNames{};
-								static int PlacingDetail{ CTerrain::KDefaultFoliagePlacingDetail };
+								static uint32_t PlacingDetail{ CTerrain::KDefaultFoliagePlacingDetail };
 								static bool bUseDefaultFoliages{ false };
 
 								const float KItemsWidth{ 240 };
@@ -1060,7 +1065,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 									ImGui::Text(u8"배치 디테일");
 									ImGui::SameLine(100);
 									ImGui::SetNextItemWidth(KItemsWidth - 100);
-									ImGui::SliderInt(u8"##배치 디테일", &PlacingDetail, CTerrain::KMinFoliagePlacingDetail, CTerrain::KMaxFoliagePlacingDetail);
+									ImGui::SliderInt(u8"##배치 디테일", (int*)&PlacingDetail, 
+										CTerrain::KMinFoliagePlacingDetail, CTerrain::KMaxFoliagePlacingDetail);
 
 									ImGui::Separator();
 
@@ -1640,6 +1646,18 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 					ImGui::EndPopup();
 				}
+
+				// ### FPS 표시기 ###
+				if (bShowFPSWindow)
+				{
+					ImGui::SetNextWindowPos(ImVec2(120, 22), ImGuiCond_Appearing);
+					if (ImGui::Begin(u8"FPS 표시기", &bShowSceneEditor, ImGuiWindowFlags_AlwaysAutoResize))
+					{
+						ImGui::Text(u8"FPS: %d", CapturedFPS);
+
+						ImGui::End();
+					}
+				}
 			}
 
 			ImGui::PopFont();
@@ -1649,8 +1667,16 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 			Game.EndRendering();
 
+			if (TimeNow > PreviousFrameTime + 1'000'000'000)
+			{
+				CapturedFPS = FrameCount;
+				FrameCount = 0;
+				PreviousFrameTime = TimeNow;
+			}
+
 			KeyDown = 0;
 			TimePrev = TimeNow;
+			++FrameCount;
 		}
 	}
 

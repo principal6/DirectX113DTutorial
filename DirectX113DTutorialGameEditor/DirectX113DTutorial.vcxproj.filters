@@ -90,6 +90,12 @@
     <ClCompile Include="Core\FileDialog.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Core\BinaryFile.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\ModelPorter.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTK\Audio.h">
@@ -447,6 +453,9 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\FileDialog.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\BinaryFile.h">
       <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>

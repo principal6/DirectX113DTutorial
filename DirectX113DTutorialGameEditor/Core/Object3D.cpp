@@ -331,16 +331,24 @@ void CObject3D::CreateInstances(int InstanceCount)
 
 void CObject3D::InsertInstance(bool bShouldCreateInstanceBuffers)
 {
-	int InstanceCount{ GetInstanceCount() };
+	uint32_t InstanceCount{ GetInstanceCount() };
 	string Name{ "instance" + to_string(InstanceCount) };
 
 	if (m_mapInstanceNameToIndex.find(Name) != m_mapInstanceNameToIndex.end())
 	{
-		for (int iInstance = 0; iInstance < InstanceCount; ++iInstance)
+		for (uint32_t iInstance = 0; iInstance < InstanceCount; ++iInstance)
 		{
 			Name = "instance" + to_string(iInstance);
 			if (m_mapInstanceNameToIndex.find(Name) == m_mapInstanceNameToIndex.end()) break;
 		}
+	}
+
+	if (Name.length() >= KInstanceNameZeroEndedMaxLength)
+	{
+		MessageBox(nullptr, ("인스턴스 이름 [" + Name + "] 이 최대 길이(" + 
+			to_string(KInstanceNameZeroEndedMaxLength - 1) + " 자)를 넘어\n인스턴스 생성에 실패했습니다.").c_str(),
+			"인스턴스 생성 실패", MB_OK | MB_ICONEXCLAMATION);
+		return;
 	}
 
 	bool bShouldRecreateInstanceBuffer{ m_vInstanceCPUData.size() == m_vInstanceCPUData.capacity() };
@@ -365,13 +373,21 @@ void CObject3D::InsertInstance(bool bShouldCreateInstanceBuffers)
 
 void CObject3D::InsertInstance(const string& Name)
 {
-	int InstanceCount{ GetInstanceCount() };
 	bool bShouldRecreateInstanceBuffer{ m_vInstanceCPUData.size() == m_vInstanceCPUData.capacity() };
 
+	std::string LimitedName{ Name };
+	if (LimitedName.length() >= KInstanceNameZeroEndedMaxLength)
+	{
+		MessageBox(nullptr, ("인스턴스 이름 [" + LimitedName + "] 이 최대 길이(" + to_string(KInstanceNameZeroEndedMaxLength - 1) + " 자)를 넘어 잘려서 저장됩니다.").c_str(),
+			"이름 길이 제한", MB_OK | MB_ICONEXCLAMATION);
+
+		LimitedName.resize(KInstanceNameZeroEndedMaxLength - 1);
+	}
+
 	m_vInstanceCPUData.emplace_back();
-	m_vInstanceCPUData.back().Name = Name;
+	m_vInstanceCPUData.back().Name = LimitedName;
 	m_vInstanceCPUData.back().Scaling = ComponentTransform.Scaling;
-	m_mapInstanceNameToIndex[Name] = m_vInstanceCPUData.size() - 1;
+	m_mapInstanceNameToIndex[LimitedName] = m_vInstanceCPUData.size() - 1;
 
 	m_vInstanceGPUData.emplace_back();
 
@@ -385,16 +401,25 @@ void CObject3D::InsertInstance(const string& Name)
 
 void CObject3D::DeleteInstance(const string& Name)
 {
-	if (Name.empty()) return;
 	if (m_vInstanceCPUData.empty()) return;
-	if (m_mapInstanceNameToIndex.find(Name) == m_mapInstanceNameToIndex.end()) return;
 
-	int iInstance{ (int)m_mapInstanceNameToIndex.at(Name) };
-	int iLastInstance{ GetInstanceCount() - 1 };
+	if (Name.empty())
+	{
+		MessageBox(nullptr, "이름이 잘못되었습니다.", "인스턴스 삭제 실패", MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
+	if (m_mapInstanceNameToIndex.find(Name) == m_mapInstanceNameToIndex.end())
+	{
+		MessageBox(nullptr, "해당 인스턴스는 존재하지 않습니다.", "인스턴스 삭제 실패", MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
+
+	uint32_t iInstance{ (uint32_t)m_mapInstanceNameToIndex.at(Name) };
+	uint32_t iLastInstance{ GetInstanceCount() - 1 };
 	string InstanceName{ Name };
 	if (iInstance == iLastInstance)
 	{
-		// Last instance
+		// End instance
 		m_vInstanceCPUData.pop_back();
 		m_vInstanceGPUData.pop_back();
 
@@ -414,7 +439,7 @@ void CObject3D::DeleteInstance(const string& Name)
 	}
 	else
 	{
-		// Non-last instance
+		// Non-end instance
 		string LastInstanceName{ m_vInstanceCPUData[iLastInstance].Name };
 
 		std::swap(m_vInstanceCPUData[iInstance], m_vInstanceCPUData[iLastInstance]);
@@ -613,9 +638,9 @@ void CObject3D::UpdateWorldMatrix()
 	ComponentTransform.MatrixWorld = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
 }
 
-void CObject3D::UpdateInstanceWorldMatrix(int InstanceID)
+void CObject3D::UpdateInstanceWorldMatrix(uint32_t InstanceID)
 {
-	if (InstanceID >= m_vInstanceCPUData.size()) return;
+	if (InstanceID >= (uint32_t)m_vInstanceCPUData.size()) return;
 
 	// Update CPU data
 	LimitFloatRotation(m_vInstanceCPUData[InstanceID].Pitch, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
@@ -646,7 +671,7 @@ void CObject3D::UpdateInstanceWorldMatrix(int InstanceID)
 void CObject3D::UpdateAllInstancesWorldMatrix()
 {
 	// Update CPU data
-	for (int iInstance = 0; iInstance < static_cast<int>(m_vInstanceCPUData.size()); ++iInstance)
+	for (uint32_t iInstance = 0; iInstance < GetInstanceCount(); ++iInstance)
 	{
 		LimitFloatRotation(m_vInstanceCPUData[iInstance].Pitch, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
 		LimitFloatRotation(m_vInstanceCPUData[iInstance].Yaw, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);

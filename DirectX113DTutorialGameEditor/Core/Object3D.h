@@ -151,7 +151,7 @@ public:
 	void UpdateInstanceBuffer(size_t MeshIndex = 0);
 
 	void UpdateWorldMatrix();
-	void UpdateInstanceWorldMatrix(int InstanceID);
+	void UpdateInstanceWorldMatrix(uint32_t InstanceID);
 	void UpdateAllInstancesWorldMatrix();
 
 	void Animate(float DeltaTime);
@@ -165,7 +165,7 @@ public:
 	bool IsCreated() const { return m_bIsCreated; }
 	bool IsRiggedModel() const { return m_Model.bIsModelAnimated; }
 	bool IsInstanced() const { return (m_vInstanceCPUData.size() > 0) ? true : false; }
-	int GetInstanceCount() const { return (int)m_vInstanceCPUData.size(); }
+	uint32_t GetInstanceCount() const { return (uint32_t)m_vInstanceCPUData.size(); }
 	const SModel& GetModel() const { return m_Model; }
 	SModel& GetModel() { return m_Model; }
 	const string& GetName() const { return m_Name; }
@@ -185,7 +185,7 @@ private:
 	void LimitFloatRotation(float& Value, const float Min, const float Max);
 
 public:
-	static constexpr size_t KInstanceNameMaxLength{ 100 };
+	static constexpr size_t KInstanceNameZeroEndedMaxLength{ 32 };
 	static constexpr size_t KMaxAnimationNameLength{ 15 };
 
 private:

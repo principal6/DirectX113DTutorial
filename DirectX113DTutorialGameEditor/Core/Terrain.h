@@ -51,6 +51,33 @@ public:
 		XMMATRIX	InverseTerrainWorld{};
 	};
 
+	struct STerrainFileData
+	{
+		string FileName{};
+
+		float SizeX{};
+		float SizeZ{};
+		float HeightRange{};
+		float TerrainTessellationFactor{ KTessFactorMin };
+
+		vector<SPixel8UInt> vHeightMapTextureRawData{};
+
+		bool bShouldDrawWater{ true };
+		float WaterHeight{};
+		float WaterTessellationFactor{ KTessFactorMin };
+
+		uint32_t MaskingDetail{ KMaskingDefaultDetail };
+		vector<SPixel32UInt> vMaskingTextureRawData{};
+		
+		bool bHasFoliageCluster{ false };
+		uint32_t FoliagePlacingDetail{ KDefaultFoliagePlacingDetail };
+		float FoliageDenstiy{};
+		vector<string> vFoliageFileNames{};
+		vector<SPixel8UInt> vFoliagePlacingTextureRawData{};
+
+		vector<CMaterial> vTerrainMaterials{};
+	};
+
 public:
 	CTerrain(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext, CGame* const PtrGame) :
 		m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }, m_PtrGame{ PtrGame }
@@ -61,7 +88,7 @@ public:
 	~CTerrain() {}
 
 public:
-	void Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, int MaskingDetail, float UniformScaling = 1.0f);
+	void Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, uint32_t MaskingDetail, float UniformScaling = 1.0f);
 	void Load(const string& FileName);
 	void Save(const string& FileName);
 
@@ -69,7 +96,7 @@ private:
 	void Scale(const XMVECTOR& Scaling);
 
 public:
-	void CreateFoliageCluster(const vector<string>& vFoliageFileNames, int PlacingDetail);
+	void CreateFoliageCluster(const vector<string>& vFoliageFileNames, uint32_t PlacingDetail, bool bShouldClear = true);
 	void SetFoliageDensity(float Density);
 	float GetFoliageDenstiy() const;
 
@@ -85,7 +112,7 @@ private:
 	void CreateHeightMapTexture(bool bShouldClear);
 	void CreateMaskingTexture(bool bShouldClear);
 	void CreateWater();
-	void CreateFoliagePlaceTexutre();
+	void CreateFoliagePlacingTexutre(bool bShouldClear);
 	void CreateWindRepresentation();
 
 public:
@@ -133,7 +160,7 @@ public:
 	void SetWaterTessFactor(float Value);
 	float GetWaterTessFactor() const;
 
-	const XMFLOAT2& GetSize() const;
+	XMFLOAT2 GetSize() const;
 	int GetMaterialCount() const;
 	int GetMaskingDetail() const;
 
@@ -142,7 +169,7 @@ public:
 	const string& GetFileName() const;
 
 	const XMFLOAT2& GetSelectionPosition() const;
-	int GetFoliagePlacingDetail() const;
+	uint32_t GetFoliagePlacingDetail() const;
 
 	float GetTerrainHeightAt(float X, float Z);
 	float GetTerrainHeightAt(int iX, int iZ);
@@ -194,9 +221,9 @@ public:
 	static constexpr float KMaskingMaxAttenuation{ 1.0f };
 	static constexpr float KMaskingDefaultAttenuation{ KMaskingMinAttenuation };
 
-	static constexpr int KMaskingMinDetail{ 1 };
-	static constexpr int KMaskingMaxDetail{ 16 };
-	static constexpr int KMaskingDefaultDetail{ 8 };
+	static constexpr uint32_t KMaskingMinDetail{ 1 };
+	static constexpr uint32_t KMaskingMaxDetail{ 16 };
+	static constexpr uint32_t KMaskingDefaultDetail{ 8 };
 
 	static constexpr float KWaterHeightUnit{ 0.1f };
 	static constexpr float KWaterMinHeight{ KMinHeight };
@@ -204,51 +231,41 @@ public:
 
 	static constexpr float KMaxFoliageInterval{ 1.0f };
 	static constexpr float KMinFoliageInterval{ 0.1f };
-	static constexpr int KDefaultFoliagePlacingDetail{ 7 };
-	static constexpr int KMaxFoliagePlacingDetail{ 16 };
-	static constexpr int KMinFoliagePlacingDetail{ 1 };
+	static constexpr uint32_t KDefaultFoliagePlacingDetail{ 7 };
+	static constexpr uint32_t KMaxFoliagePlacingDetail{ 16 };
+	static constexpr uint32_t KMinFoliagePlacingDetail{ 1 };
 
 	static constexpr float KMinWindRadius{ 0.125f };
 	static constexpr float KMinWindVelocityElement{ -8.0f };
 	static constexpr float KMaxWindVelocityElement{ +8.0f };
 
 private:
-	ID3D11Device* const			m_PtrDevice{};
-	ID3D11DeviceContext* const	m_PtrDeviceContext{};
-	CGame* const				m_PtrGame{};
+	ID3D11Device* const				m_PtrDevice{};
+	ID3D11DeviceContext* const		m_PtrDeviceContext{};
+	CGame* const					m_PtrGame{};
 
 private:
 	unique_ptr<CObject2D>			m_Object2DTextureRepresentation{};
 	unique_ptr<CObject3D>			m_Object3DTerrain{};
-	XMFLOAT2						m_Size{};
 
+private:
 	XMFLOAT2						m_HeightMapTextureSize{};
 	unique_ptr<CMaterial::CTexture>	m_HeightMapTexture{};
-	vector<SPixel8UInt>				m_HeightMapTextureRawData{};
-	SCBTerrainData					m_CBTerrainData{};
-	float							m_TerrainTessFactor{ KTessFactorMin };
 
+private:
 	XMFLOAT2						m_MaskingTextureSize{};
 	unique_ptr<CMaterial::CTexture>	m_MaskingTexture{};
-	vector<SPixel32UInt>			m_MaskingTextureRawData{};
 	XMMATRIX						m_MatrixMaskingSpace{};
 
 private:
 	unique_ptr<CObject3D>			m_Object3DWater{};
 	unique_ptr<CMaterial::CTexture>	m_WaterNormalTexture{};
 	unique_ptr<CMaterial::CTexture>	m_WaterDisplacementTexture{};
-	float							m_WaterHeight{};
-	float							m_WaterTessFactor{ KTessFactorMin };
-	bool							m_bShouldDrawWater{ true };
 
 private:
 	vector<unique_ptr<CObject3D>>	m_vFoliages{};
-	bool							m_bHasFoliageCluster{ false };
-	XMFLOAT2						m_FoliagePlaceTextureSize{};
-	unique_ptr<CMaterial::CTexture>	m_FoliagePlaceTexture{};
-	vector<SPixel8UInt>				m_FoliagePlaceTextureRawData{};
-	int								m_FoliagePlacingDetail{ KDefaultFoliagePlacingDetail };
-	float							m_FoliageDenstiy{};
+	XMFLOAT2						m_FoliagePlacingTextureSize{};
+	unique_ptr<CMaterial::CTexture>	m_FoliagePlacingTexture{};
 
 	SCBWindData						m_CBWindData{};
 	unique_ptr<CObject3D>			m_Object3DWindRepresentation{};
@@ -256,14 +273,14 @@ private:
 private:
 	SCBTerrainSelectionData			m_CBTerrainSelectionData{};
 
-	EEditMode		m_eEditMode{};
-	float			m_SetHeightValue{};
-	float			m_DeltaHeightValue{ KHeightUnit * KHeightRange };
-	float			m_MaskingRatio{ KMaskingDefaultRatio };
+	EEditMode			m_eEditMode{};
+	float				m_SetHeightValue{};
+	float				m_DeltaHeightValue{ KHeightUnit * KHeightRange };
+	float				m_MaskingRatio{ KMaskingDefaultRatio };
 
-	EMaskingLayer	m_eMaskingLayer{};
-	float			m_MaskingAttenuation{ KMaskingMinAttenuation };
-	int				m_MaskingTextureDetail{ KMaskingDefaultDetail };
+	EMaskingLayer		m_eMaskingLayer{};
+	float				m_MaskingAttenuation{ KMaskingMinAttenuation };
 
-	string			m_FileName{};
+	STerrainFileData	m_TerrainFileData{};
+	SCBTerrainData		m_CBTerrainData{};
 };
