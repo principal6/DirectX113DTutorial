@@ -1904,6 +1904,8 @@ void CGame::Draw(float DeltaTime)
 
 	m_cbPSLightsData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
 
+	UpdateGSSpace();
+
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawWireFrame))
 	{
 		m_eRasterizerState = ERasterizerState::WireFrame;
@@ -1937,6 +1939,13 @@ void CGame::Draw(float DeltaTime)
 
 	DrawTerrain(DeltaTime);
 
+	DrawObject3DLines();
+
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals))
+	{
+		m_GSNormal->Use();
+		m_GSNormal->UpdateAllConstantBuffers();
+	}
 	for (auto& Object3D : m_vObject3Ds)
 	{
 		if (Object3D->ComponentRender.bIsTransparent) continue;
@@ -1949,8 +1958,6 @@ void CGame::Draw(float DeltaTime)
 			DrawObject3DBoundingSphere(Object3D.get());
 		}
 	}
-
-	DrawObject3DLines();
 
 	// Transparent Object3Ds
 	for (auto& Object3D : m_vObject3Ds)
@@ -1965,6 +1972,7 @@ void CGame::Draw(float DeltaTime)
 			DrawObject3DBoundingSphere(Object3D.get());
 		}
 	}
+	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
 
 	DrawObject2Ds();
 }
@@ -2047,21 +2055,7 @@ void CGame::DrawObject3D(const CObject3D* const PtrObject3D)
 		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
 	}
 
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals))
-	{
-		UpdateGSSpace();
-
-		m_GSNormal->Use();
-		m_GSNormal->UpdateAllConstantBuffers();
-		
-		PtrObject3D->Draw();
-
-		m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
-	}
-	else
-	{
-		PtrObject3D->Draw();
-	}
+	PtrObject3D->Draw();
 }
 
 void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
