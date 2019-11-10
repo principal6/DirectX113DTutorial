@@ -13,6 +13,7 @@ public:
 	{
 		SetHeight,
 		DeltaHeight,
+		AverageHeight,
 		Masking,
 		FoliagePlacing
 	};
@@ -194,7 +195,7 @@ public:
 
 	static constexpr float KHeightUnit{ 0.01f };
 	static constexpr float KMaxHeight{ +8.0f };
-	static constexpr float KMinHeight{ -8.0f };
+	static constexpr float KMinHeight{ -KMaxHeight };
 	static constexpr float KHeightRange{ KMaxHeight - KMinHeight };
 	static constexpr float KHeightRangeHalf{ KHeightRange / 2.0f };
 

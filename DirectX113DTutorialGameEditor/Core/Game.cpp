@@ -3642,8 +3642,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					CTerrain* const Terrain{ GetTerrain() };
 					if (Terrain)
 					{
-						static const char* const KModeLabelList[4]{
-							u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<마스킹 모드>", u8"<초목 배치 모드>" };
+						static const char* const KModeLabelList[5]{
+							u8"<높이 지정 모드>", u8"<높이 변경 모드>", u8"<높이 평균 모드>", u8"<마스킹 모드>", u8"<초목 배치 모드>" };
 						static int iSelectedMode{};
 
 						const XMFLOAT2& KTerrainSize{ Terrain->GetSize() };
@@ -3720,9 +3720,12 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										Terrain->SetEditMode(CTerrain::EEditMode::DeltaHeight);
 										break;
 									case 2:
-										Terrain->SetEditMode(CTerrain::EEditMode::Masking);
+										Terrain->SetEditMode(CTerrain::EEditMode::AverageHeight);
 										break;
 									case 3:
+										Terrain->SetEditMode(CTerrain::EEditMode::Masking);
+										break;
+									case 4:
 										Terrain->SetEditMode(CTerrain::EEditMode::FoliagePlacing);
 										break;
 									default:
@@ -3737,13 +3740,13 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::Text(u8"지정할 높이");
 								ImGui::SameLine(ItemsOffsetX);
 								float TerrainSetHeightValue{ Terrain->GetSetHeightValue() };
-								if (ImGui::DragFloat(u8"##지정할 높이", &TerrainSetHeightValue, CTerrain::KHeightUnit,
+								if (ImGui::SliderFloat(u8"##지정할 높이", &TerrainSetHeightValue,
 									CTerrain::KMinHeight, CTerrain::KMaxHeight, "%.1f"))
 								{
 									Terrain->SetSetHeightValue(TerrainSetHeightValue);
 								}
 							}
-							else if (iSelectedMode == 2)
+							else if (iSelectedMode == 3)
 							{
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"마스킹 레이어");
@@ -3790,7 +3793,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									Terrain->SetMaskingAttenuation(TerrainMaskingAttenuation);
 								}
 							}
-							else if (iSelectedMode == 3)
+							else if (iSelectedMode == 4)
 							{
 								if (Terrain->HasFoliageCluster())
 								{

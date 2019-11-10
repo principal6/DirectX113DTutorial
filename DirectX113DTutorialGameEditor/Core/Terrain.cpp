@@ -347,6 +347,29 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 	const int KCenterU{ (int)(XMVectorGetX(LocalSelectionPosition) + 0.5f) + KTerrainSizeX / 2 };
 	const int KCenterV{ (int)(-XMVectorGetZ(LocalSelectionPosition) + 0.5f) + KTerrainSizeZ / 2 };
 
+	int AverageHeightInRange{};
+	if (m_eEditMode == EEditMode::AverageHeight)
+	{
+		int PixelInRangeCount{};
+		int HeightSum{};
+		for (int iPixel = 0; iPixel < (int)m_TerrainFileData.vHeightMapTextureRawData.size(); ++iPixel)
+		{
+			int U{ iPixel % (int)m_HeightMapTextureSize.x };
+			int V{ iPixel / (int)m_HeightMapTextureSize.x };
+
+			float dU{ float(U - KCenterU) };
+			float dV{ float(V - KCenterV) };
+			float DistanceSquare{ dU * dU + dV * dV };
+			if (DistanceSquare <= KLocalRadiusSquare)
+			{
+				HeightSum += m_TerrainFileData.vHeightMapTextureRawData[iPixel].R;
+				++PixelInRangeCount;
+			}
+		}
+		float fAverageHeight{ (float)HeightSum / (float)PixelInRangeCount };
+		AverageHeightInRange = (int)fAverageHeight;
+	}
+
 	for (int iPixel = 0; iPixel < (int)m_TerrainFileData.vHeightMapTextureRawData.size(); ++iPixel)
 	{
 		int U{ iPixel % (int)m_HeightMapTextureSize.x };
@@ -360,31 +383,39 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 			switch (m_eEditMode)
 			{
 			case EEditMode::SetHeight:
-			{
-				float NewY{ (m_SetHeightValue + KHeightRangeHalf) / KHeightRange };
-				NewY = min(max(NewY, 0.0f), 1.0f);
+				{
+					float NewY{ (m_SetHeightValue + KHeightRangeHalf) / KHeightRange };
+					NewY = min(max(NewY, 0.0f), 1.0f);
 
-				m_TerrainFileData.vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY * 255);
-			} break;
+					m_TerrainFileData.vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY * 255);
+				}
+				break;
+			case EEditMode::AverageHeight:
+				{
+					int Deviation{ (int)m_TerrainFileData.vHeightMapTextureRawData[iPixel].R - AverageHeightInRange };
+					Deviation = (int)((float)Deviation * 0.875f);
+
+					m_TerrainFileData.vHeightMapTextureRawData[iPixel].R = (uint8_t)(AverageHeightInRange + Deviation);
+				}
+				break;
 			case EEditMode::DeltaHeight:
-			{
-				if (bIsLeftButton)
 				{
-					int NewY{ m_TerrainFileData.vHeightMapTextureRawData[iPixel].R + 1 };
-					NewY = min(NewY, 255);
-					m_TerrainFileData.vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY);
-				}
-				else
-				{
-					int NewY{ m_TerrainFileData.vHeightMapTextureRawData[iPixel].R - 1 };
-					NewY = max(NewY, 0);
-					m_TerrainFileData.vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY);
-				}
-			} break;
+					if (bIsLeftButton)
+					{
+						int NewY{ m_TerrainFileData.vHeightMapTextureRawData[iPixel].R + 1 };
+						NewY = min(NewY, 255);
+						m_TerrainFileData.vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY);
+					}
+					else
+					{
+						int NewY{ m_TerrainFileData.vHeightMapTextureRawData[iPixel].R - 1 };
+						NewY = max(NewY, 0);
+						m_TerrainFileData.vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY);
+					}
+				} 
+				break;
 			default:
-			{
-
-			} break;
+				break;
 			}
 		}
 	}
