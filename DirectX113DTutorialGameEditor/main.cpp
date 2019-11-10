@@ -24,70 +24,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	CCamera* MainCamera{ Game.AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
 	MainCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
 
-	Game.SetSky("Asset\\Sky.xml", 30.0f);
-	Game.UnsetSky();
-
-	Game.InsertObject3DLine("Grid");
-	{
-		CObject3DLine* Grid{ Game.GetObject3DLine("Grid") };
-		Grid->Create(Generate3DGrid(0));
-	}
-
-	Game.InsertObject2D("Test2D");
-	{
-		CObject2D* Test2D{ Game.GetObject2D("Test2D") };
-		Test2D->Create(Generate2DRectangle(XMFLOAT2(100, 50)));
-		Test2D->CreateTexture("Asset\\test.jpg");
-	}
-
-	CMaterial MaterialTest{};
-	{
-		MaterialTest.SetName("Test");
-		MaterialTest.ShouldGenerateAutoMipMap(true);
-		MaterialTest.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\test.jpg");
-		MaterialTest.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\test_normal.jpg");
-		MaterialTest.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\test_displacement.jpg");
-		Game.AddMaterial(MaterialTest);
-	}
-
-	CMaterial MaterialDefaultGround1{};
-	{
-		MaterialDefaultGround1.SetName("DefaultGround1");
-		MaterialDefaultGround1.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround1.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\ground1.jpg");
-		MaterialDefaultGround1.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\ground1_normal.jpg");
-		MaterialDefaultGround1.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\ground1_displacement.jpg");
-		Game.AddMaterial(MaterialDefaultGround1);
-	}
-
-	CMaterial MaterialDefaultGround2{};
-	{
-		MaterialDefaultGround2.SetName("DefaultGround2");
-		MaterialDefaultGround2.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround2.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\ground2.jpg");
-		MaterialDefaultGround2.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\ground2_normal.jpg");
-		MaterialDefaultGround2.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\ground2_displacement.jpg");
-		Game.AddMaterial(MaterialDefaultGround2);
-	}
-
-	CMaterial MaterialDefaultGround3{};
-	{
-		MaterialDefaultGround3.SetName("DefaultGround3");
-		MaterialDefaultGround3.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround3.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\ground3.jpg");
-		MaterialDefaultGround3.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\ground3_normal.jpg");
-		MaterialDefaultGround3.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\ground3_displacement.jpg");
-		Game.AddMaterial(MaterialDefaultGround3);
-	}
-
-	CMaterial MaterialDefaultGrass{};
-	{
-		MaterialDefaultGrass.SetName("DefaultGrass");
-		MaterialDefaultGrass.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGrass.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\grass.jpg");
-		MaterialDefaultGrass.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\grass_normal.jpg");
-		Game.AddMaterial(MaterialDefaultGrass);
-	}
+	//Game.CreateDynamicSky("Asset\\Sky.xml", 30.0f);
+	Game.CreateStaticSky(30.0f);
 
 	// Main loop
 	while (true)

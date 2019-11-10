@@ -536,9 +536,6 @@
     <FxCompile Include="Shader\VSSky.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shader\PSSky.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
     <FxCompile Include="Shader\VSLine.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
@@ -606,6 +603,9 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\PSFoliage.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PSDynamicSky.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

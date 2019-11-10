@@ -48,7 +48,7 @@ public:
 
 		PSBase,
 		PSVertexColor,
-		PSSky,
+		PSDynamicSky,
 		PSCloud,
 		PSLine,
 		PSGizmo,
@@ -217,7 +217,7 @@ public:
 		EditObject,
 		EditTerrain
 	};
-
+	
 	struct SSkyData
 	{
 		struct SSkyObjectData
@@ -228,10 +228,19 @@ public:
 		};
 
 		bool			bIsDataSet{ false };
+		bool			bIsDynamic{ false };
 		std::string		TextureFileName{};
 		SSkyObjectData	Sun{};
 		SSkyObjectData	Moon{};
 		SSkyObjectData	Cloud{};
+	};
+
+	struct SEditorGUIBools
+	{
+		bool bShowWindowPropertyEditor{ true };
+		bool bShowWindowSceneEditor{ true };
+		bool bShowPopupTerrainGenerator{ false };
+		bool bShowPopupObjectAdder{ false };
 	};
 
 public:
@@ -246,6 +255,7 @@ public:
 private:
 	void CreateWin32Window(WNDPROC const WndProc, const std::string& WindowName);
 	void InitializeDirectX(bool bWindowed);
+	void InitializeEditorAssets();
 	void InitializeImGui();
 
 private:
@@ -293,8 +303,8 @@ public:
 	void UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection);
 
 public:
-	void SetSky(const std::string& SkyDataFileName, float ScalingFactor);
-	void UnsetSky();
+	void CreateDynamicSky(const std::string& SkyDataFileName, float ScalingFactor);
+	void CreateStaticSky(float ScalingFactor);
 
 private:
 	void LoadSkyObjectData(const tinyxml2::XMLElement* const xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
@@ -438,7 +448,11 @@ private:
 	void Draw3DGizmoScalings(E3DGizmoAxis Axis);
 	void Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight);
 
-	void DrawImGui();
+	void DrawEditorGUI();
+	void DrawEditorGUIMenuBar();
+	void DrawEditorGUIPopups();
+	void DrawEditorGUIWindowPropertyEditor();
+	void DrawEditorGUIWindowSceneEditor();
 
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
@@ -472,7 +486,7 @@ private:
 	static constexpr uint32_t KSkySphereSegmentCount{ 32 };
 	static constexpr XMVECTOR KColorWhite{ 1.0f, 1.0f, 1.0f, 1.0f };
 	static constexpr XMVECTOR KSkySphereColorUp{ 0.1f, 0.5f, 1.0f, 1.0f };
-	static constexpr XMVECTOR KSkySphereColorBottom{ 1.0f, 1.0f, 1.0f, 1.0f };
+	static constexpr XMVECTOR KSkySphereColorBottom{ 1.2f, 1.2f, 1.2f, 1.0f };
 	static constexpr float K3DGizmoSelectionRadius{ 1.1f };
 	static constexpr float K3DGizmoSelectionLowBoundary{ 0.8f };
 	static constexpr float K3DGizmoSelectionHighBoundary{ 1.2f };
@@ -502,7 +516,7 @@ private:
 
 	std::unique_ptr<CShader>	m_PSBase{};
 	std::unique_ptr<CShader>	m_PSVertexColor{};
-	std::unique_ptr<CShader>	m_PSSky{};
+	std::unique_ptr<CShader>	m_PSDynamicSky{};
 	std::unique_ptr<CShader>	m_PSCloud{};
 	std::unique_ptr<CShader>	m_PSLine{};
 	std::unique_ptr<CShader>	m_PSGizmo{};
@@ -628,7 +642,8 @@ private:
 	std::unique_ptr<CTerrain>	m_Terrain{};
 
 private:
-	ImFont* m_ImGuiFont{};
+	ImFont*			m_EditorGUIFont{};
+	SEditorGUIBools	m_EditorGUIBools{};
 
 private:
 	std::chrono::steady_clock	m_Clock{};
