@@ -1,5 +1,9 @@
 #include "Core/Game.h"
 
+// ### TODO ###
+// Improve Gizmo selection algorithm!!
+// Add edge detection on selected object
+
 IMGUI_IMPL_API LRESULT  ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_ LPARAM lParam);
 
@@ -27,6 +31,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	{
 		CObject3DLine* Grid{ Game.GetObject3DLine("Grid") };
 		Grid->Create(Generate3DGrid(0));
+	}
+
+	Game.InsertObject2D("Test2D");
+	{
+		CObject2D* Test2D{ Game.GetObject2D("Test2D") };
+		Test2D->Create(Generate2DRectangle(XMFLOAT2(100, 50)));
+		Test2D->CreateTexture("Asset\\test.jpg");
 	}
 
 	CMaterial MaterialTest{};

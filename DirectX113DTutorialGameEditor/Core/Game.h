@@ -21,52 +21,47 @@
 #include "ImGui/imgui_impl_win32.h"
 #include "ImGui/imgui_impl_dx11.h"
 
-enum class EBaseShader
-{
-	VSBase,
-	VSInstance,
-	VSAnimation,
-	VSSky,
-	VSLine,
-	VSGizmo,
-	VSTerrain,
-	VSFoliage,
-	VSParticle,
-	VSBase2D,
-
-	HSTerrain,
-	HSWater,
-
-	DSTerrain,
-	DSWater,
-
-	GSNormal,
-	GSParticle,
-
-	PSBase,
-	PSVertexColor,
-	PSSky,
-	PSCloud,
-	PSLine,
-	PSGizmo,
-	PSTerrain,
-	PSWater,
-	PSFoliage,
-	PSParticle,
-
-	PSBase2D,
-	PSMasking2D,
-	PSHeightMap2D
-};
-
-enum class EFlagPSBase2D
-{
-	UseTexture
-};
-
 class CGame
 {
 public:
+	enum class EBaseShader
+	{
+		VSBase,
+		VSInstance,
+		VSAnimation,
+		VSSky,
+		VSLine,
+		VSGizmo,
+		VSTerrain,
+		VSFoliage,
+		VSParticle,
+		VSBase2D,
+
+		HSTerrain,
+		HSWater,
+
+		DSTerrain,
+		DSWater,
+
+		GSNormal,
+		GSParticle,
+
+		PSBase,
+		PSVertexColor,
+		PSSky,
+		PSCloud,
+		PSLine,
+		PSGizmo,
+		PSTerrain,
+		PSWater,
+		PSFoliage,
+		PSParticle,
+
+		PSBase2D,
+		PSMasking2D,
+		PSHeightMap2D
+	};
+
 	struct SCBSpaceWVPData
 	{
 		XMMATRIX	World{};
@@ -296,8 +291,6 @@ public:
 	void UpdateCBMaterial(const CMaterial& Material);
 	void UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix);
 	void UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection);
-	void UpdatePSBase2DFlagOn(EFlagPSBase2D Flag);
-	void UpdatePSBase2DFlagOff(EFlagPSBase2D Flag);
 
 public:
 	void SetSky(const std::string& SkyDataFileName, float ScalingFactor);

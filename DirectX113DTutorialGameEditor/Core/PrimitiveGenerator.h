@@ -33,7 +33,7 @@ static void ScaleMeshTexCoord(SMesh& Mesh, const XMVECTOR& Scaling);
 static SMesh MergeStaticMeshes(const SMesh& MeshA, const SMesh& MeshB);
 static std::vector<SVertex3DLine> Generate3DLineCircleYZ(const XMVECTOR& Color = KColorWhite, uint32_t SegmentCount = 32);
 static std::vector<SVertex3DLine> Generate3DGrid(int GuidelineCount = 10, float Interval = 1.0f);
-static CObject2D::SData Generate2DRectangle(const XMFLOAT2& RectangleSize);
+static CObject2D::SModel2D Generate2DRectangle(const XMFLOAT2& RectangleSize);
 
 static bool operator==(const XMVECTOR& A, const XMVECTOR& B)
 {
@@ -814,17 +814,17 @@ static std::vector<SVertex3DLine> Generate3DGrid(int GuidelineCount, float Inter
 	return vVertices;
 }
 
-static CObject2D::SData Generate2DRectangle(const XMFLOAT2& RectangleSize)
+static CObject2D::SModel2D Generate2DRectangle(const XMFLOAT2& RectangleSize)
 {
 	const float KHalfWidth{ RectangleSize.x / 2 };
 	const float KHalfHeight{ RectangleSize.y / 2 };
 
-	CObject2D::SData Result{};
+	CObject2D::SModel2D Result{};
 
-	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(-KHalfWidth, +KHalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(0.0f, 0.0f, 0, 0)));
-	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(+KHalfWidth, +KHalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(1.0f, 0.0f, 0, 0)));
-	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(-KHalfWidth, -KHalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(0.0f, 1.0f, 0, 0)));
-	Result.vVertices.emplace_back(SVertex2D(XMVectorSet(+KHalfWidth, -KHalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(1.0f, 1.0f, 0, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-KHalfWidth, +KHalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(0.0f, 0.0f, 0, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(+KHalfWidth, +KHalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(1.0f, 0.0f, 0, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-KHalfWidth, -KHalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(0.0f, 1.0f, 0, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(+KHalfWidth, -KHalfHeight, 0, 1), XMVectorSet(1, 1, 1, 1), XMVectorSet(1.0f, 1.0f, 0, 0)));
 
 	Result.vTriangles.emplace_back(STriangle(0, 1, 2));
 	Result.vTriangles.emplace_back(STriangle(1, 3, 2));

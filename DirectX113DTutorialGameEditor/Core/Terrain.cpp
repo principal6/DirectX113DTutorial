@@ -32,7 +32,7 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, ui
 	CreateTerrainObject3D(vMaterials);
 
 	m_Object2DTextureRepresentation = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
-	m_Object2DTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
+	m_Object2DTextureRepresentation->Create(Generate2DRectangle(XMFLOAT2(600, 480)), true);
 
 	CreateHeightMapTexture(true);
 	CreateMaskingTexture(true);
@@ -59,7 +59,7 @@ void CTerrain::Load(const string& FileName)
 	CreateTerrainObject3D(m_TerrainFileData.vTerrainMaterials);
 
 	m_Object2DTextureRepresentation = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
-	m_Object2DTextureRepresentation->CreateDynamic(Generate2DRectangle(XMFLOAT2(600, 480)));
+	m_Object2DTextureRepresentation->Create(Generate2DRectangle(XMFLOAT2(600, 480)), true);
 
 	CreateHeightMapTexture(false);
 	CreateMaskingTexture(false);
@@ -834,8 +834,8 @@ void CTerrain::Draw(bool bDrawNormals)
 	m_PtrGame->UpdateCBTerrainSelection(m_CBTerrainSelectionData);
 	m_PtrGame->UpdateCBSpace(m_CBTerrainSelectionData.TerrainWorld);
 
-	CShader* VS{ m_PtrGame->GetBaseShader(EBaseShader::VSTerrain) };
-	CShader* PS{ m_PtrGame->GetBaseShader(EBaseShader::PSTerrain) };
+	CShader* VS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::VSTerrain) };
+	CShader* PS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::PSTerrain) };
 
 	VS->Use();
 	VS->UpdateAllConstantBuffers();
@@ -850,8 +850,8 @@ void CTerrain::Draw(bool bDrawNormals)
 	if (bDrawNormals)
 	{
 		m_PtrGame->UpdateCBSpace();
-		m_PtrGame->GetBaseShader(EBaseShader::GSNormal)->Use();
-		m_PtrGame->GetBaseShader(EBaseShader::GSNormal)->UpdateAllConstantBuffers();
+		m_PtrGame->GetBaseShader(CGame::EBaseShader::GSNormal)->Use();
+		m_PtrGame->GetBaseShader(CGame::EBaseShader::GSNormal)->UpdateAllConstantBuffers();
 	}
 
 	m_Object3DTerrain->Draw();
@@ -883,9 +883,9 @@ void CTerrain::DrawHeightMapTexture()
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
 
 	m_PtrGame->UpdateCBSpace();
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(EBaseShader::PSHeightMap2D)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSHeightMap2D)->Use();
 
 	m_Object2DTextureRepresentation->Draw();
 
@@ -902,9 +902,9 @@ void CTerrain::DrawMaskingTexture()
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
 
 	m_PtrGame->UpdateCBSpace();
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(EBaseShader::PSMasking2D)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSMasking2D)->Use();
 	
 	m_Object2DTextureRepresentation->Draw();
 
@@ -923,9 +923,9 @@ void CTerrain::DrawFoliagePlacingTexture()
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
 
 	m_PtrGame->UpdateCBSpace();
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(EBaseShader::PSHeightMap2D)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSHeightMap2D)->Use();
 
 	m_Object2DTextureRepresentation->Draw();
 
@@ -941,14 +941,14 @@ void CTerrain::DrawWater()
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
 	m_PtrGame->UpdateCBSpace(m_Object3DWater->ComponentTransform.MatrixWorld);
 	m_PtrGame->UpdateCBTessFactor(m_TerrainFileData.WaterTessellationFactor);
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::VSBase)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(EBaseShader::HSWater)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::HSWater)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(EBaseShader::DSWater)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::DSWater)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(EBaseShader::PSWater)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::PSWater)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::HSWater)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::HSWater)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::DSWater)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::DSWater)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSWater)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSWater)->UpdateAllConstantBuffers();
 	m_WaterNormalTexture->Use();
 	m_WaterDisplacementTexture->Use();
 	m_Object3DWater->Draw();
@@ -967,11 +967,11 @@ void CTerrain::DrawFoliageCluster()
 	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
 	m_HeightMapTexture->Use();
 	
-	m_PtrGame->GetBaseShader(EBaseShader::VSFoliage)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::VSFoliage)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSFoliage)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSFoliage)->UpdateAllConstantBuffers();
 
-	m_PtrGame->GetBaseShader(EBaseShader::PSFoliage)->Use();
-	m_PtrGame->GetBaseShader(EBaseShader::PSFoliage)->UpdateAllConstantBuffers();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSFoliage)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSFoliage)->UpdateAllConstantBuffers();
 
 	m_PtrDeviceContext->HSSetShader(nullptr, nullptr, 0);
 	m_PtrDeviceContext->DSSetShader(nullptr, nullptr, 0);
@@ -994,10 +994,10 @@ void CTerrain::DrawFoliageCluster()
 
 		m_PtrGame->UpdateCBSpace(m_Object3DWindRepresentation->ComponentTransform.MatrixWorld);
 
-		m_PtrGame->GetBaseShader(EBaseShader::VSBase)->Use();
-		m_PtrGame->GetBaseShader(EBaseShader::VSBase)->UpdateAllConstantBuffers();
+		m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->Use();
+		m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->UpdateAllConstantBuffers();
 
-		m_PtrGame->GetBaseShader(EBaseShader::PSVertexColor)->Use();
+		m_PtrGame->GetBaseShader(CGame::EBaseShader::PSVertexColor)->Use();
 
 		m_Object3DWindRepresentation->Draw();
 

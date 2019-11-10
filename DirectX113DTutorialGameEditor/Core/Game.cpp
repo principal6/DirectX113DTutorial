@@ -1112,32 +1112,6 @@ void CGame::UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Se
 	m_CBTerrainSelectionData = Selection;
 }
 
-void CGame::UpdatePSBase2DFlagOn(EFlagPSBase2D Flag)
-{
-	switch (Flag)
-	{
-	case EFlagPSBase2D::UseTexture:
-		m_cbPS2DFlagsData.bUseTexture = TRUE;
-		break;
-	default:
-		break;
-	}
-	m_PSBase2D->UpdateConstantBuffer(0);
-}
-
-void CGame::UpdatePSBase2DFlagOff(EFlagPSBase2D Flag)
-{
-	switch (Flag)
-	{
-	case EFlagPSBase2D::UseTexture:
-		m_cbPS2DFlagsData.bUseTexture = FALSE;
-		break;
-	default:
-		break;
-	}
-	m_PSBase2D->UpdateConstantBuffer(0);
-}
-
 void CGame::SetSky(const string& SkyDataFileName, float ScalingFactor)
 {
 	using namespace tinyxml2;
@@ -2618,37 +2592,28 @@ void CGame::DrawObject2Ds()
 	m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
 	
-	m_CBSpace2DData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
-
 	m_VSBase2D->Use();
 	m_PSBase2D->Use();
 
 	for (auto& Object2D : m_vObject2Ds)
 	{
-		if (Object2D)
+		if (!Object2D->IsVisible()) continue;
+
+		UpdateCBSpace(Object2D->GetWorldMatrix());
+		m_VSBase2D->UpdateConstantBuffer(0);
+
+		if (Object2D->HasTexture())
 		{
-			if (!Object2D->bIsVisible) continue;
-
-			Object2D->UpdateWorldMatrix();
-			m_CBSpace2DData.World = XMMatrixTranspose(Object2D->ComponentTransform.MatrixWorld);
-			m_VSBase2D->UpdateConstantBuffer(0);
-
-			/*
-			if (GO2D->ComponentRender.PtrTexture)
-			{
-				GO2D->ComponentRender.PtrTexture->Use();
-				m_cbPS2DFlagsData.bUseTexture = TRUE;
-				m_PSBase2D->UpdateConstantBuffer(0);
-			}
-			else
-			{
-				m_cbPS2DFlagsData.bUseTexture = FALSE;
-				m_PSBase2D->UpdateConstantBuffer(0);
-			}
-			*/
-
-			Object2D->Draw();
+			m_cbPS2DFlagsData.bUseTexture = TRUE;
+			m_PSBase2D->UpdateConstantBuffer(0);
 		}
+		else
+		{
+			m_cbPS2DFlagsData.bUseTexture = FALSE;
+			m_PSBase2D->UpdateConstantBuffer(0);
+		}
+
+		Object2D->Draw();
 	}
 
 	m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
