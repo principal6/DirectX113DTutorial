@@ -1,7 +1,6 @@
 #include "Core/Game.h"
 
 // ### TODO ###
-// Improve Gizmo selection algorithm!!
 // Add edge detection on selected object
 
 IMGUI_IMPL_API LRESULT  ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);

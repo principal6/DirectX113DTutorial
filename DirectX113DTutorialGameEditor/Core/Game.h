@@ -384,6 +384,13 @@ private:
 	CObject3D* GetSelectedObject3D();
 	const std::string& GetSelectedObject3DName() const;
 
+	void Select3DGizmos();
+	void Deselect3DGizmos();
+	bool IsGizmoHovered() const;
+	bool IsGizmoSelected() const;
+	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
+	bool ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
+
 public:
 	void SelectInstance(int InstanceID);
 	void DeselectInstance();
@@ -392,10 +399,6 @@ public:
 
 private:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
-
-	void Interact3DGizmos();
-	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
-	bool ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
 
 private:
 	void CastPickingRay();
@@ -443,8 +446,8 @@ private:
 	void DrawTerrain(float DeltaTime);
 
 	void Draw3DGizmos();
-	void Draw3DGizmoRotations(E3DGizmoAxis Axis);
 	void Draw3DGizmoTranslations(E3DGizmoAxis Axis);
+	void Draw3DGizmoRotations(E3DGizmoAxis Axis);
 	void Draw3DGizmoScalings(E3DGizmoAxis Axis);
 	void Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight);
 
@@ -599,6 +602,7 @@ private:
 	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingY{};
 	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingZ{};
 
+	bool						m_bIsGizmoHovered{ false };
 	bool						m_bIsGizmoSelected{ false };
 	E3DGizmoAxis				m_e3DGizmoSelectedAxis{};
 	E3DGizmoMode				m_e3DGizmoMode{};
@@ -674,8 +678,8 @@ private:
 	Keyboard::State						m_CapturedKeyboardState{};
 	Mouse::State						m_CapturedMouseState{};
 	bool								m_bLeftButtonPressedOnce{ false };
-	int									m_PrevMouseX{};
-	int									m_PrevMouseY{};
+	int									m_PrevCapturedMouseX{};
+	int									m_PrevCapturedMouseY{};
 	std::unique_ptr<SpriteBatch>		m_SpriteBatch{};
 	std::unique_ptr<SpriteFont>			m_SpriteFont{};
 	std::unique_ptr<CommonStates>		m_CommonStates{};
