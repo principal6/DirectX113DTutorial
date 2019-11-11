@@ -557,14 +557,16 @@ void CGame::CreatePickedTriangle()
 
 void CGame::Create3DGizmos()
 {
+	static constexpr float KGizmoRadius{ 0.05f };
+	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
 	const static XMVECTOR ColorX{ XMVectorSet(1.0f, 0.2f, 0.2f, 1) };
 	const static XMVECTOR ColorY{ XMVectorSet(0.2f, 1.0f, 0.2f, 1) };
 	const static XMVECTOR ColorZ{ XMVectorSet(0.2f, 0.2f, 1.0f, 1) };
 
 	m_Object3D_3DGizmoRotationPitch = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
-		SMesh MeshRing{ GenerateTorus(ColorX, 0.05f) };
-		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorX) };
+		SMesh MeshRing{ GenerateTorus(KGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorX) };
+		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorX) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		MeshRing = MergeStaticMeshes(MeshRing, MeshAxis);
 		m_Object3D_3DGizmoRotationPitch->Create(MeshRing);
@@ -575,8 +577,8 @@ void CGame::Create3DGizmos()
 
 	m_Object3D_3DGizmoRotationYaw = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
-		SMesh MeshRing{ GenerateTorus(ColorY, 0.05f) };
-		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorY) };
+		SMesh MeshRing{ GenerateTorus(KGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorY) };
+		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorY) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		MeshRing = MergeStaticMeshes(MeshRing, MeshAxis);
 		m_Object3D_3DGizmoRotationYaw->Create(MeshRing);
@@ -586,8 +588,8 @@ void CGame::Create3DGizmos()
 
 	m_Object3D_3DGizmoRotationRoll = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
-		SMesh MeshRing{ GenerateTorus(ColorZ, 0.05f) };
-		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorZ) };
+		SMesh MeshRing{ GenerateTorus(KGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorZ) };
+		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorZ) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		MeshRing = MergeStaticMeshes(MeshRing, MeshAxis);
 		m_Object3D_3DGizmoRotationRoll->Create(MeshRing);
@@ -599,7 +601,7 @@ void CGame::Create3DGizmos()
 
 	m_Object3D_3DGizmoTranslationX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
-		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorX) };
+		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorX) };
 		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorX) };
 		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
@@ -612,7 +614,7 @@ void CGame::Create3DGizmos()
 
 	m_Object3D_3DGizmoTranslationY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
-		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorY) };
+		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorY) };
 		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorY) };
 		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
@@ -624,7 +626,7 @@ void CGame::Create3DGizmos()
 
 	m_Object3D_3DGizmoTranslationZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
-		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorZ) };
+		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorZ) };
 		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorZ) };
 		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
@@ -638,7 +640,7 @@ void CGame::Create3DGizmos()
 
 	m_Object3D_3DGizmoScalingX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
-		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorX) };
+		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorX) };
 		SMesh MeshCube{ GenerateCube(ColorX) };
 		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
 		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
@@ -652,7 +654,7 @@ void CGame::Create3DGizmos()
 
 	m_Object3D_3DGizmoScalingY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
-		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorY) };
+		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorY) };
 		SMesh MeshCube{ GenerateCube(ColorY) };
 		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
 		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
@@ -665,7 +667,7 @@ void CGame::Create3DGizmos()
 
 	m_Object3D_3DGizmoScalingZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
-		SMesh MeshAxis{ GenerateCylinder(0.05f, 1.0f, 16, ColorZ) };
+		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorZ) };
 		SMesh MeshCube{ GenerateCube(ColorZ) };
 		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
 		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
@@ -1061,7 +1063,7 @@ void CGame::SetPerspective(float FOV, float NearZ, float FarZ)
 	m_MatrixProjection = XMMatrixPerspectiveFovLH(FOV, m_WindowSize.x / m_WindowSize.y, m_NearZ, m_FarZ);
 }
 
-void CGame::SetGameRenderingFlags(EFlagsRendering Flags)
+void CGame::SetRenderingFlags(EFlagsRendering Flags)
 {
 	m_eFlagsRendering = Flags;
 }
@@ -3208,12 +3210,27 @@ void CGame::DrawEditorGUIPopups()
 
 	// ### 오브젝트 추가 윈도우 ###
 	if (m_EditorGUIBools.bShowPopupObjectAdder) ImGui::OpenPopup(u8"오브젝트 추가기");
-	if (ImGui::BeginPopup(u8"오브젝트 추가기"))
+	ImGui::SetNextWindowPosCenter();
+	if (ImGui::BeginPopup(u8"오브젝트 추가기", ImGuiWindowFlags_AlwaysAutoResize))
 	{
 		static char NewObejct3DName[CGame::KObject3DNameMaxLength]{};
 		static char ModelFileNameWithPath[MAX_PATH]{};
 		static char ModelFileNameWithoutPath[MAX_PATH]{};
 		static bool bIsModelRigged{ false };
+
+		static const char* const KOptions[2]{ u8"3D 도형 생성", u8"모델 파일 불러오기" };
+		static int iSelectedOption{};
+
+		static const char* const KPrimitiveTypes[10]{ u8"-정사각형(XY)", u8"-정사각형(XZ)", u8"-정사각형(YZ)",
+				u8"-원", u8"-삼각뿔", u8"-정육면체", u8"-각뿔", u8"-각기둥", u8"-구", u8"-도넛(Torus)" };
+		static int iSelectedPrimitiveType{};
+		static uint32_t SideCount{ KDefaultPrimitiveDetail };
+		static uint32_t SegmentCount{ KDefaultPrimitiveDetail };
+		static float RadiusFactor{ 0.0f };
+		static float InnerRadius{ 0.5f };
+		static float WidthScalar{ 1.0f };
+		static float HeightScalar{ 1.0f };
+		static XMFLOAT4 UniformColor{ 1.0f, 1.0f, 1.0f, 1.0f };
 
 		bool bShowDialogLoadModel{};
 
@@ -3221,19 +3238,113 @@ void CGame::DrawEditorGUIPopups()
 		ImGui::SetNextItemWidth(140);
 		ImGui::InputText(u8"오브젝트 이름", NewObejct3DName, CGame::KObject3DNameMaxLength);
 
-		if (ImGui::Button(u8"모델 불러오기")) bShowDialogLoadModel = true;
+		for (int iOption = 0; iOption < ARRAYSIZE(KOptions); ++iOption)
+		{
+			if (ImGui::Selectable(KOptions[iOption], (iSelectedOption == iOption)))
+			{
+				iSelectedOption = iOption;
+			}
+		}
 
-		ImGui::SameLine();
+		switch (iSelectedOption)
+		{
+		case 0:
+		{
+			static constexpr float KOffetX{ 150.0f };
+			static constexpr float KItemsWidth{ 150.0f };
+			ImGui::Indent(20.0f);
+			
+			for (int iPrimitiveType = 0; iPrimitiveType < ARRAYSIZE(KPrimitiveTypes); ++iPrimitiveType)
+			{
+				if (ImGui::Selectable(KPrimitiveTypes[iPrimitiveType], (iSelectedPrimitiveType == iPrimitiveType)))
+				{
+					iSelectedPrimitiveType = iPrimitiveType;
+				}
+				if (iPrimitiveType == iSelectedPrimitiveType)
+				{
+					ImGui::PushItemWidth(KItemsWidth);
 
-		ImGui::Text(ModelFileNameWithoutPath);
-		
-		ImGui::SameLine();
-		
-		ImGui::Checkbox(u8"리깅 여부", &bIsModelRigged);
+					ImGui::AlignTextToFramePadding();
+					ImGui::Text(u8"--색상");
+					ImGui::SameLine(KOffetX);
+					ImGui::ColorEdit3(u8"##--색상", (float*)&UniformColor.x, ImGuiColorEditFlags_RGB);
+
+					// Quasi-2D primitives scalars
+					if (iSelectedPrimitiveType >= 0 && iSelectedPrimitiveType <= 3)
+					{
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"--가로 크기");
+						ImGui::SameLine(KOffetX);
+						ImGui::SliderFloat(u8"##--가로 크기", &WidthScalar, 0.01f, 100.0f);
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"--세로 크기");
+						ImGui::SameLine(KOffetX);
+						ImGui::SliderFloat(u8"##--세로 크기", &HeightScalar, 0.01f, 100.0f);
+					}
+
+					// 3D primitives that require SideCount
+					if (iSelectedPrimitiveType == 3 || (iSelectedPrimitiveType >= 6 && iSelectedPrimitiveType <= 7) || iSelectedPrimitiveType == 9)
+					{
+						if (iSelectedPrimitiveType == 6)
+						{
+							// Cone
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"--반지름 인수");
+							ImGui::SameLine(KOffetX);
+							ImGui::SliderFloat(u8"##--반지름 인수", &RadiusFactor, 0.0f, 1.0f);
+						}
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"--옆면 수");
+						ImGui::SameLine(KOffetX);
+						ImGui::SliderInt(u8"##--옆면 수", (int*)&SideCount, KMinPrimitiveDetail, KMaxPrimitiveDetail);
+					}
+
+					// 3D primitives that require SegmentCount
+					if (iSelectedPrimitiveType == 8 || iSelectedPrimitiveType == 9)
+					{
+						if (iSelectedPrimitiveType == 9)
+						{
+							// Torus
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"--띠 반지름");
+							ImGui::SameLine(KOffetX);
+							ImGui::SliderFloat(u8"##--띠 반지름", &InnerRadius, 0.0f, 1.0f);
+						}
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"--Segment 수");
+						ImGui::SameLine(KOffetX);
+						ImGui::SliderInt(u8"##--Segment 수", (int*)&SegmentCount, KMinPrimitiveDetail, KMaxPrimitiveDetail);
+					}
+
+					ImGui::PopItemWidth();
+				}
+			}
+			ImGui::Unindent();
+		}
+		break;
+		case 1:
+		{
+			if (ImGui::Button(u8"모델 불러오기")) bShowDialogLoadModel = true;
+
+			ImGui::SameLine();
+
+			ImGui::Text(ModelFileNameWithoutPath);
+
+			ImGui::SameLine();
+
+			ImGui::Checkbox(u8"리깅 여부", &bIsModelRigged);
+		}
+		break;
+		default:
+			break;
+		}
 
 		if (ImGui::Button(u8"결정") || m_CapturedKeyboardState.Enter)
 		{
-			if (ModelFileNameWithPath[0] == 0)
+			if (iSelectedOption == 1 && ModelFileNameWithPath[0] == 0)
 			{
 				MB_WARN("모델을 불러오세요.", "오류");
 			}
@@ -3244,10 +3355,62 @@ void CGame::DrawEditorGUIPopups()
 			else
 			{
 				InsertObject3D(NewObejct3DName);
-				CObject3D* Object3D{ GetObject3D(NewObejct3DName) };
-				Object3D->CreateFromFile(ModelFileNameWithPath, bIsModelRigged);
+				CObject3D* const Object3D{ GetObject3D(NewObejct3DName) };
 
+				if (iSelectedOption == 0)
+				{
+					SMesh Mesh{};
+					CMaterial Material{};
+					Material.SetUniformColor(XMFLOAT3(UniformColor.x, UniformColor.y, UniformColor.z));
+					switch (iSelectedPrimitiveType)
+					{
+					case 0:
+						Mesh = GenerateSquareXYPlane();
+						ScaleMesh(Mesh, XMVectorSet(WidthScalar, HeightScalar, 1.0f, 0));
+						break;
+					case 1:
+						Mesh = GenerateSquareXZPlane();
+						ScaleMesh(Mesh, XMVectorSet(WidthScalar, 1.0f, HeightScalar, 0));
+						break;
+					case 2:
+						Mesh = GenerateSquareYZPlane();
+						ScaleMesh(Mesh, XMVectorSet(1.0f, WidthScalar, HeightScalar, 0));
+						break;
+					case 3:
+						Mesh = GenerateCircleXZPlane(SideCount);
+						ScaleMesh(Mesh, XMVectorSet(WidthScalar, 1.0f, HeightScalar, 0));
+						break;
+					case 4:
+						Mesh = GeneratePyramid();
+						break;
+					case 5:
+						Mesh = GenerateCube();
+						break;
+					case 6:
+						Mesh = GenerateCone(RadiusFactor, 1.0f, 1.0f, SideCount);
+						break;
+					case 7:
+						Mesh = GenerateCylinder(1.0f, 1.0f, SideCount);
+						break;
+					case 8:
+						Mesh = GenerateSphere(SegmentCount);
+						break;
+					case 9:
+						Mesh = GenerateTorus(InnerRadius, SideCount, SegmentCount);
+						break;
+					default:
+						break;
+					}
+					Object3D->Create(Mesh, Material);
+				}
+				else if (iSelectedOption == 1)
+				{
+					Object3D->CreateFromFile(ModelFileNameWithPath, bIsModelRigged);
+				}
+				
 				m_EditorGUIBools.bShowPopupObjectAdder = false;
+				WidthScalar = 1.0f;
+				HeightScalar = 1.0f;
 				memset(ModelFileNameWithPath, 0, MAX_PATH);
 				memset(ModelFileNameWithoutPath, 0, MAX_PATH);
 				memset(NewObejct3DName, 0, CGame::KObject3DNameMaxLength);

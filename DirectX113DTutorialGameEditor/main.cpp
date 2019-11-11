@@ -13,9 +13,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 	Game.CreateWin32(WndProc, TEXT("Game Editor"), true);
 	Game.CreateSpriteFont(L"Asset\\dotumche_10_korean.spritefont");
-	Game.SetMode(CGame::EMode::Edit);
 
-	Game.SetGameRenderingFlags(CGame::EFlagsRendering::UseLighting | CGame::EFlagsRendering::DrawMiniAxes |
+	Game.SetMode(CGame::EMode::Edit);
+	Game.SetRenderingFlags(CGame::EFlagsRendering::UseLighting | CGame::EFlagsRendering::DrawMiniAxes |
 		CGame::EFlagsRendering::DrawTerrainHeightMapTexture | CGame::EFlagsRendering::DrawTerrainMaskingTexture | 
 		CGame::EFlagsRendering::DrawTerrainFoliagePlacingTexture | CGame::EFlagsRendering::TessellateTerrain | 
 		CGame::EFlagsRendering::Use3DGizmos);

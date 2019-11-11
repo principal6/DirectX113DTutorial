@@ -279,7 +279,7 @@ public:
 	// Advanced settings
 public:
 	void SetPerspective(float FOV, float NearZ, float FarZ);
-	void SetGameRenderingFlags(EFlagsRendering Flags);
+	void SetRenderingFlags(EFlagsRendering Flags);
 	void ToggleGameRenderingFlags(EFlagsRendering Flags);
 	void Set3DGizmoMode(E3DGizmoMode Mode);
 	void SetUniversalRSState();

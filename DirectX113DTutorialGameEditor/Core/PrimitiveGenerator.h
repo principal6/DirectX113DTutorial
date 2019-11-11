@@ -5,6 +5,10 @@
 #include "Object2D.h"
 #include <unordered_map>
 
+static constexpr uint32_t KDefaultPrimitiveDetail{ 16 };
+static constexpr uint32_t KMinPrimitiveDetail{ 3 };
+static constexpr uint32_t KMaxPrimitiveDetail{ 64 };
+
 static const XMVECTOR KColorWhite{ XMVectorSet(1, 1, 1 ,1) };
 
 static std::string ConvertXMVECTORToString(const XMVECTOR& Vector);
@@ -21,11 +25,11 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord =
 static SMesh GenerateCircleXZPlane(uint32_t SideCount = 16, const XMVECTOR& Color = KColorWhite);
 static SMesh GeneratePyramid(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateCube(const XMVECTOR& Color = KColorWhite);
-static SMesh GenerateCone(float RadiusRatio = 0.0f, float Radius = 1.0f, float Height = 1.0f, uint32_t SideCount = 16, const XMVECTOR& Color = KColorWhite);
+static SMesh GenerateCone(float RadiusFactor = 0.0f, float Radius = 1.0f, float Height = 1.0f, uint32_t SideCount = 16, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateCylinder(float Radius = 1.0f, float Height = 1.0f, uint32_t SideCount = 16, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& ColorTop, const XMVECTOR& ColorBottom);
 static SMesh GenerateSphere(uint32_t SegmentCount = 16, const XMVECTOR& Color = KColorWhite);
-static SMesh GenerateTorus(const XMVECTOR& Color = KColorWhite, float InnerRadius = 0.2f, uint32_t SideCount = 16, uint32_t SegmentCount = 24);
+static SMesh GenerateTorus(float InnerRadius = 0.2f, uint32_t SideCount = 16, uint32_t SegmentCount = 24, const XMVECTOR& Color = KColorWhite);
 static void TranslateMesh(SMesh& Mesh, const XMVECTOR& Translation);
 static void RotateMesh(SMesh& Mesh, float Pitch, float Yaw, float Roll);
 static void ScaleMesh(SMesh& Mesh, const XMVECTOR& Scaling);
@@ -355,7 +359,7 @@ static SMesh GenerateCircleXZPlane(uint32_t SideCount, const XMVECTOR& Color)
 
 	constexpr float KRadius{ 1.0f };
 
-	SideCount = max(SideCount, (uint32_t)8);
+	SideCount = max(SideCount, (uint32_t)3);
 	const float KThetaUnit{ XM_2PI / SideCount };
 
 	SMesh Mesh{};
@@ -492,7 +496,7 @@ static SMesh GenerateCube(const XMVECTOR& Color)
 	return Mesh;
 }
 
-static SMesh GenerateCone(float RadiusRatio, float Radius, float Height, uint32_t SideCount, const XMVECTOR& Color)
+static SMesh GenerateCone(float RadiusFactor, float Radius, float Height, uint32_t SideCount, const XMVECTOR& Color)
 {
 	using std::max;
 
@@ -520,8 +524,8 @@ static SMesh GenerateCone(float RadiusRatio, float Radius, float Height, uint32_
 
 		// Top
 		Mesh.vVertices.emplace_back(XMVectorSet(+0.0f, +KHalfHeight, +0.0f, 1), Color);
-		Mesh.vVertices.emplace_back(XMVectorSet(+Cos1 * Radius * RadiusRatio, +KHalfHeight, +Sin1 * Radius * RadiusRatio, 1), Color);
-		Mesh.vVertices.emplace_back(XMVectorSet(+Cos0 * Radius * RadiusRatio, +KHalfHeight, +Sin0 * Radius * RadiusRatio, 1), Color);
+		Mesh.vVertices.emplace_back(XMVectorSet(+Cos1 * Radius * RadiusFactor, +KHalfHeight, +Sin1 * Radius * RadiusFactor, 1), Color);
+		Mesh.vVertices.emplace_back(XMVectorSet(+Cos0 * Radius * RadiusFactor, +KHalfHeight, +Sin0 * Radius * RadiusFactor, 1), Color);
 	}
 
 	for (uint32_t iSide = 0; iSide < SideCount; ++iSide)
@@ -624,7 +628,7 @@ static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& Color)
 	return GenerateSphere(SegmentCount, Color, Color);
 }
 
-static SMesh GenerateTorus(const XMVECTOR& Color, float InnerRadius, uint32_t SideCount, uint32_t SegmentCount)
+static SMesh GenerateTorus(float InnerRadius, uint32_t SideCount, uint32_t SegmentCount, const XMVECTOR& Color)
 {
 	using std::max;
 
