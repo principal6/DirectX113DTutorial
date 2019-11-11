@@ -564,7 +564,7 @@ void CTerrain::UpdateFoliagePlacing(bool bErase)
 						Foliage->InsertInstance(KInstanceName);
 
 						uint32_t iInstance{ Foliage->GetInstanceCount() - 1 };
-						auto& Instance{ Foliage->GetInstance(iInstance) };
+						auto& Instance{ Foliage->GetInstanceCPUData(iInstance) };
 
 						float XDisplacement{ GetRandom(-0.2f, +0.2f) };
 						float YDisplacement{ GetRandom(-0.1f, 0.0f) };

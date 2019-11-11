@@ -38,8 +38,8 @@ public:
 		XMVECTOR	FocusPosition{ XMVectorSet(0.0f, 0.0f, 1.0f, 1.0f) };
 		XMVECTOR	UpDirection{ XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f) };
 
-		XMVECTOR	BaseForwardDirection{};
-		XMVECTOR	BaseUpDirection{};
+		XMVECTOR	BaseForwardDirection{ XMVector3Normalize(FocusPosition - EyePosition) };
+		XMVECTOR	BaseUpDirection{ UpDirection };
 
 		float		ZoomDistance{ KDefaultZoomDistance };
 		float		MinZoomDistance{ KDefaultMinZoomDistance };
@@ -51,7 +51,7 @@ public:
 	};
 
 public:
-	CCamera(const SCameraData& CameraData) : m_CameraData{ CameraData } {}
+	CCamera(const std::string Name) : m_Name{ Name } {}
 	~CCamera() {}
 
 public:
@@ -63,12 +63,20 @@ public:
 	void SetPitch(float Value);
 	void SetYaw(float Value);
 
+	void SetType(EType eType);
+	EType GetType() const { return m_CameraData.eType; }
+
+	void SetData(const SCameraData& Data);
+	const SCameraData& GetData() const { return m_CameraData; }
+
 	const XMVECTOR& GetEyePosition() const { return m_CameraData.EyePosition; }
 	const XMVECTOR& GetFocusPosition() const { return m_CameraData.FocusPosition; }
 	const XMVECTOR& GetUpDirection() const { return m_CameraData.UpDirection; }
 	const XMVECTOR& GetForward() const { return m_CameraData.Forward; }
 	float GetPitch() const { return m_CameraData.Pitch; }
 	float GetYaw() const { return m_CameraData.Yaw; }
+	float GetZoomDistance() const { return m_CameraData.ZoomDistance; }
+	const std::string& GetName() const { return m_Name; }
 
 private:
 	void Update();
@@ -77,5 +85,6 @@ private:
 	static constexpr float KPitchLimit{ XM_PIDIV2 - 0.01f };
 
 private:
-	SCameraData m_CameraData{};
+	std::string	m_Name{};
+	SCameraData	m_CameraData{};
 };

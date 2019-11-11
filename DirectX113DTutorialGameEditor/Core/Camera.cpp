@@ -124,6 +124,20 @@ void CCamera::SetYaw(float Value)
 	Update();
 }
 
+void CCamera::SetType(EType eType)
+{
+	m_CameraData.eType = eType;
+
+	Update();
+}
+
+void CCamera::SetData(const SCameraData& Data)
+{
+	m_CameraData = Data;
+
+	Update();
+}
+
 void CCamera::Update()
 {
 	Rotate(0, 0, 0.0f);

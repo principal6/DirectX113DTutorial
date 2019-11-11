@@ -179,16 +179,16 @@ void CObject3D::BakeAnimationTexture()
 	for (int32_t iAnimation = 0; iAnimation < (int32_t)vAnimationHeights.size(); ++iAnimation)
 	{
 		float fAnimationHeightSum{ (float)AnimationHeightSum };
-		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].R,
+		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].R,
 			&fAnimationHeightSum, sizeof(float));
-		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].G,
+		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].G,
 			&m_Model.vAnimations[iAnimation].Duration, sizeof(float));
-		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].B,
+		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].B,
 			&m_Model.vAnimations[iAnimation].TicksPerSecond, sizeof(float));
 		//A
 
 		// RGBA = 4 floats = 16 chars!
-		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 1].R,
+		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 1].R,
 			m_Model.vAnimations[iAnimation].Name.c_str(), sizeof(char) * 16);
 
 		AnimationHeightSum += vAnimationHeights[iAnimation];
@@ -197,7 +197,7 @@ void CObject3D::BakeAnimationTexture()
 	for (int32_t iAnimation = 0; iAnimation < (int32_t)m_Model.vAnimations.size(); ++iAnimation)
 	{
 		float fAnimationOffset{};
-		memcpy(&fAnimationOffset, &vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].R, sizeof(float));
+		memcpy(&fAnimationOffset, &vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].R, sizeof(float));
 
 		const int32_t KAnimationYOffset{ (int32_t)fAnimationOffset };
 		const int32_t KAnimationOffset{ (int32_t)((int64_t)KAnimationYOffset * KAnimationTextureWidth) };
@@ -260,13 +260,13 @@ void CObject3D::LoadBakedAnimationTexture(const string& FileName)
 
 		for (int32_t iAnimation = 0; iAnimation < (int32_t)m_Model.vAnimations.size(); ++iAnimation)
 		{
-			m_Model.vAnimations[iAnimation].Duration = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].G;
-			m_Model.vAnimations[iAnimation].TicksPerSecond = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 0].B;
+			m_Model.vAnimations[iAnimation].Duration = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].G;
+			m_Model.vAnimations[iAnimation].TicksPerSecond = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].B;
 
-			float NameR{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 1].R };
-			float NameG{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 1].G };
-			float NameB{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 1].B };
-			float NameA{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + iAnimation * 2 + 1].A };
+			float NameR{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 1].R };
+			float NameG{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 1].G };
+			float NameB{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 1].B };
+			float NameA{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 1].A };
 
 			char Name[16]{};
 			memcpy(&Name[0], &NameR, 4);
@@ -360,6 +360,7 @@ void CObject3D::InsertInstance(bool bShouldCreateInstanceBuffers)
 	m_vInstanceCPUData.emplace_back();
 	m_vInstanceCPUData.back().Name = Name;
 	m_vInstanceCPUData.back().Scaling = ComponentTransform.Scaling;
+	m_vInstanceCPUData.back().BoundingSphere = ComponentPhysics.BoundingSphere; // @important
 	m_mapInstanceNameToIndex[Name] = m_vInstanceCPUData.size() - 1;
 
 	m_vInstanceGPUData.emplace_back();
@@ -462,16 +463,28 @@ void CObject3D::DeleteInstance(const string& Name)
 	m_PtrGame->SelectInstance((int)iInstance);	
 }
 
-CObject3D::SInstanceCPUData& CObject3D::GetInstance(int InstanceID)
+CObject3D::SInstanceCPUData& CObject3D::GetInstanceCPUData(int InstanceID)
 {
 	assert(InstanceID < m_vInstanceCPUData.size());
 	return m_vInstanceCPUData[InstanceID];
 }
 
-CObject3D::SInstanceCPUData& CObject3D::GetInstance(const string& Name)
+CObject3D::SInstanceCPUData& CObject3D::GetInstanceCPUData(const string& Name)
 {
 	assert(m_mapInstanceNameToIndex.find(Name) != m_mapInstanceNameToIndex.end());
 	return m_vInstanceCPUData[m_mapInstanceNameToIndex.at(Name)];
+}
+
+SInstanceGPUData& CObject3D::GetInstanceGPUData(int InstanceID)
+{
+	assert(InstanceID < m_vInstanceGPUData.size());
+	return m_vInstanceGPUData[InstanceID];
+}
+
+SInstanceGPUData& CObject3D::GetInstanceGPUData(const std::string& Name)
+{
+	assert(m_mapInstanceNameToIndex.find(Name) != m_mapInstanceNameToIndex.end());
+	return m_vInstanceGPUData[m_mapInstanceNameToIndex.at(Name)];
 }
 
 void CObject3D::CreateMeshBuffers()
@@ -636,6 +649,13 @@ void CObject3D::UpdateWorldMatrix()
 		ComponentTransform.Yaw, ComponentTransform.Roll) };
 	XMMATRIX Scaling{ XMMatrixScalingFromVector(ComponentTransform.Scaling) };
 
+	// @important
+	float ScalingX{ XMVectorGetX(ComponentTransform.Scaling) };
+	float ScalingY{ XMVectorGetY(ComponentTransform.Scaling) };
+	float ScalingZ{ XMVectorGetZ(ComponentTransform.Scaling) };
+	float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
+	ComponentPhysics.BoundingSphere.Radius = ComponentPhysics.BoundingSphere.RadiusBase * MaxScaling;
+
 	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(ComponentPhysics.BoundingSphere.CenterOffset) };
 	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-ComponentPhysics.BoundingSphere.CenterOffset) };
 
@@ -663,11 +683,18 @@ void CObject3D::UpdateInstanceWorldMatrix(uint32_t InstanceID)
 		m_vInstanceCPUData[InstanceID].Yaw, m_vInstanceCPUData[InstanceID].Roll) };
 	XMMATRIX Scaling{ XMMatrixScalingFromVector(m_vInstanceCPUData[InstanceID].Scaling) };
 
+	// @important
+	float ScalingX{ XMVectorGetX(m_vInstanceCPUData[InstanceID].Scaling) };
+	float ScalingY{ XMVectorGetY(m_vInstanceCPUData[InstanceID].Scaling) };
+	float ScalingZ{ XMVectorGetZ(m_vInstanceCPUData[InstanceID].Scaling) };
+	float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
+	m_vInstanceCPUData[InstanceID].BoundingSphere.Radius = ComponentPhysics.BoundingSphere.RadiusBase * MaxScaling;
+
 	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(ComponentPhysics.BoundingSphere.CenterOffset) };
 	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-ComponentPhysics.BoundingSphere.CenterOffset) };
 	
 	// Update GPU data
-	m_vInstanceGPUData[InstanceID].InstanceWorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
+	m_vInstanceGPUData[InstanceID].WorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
 
 	UpdateInstanceBuffers();
 }
@@ -697,7 +724,7 @@ void CObject3D::UpdateAllInstancesWorldMatrix()
 		XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-ComponentPhysics.BoundingSphere.CenterOffset) };
 
 		// Update GPU data
-		m_vInstanceGPUData[iInstance].InstanceWorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
+		m_vInstanceGPUData[iInstance].WorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
 	}
 	
 	UpdateInstanceBuffers();

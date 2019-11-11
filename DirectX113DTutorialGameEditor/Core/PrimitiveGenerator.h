@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Math.h"
 #include "Object3D.h"
 #include "Object3DLine.h"
 #include "Object2D.h"
@@ -621,26 +622,54 @@ static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& ColorTop, con
 			float AzimuthRatio1{ static_cast<float>(AzimuthStep + 1) / (static_cast<float>(SegmentCount)) };
 
 			// Side 0
-			Mesh.vVertices.emplace_back(XMVectorSet(+X0 * XZLengthY0, +Y0, +Z0 * XZLengthY0, 1), Color0, XMVectorSet(AzimuthRatio0, PolarRatio0, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1), Color0, XMVectorSet(AzimuthRatio1, PolarRatio0, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(+X0 * XZLengthY1, +Y1, +Z0 * XZLengthY1, 1), Color1, 
-				XMVectorSet((PolarRatio1 == 1.0f) ? 0.5f : AzimuthRatio0, PolarRatio1, 0, 0));
+			if (PolarRatio0 > 0.0f)
+			{
+				Mesh.vVertices.emplace_back(XMVectorSet(+X0 * XZLengthY0, +Y0, +Z0 * XZLengthY0, 1), Color0,
+					XMVectorSet(AzimuthRatio0, PolarRatio0, 0, 0));
+				Mesh.vVertices.emplace_back(XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1), Color0,
+					XMVectorSet(AzimuthRatio1, PolarRatio0, 0, 0));
+				Mesh.vVertices.emplace_back(XMVectorSet(+X0 * XZLengthY1, +Y1, +Z0 * XZLengthY1, 1), Color1,
+					XMVectorSet(AzimuthRatio0, PolarRatio1, 0, 0));
+			}
 
 			// Side 1
-			Mesh.vVertices.emplace_back(XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1), Color0,
-				XMVectorSet((PolarRatio0 == 0.0f) ? 0.5f : AzimuthRatio1, PolarRatio0, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(+X1 * XZLengthY1, +Y1, +Z1 * XZLengthY1, 1), Color1, XMVectorSet(AzimuthRatio1, PolarRatio1, 0, 0));
-			Mesh.vVertices.emplace_back(XMVectorSet(+X0 * XZLengthY1, +Y1, +Z0 * XZLengthY1, 1), Color1, XMVectorSet(AzimuthRatio0, PolarRatio1, 0, 0));
+			if (PolarRatio1 < 1.0f)
+			{
+				Mesh.vVertices.emplace_back(XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1), Color0,
+					XMVectorSet((PolarRatio0 == 0.0f) ? 0.5f : AzimuthRatio1, PolarRatio0, 0, 0));
+				Mesh.vVertices.emplace_back(XMVectorSet(
+					((PolarRatio1 == 1.0f) ? +X0 : +X1) * XZLengthY1,
+					+Y1,
+					((PolarRatio1 == 1.0f) ? +Z0 : +Z1) * XZLengthY1, 1),
+					Color1,
+					XMVectorSet(AzimuthRatio1, PolarRatio1, 0, 0));
+				Mesh.vVertices.emplace_back(XMVectorSet(+X0 * XZLengthY1, +Y1, +Z0 * XZLengthY1, 1), Color1,
+					XMVectorSet(AzimuthRatio0, PolarRatio1, 0, 0));
+			}
 		}
 	}
 
-	for (uint32_t iSide = 0; iSide < SegmentCount * SegmentCount / 2; ++iSide)
+	for (uint32_t iSide = 0; iSide < SegmentCount; ++iSide)
+	{
+		// Upper cap
+		Mesh.vTriangles.emplace_back(iSide * 3 + 0, iSide * 3 + 1, iSide * 3 + 2);
+	}
+
+	const uint32_t KSideOffset{ SegmentCount * 3 };
+	for (uint32_t iSide = 0; iSide < ((SegmentCount / 2) - 2) * SegmentCount; ++iSide)
 	{
 		// Side 0
-		Mesh.vTriangles.emplace_back(iSide * 6 + 0, iSide * 6 + 1, iSide * 6 + 2);
+		Mesh.vTriangles.emplace_back(KSideOffset + iSide * 6 + 0, KSideOffset + iSide * 6 + 1, KSideOffset + iSide * 6 + 2);
 
 		// Side 1
-		Mesh.vTriangles.emplace_back(iSide * 6 + 3, iSide * 6 + 4, iSide * 6 + 5);
+		Mesh.vTriangles.emplace_back(KSideOffset + iSide * 6 + 3, KSideOffset + iSide * 6 + 4, KSideOffset + iSide * 6 + 5);
+	}
+
+	const uint32_t KLowerCapOffset{ SegmentCount * 3 + (((SegmentCount / 2) - 2) * SegmentCount) * 6 };
+	for (uint32_t iSide = 0; iSide < SegmentCount; ++iSide)
+	{
+		// Lower cap
+		Mesh.vTriangles.emplace_back(KLowerCapOffset + iSide * 3 + 0, KLowerCapOffset + iSide * 3 + 1, KLowerCapOffset + iSide * 3 + 2);
 	}
 
 	CalculateNormals(Mesh);

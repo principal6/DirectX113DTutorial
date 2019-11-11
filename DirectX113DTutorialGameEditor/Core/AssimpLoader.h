@@ -34,7 +34,7 @@ struct SVertexAnimation
 
 struct SInstanceGPUData
 {
-	XMMATRIX	InstanceWorldMatrix{ KMatrixIdentity };
+	XMMATRIX	WorldMatrix{ KMatrixIdentity };
 };
 
 struct SMesh

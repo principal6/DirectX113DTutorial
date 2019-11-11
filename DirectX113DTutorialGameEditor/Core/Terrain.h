@@ -63,7 +63,7 @@ public:
 
 		std::vector<SPixel8UInt> vHeightMapTextureRawData{};
 
-		bool bShouldDrawWater{ true };
+		bool bShouldDrawWater{ false };
 		float WaterHeight{};
 		float WaterTessellationFactor{ KTessFactorMin };
 

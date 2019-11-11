@@ -3,6 +3,7 @@
 #include "Game.h"
 #include "Core/FileDialog.h"
 
+using std::max;
 using std::min;
 using std::vector;
 using std::string;
@@ -12,6 +13,7 @@ using std::chrono::steady_clock;
 using std::to_string;
 using std::stof;
 using std::make_unique;
+using std::swap;
 
 static constexpr D3D11_INPUT_ELEMENT_DESC KBaseInputElementDescs[]
 {
@@ -32,11 +34,11 @@ static constexpr D3D11_INPUT_ELEMENT_DESC KBaseInputElementDescs[]
 
 void CGame::CreateWin32(WNDPROC const WndProc, const std::string& WindowName, bool bWindowed)
 {
+	GetCurrentDirectoryA(MAX_PATH, m_WorkingDirectory);
+
 	CreateWin32Window(WndProc, WindowName);
 
 	InitializeDirectX(bWindowed);
-
-	GetCurrentDirectoryA(MAX_PATH, m_WorkingDirectory);
 
 	InitializeEditorAssets();
 
@@ -130,6 +132,13 @@ void CGame::InitializeDirectX(bool bWindowed)
 
 void CGame::InitializeEditorAssets()
 {
+	CreateEditorCamera();
+
+	m_Object3D_CameraRepresentation = make_unique<CObject3D>("CameraRepresentation", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3D_CameraRepresentation->CreateFromFile("Asset\\camera_repr.fbx", false);
+	m_Object3D_CameraRepresentation->ComponentRender.PtrVS = GetBaseShader(EBaseShader::VSBase);
+	m_Object3D_CameraRepresentation->ComponentRender.PtrPS = GetBaseShader(EBaseShader::PSCamera);
+
 	InsertObject3DLine("Grid");
 	{
 		CObject3DLine* Grid{ GetObject3DLine("Grid") };
@@ -483,6 +492,12 @@ void CGame::CreateBaseShaders()
 	m_PSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSParticle->Create(EShaderType::PixelShader, L"Shader\\PSParticle.hlsl", "main");
 
+	m_PSCamera = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSCamera->Create(EShaderType::PixelShader, L"Shader\\PSCamera.hlsl", "main");
+	m_PSCamera->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
+	m_PSCamera->AddConstantBuffer(&m_CBEditorTimeData, sizeof(SCBEditorTimeData));
+	m_PSCamera->AddConstantBuffer(&m_CBCameraSelectionData, sizeof(SCBCameraSelectionData));
+
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
 	m_PSBase2D->AddConstantBuffer(&m_cbPS2DFlagsData, sizeof(SCBPS2DFlagsData));
@@ -559,9 +574,9 @@ void CGame::Create3DGizmos()
 {
 	static constexpr float KGizmoRadius{ 0.05f };
 	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
-	const static XMVECTOR ColorX{ XMVectorSet(1.0f, 0.2f, 0.2f, 1) };
-	const static XMVECTOR ColorY{ XMVectorSet(0.2f, 1.0f, 0.2f, 1) };
-	const static XMVECTOR ColorZ{ XMVectorSet(0.2f, 0.2f, 1.0f, 1) };
+	const static XMVECTOR ColorX{ XMVectorSet(1.00f, 0.25f, 0.25f, 1) };
+	const static XMVECTOR ColorY{ XMVectorSet(0.25f, 1.00f, 0.25f, 1) };
+	const static XMVECTOR ColorZ{ XMVectorSet(0.25f, 0.25f, 1.00f, 1) };
 
 	m_Object3D_3DGizmoRotationPitch = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
 	{
@@ -679,7 +694,6 @@ void CGame::Create3DGizmos()
 		m_Object3D_3DGizmoScalingZ->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 }
-
 
 void CGame::LoadScene(const string& FileName)
 {
@@ -805,7 +819,7 @@ void CGame::LoadScene(const string& FileName)
 							}
 
 							Object3D->InsertInstance(false);
-							auto& Instance{ Object3D->GetInstance(iInstance) };
+							auto& InstanceCPUData{ Object3D->GetInstanceCPUData(iInstance) };
 							for (auto& xmlInstanceChild : vxmlInstanceChildren)
 							{
 								const char* ID{ xmlInstanceChild->Attribute("ID") };
@@ -814,7 +828,7 @@ void CGame::LoadScene(const string& FileName)
 									float x{ xmlInstanceChild->FloatAttribute("x") };
 									float y{ xmlInstanceChild->FloatAttribute("y") };
 									float z{ xmlInstanceChild->FloatAttribute("z") };
-									Instance.Translation = XMVectorSet(x, y, z, 1.0f);
+									InstanceCPUData.Translation = XMVectorSet(x, y, z, 1.0f);
 								}
 
 								if (strcmp(ID, "Rotation") == 0)
@@ -822,9 +836,9 @@ void CGame::LoadScene(const string& FileName)
 									float Pitch{ xmlInstanceChild->FloatAttribute("Pitch") };
 									float Yaw{ xmlInstanceChild->FloatAttribute("Yaw") };
 									float Roll{ xmlInstanceChild->FloatAttribute("Roll") };
-									Instance.Pitch = Pitch;
-									Instance.Yaw = Yaw;
-									Instance.Roll = Roll;
+									InstanceCPUData.Pitch = Pitch;
+									InstanceCPUData.Yaw = Yaw;
+									InstanceCPUData.Roll = Roll;
 								}
 
 								if (strcmp(ID, "Scaling") == 0)
@@ -832,7 +846,7 @@ void CGame::LoadScene(const string& FileName)
 									float x{ xmlInstanceChild->FloatAttribute("x") };
 									float y{ xmlInstanceChild->FloatAttribute("y") };
 									float z{ xmlInstanceChild->FloatAttribute("z") };
-									Instance.Scaling = XMVectorSet(x, y, z, 1.0f);
+									InstanceCPUData.Scaling = XMVectorSet(x, y, z, 1.0f);
 								}
 							}
 							Object3D->UpdateInstanceWorldMatrix(iInstance);
@@ -981,13 +995,13 @@ void CGame::SaveScene(const string& FileName)
 							{
 								xmlInstance->SetAttribute("Name", InstancePair.first.c_str());
 
-								const auto& Instance{ Object3D->GetInstance(InstancePair.first) };
+								const auto& InstanceCPUData{ Object3D->GetInstanceCPUData(InstancePair.first) };
 
 								XMLElement* xmlTranslation{ xmlDocument.NewElement("Translation") };
 								{
 									xmlTranslation->SetAttribute("ID", "Translation");
 									XMFLOAT4 Translation{};
-									XMStoreFloat4(&Translation, Instance.Translation);
+									XMStoreFloat4(&Translation, InstanceCPUData.Translation);
 									xmlTranslation->SetAttribute("x", Translation.x);
 									xmlTranslation->SetAttribute("y", Translation.y);
 									xmlTranslation->SetAttribute("z", Translation.z);
@@ -997,9 +1011,9 @@ void CGame::SaveScene(const string& FileName)
 								XMLElement* xmlRotation{ xmlDocument.NewElement("Rotation") };
 								{
 									xmlRotation->SetAttribute("ID", "Rotation");
-									xmlRotation->SetAttribute("Pitch", Instance.Pitch);
-									xmlRotation->SetAttribute("Yaw", Instance.Yaw);
-									xmlRotation->SetAttribute("Roll", Instance.Roll);
+									xmlRotation->SetAttribute("Pitch", InstanceCPUData.Pitch);
+									xmlRotation->SetAttribute("Yaw", InstanceCPUData.Yaw);
+									xmlRotation->SetAttribute("Roll", InstanceCPUData.Roll);
 									xmlInstance->InsertEndChild(xmlRotation);
 								}
 
@@ -1007,7 +1021,7 @@ void CGame::SaveScene(const string& FileName)
 								{
 									xmlScaling->SetAttribute("ID", "Scaling");
 									XMFLOAT4 Scaling{};
-									XMStoreFloat4(&Scaling, Instance.Scaling);
+									XMStoreFloat4(&Scaling, InstanceCPUData.Scaling);
 									xmlScaling->SetAttribute("x", Scaling.x);
 									xmlScaling->SetAttribute("y", Scaling.y);
 									xmlScaling->SetAttribute("z", Scaling.z);
@@ -1162,6 +1176,7 @@ void CGame::UpdateCBMaterial(const CMaterial& Material)
 
 	m_PSBase->UpdateConstantBuffer(2);
 	m_PSFoliage->UpdateConstantBuffer(2);
+	m_PSCamera->UpdateConstantBuffer(0);
 }
 
 void CGame::UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix)
@@ -1391,22 +1406,96 @@ void CGame::SetTerrainMaterial(int MaterialID, const CMaterial& Material)
 	m_Terrain->SetMaterial(MaterialID, Material);
 }
 
-CCamera* CGame::AddCamera(const CCamera::SCameraData& CameraData)
+void CGame::InsertCamera(const string& Name)
 {
-	m_vCameras.emplace_back(CameraData);
+	if (m_mapCameraNameToIndex.find(Name) != m_mapCameraNameToIndex.end())
+	{
+		MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Camera 생성 실패");
+		return;
+	}
 
-	return &m_vCameras.back();
+	if (Name.size() >= KObjectNameMaxLength)
+	{
+		MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Camera 생성 실패");
+		return;
+	}
+	else if (Name.size() == 0)
+	{
+		MB_WARN("이름은 공백일 수 없습니다.", "Camera 생성 실패");
+		return;
+	}
+
+	m_vCameras.emplace_back(make_unique<CCamera>(Name));
+	m_mapCameraNameToIndex[Name] = m_vCameras.size() - 1;
 }
 
-CCamera* CGame::GetCamera(size_t Index)
+void CGame::DeleteCamera(const std::string& Name)
 {
-	assert(Index < m_vCameras.size());
-	return &m_vCameras[Index];
+	if (Name == m_vCameras[0]->GetName()) return; // @important
+	if (Name.length() == 0) return;
+	if (m_mapCameraNameToIndex.find(Name) == m_mapCameraNameToIndex.end())
+	{
+		MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Camera 삭제 실패");
+		return;
+	}
+
+	size_t iCamera{ m_mapCameraNameToIndex[Name] };
+	if (iCamera < m_vCameras.size() - 1)
+	{
+		const string& SwappedName{ m_vCameras.back()->GetName() };
+		swap(m_vCameras[iCamera], m_vCameras.back());
+		
+		m_mapCameraNameToIndex[SwappedName] = iCamera;
+	}
+
+	if (IsAnyCameraSelected())
+	{
+		if (Name == GetSelectedCameraName())
+		{
+			DeselectCamera();
+		}
+	}
+
+	m_vCameras.pop_back();
+	m_mapCameraNameToIndex.erase(Name);
+
+	m_PtrCurrentCamera = GetEditorCamera();
 }
 
-size_t CGame::GetCameraCount() const
+void CGame::ClearCameras()
 {
-	return m_vCameras.size();
+	CCamera* EditorCamera{ GetEditorCamera() };
+	CCamera::SCameraData EditorCameraData{ EditorCamera->GetData() };
+
+	m_mapCameraNameToIndex.clear();
+	m_vCameras.clear();
+
+	CreateEditorCamera();
+}
+
+CCamera* CGame::GetCamera(const string& Name, bool bShowWarning)
+{
+	if (m_mapCameraNameToIndex.find(Name) == m_mapCameraNameToIndex.end())
+	{
+		if (bShowWarning) MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Camera 얻어오기 실패");
+		return nullptr;
+	}
+	return m_vCameras[m_mapCameraNameToIndex.at(Name)].get();
+}
+
+void CGame::CreateEditorCamera()
+{
+	InsertCamera(u8"Editor Camera");
+	CCamera* EditorCamera{ GetEditorCamera() };
+	EditorCamera->SetData(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0)));
+	EditorCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
+
+	m_PtrCurrentCamera = EditorCamera;
+}
+
+CCamera* CGame::GetEditorCamera()
+{
+	return GetCamera(u8"Editor Camera");
 }
 
 CShader* CGame::AddCustomShader()
@@ -1504,6 +1593,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::PSParticle:
 		Result = m_PSParticle.get();
 		break;
+	case EBaseShader::PSCamera:
+		Result = m_PSCamera.get();
+		break;
 	case EBaseShader::PSBase2D:
 		Result = m_PSBase2D.get();
 		break;
@@ -1574,7 +1666,6 @@ void CGame::DeleteObject3D(const string& Name)
 		}
 	}
 
-	m_vObject3Ds.back().release();
 	m_vObject3Ds.pop_back();
 	m_mapObject3DNameToIndex.erase(Name);
 }
@@ -1662,7 +1753,6 @@ void CGame::DeleteObject2D(const std::string& Name)
 		}
 	}
 
-	m_vObject2Ds.back().release();
 	m_vObject2Ds.pop_back();
 	m_mapObject2DNameToIndex.erase(Name);
 }
@@ -1826,7 +1916,8 @@ void CGame::SetMode(EMode eMode)
 	else
 	{
 		if (m_Terrain) m_Terrain->ShouldShowSelection(FALSE);
-		DeselectObject3D();
+
+		DeselectAll();
 	}
 }
 
@@ -1841,7 +1932,8 @@ void CGame::SetEditMode(EEditMode eEditMode, bool bForcedSet)
 	if (m_eEditMode == EEditMode::EditTerrain)
 	{
 		if (m_Terrain) m_Terrain->ShouldShowSelection(TRUE);
-		DeselectObject3D();
+		
+		DeselectAll();
 	}
 	else
 	{
@@ -1968,6 +2060,46 @@ const string& CGame::GetSelectedObject2DName() const
 	return m_NullString;
 }
 
+void CGame::SelectCamera(const string& Name)
+{
+	if (m_eEditMode != EEditMode::EditObject) return;
+
+	m_PtrSelectedCamera = GetCamera(Name);
+	if (m_PtrSelectedCamera)
+	{
+		m_SelectedInstanceID = -1;
+	}
+}
+
+void CGame::DeselectCamera()
+{
+	m_PtrSelectedCamera = nullptr;
+}
+
+bool CGame::IsAnyCameraSelected() const
+{
+	return (m_PtrSelectedCamera) ? true : false;
+}
+
+CCamera* CGame::GetSelectedCamera()
+{
+	return m_PtrSelectedCamera;
+}
+
+const string& CGame::GetSelectedCameraName() const
+{
+	if (m_PtrSelectedCamera)
+	{
+		return m_PtrSelectedCamera->GetName();
+	}
+	return m_NullString;
+}
+
+CCamera* CGame::GetCurrentCamera()
+{
+	return m_PtrCurrentCamera;
+}
+
 void CGame::SelectInstance(int InstanceID)
 {
 	if (m_eEditMode != EEditMode::EditObject) return;
@@ -2024,16 +2156,16 @@ void CGame::Select3DGizmos()
 	float* pRoll{ &m_PtrSelectedObject3D->ComponentTransform.Roll };
 	if (m_PtrSelectedObject3D->IsInstanced() && IsAnyInstanceSelected())
 	{
-		auto& Instance{ m_PtrSelectedObject3D->GetInstance(m_SelectedInstanceID) };
-		pTranslation = &Instance.Translation;
-		pScaling = &Instance.Scaling;
-		pPitch = &Instance.Pitch;
-		pYaw = &Instance.Yaw;
-		pRoll = &Instance.Roll;
+		auto& InstanceCPUData{ m_PtrSelectedObject3D->GetInstanceCPUData(m_SelectedInstanceID) };
+		pTranslation = &InstanceCPUData.Translation;
+		pScaling = &InstanceCPUData.Scaling;
+		pPitch = &InstanceCPUData.Pitch;
+		pYaw = &InstanceCPUData.Yaw;
+		pRoll = &InstanceCPUData.Roll;
 	}
 
 	// Calculate scalar IAW the distance from the camera
-	m_3DGizmoDistanceScalar = XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].GetEyePosition() - *pTranslation)) * 0.1f;
+	m_3DGizmoDistanceScalar = XMVectorGetX(XMVector3Length(m_PtrCurrentCamera->GetEyePosition() - *pTranslation)) * 0.1f;
 	m_3DGizmoDistanceScalar = pow(m_3DGizmoDistanceScalar, 0.7f);
 
 	// Translate 3D gizmos
@@ -2096,6 +2228,7 @@ void CGame::Select3DGizmos()
 			}
 			break;
 		case E3DGizmoMode::Scaling:
+		{
 			switch (m_e3DGizmoSelectedAxis)
 			{
 			case E3DGizmoAxis::AxisX:
@@ -2110,11 +2243,12 @@ void CGame::Select3DGizmos()
 			default:
 				break;
 			}
+		}
 			break;
 		default:
 			break;
 		}
-
+		m_PtrSelectedObject3D->UpdateWorldMatrix();
 		m_PtrSelectedObject3D->UpdateInstanceWorldMatrix(m_SelectedInstanceID);
 	}
 	else
@@ -2285,6 +2419,15 @@ bool CGame::ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3
 	return false;
 }
 
+void CGame::DeselectAll()
+{
+	DeselectObject3D();
+	DeselectObject2D();
+	DeselectInstance();
+	DeselectCamera();
+	Deselect3DGizmos();
+}
+
 void CGame::CastPickingRay()
 {
 	float ViewSpaceRayDirectionX{ (m_CapturedMouseState.x / (m_WindowSize.x / 2.0f) - 1.0f) / XMVectorGetX(m_MatrixProjection.r[0]) };
@@ -2301,6 +2444,7 @@ void CGame::CastPickingRay()
 
 void CGame::PickBoundingSphere()
 {
+	m_vObject3DPickingCandidates.clear();
 	m_PtrPickedObject3D = nullptr;
 	m_PickedInstanceID = -1;
 
@@ -2310,52 +2454,27 @@ void CGame::PickBoundingSphere()
 		auto* Object3D{ i.get() };
 		if (Object3D->ComponentPhysics.bIsPickable)
 		{
-			if (Object3D->ComponentPhysics.bIgnoreBoundingSphere)
+			if (Object3D->IsInstanced())
 			{
-				m_PtrPickedObject3D = Object3D;
-
-				if (PickTriangle())
+				int InstanceCount{ (int)Object3D->GetInstanceCount() };
+				for (int iInstance = 0; iInstance < InstanceCount; ++iInstance)
 				{
-					break;
-				}
-				else
-				{
-					m_PtrPickedObject3D = nullptr;
+					auto& InstanceCPUData{ Object3D->GetInstanceCPUData(iInstance) };
+					XMVECTOR NewT{ KVectorGreatest };
+					if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
+						InstanceCPUData.BoundingSphere.Radius, InstanceCPUData.Translation + InstanceCPUData.BoundingSphere.CenterOffset, &NewT))
+					{
+						m_vObject3DPickingCandidates.emplace_back(Object3D, iInstance, NewT);
+					}
 				}
 			}
 			else
 			{
-				if (Object3D->IsInstanced())
+				XMVECTOR NewT{ KVectorGreatest };
+				if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
+					Object3D->ComponentPhysics.BoundingSphere.Radius, Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
 				{
-					int InstanceCount{ (int)Object3D->GetInstanceCount() };
-					for (int iInstance = 0; iInstance < InstanceCount; ++iInstance)
-					{
-						auto& Instance{ Object3D->GetInstance(iInstance) };
-						XMVECTOR NewT{ KVectorGreatest };
-						if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-							Object3D->ComponentPhysics.BoundingSphere.Radius, Instance.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
-						{
-							if (XMVector3Less(NewT, T))
-							{
-								T = NewT;
-								m_PtrPickedObject3D = Object3D;
-								m_PickedInstanceID = iInstance;
-							}
-						}
-					}
-				}
-				else
-				{
-					XMVECTOR NewT{ KVectorGreatest };
-					if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-						Object3D->ComponentPhysics.BoundingSphere.Radius, Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
-					{
-						if (XMVector3Less(NewT, T))
-						{
-							T = NewT;
-							m_PtrPickedObject3D = Object3D;
-						}
-					}
+					m_vObject3DPickingCandidates.emplace_back(Object3D, NewT);
 				}
 			}
 		}
@@ -2365,40 +2484,75 @@ void CGame::PickBoundingSphere()
 bool CGame::PickTriangle()
 {
 	XMVECTOR T{ KVectorGreatest };
-	if (m_PtrPickedObject3D)
+	if (m_PtrPickedObject3D == nullptr)
 	{
-		// Pick only static models' triangle.
-		if (m_PtrPickedObject3D->GetModel().bIsModelAnimated) return false;
-
-		const XMMATRIX& WorldMatrix{ m_PtrPickedObject3D->ComponentTransform.MatrixWorld };
-		for (const SMesh& Mesh : m_PtrPickedObject3D->GetModel().vMeshes)
+		for (SObject3DPickingCandiate& Candidate : m_vObject3DPickingCandidates)
 		{
-			for (const STriangle& Triangle : Mesh.vTriangles)
+			// Pick only static models' triangle.
+			if (Candidate.PtrObject3D->GetModel().bIsModelAnimated)
 			{
-				XMVECTOR V0{ Mesh.vVertices[Triangle.I0].Position };
-				XMVECTOR V1{ Mesh.vVertices[Triangle.I1].Position };
-				XMVECTOR V2{ Mesh.vVertices[Triangle.I2].Position };
-				V0 = XMVector3TransformCoord(V0, WorldMatrix);
-				V1 = XMVector3TransformCoord(V1, WorldMatrix);
-				V2 = XMVector3TransformCoord(V2, WorldMatrix);
+				Candidate.bHasFailedPickingTest = true;
+				continue;
+			}
 
-				XMVECTOR NewT{};
-				if (IntersectRayTriangle(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, V0, V1, V2, &NewT))
+			Candidate.bHasFailedPickingTest = true;
+			XMMATRIX WorldMatrix{ Candidate.PtrObject3D->ComponentTransform.MatrixWorld };
+			if (Candidate.InstanceID >= 0)
+			{
+				const auto& InstanceGPUData{ Candidate.PtrObject3D->GetInstanceGPUData(Candidate.InstanceID) };
+				WorldMatrix *= InstanceGPUData.WorldMatrix;
+			}
+			for (const SMesh& Mesh : Candidate.PtrObject3D->GetModel().vMeshes)
+			{
+				for (const STriangle& Triangle : Mesh.vTriangles)
 				{
-					if (XMVector3Less(NewT, T))
+					XMVECTOR V0{ Mesh.vVertices[Triangle.I0].Position };
+					XMVECTOR V1{ Mesh.vVertices[Triangle.I1].Position };
+					XMVECTOR V2{ Mesh.vVertices[Triangle.I2].Position };
+					V0 = XMVector3TransformCoord(V0, WorldMatrix);
+					V1 = XMVector3TransformCoord(V1, WorldMatrix);
+					V2 = XMVector3TransformCoord(V2, WorldMatrix);
+
+					XMVECTOR NewT{};
+					if (IntersectRayTriangle(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, V0, V1, V2, &NewT))
 					{
-						T = NewT;
+						if (XMVector3Less(NewT, T))
+						{
+							T = NewT;
 
-						XMVECTOR N{ CalculateTriangleNormal(V0, V1, V2) };
+							Candidate.bHasFailedPickingTest = false;
+							Candidate.T = NewT;
 
-						m_PickedTriangleV0 = V0 + N * 0.01f;
-						m_PickedTriangleV1 = V1 + N * 0.01f;
-						m_PickedTriangleV2 = V2 + N * 0.01f;
+							XMVECTOR N{ CalculateTriangleNormal(V0, V1, V2) };
 
-						return true;
+							m_PickedTriangleV0 = V0 + N * 0.01f;
+							m_PickedTriangleV1 = V1 + N * 0.01f;
+							m_PickedTriangleV2 = V2 + N * 0.01f;
+
+							continue;
+						}
 					}
 				}
 			}
+		}
+
+		vector<SObject3DPickingCandiate> vFilteredCandidates{};
+		for (const SObject3DPickingCandiate& Candidate : m_vObject3DPickingCandidates)
+		{
+			if (Candidate.bHasFailedPickingTest == false) vFilteredCandidates.emplace_back(Candidate);
+		}
+		if (!vFilteredCandidates.empty())
+		{
+			XMVECTOR TCmp{ KVectorGreatest };
+			for (const SObject3DPickingCandiate& FilteredCandidate : vFilteredCandidates)
+			{
+				if (XMVector3Less(FilteredCandidate.T, TCmp))
+				{
+					m_PtrPickedObject3D = FilteredCandidate.PtrObject3D;
+					m_PickedInstanceID = FilteredCandidate.InstanceID;
+				}
+			}
+			return true;
 		}
 	}
 	return false;
@@ -2417,9 +2571,10 @@ void CGame::BeginRendering(const FLOAT* ClearColor)
 
 	SetUniversalRSState();
 
-	m_MatrixView = XMMatrixLookAtLH(m_vCameras[m_CurrentCameraIndex].GetEyePosition(), 
-		m_vCameras[m_CurrentCameraIndex].GetFocusPosition(),
-		m_vCameras[m_CurrentCameraIndex].GetUpDirection());
+	XMVECTOR EyePosition{ m_PtrCurrentCamera->GetEyePosition() };
+	XMVECTOR FocusPosition{ m_PtrCurrentCamera->GetFocusPosition() };
+	XMVECTOR UpDirection{ m_PtrCurrentCamera->GetUpDirection() };
+	m_MatrixView = XMMatrixLookAtLH(EyePosition, FocusPosition, UpDirection);
 }
 
 void CGame::Update()
@@ -2440,14 +2595,6 @@ void CGame::Update()
 	m_CapturedKeyboardState = GetKeyState();
 	m_CapturedMouseState = GetMouseState();
 
-	// Check if CGame has at least one camera
-	if (GetCameraCount() == 0)
-	{
-		CCamera* MainCamera{ AddCamera(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0))) };
-		MainCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
-	}
-	CCamera* const MainCamera{ GetCamera(0) };
-
 	// Process keyboard inputs
 	if (m_CapturedKeyboardState.LeftAlt && m_CapturedKeyboardState.Q)
 	{
@@ -2456,26 +2603,25 @@ void CGame::Update()
 	}
 	if (m_CapturedKeyboardState.Escape)
 	{
-		DeselectObject3D();
-		Deselect3DGizmos();
+		DeselectAll();
 	}
 	if (!ImGui::IsAnyItemActive())
 	{
 		if (m_CapturedKeyboardState.W)
 		{
-			MainCamera->Move(CCamera::EMovementDirection::Forward, m_DeltaTimeF * m_CameraMovementFactor);
+			m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Forward, m_DeltaTimeF * m_CameraMovementFactor);
 		}
 		if (m_CapturedKeyboardState.S)
 		{
-			MainCamera->Move(CCamera::EMovementDirection::Backward, m_DeltaTimeF * m_CameraMovementFactor);
+			m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Backward, m_DeltaTimeF * m_CameraMovementFactor);
 		}
-		if (m_CapturedKeyboardState.A)
+		if (m_CapturedKeyboardState.A  && !m_CapturedKeyboardState.LeftControl)
 		{
-			MainCamera->Move(CCamera::EMovementDirection::Leftward, m_DeltaTimeF * m_CameraMovementFactor);
+			m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Leftward, m_DeltaTimeF * m_CameraMovementFactor);
 		}
 		if (m_CapturedKeyboardState.D)
 		{
-			MainCamera->Move(CCamera::EMovementDirection::Rightward, m_DeltaTimeF * m_CameraMovementFactor);
+			m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Rightward, m_DeltaTimeF * m_CameraMovementFactor);
 		}
 		if (m_CapturedKeyboardState.D1)
 		{
@@ -2488,6 +2634,28 @@ void CGame::Update()
 		if (m_CapturedKeyboardState.D3)
 		{
 			Set3DGizmoMode(CGame::E3DGizmoMode::Scaling);
+		}
+		if (m_CapturedKeyboardState.Delete)
+		{
+			// Object3D
+			if (IsAnyObject3DSelected())
+			{
+				if (GetSelectedObject3D()->IsInstanced())
+				{
+					if (IsAnyInstanceSelected())
+					{
+						GetSelectedObject3D()->DeleteInstance(GetSelectedObject3D()->GetInstanceCPUData(GetSelectedInstanceID()).Name);
+						DeselectInstance();
+
+						if (GetSelectedObject3D()->GetInstanceCount() == 0) DeselectObject3D();
+					}
+				}
+				else
+				{
+					DeleteObject3D(GetSelectedObject3DName());
+					DeselectObject3D();
+				}
+			}
 		}
 	}
 
@@ -2515,8 +2683,7 @@ void CGame::Update()
 			if (!m_CapturedMouseState.leftButton) Deselect3DGizmos();
 			if (m_CapturedMouseState.rightButton)
 			{
-				DeselectObject3D();
-				Deselect3DGizmos();
+				DeselectAll();
 			}
 
 			if (m_CapturedMouseState.x != PrevMouseX || m_CapturedMouseState.y != PrevMouseY)
@@ -2540,7 +2707,7 @@ void CGame::Update()
 		{
 			if (m_CapturedMouseState.middleButton)
 			{
-				MainCamera->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, m_DeltaTimeF);
+				m_PtrCurrentCamera->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, m_DeltaTimeF);
 			}
 
 			PrevMouseX = m_CapturedMouseState.x;
@@ -2574,7 +2741,7 @@ void CGame::Draw()
 
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 
-	m_CBLightData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
+	m_CBLightData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
 
 	if (m_eMode == EMode::Edit)
 	{
@@ -2603,6 +2770,8 @@ void CGame::Draw()
 		{
 			Draw3DGizmos();
 		}
+
+		DrawCameraRepresentations();
 
 		DrawObject3DLines();
 	}
@@ -2701,7 +2870,7 @@ void CGame::DrawObject3D(const CObject3D* const PtrObject3D)
 	if (PtrObject3D->ShouldTessellate())
 	{
 		UpdateCBSpace();
-		m_CBCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
+		m_CBCameraData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
 
 		m_HSTerrain->UpdateAllConstantBuffers();
 		m_HSTerrain->Use();
@@ -2808,9 +2977,7 @@ void CGame::DrawMiniAxes()
 		UpdateObject3D(Object3D.get());
 		DrawObject3D(Object3D.get());
 
-		Object3D->ComponentTransform.Translation = 
-			m_vCameras[m_CurrentCameraIndex].GetEyePosition() +
-			m_vCameras[m_CurrentCameraIndex].GetForward();
+		Object3D->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition() + m_PtrCurrentCamera->GetForward();
 
 		Object3D->UpdateWorldMatrix();
 	}
@@ -2885,7 +3052,7 @@ void CGame::DrawSky(float DeltaTime)
 
 		// SkySphere
 		{
-			m_Object3DSkySphere->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
+			m_Object3DSkySphere->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition();
 
 			UpdateObject3D(m_Object3DSkySphere.get());
 			DrawObject3D(m_Object3DSkySphere.get());
@@ -2895,7 +3062,7 @@ void CGame::DrawSky(float DeltaTime)
 		{
 			float SunRoll{ XM_2PI * m_CBSkyTimeData.SkyTime - XM_PIDIV2 };
 			XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, SunRoll)) };
-			m_Object3DSun->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
+			m_Object3DSun->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition() + Offset;
 			m_Object3DSun->ComponentTransform.Roll = SunRoll;
 
 			UpdateObject3D(m_Object3DSun.get());
@@ -2906,7 +3073,7 @@ void CGame::DrawSky(float DeltaTime)
 		{
 			float MoonRoll{ XM_2PI * m_CBSkyTimeData.SkyTime + XM_PIDIV2 };
 			XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, MoonRoll)) };
-			m_Object3DMoon->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition() + Offset;
+			m_Object3DMoon->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition() + Offset;
 			m_Object3DMoon->ComponentTransform.Roll = (MoonRoll > XM_2PI) ? (MoonRoll - XM_2PI) : MoonRoll;
 
 			UpdateObject3D(m_Object3DMoon.get());
@@ -2917,7 +3084,7 @@ void CGame::DrawSky(float DeltaTime)
 	{
 		// SkySphere
 		{
-			m_Object3DSkySphere->ComponentTransform.Translation = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
+			m_Object3DSkySphere->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition();
 
 			UpdateObject3D(m_Object3DSkySphere.get());
 			DrawObject3D(m_Object3DSkySphere.get());
@@ -2937,7 +3104,7 @@ void CGame::DrawTerrain(float DeltaTime)
 
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain))
 	{
-		m_CBCameraData.EyePosition = m_vCameras[m_CurrentCameraIndex].GetEyePosition();
+		m_CBCameraData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
 		m_CBTessFactorData.TessFactor = m_Terrain->GetTerrainTessFactor();
 		m_HSTerrain->UpdateAllConstantBuffers();
 		m_HSTerrain->Use();
@@ -3099,13 +3266,12 @@ void CGame::Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight)
 	CShader* VS{ Gizmo->ComponentRender.PtrVS };
 	CShader* PS{ Gizmo->ComponentRender.PtrPS };
 
-	float Scalar{ XMVectorGetX(XMVector3Length(m_vCameras[m_CurrentCameraIndex].GetEyePosition() - Gizmo->ComponentTransform.Translation)) * 0.1f };
+	float Scalar{ XMVectorGetX(XMVector3Length(m_PtrCurrentCamera->GetEyePosition() - Gizmo->ComponentTransform.Translation)) * 0.1f };
 	Scalar = pow(Scalar, 0.7f);
 
 	Gizmo->ComponentTransform.Scaling = XMVectorSet(Scalar, Scalar, Scalar, 0.0f);
 	Gizmo->UpdateWorldMatrix();
-	m_CBSpaceWVPData.World = XMMatrixTranspose(Gizmo->ComponentTransform.MatrixWorld);
-	m_CBSpaceWVPData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
+	UpdateCBSpace(Gizmo->ComponentTransform.MatrixWorld);
 	VS->UpdateConstantBuffer(0);
 	VS->Use();
 
@@ -3121,6 +3287,44 @@ void CGame::Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight)
 	PS->Use();
 
 	Gizmo->Draw();
+}
+
+void CGame::DrawCameraRepresentations()
+{
+	if (GetCameraMap().size() == 1) return;
+
+	m_DeviceContext->RSSetState(m_CommonStates->CullNone());
+	
+	CShader* const VS{ m_Object3D_CameraRepresentation->ComponentRender.PtrVS };
+	CShader* const PS{ m_Object3D_CameraRepresentation->ComponentRender.PtrPS };
+	VS->Use();
+	PS->Use();
+
+	for (auto& Camera : m_vCameras)
+	{
+		if (Camera.get() == GetEditorCamera()) continue;
+		if (Camera.get() == GetCurrentCamera()) continue;
+
+		XMMATRIX Rotation{ XMMatrixRotationRollPitchYaw(Camera->GetPitch(), Camera->GetYaw(), 0.0f) };
+		XMMATRIX Translation{ XMMatrixTranslationFromVector(Camera->GetEyePosition()) };
+		UpdateCBSpace(Rotation * Translation);
+
+		if (Camera.get() == GetSelectedCamera())
+		{
+			m_CBCameraSelectionData.bIsSelected = TRUE;
+		}
+		else
+		{
+			m_CBCameraSelectionData.bIsSelected = FALSE;
+		}
+
+		VS->UpdateAllConstantBuffers();
+		PS->UpdateAllConstantBuffers();
+
+		m_Object3D_CameraRepresentation->Draw();
+	}
+
+	SetUniversalRSState();
 }
 
 void CGame::DrawEditorGUI()
@@ -3185,6 +3389,7 @@ void CGame::DrawEditorGUIMenuBar()
 		bool bShowDialogLoadTerrain{};
 		bool bShowDialogSaveTerrain{};
 
+		if (m_CapturedKeyboardState.LeftControl && m_CapturedKeyboardState.A) m_EditorGUIBools.bShowPopupObjectAdder = true;
 		if (m_CapturedKeyboardState.LeftControl && m_CapturedKeyboardState.N) m_EditorGUIBools.bShowPopupTerrainGenerator = true;
 		if (m_CapturedKeyboardState.LeftControl && m_CapturedKeyboardState.O) bShowDialogLoadTerrain = true;
 		if (m_CapturedKeyboardState.LeftControl && m_CapturedKeyboardState.S) bShowDialogSaveTerrain = true;
@@ -3324,11 +3529,14 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 		static char ModelFileNameWithoutPath[MAX_PATH]{};
 		static bool bIsModelRigged{ false };
 
-		static const char* const KOptions[3]{ u8"3D 도형 생성", u8"3D 모델 파일 불러오기", u8"2D 도형 생성" };
+		static constexpr float KIndentPerDepth{ 12.0f };
+		static constexpr float KItemsOffetX{ 150.0f };
+		static constexpr float KItemsWidth{ 150.0f };
+		static const char* const KOptions[4]{ u8"3D 도형", u8"3D 모델 파일", u8"2D 도형", u8"카메라" };
 		static int iSelectedOption{};
 
-		static const char* const K3DPrimitiveTypes[10]{ u8"-정사각형(XY)", u8"-정사각형(XZ)", u8"-정사각형(YZ)",
-				u8"-원", u8"-사각뿔", u8"-정육면체", u8"-각뿔", u8"-각기둥", u8"-구", u8"-도넛(Torus)" };
+		static const char* const K3DPrimitiveTypes[9]{ u8"정사각형(XY)", u8"정사각형(XZ)", u8"정사각형(YZ)",
+				u8"원", u8"정육면체", u8"각뿔", u8"각기둥", u8"구", u8"도넛(Torus)" };
 		static int iSelected3DPrimitiveType{};
 		static uint32_t SideCount{ KDefaultPrimitiveDetail };
 		static uint32_t SegmentCount{ KDefaultPrimitiveDetail };
@@ -3339,8 +3547,11 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 		static float PixelWidth{ 50.0f };
 		static float PixelHeight{ 50.0f };
 
-		static const char* const K2DPrimitiveTypes[1]{ u8"-정사각형" };
+		static const char* const K2DPrimitiveTypes[1]{ u8"정사각형" };
 		static int iSelected2DPrimitiveType{};
+
+		static const char* const KCameraTypes[3]{ u8"1인칭", u8"3인칭", u8"자유 시점" };
+		static int iSelectedCameraType{};
 
 		static XMFLOAT4 MaterialUniformColor{ 1.0f, 1.0f, 1.0f, 1.0f };
 
@@ -3356,128 +3567,164 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 			{
 				iSelectedOption = iOption;
 			}
-		}
 
-		if (iSelectedOption == 0)
-		{
-			static constexpr float KOffetX{ 150.0f };
-			static constexpr float KItemsWidth{ 150.0f };
-			ImGui::Indent(20.0f);
-
-			for (int i3DPrimitiveType = 0; i3DPrimitiveType < ARRAYSIZE(K3DPrimitiveTypes); ++i3DPrimitiveType)
+			if (iSelectedOption == iOption)
 			{
-				if (ImGui::Selectable(K3DPrimitiveTypes[i3DPrimitiveType], (iSelected3DPrimitiveType == i3DPrimitiveType)))
+				if (iSelectedOption == 0)
 				{
-					iSelected3DPrimitiveType = i3DPrimitiveType;
+					ImGui::Indent(KIndentPerDepth);
+
+					for (int i3DPrimitiveType = 0; i3DPrimitiveType < ARRAYSIZE(K3DPrimitiveTypes); ++i3DPrimitiveType)
+					{
+						if (ImGui::Selectable(K3DPrimitiveTypes[i3DPrimitiveType], (iSelected3DPrimitiveType == i3DPrimitiveType)))
+						{
+							iSelected3DPrimitiveType = i3DPrimitiveType;
+						}
+						if (i3DPrimitiveType == iSelected3DPrimitiveType)
+						{
+							ImGui::Indent(KIndentPerDepth);
+
+							ImGui::PushItemWidth(KItemsWidth);
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"- 색상");
+							ImGui::SameLine(KItemsOffetX);
+							ImGui::ColorEdit3(u8"##- 색상", (float*)&MaterialUniformColor.x, ImGuiColorEditFlags_RGB);
+
+							// Quasi-2D primitives scalars
+							if (iSelected3DPrimitiveType >= 0 && iSelected3DPrimitiveType <= 3)
+							{
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"- 가로 크기");
+								ImGui::SameLine(KItemsOffetX);
+								ImGui::SliderFloat(u8"##- 가로 크기", &WidthScalar3D, 0.01f, 100.0f);
+
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"- 세로 크기");
+								ImGui::SameLine(KItemsOffetX);
+								ImGui::SliderFloat(u8"##- 세로 크기", &HeightScalar3D, 0.01f, 100.0f);
+							}
+
+							// 3D primitives that require SideCount
+							if (iSelected3DPrimitiveType == 3 || (iSelected3DPrimitiveType >= 5 && iSelected3DPrimitiveType <= 6) || iSelected3DPrimitiveType == 8)
+							{
+								if (iSelected3DPrimitiveType == 5)
+								{
+									// Cone
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"- 반지름 인수");
+									ImGui::SameLine(KItemsOffetX);
+									ImGui::SliderFloat(u8"##- 반지름 인수", &RadiusFactor, 0.0f, 1.0f);
+								}
+
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"- 옆면 수");
+								ImGui::SameLine(KItemsOffetX);
+								ImGui::SliderInt(u8"##- 옆면 수", (int*)&SideCount, KMinPrimitiveDetail, KMaxPrimitiveDetail);
+							}
+
+							// 3D primitives that require SegmentCount
+							if (iSelected3DPrimitiveType == 7 || iSelected3DPrimitiveType == 8)
+							{
+								if (iSelected3DPrimitiveType == 8)
+								{
+									// Torus
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"- 띠 반지름");
+									ImGui::SameLine(KItemsOffetX);
+									ImGui::SliderFloat(u8"##- 띠 반지름", &InnerRadius, 0.0f, 1.0f);
+								}
+
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"- Segment 수");
+								ImGui::SameLine(KItemsOffetX);
+								ImGui::SliderInt(u8"##- Segment 수", (int*)&SegmentCount, KMinPrimitiveDetail, KMaxPrimitiveDetail);
+							}
+
+							ImGui::PopItemWidth();
+
+							ImGui::Unindent(KIndentPerDepth);
+						}
+					}
+
+					ImGui::Unindent(KIndentPerDepth);
 				}
-				if (i3DPrimitiveType == iSelected3DPrimitiveType)
+				else if (iSelectedOption == 1)
 				{
-					ImGui::PushItemWidth(KItemsWidth);
+					if (ImGui::Button(u8"모델 불러오기")) bShowDialogLoad3DModel = true;
+
+					ImGui::SameLine();
+
+					ImGui::Text(ModelFileNameWithoutPath);
+
+					ImGui::SameLine();
+
+					ImGui::Checkbox(u8"리깅 여부", &bIsModelRigged);
+				}
+				else if (iSelectedOption == 2)
+				{
+					ImGui::Indent(KIndentPerDepth);
+
+					for (int i2DPrimitiveType = 0; i2DPrimitiveType < ARRAYSIZE(K2DPrimitiveTypes); ++i2DPrimitiveType)
+					{
+						if (ImGui::Selectable(K2DPrimitiveTypes[i2DPrimitiveType], (iSelected2DPrimitiveType == i2DPrimitiveType)))
+						{
+							iSelected2DPrimitiveType = i2DPrimitiveType;
+						}
+						if (i2DPrimitiveType == iSelected2DPrimitiveType)
+						{
+							ImGui::Indent(KIndentPerDepth);
+
+							ImGui::PushItemWidth(KItemsWidth);
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"- 가로 크기(픽셀)");
+							ImGui::SameLine(KItemsOffetX);
+							ImGui::DragFloat(u8"##- 가로 크기(픽셀)", &PixelWidth, 1.0f, 0.0f, 4096.0f, "%.0f");
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"- 세로 크기(픽셀)");
+							ImGui::SameLine(KItemsOffetX);
+							ImGui::DragFloat(u8"##- 세로 크기(픽셀)", &PixelHeight, 1.0f, 0.0f, 4096.0f, "%.0f");
+
+							ImGui::PopItemWidth();
+
+							ImGui::Unindent(KIndentPerDepth);
+						}
+					}
+
+					ImGui::Unindent(KIndentPerDepth);
+				}
+				else if (iSelectedOption == 3)
+				{
+					static constexpr float KOffetX{ 150.0f };
+					static constexpr float KItemsWidth{ 150.0f };
+					ImGui::Indent(20.0f);
 
 					ImGui::AlignTextToFramePadding();
-					ImGui::Text(u8"--색상");
+					ImGui::Text(u8"카메라 종류");
 					ImGui::SameLine(KOffetX);
-					ImGui::ColorEdit3(u8"##--색상", (float*)&MaterialUniformColor.x, ImGuiColorEditFlags_RGB);
-
-					// Quasi-2D primitives scalars
-					if (iSelected3DPrimitiveType >= 0 && iSelected3DPrimitiveType <= 3)
+					if (ImGui::BeginCombo(u8"##카메라 종류", KCameraTypes[iSelectedCameraType]))
 					{
-						ImGui::AlignTextToFramePadding();
-						ImGui::Text(u8"--가로 크기");
-						ImGui::SameLine(KOffetX);
-						ImGui::SliderFloat(u8"##--가로 크기", &WidthScalar3D, 0.01f, 100.0f);
-
-						ImGui::AlignTextToFramePadding();
-						ImGui::Text(u8"--세로 크기");
-						ImGui::SameLine(KOffetX);
-						ImGui::SliderFloat(u8"##--세로 크기", &HeightScalar3D, 0.01f, 100.0f);
-					}
-
-					// 3D primitives that require SideCount
-					if (iSelected3DPrimitiveType == 3 || (iSelected3DPrimitiveType >= 6 && iSelected3DPrimitiveType <= 7) || iSelected3DPrimitiveType == 9)
-					{
-						if (iSelected3DPrimitiveType == 6)
+						for (int iCameraType = 0; iCameraType < ARRAYSIZE(KCameraTypes); ++iCameraType)
 						{
-							// Cone
-							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"--반지름 인수");
-							ImGui::SameLine(KOffetX);
-							ImGui::SliderFloat(u8"##--반지름 인수", &RadiusFactor, 0.0f, 1.0f);
+							if (ImGui::Selectable(KCameraTypes[iCameraType], (iSelectedCameraType == iCameraType)))
+							{
+								iSelectedCameraType = iCameraType;
+							}
+							if (iSelectedCameraType == iCameraType)
+							{
+								ImGui::SetItemDefaultFocus();
+							}
 						}
-
-						ImGui::AlignTextToFramePadding();
-						ImGui::Text(u8"--옆면 수");
-						ImGui::SameLine(KOffetX);
-						ImGui::SliderInt(u8"##--옆면 수", (int*)&SideCount, KMinPrimitiveDetail, KMaxPrimitiveDetail);
+						ImGui::EndCombo();
 					}
 
-					// 3D primitives that require SegmentCount
-					if (iSelected3DPrimitiveType == 8 || iSelected3DPrimitiveType == 9)
-					{
-						if (iSelected3DPrimitiveType == 9)
-						{
-							// Torus
-							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"--띠 반지름");
-							ImGui::SameLine(KOffetX);
-							ImGui::SliderFloat(u8"##--띠 반지름", &InnerRadius, 0.0f, 1.0f);
-						}
-
-						ImGui::AlignTextToFramePadding();
-						ImGui::Text(u8"--Segment 수");
-						ImGui::SameLine(KOffetX);
-						ImGui::SliderInt(u8"##--Segment 수", (int*)&SegmentCount, KMinPrimitiveDetail, KMaxPrimitiveDetail);
-					}
-
-					ImGui::PopItemWidth();
+					ImGui::Unindent();
 				}
 			}
-			ImGui::Unindent();
 		}
-		else if (iSelectedOption == 1)
-		{
-			if (ImGui::Button(u8"모델 불러오기")) bShowDialogLoad3DModel = true;
-
-			ImGui::SameLine();
-
-			ImGui::Text(ModelFileNameWithoutPath);
-
-			ImGui::SameLine();
-
-			ImGui::Checkbox(u8"리깅 여부", &bIsModelRigged);
-		}
-		else if (iSelectedOption == 2)
-		{
-			static constexpr float KOffetX{ 150.0f };
-			static constexpr float KItemsWidth{ 150.0f };
-			ImGui::Indent(20.0f);
-
-			for (int i2DPrimitiveType = 0; i2DPrimitiveType < ARRAYSIZE(K2DPrimitiveTypes); ++i2DPrimitiveType)
-			{
-				if (ImGui::Selectable(K2DPrimitiveTypes[i2DPrimitiveType], (iSelected2DPrimitiveType == i2DPrimitiveType)))
-				{
-					iSelected2DPrimitiveType = i2DPrimitiveType;
-				}
-				if (i2DPrimitiveType == iSelected2DPrimitiveType)
-				{
-					ImGui::PushItemWidth(KItemsWidth);
-
-					ImGui::AlignTextToFramePadding();
-					ImGui::Text(u8"--가로 크기(픽셀)");
-					ImGui::SameLine(KOffetX);
-					ImGui::DragFloat(u8"##--가로 크기(픽셀)", &PixelWidth, 1.0f, 0.0f, 4096.0f, "%.0f");
-
-					ImGui::AlignTextToFramePadding();
-					ImGui::Text(u8"--세로 크기(픽셀)");
-					ImGui::SameLine(KOffetX);
-					ImGui::DragFloat(u8"##--세로 크기(픽셀)", &PixelHeight, 1.0f, 0.0f, 4096.0f, "%.0f");
-
-					ImGui::PopItemWidth();
-				}
-			}
-			ImGui::Unindent();
-		}
-
+		
 		if (ImGui::Button(u8"결정") || m_CapturedKeyboardState.Enter)
 		{
 			if (iSelectedOption == 1 && ModelFileNameWithPath[0] == 0)
@@ -3495,7 +3742,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 				{
 					if (GetObject3D(NewObejctName, false))
 					{
-						MB_WARN("이미 존재하는 이름입니다.", "오브젝트 생성 실패");
+						MB_WARN("이미 존재하는 이름입니다.", "3D 오브젝트 생성 실패");
 						IsObjectCreated = false;
 					}
 					else
@@ -3511,42 +3758,45 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 						case 0:
 							Mesh = GenerateSquareXYPlane();
 							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, HeightScalar3D, 1.0f, 0));
+							Object3D->ComponentPhysics.BoundingSphere.Radius = sqrt(2.0f);
 							break;
 						case 1:
 							Mesh = GenerateSquareXZPlane();
 							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, 1.0f, HeightScalar3D, 0));
+							Object3D->ComponentPhysics.BoundingSphere.Radius = sqrt(2.0f);
 							break;
 						case 2:
 							Mesh = GenerateSquareYZPlane();
 							ScaleMesh(Mesh, XMVectorSet(1.0f, WidthScalar3D, HeightScalar3D, 0));
+							Object3D->ComponentPhysics.BoundingSphere.Radius = sqrt(2.0f);
 							break;
 						case 3:
 							Mesh = GenerateCircleXZPlane(SideCount);
 							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, 1.0f, HeightScalar3D, 0));
 							break;
 						case 4:
-							Mesh = GeneratePyramid();
-							break;
-						case 5:
 							Mesh = GenerateCube();
 							break;
-						case 6:
+						case 5:
 							Mesh = GenerateCone(RadiusFactor, 1.0f, 1.0f, SideCount);
+							Object3D->ComponentPhysics.BoundingSphere.CenterOffset = XMVectorSetY(Object3D->ComponentPhysics.BoundingSphere.CenterOffset, -0.5f);
+							break;
+						case 6:
+							Mesh = GenerateCylinder(1.0f, 1.0f, SideCount);
+							Object3D->ComponentPhysics.BoundingSphere.Radius = sqrt(1.5f);
 							break;
 						case 7:
-							Mesh = GenerateCylinder(1.0f, 1.0f, SideCount);
-							break;
-						case 8:
 							Mesh = GenerateSphere(SegmentCount);
 							break;
-						case 9:
+						case 8:
 							Mesh = GenerateTorus(InnerRadius, SideCount, SegmentCount);
+							Object3D->ComponentPhysics.BoundingSphere.Radius += InnerRadius;
 							break;
 						default:
 							break;
 						}
 						Object3D->Create(Mesh, Material);
-
+						
 						WidthScalar3D = 1.0f;
 						HeightScalar3D = 1.0f;
 					}
@@ -3555,7 +3805,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 				{
 					if (GetObject3D(NewObejctName, false))
 					{
-						MB_WARN("이미 존재하는 이름입니다.", "오브젝트 생성 실패");
+						MB_WARN("이미 존재하는 이름입니다.", "3D 오브젝트 생성 실패");
 						IsObjectCreated = false;
 					}
 					else
@@ -3572,7 +3822,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 				{
 					if (GetObject2D(NewObejctName, false))
 					{
-						MB_WARN("이미 존재하는 이름입니다.", "오브젝트 생성 실패");
+						MB_WARN("이미 존재하는 이름입니다.", "2D 오브젝트 생성 실패");
 						IsObjectCreated = false;
 					}
 					else
@@ -3583,6 +3833,33 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 						{
 						case 0:
 							Object2D->Create(Generate2DRectangle(XMFLOAT2(PixelWidth, PixelHeight)));
+							break;
+						default:
+							break;
+						}
+					}
+				}
+				else if (iSelectedOption == 3)
+				{
+					if (GetCamera(NewObejctName, false))
+					{
+						MB_WARN("이미 존재하는 이름입니다.", "카메라 생성 실패");
+						IsObjectCreated = false;
+					}
+					else
+					{
+						InsertCamera(NewObejctName);
+						CCamera* const Camera{ GetCamera(NewObejctName) };
+						switch (iSelectedCameraType)
+						{
+						case 0:
+							Camera->SetType(CCamera::EType::FirstPerson);
+							break;
+						case 1:
+							Camera->SetType(CCamera::EType::ThirdPerson);
+							break;
+						case 2:
+							Camera->SetType(CCamera::EType::FreeLook);
 							break;
 						default:
 							break;
@@ -3678,54 +3955,56 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								}
 								else
 								{
-									auto& Instance{ Object3D->GetInstance(GetSelectedInstanceID()) };
+									auto& InstanceCPUData{ Object3D->GetInstanceCPUData(GetSelectedInstanceID()) };
 
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"선택된 인스턴스:");
 									ImGui::SameLine(ItemsOffsetX);
 									ImGui::AlignTextToFramePadding();
-									ImGui::Text(u8"<%s>", Instance.Name.c_str());
+									ImGui::Text(u8"<%s>", InstanceCPUData.Name.c_str());
 
 									ImGui::Separator();
 
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"위치");
 									ImGui::SameLine(ItemsOffsetX);
-									float Translation[3]{ XMVectorGetX(Instance.Translation),
-										XMVectorGetY(Instance.Translation), XMVectorGetZ(Instance.Translation) };
+									float Translation[3]{ XMVectorGetX(InstanceCPUData.Translation),
+										XMVectorGetY(InstanceCPUData.Translation), XMVectorGetZ(InstanceCPUData.Translation) };
 									if (ImGui::DragFloat3(u8"##위치", Translation, CGame::KTranslationUnit,
 										CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.2f"))
 									{
-										Instance.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
+										InstanceCPUData.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
 										Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
 									}
 
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"회전");
 									ImGui::SameLine(ItemsOffsetX);
-									int PitchYawRoll360[3]{ (int)(Instance.Pitch * CGame::KRotation2PITo360),
-										(int)(Instance.Yaw * CGame::KRotation2PITo360),
-										(int)(Instance.Roll * CGame::KRotation2PITo360) };
+									int PitchYawRoll360[3]{ (int)(InstanceCPUData.Pitch * CGame::KRotation2PITo360),
+										(int)(InstanceCPUData.Yaw * CGame::KRotation2PITo360),
+										(int)(InstanceCPUData.Roll * CGame::KRotation2PITo360) };
 									if (ImGui::DragInt3(u8"##회전", PitchYawRoll360, CGame::KRotation360Unit,
 										CGame::KRotation360MinLimit, CGame::KRotation360MaxLimit))
 									{
-										Instance.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
-										Instance.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
-										Instance.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
+										InstanceCPUData.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
+										InstanceCPUData.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
+										InstanceCPUData.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
 										Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
 									}
 
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"크기");
 									ImGui::SameLine(ItemsOffsetX);
-									float Scaling[3]{ XMVectorGetX(Instance.Scaling),
-										XMVectorGetY(Instance.Scaling), XMVectorGetZ(Instance.Scaling) };
+									float Scaling[3]{ XMVectorGetX(InstanceCPUData.Scaling),
+										XMVectorGetY(InstanceCPUData.Scaling), XMVectorGetZ(InstanceCPUData.Scaling) };
 									if (ImGui::DragFloat3(u8"##크기", Scaling, CGame::KScalingUnit,
 										CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.3f"))
 									{
-										Instance.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
+										InstanceCPUData.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
 										Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
 									}
+
+									ImGui::Separator();
 								}
 							}
 							else
@@ -3775,13 +4054,13 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ImGui::Separator();
 
 							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"BS 중심");
+							ImGui::Text(u8"오브젝트 BS 중심");
 							ImGui::SameLine(ItemsOffsetX);
 							float BSCenterOffset[3]{
 								XMVectorGetX(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
 								XMVectorGetY(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
 								XMVectorGetZ(Object3D->ComponentPhysics.BoundingSphere.CenterOffset) };
-							if (ImGui::DragFloat3(u8"##BS중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
+							if (ImGui::DragFloat3(u8"##오브젝트 BS중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
 								CGame::KBSCenterOffsetMinLimit, CGame::KBSCenterOffsetMaxLimit, "%.2f"))
 							{
 								Object3D->ComponentPhysics.BoundingSphere.CenterOffset =
@@ -3789,13 +4068,98 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							}
 
 							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"BS 반지름");
+							ImGui::Text(u8"오브젝트 BS 반지름");
 							ImGui::SameLine(ItemsOffsetX);
 							float BSRadius{ Object3D->ComponentPhysics.BoundingSphere.Radius };
-							if (ImGui::DragFloat(u8"##BS반지름", &BSRadius, CGame::KBSRadiusUnit,
+							if (ImGui::DragFloat(u8"##오브젝트 BS반지름", &BSRadius, CGame::KBSRadiusUnit,
 								CGame::KBSRadiusMinLimit, CGame::KBSRadiusMaxLimit, "%.2f"))
 							{
-								Object3D->ComponentPhysics.BoundingSphere.Radius = BSRadius;
+								Object3D->ComponentPhysics.BoundingSphere.RadiusBase = BSRadius;
+							}
+
+							ImGui::Separator();
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"정점 개수");
+							ImGui::SameLine(ItemsOffsetX);
+							int VertexCount{};
+							for (const SMesh& Mesh : Object3D->GetModel().vMeshes)
+							{
+								VertexCount += (int)Mesh.vVertices.size();
+							}
+							ImGui::Text(u8"%d", VertexCount);
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"삼각형 개수");
+							ImGui::SameLine(ItemsOffsetX);
+							int TriangleCount{};
+							for (const SMesh& Mesh : Object3D->GetModel().vMeshes)
+							{
+								TriangleCount += (int)Mesh.vTriangles.size();
+							}
+							ImGui::Text(u8"%d", TriangleCount);
+
+							ImGui::Separator();
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"오브젝트 재질");
+							if (Object3D->GetMaterialCount() == 1)
+							{
+								CMaterial& Material{ Object3D->GetModel().vMaterials[0] };
+
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"Diffuse 색상");
+								ImGui::SameLine(ItemsOffsetX);
+								XMFLOAT3 DiffuseColor{ Material.GetDiffuseColor() };
+								if (ImGui::ColorEdit3(u8"##Diffuse 색상", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
+								{
+									Material.SetDiffuseColor(DiffuseColor);
+								}
+
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"Ambient 색상");
+								ImGui::SameLine(ItemsOffsetX);
+								XMFLOAT3 AmbientColor{ Material.GetAmbientColor() };
+								if (ImGui::ColorEdit3(u8"##Ambient 색상", &AmbientColor.x, ImGuiColorEditFlags_RGB))
+								{
+									Material.SetAmbientColor(AmbientColor);
+								}
+
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"Specular 색상");
+								ImGui::SameLine(ItemsOffsetX);
+								XMFLOAT3 SpecularColor{ Material.GetSpecularColor() };
+								if (ImGui::ColorEdit3(u8"##Specular 색상", &SpecularColor.x, ImGuiColorEditFlags_RGB))
+								{
+									Material.SetSpecularColor(SpecularColor);
+								}
+
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"Specular 지수");
+								ImGui::SameLine(ItemsOffsetX);
+								float SpecularExponent{ Material.GetSpecularExponent() };
+								if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, 1.0f, 256.0f, "%.1f"))
+								{
+									Material.SetSpecularExponent(SpecularExponent);
+								}
+
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"Specular 강도");
+								ImGui::SameLine(ItemsOffsetX);
+								float SpecularIntensity{ Material.GetSpecularIntensity() };
+								if (ImGui::DragFloat(u8"##Specular 강도", &SpecularIntensity, 0.1f, 0.0f, 1.0f, "%.1f"))
+								{
+									Material.SetSpecularIntensity(SpecularIntensity);
+								}
+							}
+							else
+							{
+								for (size_t iMaterial = 0; iMaterial < Object3D->GetMaterialCount(); ++iMaterial)
+								{
+									CMaterial& Material{ Object3D->GetModel().vMaterials[iMaterial] };
+									
+
+								}
 							}
 
 							// Rigged model
@@ -3866,6 +4230,106 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									}
 
 									ImGui::ListBoxFooter();
+								}
+							}
+						}
+						ImGui::PopItemWidth();
+					}
+					else if (IsAnyObject2DSelected())
+					{
+						// Object2D
+					}
+					else if (IsAnyCameraSelected())
+					{
+						ImGui::PushItemWidth(ItemsWidth);
+						{
+							CCamera* const SelectedCamera{ GetSelectedCamera() };
+							const XMVECTOR& KEyePosition{ SelectedCamera->GetEyePosition() };
+							float EyePosition[3]{ XMVectorGetX(KEyePosition), XMVectorGetY(KEyePosition), XMVectorGetZ(KEyePosition) };
+							float Pitch{ SelectedCamera->GetPitch() };
+							float Yaw{ SelectedCamera->GetYaw() };
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"현재 화면 카메라:");
+							ImGui::SameLine(ItemsOffsetX);
+							ImGui::AlignTextToFramePadding();
+							CCamera* const CurrentCamera{ GetCurrentCamera() };
+							ImGui::Text(u8"<%s>", CurrentCamera->GetName().c_str());
+
+							if (m_PtrCurrentCamera != GetEditorCamera())
+							{
+								ImGui::SetCursorPosX(ItemsOffsetX);
+								if (ImGui::Button(u8"에디터 카메라로 돌아가기", ImVec2(ItemsWidth, 0)))
+								{
+									m_PtrCurrentCamera = GetEditorCamera();
+								}
+							}
+
+							ImGui::Separator();
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"선택된 카메라:");
+							ImGui::SameLine(ItemsOffsetX);
+							ImGui::AlignTextToFramePadding();
+							string Name{ GetSelectedCameraName() };
+							ImGui::Text(u8"<%s>", GetSelectedCameraName().c_str());
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"카메라 종류:");
+							ImGui::SameLine(ItemsOffsetX);
+							switch (SelectedCamera->GetType())
+							{
+							case CCamera::EType::FirstPerson:
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"1인칭 카메라");
+								break;
+							case CCamera::EType::ThirdPerson:
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"3인칭 카메라");
+								break;
+							case CCamera::EType::FreeLook:
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"자유 시점 카메라");
+								break;
+							default:
+								break;
+							}
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"위치");
+							ImGui::SameLine(ItemsOffsetX);
+							if (ImGui::DragFloat3(u8"##위치", EyePosition, 0.01f, -10000.0f, +10000.0f, "%.3f"))
+							{
+								SelectedCamera->SetEyePosition(XMVectorSet(EyePosition[0], EyePosition[1], EyePosition[2], 1.0f));
+							}
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"회전 Pitch");
+							ImGui::SameLine(ItemsOffsetX);
+							if (ImGui::DragFloat(u8"##회전 Pitch", &Pitch, 0.01f, -10000.0f, +10000.0f, "%.3f"))
+							{
+								SelectedCamera->SetPitch(Pitch);
+							}
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"회전 Yaw");
+							ImGui::SameLine(ItemsOffsetX);
+							if (ImGui::DragFloat(u8"##회전 Yaw", &Yaw, 0.01f, -10000.0f, +10000.0f, "%.3f"))
+							{
+								SelectedCamera->SetYaw(Yaw);
+							}
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"카메라 이동 속도");
+							ImGui::SameLine(ItemsOffsetX);
+							ImGui::SliderFloat(u8"##카메라 이동 속도", &m_CameraMovementFactor, 1.0f, 100.0f, "%.0f");
+
+							if (m_PtrCurrentCamera != SelectedCamera)
+							{
+								ImGui::SetCursorPosX(ItemsOffsetX);
+								if (ImGui::Button(u8"현재 화면 카메라로 지정", ImVec2(ItemsWidth, 0)))
+								{
+									m_PtrCurrentCamera = SelectedCamera;
 								}
 							}
 						}
@@ -4640,12 +5104,6 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					float DirectionalLightColor[3]{ XMVectorGetX(KDirectionalLightColor), XMVectorGetY(KDirectionalLightColor),
 						XMVectorGetZ(KDirectionalLightColor) };
 
-					CCamera* const MainCamera{ GetCamera(0) };
-					const XMVECTOR& KEyePosition{ MainCamera->GetEyePosition() };
-					float EyePosition[3]{ XMVectorGetX(KEyePosition), XMVectorGetY(KEyePosition), XMVectorGetZ(KEyePosition) };
-					float Pitch{ MainCamera->GetPitch() };
-					float Yaw{ MainCamera->GetYaw() };
-
 					static constexpr float KLabelsWidth{ 200 };
 					static constexpr float KItemsMaxWidth{ 240 };
 					float ItemsWidth{ WindowWidth - KLabelsWidth };
@@ -4696,40 +5154,6 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 						ImGui::Separator();
 
-						if (ImGui::TreeNodeEx(u8"카메라", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen))
-						{
-							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"위치");
-							ImGui::SameLine(ItemsOffsetX);
-							if (ImGui::DragFloat3(u8"##위치", EyePosition, 0.01f, -10000.0f, +10000.0f, "%.3f"))
-							{
-								MainCamera->SetEyePosition(XMVectorSet(EyePosition[0], EyePosition[1], EyePosition[2], 1.0f));
-							}
-
-							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"회전 Pitch");
-							ImGui::SameLine(ItemsOffsetX);
-							if (ImGui::DragFloat(u8"##회전 Pitch", &Pitch, 0.01f, -10000.0f, +10000.0f, "%.3f"))
-							{
-								MainCamera->SetPitch(Pitch);
-							}
-
-							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"회전 Yaw");
-							ImGui::SameLine(ItemsOffsetX);
-							if (ImGui::DragFloat(u8"##회전 Yaw", &Yaw, 0.01f, -10000.0f, +10000.0f, "%.3f"))
-							{
-								MainCamera->SetYaw(Yaw);
-							}
-
-							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"카메라 이동 속도");
-							ImGui::SameLine(ItemsOffsetX);
-							ImGui::SliderFloat(u8"##카메라 이동 속도", &m_CameraMovementFactor, 1.0f, 100.0f, "%.0f");
-
-							ImGui::TreePop();
-						}
-
 						if (ImGui::TreeNodeEx(u8"FPS", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen))
 						{
 							ImGui::AlignTextToFramePadding();
@@ -4761,6 +5185,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 	{
 		const auto& mapObject3D{ GetObject3DMap() };
 		const auto& mapObject2D{ GetObject2DMap() };
+		const auto& mapCamera{ GetCameraMap() };
 
 		ImGui::SetNextWindowPos(ImVec2(0, 122), ImGuiCond_Appearing);
 		ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(400, 300));
@@ -4804,11 +5229,18 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 			{
 				if (IsAnyObject3DSelected())
 				{
-					DeleteObject3D(GetSelectedObject3DName());
+					string Name{ GetSelectedObject3DName() };
+					DeleteObject3D(Name);
 				}
 				if (IsAnyObject2DSelected())
 				{
-					DeleteObject2D(GetSelectedObject2DName());
+					string Name{ GetSelectedObject2DName() };
+					DeleteObject2D(Name);
+				}
+				if (IsAnyCameraSelected())
+				{
+					string Name{ GetSelectedCameraName() };
+					DeleteCamera(Name);
 				}
 			}
 
@@ -4841,6 +5273,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 						SelectObject3D(Object3DPair.first);
 
 						DeselectObject2D();
+						DeselectCamera();
 						DeselectInstance();
 					}
 
@@ -4864,8 +5297,8 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 							ImGui::PushID(iObject3DPair * 2 + 1);
 							if (ImGui::Button(u8"제거"))
 							{
-								const CObject3D::SInstanceCPUData& Instance{ Object3D->GetInstance(GetSelectedInstanceID()) };
-								Object3D->DeleteInstance(Instance.Name);
+								const CObject3D::SInstanceCPUData& InstanceCPUData{ Object3D->GetInstanceCPUData(GetSelectedInstanceID()) };
+								Object3D->DeleteInstance(InstanceCPUData.Name);
 							}
 							ImGui::PopID();
 						}
@@ -4902,7 +5335,6 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 					}
 
 					++iObject3DPair;
-
 					if (!Object3D->IsInstanced()) ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
 				}
 
@@ -4931,12 +5363,49 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 						SelectObject2D(Object2DPair.first);
 
 						DeselectObject3D();
+						DeselectCamera();
 						DeselectInstance();
 					}
 					if (bIsNodeOpen)
 					{
 						ImGui::TreePop();
 					}
+
+					++iObject2DPair;
+					if (!Object2D->IsInstanced()) ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
+				}
+
+				ImGui::TreePop();
+			}
+
+			if (ImGui::TreeNodeEx(u8"카메라", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				// 카메라 목록
+				int iCameraPair{};
+				for (const auto& CameraPair : mapCamera)
+				{
+					CCamera* const Camera{ GetCamera(CameraPair.first) };
+					bool bIsThisCameraSelected{ false };
+					if (GetSelectedCameraName() == CameraPair.first) bIsThisCameraSelected = true;
+
+					ImGuiTreeNodeFlags Flags{ ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_Leaf };
+					if (bIsThisCameraSelected) Flags |= ImGuiTreeNodeFlags_Selected;
+
+					ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
+					bool bIsNodeOpen{ ImGui::TreeNodeEx(CameraPair.first.c_str(), Flags) };
+					if (ImGui::IsItemClicked())
+					{
+						SelectCamera(CameraPair.first);
+
+						DeselectObject3D();
+						DeselectObject2D();
+						DeselectInstance();
+					}
+					if (bIsNodeOpen)
+					{
+						ImGui::TreePop();
+					}
+					ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
 				}
 
 				ImGui::TreePop();

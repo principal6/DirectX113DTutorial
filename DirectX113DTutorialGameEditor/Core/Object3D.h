@@ -17,6 +17,13 @@ public:
 		UseRawVertexColor = 0x08
 	};
 
+	struct SBoundingSphere
+	{
+		float		Radius{ KBoundingSphereDefaultRadius };
+		float		RadiusBase{ KBoundingSphereDefaultRadius };
+		XMVECTOR	CenterOffset{};
+	};
+
 	struct SInstanceCPUData
 	{
 		std::string	Name{};
@@ -25,6 +32,7 @@ public:
 		float		Pitch{};
 		float		Yaw{};
 		float		Roll{};
+		SBoundingSphere	BoundingSphere{};
 	};
 
 	struct SCBAnimationData
@@ -35,7 +43,6 @@ public:
 		float	AnimationTick{};
 	};
 
-private:
 	struct SComponentTransform
 	{
 		XMVECTOR	Translation{};
@@ -49,15 +56,8 @@ private:
 
 	struct SComponentPhysics
 	{
-		struct SBoundingSphere
-		{
-			float		Radius{ KBoundingSphereDefaultRadius };
-			XMVECTOR	CenterOffset{};
-		};
-
 		SBoundingSphere	BoundingSphere{};
 		bool			bIsPickable{ true };
-		bool			bIgnoreBoundingSphere{ false };
 	};
 
 	struct SComponentRender
@@ -68,6 +68,7 @@ private:
 		bool		bShouldAnimate{ false };
 	};
 
+private:
 	struct SMeshBuffers
 	{
 		ComPtr<ID3D11Buffer>	VertexBuffer{};
@@ -140,8 +141,10 @@ public:
 	void InsertInstance(bool bShouldCreateInstanceBuffers = true);
 	void InsertInstance(const std::string& Name);
 	void DeleteInstance(const std::string& Name);
-	SInstanceCPUData& GetInstance(int InstanceID);
-	SInstanceCPUData& GetInstance(const std::string& Name);
+	SInstanceCPUData& GetInstanceCPUData(int InstanceID);
+	SInstanceCPUData& GetInstanceCPUData(const std::string& Name);
+	SInstanceGPUData& GetInstanceGPUData(int InstanceID);
+	SInstanceGPUData& GetInstanceGPUData(const std::string& Name);
 	void CreateInstanceBuffers();
 
 	void UpdateQuadUV(const XMFLOAT2& UVOffset, const XMFLOAT2& UVSize);
@@ -212,10 +215,10 @@ private:
 	std::vector<SMeshBuffers>		m_vMeshBuffers{};
 	std::vector<SInstanceBuffer>	m_vInstanceBuffers{};
 
-	XMMATRIX					m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
-	int							m_CurrentAnimationID{};
-	float						m_CurrentAnimationTick{};
-	bool						m_bShouldTesselate{ false };
+	XMMATRIX						m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
+	int								m_CurrentAnimationID{};
+	float							m_CurrentAnimationTick{};
+	bool							m_bShouldTesselate{ false };
 
 	std::unique_ptr<CMaterial::CTexture>	m_BakedAnimationTexture{};
 	SCBAnimationData						m_CBAnimationData{};

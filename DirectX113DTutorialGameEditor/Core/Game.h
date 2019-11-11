@@ -56,6 +56,7 @@ public:
 		PSWater,
 		PSFoliage,
 		PSParticle,
+		PSCamera,
 
 		PSBase2D,
 		PSMasking2D,
@@ -166,6 +167,12 @@ public:
 		float		Pads[2]{};
 	};
 
+	struct SCBCameraSelectionData
+	{
+		BOOL		bIsSelected{ false };
+		float		Pads[3]{};
+	};
+
 	enum class EFlagsRendering
 	{
 		None = 0x000,
@@ -241,6 +248,18 @@ public:
 		bool bShowWindowSceneEditor{ true };
 		bool bShowPopupTerrainGenerator{ false };
 		bool bShowPopupObjectAdder{ false };
+	};
+
+	struct SObject3DPickingCandiate
+	{
+		SObject3DPickingCandiate() {};
+		SObject3DPickingCandiate(CObject3D* _PtrObject3D, XMVECTOR _T) : PtrObject3D{ _PtrObject3D }, T{ _T } {}
+		SObject3DPickingCandiate(CObject3D* _PtrObject3D, int _InstanceID, XMVECTOR _T) : PtrObject3D{ _PtrObject3D }, InstanceID{ _InstanceID }, T{ _T } {}
+
+		CObject3D*	PtrObject3D{};
+		int			InstanceID{ -1 };
+		XMVECTOR	T{};
+		bool		bHasFailedPickingTest{ false };
 	};
 
 public:
@@ -329,11 +348,18 @@ public:
 	CTerrain* GetTerrain() const { return m_Terrain.get(); }
 
 // Object pool
-public:
-	CCamera* AddCamera(const CCamera::SCameraData& CameraData);
-	CCamera* GetCamera(size_t Index);
-	size_t GetCameraCount() const;
+public:	
+	void InsertCamera(const std::string& Name);
+	void DeleteCamera(const std::string& Name);
+	void ClearCameras();
+	CCamera* GetCamera(const std::string& Name, bool bShowWarning = true);
+	const std::map<std::string, size_t>& GetCameraMap() const { return m_mapCameraNameToIndex; }
 
+private:
+	void CreateEditorCamera();
+	CCamera* GetEditorCamera();
+
+public:
 	CShader* AddCustomShader();
 	CShader* GetCustomShader(size_t Index) const;
 	CShader* GetBaseShader(EBaseShader eShader) const;
@@ -393,12 +419,21 @@ private:
 	CObject2D* GetSelectedObject2D();
 	const std::string& GetSelectedObject2DName() const;
 
+	void SelectCamera(const std::string& Name);
+	void DeselectCamera();
+	bool IsAnyCameraSelected() const;
+	CCamera* GetSelectedCamera();
+	const std::string& GetSelectedCameraName() const;
+	CCamera* GetCurrentCamera();
+
 	void Select3DGizmos();
 	void Deselect3DGizmos();
 	bool IsGizmoHovered() const;
 	bool IsGizmoSelected() const;
 	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
 	bool ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
+
+	void DeselectAll();
 
 public:
 	void SelectInstance(int InstanceID);
@@ -459,6 +494,8 @@ private:
 	void Draw3DGizmoRotations(E3DGizmoAxis Axis);
 	void Draw3DGizmoScalings(E3DGizmoAxis Axis);
 	void Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight);
+
+	void DrawCameraRepresentations();
 
 	void DrawEditorGUI();
 	void DrawEditorGUIMenuBar();
@@ -538,6 +575,7 @@ private:
 	std::unique_ptr<CShader>	m_PSWater{};
 	std::unique_ptr<CShader>	m_PSFoliage{};
 	std::unique_ptr<CShader>	m_PSParticle{};
+	std::unique_ptr<CShader>	m_PSCamera{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
@@ -567,6 +605,7 @@ private:
 	SCBSkyTimeData						m_CBSkyTimeData{};
 	SCBWaterTimeData					m_CBWaterTimeData{};
 	SCBEditorTimeData					m_CBEditorTimeData{};
+	SCBCameraSelectionData				m_CBCameraSelectionData{};
 
 private:
 	std::vector<std::unique_ptr<CShader>>				m_vShaders{};
@@ -596,6 +635,7 @@ private:
 	std::unique_ptr<CObject3D>				m_Object3DCloud{};
 
 	std::map<std::string, size_t>	m_mapMaterialNameToIndex{};
+	std::map<std::string, size_t>	m_mapCameraNameToIndex{};
 	std::map<std::string, size_t>	m_mapObject3DNameToIndex{};
 	std::map<std::string, size_t>	m_mapObject3DLineNameToIndex{};
 	std::map<std::string, size_t>	m_mapObject2DNameToIndex{};
@@ -634,14 +674,17 @@ private:
 	float			m_NearZ{};
 	float			m_FarZ{};
 
-	XMMATRIX				m_MatrixView{};
-	std::vector<CCamera>	m_vCameras{};
-	size_t					m_CurrentCameraIndex{};
-	float					m_CameraMovementFactor{ 10.0f };
+	XMMATRIX								m_MatrixView{};
+	std::vector<std::unique_ptr<CCamera>>	m_vCameras{};
+	CCamera*								m_PtrCurrentCamera{};
+	CCamera*								m_PtrSelectedCamera{};
+	float									m_CameraMovementFactor{ 10.0f };
+	std::unique_ptr<CObject3D>				m_Object3D_CameraRepresentation{};
 
 private:
 	XMVECTOR	m_PickingRayWorldSpaceOrigin{};
 	XMVECTOR	m_PickingRayWorldSpaceDirection{};
+	std::vector<SObject3DPickingCandiate>	m_vObject3DPickingCandidates{};
 	CObject3D*	m_PtrPickedObject3D{};
 	CObject3D*	m_PtrSelectedObject3D{};
 	CObject2D*	m_PtrSelectedObject2D{};

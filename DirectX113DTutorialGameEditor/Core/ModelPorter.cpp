@@ -130,7 +130,7 @@ void CModelPorter::ImportTerrain(const std::string& FileName, CTerrain::STerrain
 			std::string InstanceName{ m_BinaryFile.ReadString(CObject3D::KInstanceNameZeroEndedMaxLength) };
 
 			FoliageObject3D->InsertInstance(InstanceName);
-			auto& Instance{ FoliageObject3D->GetInstance(InstanceName) };
+			auto& Instance{ FoliageObject3D->GetInstanceCPUData(InstanceName) };
 
 			// # 16B (XMVECTOR) Foliage instance translation
 			Instance.Translation = m_BinaryFile.ReadXMVECTOR();
@@ -260,7 +260,7 @@ void CModelPorter::ExportTerrain(const std::string& FileName, const CTerrain::ST
 
 		for (uint32_t iInstance = 0; iInstance < InstanceCount; ++iInstance)
 		{
-			const auto& Instance{ FoliageObject3D->GetInstance(iInstance) };
+			const auto& Instance{ FoliageObject3D->GetInstanceCPUData(iInstance) };
 
 			// # 32B (string, KInstanceNameMaxLength) Foliage instance name
 			m_BinaryFile.WriteString(Instance.Name, CObject3D::KInstanceNameZeroEndedMaxLength);

@@ -608,6 +608,9 @@
     <FxCompile Include="Shader\PSDynamicSky.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="Shader\PSCamera.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="ImGui\imgui.natvis">
