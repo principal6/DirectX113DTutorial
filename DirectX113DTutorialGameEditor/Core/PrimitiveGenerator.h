@@ -239,8 +239,6 @@ static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVE
 
 	CalculateNormals(Mesh);
 
-	AverageNormals(Mesh);
-
 	return Mesh;
 }
 
@@ -506,6 +504,8 @@ static SMesh GenerateCone(float RadiusFactor, float Radius, float Height, uint32
 
 	SMesh Mesh{};
 
+	float CapturedRadiusFactor{ RadiusFactor };
+	if (CapturedRadiusFactor == 0.0f) RadiusFactor = 0.1f;
 	for (uint32_t iSide = 0; iSide < SideCount; ++iSide)
 	{
 		float Theta0{ KThetaUnit * iSide };
@@ -517,33 +517,60 @@ static SMesh GenerateCone(float RadiusFactor, float Radius, float Height, uint32
 		float Sin0{ sinf(Theta0) };
 		float Sin1{ sinf(Theta1) };
 
-		// Bottom
+		// Lower cap
 		Mesh.vVertices.emplace_back(XMVectorSet(+0.0f, -KHalfHeight, +0.0f, 1), Color);
 		Mesh.vVertices.emplace_back(XMVectorSet(+Cos0 * Radius, -KHalfHeight, +Sin0 * Radius, 1), Color);
 		Mesh.vVertices.emplace_back(XMVectorSet(+Cos1 * Radius, -KHalfHeight, +Sin1 * Radius, 1), Color);
 
-		// Top
+		// Upper cap
 		Mesh.vVertices.emplace_back(XMVectorSet(+0.0f, +KHalfHeight, +0.0f, 1), Color);
 		Mesh.vVertices.emplace_back(XMVectorSet(+Cos1 * Radius * RadiusFactor, +KHalfHeight, +Sin1 * Radius * RadiusFactor, 1), Color);
 		Mesh.vVertices.emplace_back(XMVectorSet(+Cos0 * Radius * RadiusFactor, +KHalfHeight, +Sin0 * Radius * RadiusFactor, 1), Color);
-	}
-
-	for (uint32_t iSide = 0; iSide < SideCount; ++iSide)
-	{
-		// Bottom
-		Mesh.vTriangles.emplace_back(iSide * 6 + 0, iSide * 6 + 1, iSide * 6 + 2);
-
-		// Top
-		Mesh.vTriangles.emplace_back(iSide * 6 + 3, iSide * 6 + 4, iSide * 6 + 5);
 
 		// Side
-		Mesh.vTriangles.emplace_back(iSide * 6 + 5, iSide * 6 + 4, iSide * 6 + 1);
-		Mesh.vTriangles.emplace_back(iSide * 6 + 1, iSide * 6 + 4, iSide * 6 + 2);
+		Mesh.vVertices.emplace_back(XMVectorSet(+Cos0 * Radius * RadiusFactor, +KHalfHeight, +Sin0 * Radius * RadiusFactor, 1), Color);
+		Mesh.vVertices.emplace_back(XMVectorSet(+Cos1 * Radius * RadiusFactor, +KHalfHeight, +Sin1 * Radius * RadiusFactor, 1), Color);
+		Mesh.vVertices.emplace_back(XMVectorSet(+Cos0 * Radius, -KHalfHeight, +Sin0 * Radius, 1), Color);
+		Mesh.vVertices.emplace_back(XMVectorSet(+Cos1 * Radius, -KHalfHeight, +Sin1 * Radius, 1), Color);
+	}
+
+	static constexpr uint32_t KTriangleVertexStep{ 10 };
+	static constexpr uint32_t KTriangleSideVertexOffset{ 6 };
+	for (uint32_t iSide = 0; iSide < SideCount; ++iSide)
+	{
+		// Lower cap
+		Mesh.vTriangles.emplace_back(iSide * KTriangleVertexStep + 0, iSide * KTriangleVertexStep + 1, iSide * KTriangleVertexStep + 2);
+
+		// Upper cap
+		Mesh.vTriangles.emplace_back(iSide * KTriangleVertexStep + 3, iSide * KTriangleVertexStep + 4, iSide * KTriangleVertexStep + 5);
+
+		// Side
+		Mesh.vTriangles.emplace_back(
+			iSide * KTriangleVertexStep + KTriangleSideVertexOffset + 0, 
+			iSide * KTriangleVertexStep + KTriangleSideVertexOffset + 1,
+			iSide * KTriangleVertexStep + KTriangleSideVertexOffset + 2);
+		Mesh.vTriangles.emplace_back(
+			iSide * KTriangleVertexStep + KTriangleSideVertexOffset + 1, 
+			iSide * KTriangleVertexStep + KTriangleSideVertexOffset + 3, 
+			iSide * KTriangleVertexStep + KTriangleSideVertexOffset + 2);
 	}
 
 	CalculateNormals(Mesh);
 
 	AverageNormals(Mesh);
+
+	if (CapturedRadiusFactor == 0.0f)
+	{
+		for (size_t iVertex = 0; iVertex < Mesh.vVertices.size(); ++iVertex)
+		{
+			size_t TargetVertexID{ iVertex % KTriangleVertexStep };
+			if (TargetVertexID >= 4 && TargetVertexID <= 7)
+			{
+				Mesh.vVertices[iVertex].Position = XMVectorSetX(Mesh.vVertices[iVertex].Position, 0.0f);
+				Mesh.vVertices[iVertex].Position = XMVectorSetZ(Mesh.vVertices[iVertex].Position, 0.0f);
+			}
+		}
+	}
 
 	return Mesh;
 }

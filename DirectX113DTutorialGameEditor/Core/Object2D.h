@@ -85,6 +85,7 @@ public:
 	auto GetData()->SModel2D&;
 	auto GetData() const->const SModel2D&;
 	auto HasTexture() const->bool;
+	auto IsInstanced() const->bool { return false; } // @TEMPRORATY
 
 public:
 	static constexpr D3D11_INPUT_ELEMENT_DESC KInputLayout[]

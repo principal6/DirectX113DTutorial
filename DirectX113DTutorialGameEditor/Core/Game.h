@@ -341,14 +341,17 @@ public:
 	void InsertObject3D(const std::string& Name);
 	void DeleteObject3D(const std::string& Name);
 	void ClearObject3Ds();
-	CObject3D* GetObject3D(const std::string& Name) const;
+	CObject3D* GetObject3D(const std::string& Name, bool bShowWarning = true) const;
 	const std::map<std::string, size_t>& GetObject3DMap() const { return m_mapObject3DNameToIndex; }
 
 	void InsertObject3DLine(const std::string& Name);
 	CObject3DLine* GetObject3DLine(const std::string& Name) const;
 
 	void InsertObject2D(const std::string& Name);
-	CObject2D* GetObject2D(const std::string& Name) const;
+	void DeleteObject2D(const std::string& Name);
+	void ClearObject2Ds();
+	CObject2D* GetObject2D(const std::string& Name, bool bShowWarning = true) const;
+	const std::map<std::string, size_t>& GetObject2DMap() const { return m_mapObject2DNameToIndex; }
 
 	CMaterial* AddMaterial(const CMaterial& Material);
 	CMaterial* GetMaterial(const std::string& Name) const;
@@ -383,6 +386,12 @@ private:
 	bool IsAnyObject3DSelected() const;
 	CObject3D* GetSelectedObject3D();
 	const std::string& GetSelectedObject3DName() const;
+
+	void SelectObject2D(const std::string& Name);
+	void DeselectObject2D();
+	bool IsAnyObject2DSelected() const;
+	CObject2D* GetSelectedObject2D();
+	const std::string& GetSelectedObject2DName() const;
 
 	void Select3DGizmos();
 	void Deselect3DGizmos();
@@ -454,6 +463,8 @@ private:
 	void DrawEditorGUI();
 	void DrawEditorGUIMenuBar();
 	void DrawEditorGUIPopups();
+	void DrawEditorGUIPopupTerrainGenerator();
+	void DrawEditorGUIPopupObjectAdder();
 	void DrawEditorGUIWindowPropertyEditor();
 	void DrawEditorGUIWindowSceneEditor();
 
@@ -477,7 +488,7 @@ public:
 	static constexpr float KBSRadiusUnit{ +0.01f };
 	static constexpr float KBSRadiusMinLimit{ 0.001f };
 	static constexpr float KBSRadiusMaxLimit{ 10.0f };
-	static constexpr int KObject3DNameMaxLength{ 100 };
+	static constexpr int KObjectNameMaxLength{ 100 };
 
 private:
 	static constexpr float KDefaultFOV{ 50.0f / 360.0f * XM_2PI };
@@ -584,10 +595,10 @@ private:
 	std::unique_ptr<CObject3D>				m_Object3DMoon{};
 	std::unique_ptr<CObject3D>				m_Object3DCloud{};
 
-	std::map<std::string, size_t>			m_mapMaterialNameToIndex{};
-	std::map<std::string, size_t>			m_mapObject3DNameToIndex{};
-	std::unordered_map<std::string, size_t>	m_umapObject3DLineNameToIndex{};
-	std::unordered_map<std::string, size_t>	m_umapObject2DNameToIndex{};
+	std::map<std::string, size_t>	m_mapMaterialNameToIndex{};
+	std::map<std::string, size_t>	m_mapObject3DNameToIndex{};
+	std::map<std::string, size_t>	m_mapObject3DLineNameToIndex{};
+	std::map<std::string, size_t>	m_mapObject2DNameToIndex{};
 
 private:
 	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationPitch{};
@@ -631,8 +642,9 @@ private:
 private:
 	XMVECTOR	m_PickingRayWorldSpaceOrigin{};
 	XMVECTOR	m_PickingRayWorldSpaceDirection{};
-	CObject3D* m_PtrPickedObject3D{};
-	CObject3D* m_PtrSelectedObject3D{};
+	CObject3D*	m_PtrPickedObject3D{};
+	CObject3D*	m_PtrSelectedObject3D{};
+	CObject2D*	m_PtrSelectedObject2D{};
 	std::string	m_NullString{};
 	int			m_PickedInstanceID{ -1 };
 	int			m_SelectedInstanceID{ -1 };

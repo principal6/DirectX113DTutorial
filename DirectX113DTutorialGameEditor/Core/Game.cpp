@@ -1529,7 +1529,7 @@ void CGame::InsertObject3D(const string& Name)
 		return;
 	}
 
-	if (Name.size() >= KObject3DNameMaxLength)
+	if (Name.size() >= KObjectNameMaxLength)
 	{
 		MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Object3D 생성 실패");
 		return;
@@ -1587,11 +1587,11 @@ void CGame::ClearObject3Ds()
 	m_PtrSelectedObject3D = nullptr;
 }
 
-CObject3D* CGame::GetObject3D(const string& Name) const
+CObject3D* CGame::GetObject3D(const string& Name, bool bShowWarning) const
 {
 	if (m_mapObject3DNameToIndex.find(Name) == m_mapObject3DNameToIndex.end())
 	{
-		MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Object3D 얻어오기 실패");
+		if (bShowWarning) MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Object3D 얻어오기 실패");
 		return nullptr;
 	}
 	return m_vObject3Ds[m_mapObject3DNameToIndex.at(Name)].get();
@@ -1599,31 +1599,88 @@ CObject3D* CGame::GetObject3D(const string& Name) const
 
 void CGame::InsertObject3DLine(const string& Name)
 {
-	assert(m_umapObject3DLineNameToIndex.find(Name) == m_umapObject3DLineNameToIndex.end());
+	assert(m_mapObject3DLineNameToIndex.find(Name) == m_mapObject3DLineNameToIndex.end());
 
 	m_vObject3DLines.emplace_back(make_unique<CObject3DLine>(Name, m_Device.Get(), m_DeviceContext.Get()));
 	
-	m_umapObject3DLineNameToIndex[Name] = m_vObject3DLines.size() - 1;
+	m_mapObject3DLineNameToIndex[Name] = m_vObject3DLines.size() - 1;
 }
 
 CObject3DLine* CGame::GetObject3DLine(const string& Name) const
 {
-	assert(m_umapObject3DLineNameToIndex.find(Name) != m_umapObject3DLineNameToIndex.end());
-	return m_vObject3DLines[m_umapObject3DLineNameToIndex.at(Name)].get();
+	assert(m_mapObject3DLineNameToIndex.find(Name) != m_mapObject3DLineNameToIndex.end());
+	return m_vObject3DLines[m_mapObject3DLineNameToIndex.at(Name)].get();
 }
 
 void CGame::InsertObject2D(const string& Name)
 {
-	assert(m_umapObject2DNameToIndex.find(Name) == m_umapObject2DNameToIndex.end());
+	if (m_mapObject2DNameToIndex.find(Name) != m_mapObject2DNameToIndex.end())
+	{
+		MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Object2D 생성 실패");
+		return;
+	}
+
+	if (Name.size() >= KObjectNameMaxLength)
+	{
+		MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Object2D 생성 실패");
+		return;
+	}
+	else if (Name.size() == 0)
+	{
+		MB_WARN("이름은 공백일 수 없습니다.", "Object2D 생성 실패");
+		return;
+	}
+
 	m_vObject2Ds.emplace_back(make_unique<CObject2D>(Name, m_Device.Get(), m_DeviceContext.Get()));
-	
-	m_umapObject2DNameToIndex[Name] = m_vObject2Ds.size() - 1;
+	m_mapObject2DNameToIndex[Name] = m_vObject2Ds.size() - 1;
 }
 
-CObject2D* CGame::GetObject2D(const string& Name) const
+void CGame::DeleteObject2D(const std::string& Name)
 {
-	assert(m_umapObject2DNameToIndex.find(Name) != m_umapObject2DNameToIndex.end());
-	return m_vObject2Ds[m_umapObject2DNameToIndex.at(Name)].get();
+	if (!m_vObject2Ds.size()) return;
+	if (Name.length() == 0) return;
+	if (m_mapObject2DNameToIndex.find(Name) == m_mapObject2DNameToIndex.end())
+	{
+		MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Object2D 삭제 실패");
+		return;
+	}
+
+	size_t iObject2D{ m_mapObject2DNameToIndex[Name] };
+	if (iObject2D < m_vObject2Ds.size() - 1)
+	{
+		const string& SwappedName{ m_vObject2Ds.back()->GetName() };
+		swap(m_vObject2Ds[iObject2D], m_vObject2Ds.back());
+
+		m_mapObject2DNameToIndex[SwappedName] = iObject2D;
+	}
+
+	if (IsAnyObject2DSelected())
+	{
+		if (Name == GetSelectedObject2DName())
+		{
+			DeselectObject2D();
+		}
+	}
+
+	m_vObject2Ds.back().release();
+	m_vObject2Ds.pop_back();
+	m_mapObject2DNameToIndex.erase(Name);
+}
+
+void CGame::ClearObject2Ds()
+{
+	m_mapObject2DNameToIndex.clear();
+	m_vObject2Ds.clear();
+}
+
+CObject2D* CGame::GetObject2D(const string& Name, bool bShowWarning) const
+{
+	if (m_mapObject2DNameToIndex.find(Name) == m_mapObject2DNameToIndex.end())
+	{
+		if (bShowWarning) MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Object2D 얻어오기 실패");
+		return nullptr;
+	}
+	return m_vObject2Ds[m_mapObject2DNameToIndex.at(Name)].get();
 }
 
 CMaterial* CGame::AddMaterial(const CMaterial& Material)
@@ -1868,6 +1925,45 @@ const string& CGame::GetSelectedObject3DName() const
 	if (m_PtrSelectedObject3D)
 	{
 		return m_PtrSelectedObject3D->GetName();
+	}
+	return m_NullString;
+}
+
+void CGame::SelectObject2D(const string& Name)
+{
+	if (m_eEditMode != EEditMode::EditObject) return;
+
+	m_PtrSelectedObject2D = GetObject2D(Name);
+	if (m_PtrSelectedObject2D)
+	{
+		if (!m_PtrSelectedObject2D->IsInstanced())
+		{
+			m_SelectedInstanceID = -1;
+		}
+	}
+}
+
+void CGame::DeselectObject2D()
+{
+	m_PtrSelectedObject2D = nullptr;
+	m_SelectedInstanceID = -1;
+}
+
+bool CGame::IsAnyObject2DSelected() const
+{
+	return (m_PtrSelectedObject2D) ? true : false;
+}
+
+CObject2D* CGame::GetSelectedObject2D()
+{
+	return m_PtrSelectedObject2D;
+}
+
+const string& CGame::GetSelectedObject2DName() const
+{
+	if (m_PtrSelectedObject2D)
+	{
+		return m_PtrSelectedObject2D->GetName();
 	}
 	return m_NullString;
 }
@@ -3143,6 +3239,13 @@ void CGame::DrawEditorGUIMenuBar()
 
 void CGame::DrawEditorGUIPopups()
 {
+	DrawEditorGUIPopupTerrainGenerator();
+
+	DrawEditorGUIPopupObjectAdder();
+}
+
+void CGame::DrawEditorGUIPopupTerrainGenerator()
+{
 	// ### 지형 생성기 윈도우 ###
 	if (m_EditorGUIBools.bShowPopupTerrainGenerator) ImGui::OpenPopup(u8"지형 생성기");
 	if (ImGui::BeginPopupModal(u8"지형 생성기", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove))
@@ -3207,36 +3310,45 @@ void CGame::DrawEditorGUIPopups()
 
 		ImGui::EndPopup();
 	}
+}
 
+void CGame::DrawEditorGUIPopupObjectAdder()
+{
 	// ### 오브젝트 추가 윈도우 ###
 	if (m_EditorGUIBools.bShowPopupObjectAdder) ImGui::OpenPopup(u8"오브젝트 추가기");
 	ImGui::SetNextWindowPosCenter();
 	if (ImGui::BeginPopup(u8"오브젝트 추가기", ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		static char NewObejct3DName[CGame::KObject3DNameMaxLength]{};
+		static char NewObejctName[CGame::KObjectNameMaxLength]{};
 		static char ModelFileNameWithPath[MAX_PATH]{};
 		static char ModelFileNameWithoutPath[MAX_PATH]{};
 		static bool bIsModelRigged{ false };
 
-		static const char* const KOptions[2]{ u8"3D 도형 생성", u8"모델 파일 불러오기" };
+		static const char* const KOptions[3]{ u8"3D 도형 생성", u8"3D 모델 파일 불러오기", u8"2D 도형 생성" };
 		static int iSelectedOption{};
 
-		static const char* const KPrimitiveTypes[10]{ u8"-정사각형(XY)", u8"-정사각형(XZ)", u8"-정사각형(YZ)",
-				u8"-원", u8"-삼각뿔", u8"-정육면체", u8"-각뿔", u8"-각기둥", u8"-구", u8"-도넛(Torus)" };
-		static int iSelectedPrimitiveType{};
+		static const char* const K3DPrimitiveTypes[10]{ u8"-정사각형(XY)", u8"-정사각형(XZ)", u8"-정사각형(YZ)",
+				u8"-원", u8"-사각뿔", u8"-정육면체", u8"-각뿔", u8"-각기둥", u8"-구", u8"-도넛(Torus)" };
+		static int iSelected3DPrimitiveType{};
 		static uint32_t SideCount{ KDefaultPrimitiveDetail };
 		static uint32_t SegmentCount{ KDefaultPrimitiveDetail };
 		static float RadiusFactor{ 0.0f };
 		static float InnerRadius{ 0.5f };
-		static float WidthScalar{ 1.0f };
-		static float HeightScalar{ 1.0f };
-		static XMFLOAT4 UniformColor{ 1.0f, 1.0f, 1.0f, 1.0f };
+		static float WidthScalar3D{ 1.0f };
+		static float HeightScalar3D{ 1.0f };
+		static float PixelWidth{ 50.0f };
+		static float PixelHeight{ 50.0f };
 
-		bool bShowDialogLoadModel{};
+		static const char* const K2DPrimitiveTypes[1]{ u8"-정사각형" };
+		static int iSelected2DPrimitiveType{};
+
+		static XMFLOAT4 MaterialUniformColor{ 1.0f, 1.0f, 1.0f, 1.0f };
+
+		bool bShowDialogLoad3DModel{};
 
 		ImGui::SetItemDefaultFocus();
 		ImGui::SetNextItemWidth(140);
-		ImGui::InputText(u8"오브젝트 이름", NewObejct3DName, CGame::KObject3DNameMaxLength);
+		ImGui::InputText(u8"오브젝트 이름", NewObejctName, CGame::KObjectNameMaxLength);
 
 		for (int iOption = 0; iOption < ARRAYSIZE(KOptions); ++iOption)
 		{
@@ -3246,47 +3358,45 @@ void CGame::DrawEditorGUIPopups()
 			}
 		}
 
-		switch (iSelectedOption)
-		{
-		case 0:
+		if (iSelectedOption == 0)
 		{
 			static constexpr float KOffetX{ 150.0f };
 			static constexpr float KItemsWidth{ 150.0f };
 			ImGui::Indent(20.0f);
-			
-			for (int iPrimitiveType = 0; iPrimitiveType < ARRAYSIZE(KPrimitiveTypes); ++iPrimitiveType)
+
+			for (int i3DPrimitiveType = 0; i3DPrimitiveType < ARRAYSIZE(K3DPrimitiveTypes); ++i3DPrimitiveType)
 			{
-				if (ImGui::Selectable(KPrimitiveTypes[iPrimitiveType], (iSelectedPrimitiveType == iPrimitiveType)))
+				if (ImGui::Selectable(K3DPrimitiveTypes[i3DPrimitiveType], (iSelected3DPrimitiveType == i3DPrimitiveType)))
 				{
-					iSelectedPrimitiveType = iPrimitiveType;
+					iSelected3DPrimitiveType = i3DPrimitiveType;
 				}
-				if (iPrimitiveType == iSelectedPrimitiveType)
+				if (i3DPrimitiveType == iSelected3DPrimitiveType)
 				{
 					ImGui::PushItemWidth(KItemsWidth);
 
 					ImGui::AlignTextToFramePadding();
 					ImGui::Text(u8"--색상");
 					ImGui::SameLine(KOffetX);
-					ImGui::ColorEdit3(u8"##--색상", (float*)&UniformColor.x, ImGuiColorEditFlags_RGB);
+					ImGui::ColorEdit3(u8"##--색상", (float*)&MaterialUniformColor.x, ImGuiColorEditFlags_RGB);
 
 					// Quasi-2D primitives scalars
-					if (iSelectedPrimitiveType >= 0 && iSelectedPrimitiveType <= 3)
+					if (iSelected3DPrimitiveType >= 0 && iSelected3DPrimitiveType <= 3)
 					{
 						ImGui::AlignTextToFramePadding();
 						ImGui::Text(u8"--가로 크기");
 						ImGui::SameLine(KOffetX);
-						ImGui::SliderFloat(u8"##--가로 크기", &WidthScalar, 0.01f, 100.0f);
+						ImGui::SliderFloat(u8"##--가로 크기", &WidthScalar3D, 0.01f, 100.0f);
 
 						ImGui::AlignTextToFramePadding();
 						ImGui::Text(u8"--세로 크기");
 						ImGui::SameLine(KOffetX);
-						ImGui::SliderFloat(u8"##--세로 크기", &HeightScalar, 0.01f, 100.0f);
+						ImGui::SliderFloat(u8"##--세로 크기", &HeightScalar3D, 0.01f, 100.0f);
 					}
 
 					// 3D primitives that require SideCount
-					if (iSelectedPrimitiveType == 3 || (iSelectedPrimitiveType >= 6 && iSelectedPrimitiveType <= 7) || iSelectedPrimitiveType == 9)
+					if (iSelected3DPrimitiveType == 3 || (iSelected3DPrimitiveType >= 6 && iSelected3DPrimitiveType <= 7) || iSelected3DPrimitiveType == 9)
 					{
-						if (iSelectedPrimitiveType == 6)
+						if (iSelected3DPrimitiveType == 6)
 						{
 							// Cone
 							ImGui::AlignTextToFramePadding();
@@ -3302,9 +3412,9 @@ void CGame::DrawEditorGUIPopups()
 					}
 
 					// 3D primitives that require SegmentCount
-					if (iSelectedPrimitiveType == 8 || iSelectedPrimitiveType == 9)
+					if (iSelected3DPrimitiveType == 8 || iSelected3DPrimitiveType == 9)
 					{
-						if (iSelectedPrimitiveType == 9)
+						if (iSelected3DPrimitiveType == 9)
 						{
 							// Torus
 							ImGui::AlignTextToFramePadding();
@@ -3324,10 +3434,9 @@ void CGame::DrawEditorGUIPopups()
 			}
 			ImGui::Unindent();
 		}
-		break;
-		case 1:
+		else if (iSelectedOption == 1)
 		{
-			if (ImGui::Button(u8"모델 불러오기")) bShowDialogLoadModel = true;
+			if (ImGui::Button(u8"모델 불러오기")) bShowDialogLoad3DModel = true;
 
 			ImGui::SameLine();
 
@@ -3337,9 +3446,36 @@ void CGame::DrawEditorGUIPopups()
 
 			ImGui::Checkbox(u8"리깅 여부", &bIsModelRigged);
 		}
-		break;
-		default:
-			break;
+		else if (iSelectedOption == 2)
+		{
+			static constexpr float KOffetX{ 150.0f };
+			static constexpr float KItemsWidth{ 150.0f };
+			ImGui::Indent(20.0f);
+
+			for (int i2DPrimitiveType = 0; i2DPrimitiveType < ARRAYSIZE(K2DPrimitiveTypes); ++i2DPrimitiveType)
+			{
+				if (ImGui::Selectable(K2DPrimitiveTypes[i2DPrimitiveType], (iSelected2DPrimitiveType == i2DPrimitiveType)))
+				{
+					iSelected2DPrimitiveType = i2DPrimitiveType;
+				}
+				if (i2DPrimitiveType == iSelected2DPrimitiveType)
+				{
+					ImGui::PushItemWidth(KItemsWidth);
+
+					ImGui::AlignTextToFramePadding();
+					ImGui::Text(u8"--가로 크기(픽셀)");
+					ImGui::SameLine(KOffetX);
+					ImGui::DragFloat(u8"##--가로 크기(픽셀)", &PixelWidth, 1.0f, 0.0f, 4096.0f, "%.0f");
+
+					ImGui::AlignTextToFramePadding();
+					ImGui::Text(u8"--세로 크기(픽셀)");
+					ImGui::SameLine(KOffetX);
+					ImGui::DragFloat(u8"##--세로 크기(픽셀)", &PixelHeight, 1.0f, 0.0f, 4096.0f, "%.0f");
+
+					ImGui::PopItemWidth();
+				}
+			}
+			ImGui::Unindent();
 		}
 
 		if (ImGui::Button(u8"결정") || m_CapturedKeyboardState.Enter)
@@ -3348,72 +3484,117 @@ void CGame::DrawEditorGUIPopups()
 			{
 				MB_WARN("모델을 불러오세요.", "오류");
 			}
-			else if (strlen(NewObejct3DName) == 0)
+			else if (strlen(NewObejctName) == 0)
 			{
 				MB_WARN("이름을 정하세요.", "오류");
 			}
 			else
 			{
-				InsertObject3D(NewObejct3DName);
-				CObject3D* const Object3D{ GetObject3D(NewObejct3DName) };
-
+				bool IsObjectCreated{ true };
 				if (iSelectedOption == 0)
 				{
-					SMesh Mesh{};
-					CMaterial Material{};
-					Material.SetUniformColor(XMFLOAT3(UniformColor.x, UniformColor.y, UniformColor.z));
-					switch (iSelectedPrimitiveType)
+					if (GetObject3D(NewObejctName, false))
 					{
-					case 0:
-						Mesh = GenerateSquareXYPlane();
-						ScaleMesh(Mesh, XMVectorSet(WidthScalar, HeightScalar, 1.0f, 0));
-						break;
-					case 1:
-						Mesh = GenerateSquareXZPlane();
-						ScaleMesh(Mesh, XMVectorSet(WidthScalar, 1.0f, HeightScalar, 0));
-						break;
-					case 2:
-						Mesh = GenerateSquareYZPlane();
-						ScaleMesh(Mesh, XMVectorSet(1.0f, WidthScalar, HeightScalar, 0));
-						break;
-					case 3:
-						Mesh = GenerateCircleXZPlane(SideCount);
-						ScaleMesh(Mesh, XMVectorSet(WidthScalar, 1.0f, HeightScalar, 0));
-						break;
-					case 4:
-						Mesh = GeneratePyramid();
-						break;
-					case 5:
-						Mesh = GenerateCube();
-						break;
-					case 6:
-						Mesh = GenerateCone(RadiusFactor, 1.0f, 1.0f, SideCount);
-						break;
-					case 7:
-						Mesh = GenerateCylinder(1.0f, 1.0f, SideCount);
-						break;
-					case 8:
-						Mesh = GenerateSphere(SegmentCount);
-						break;
-					case 9:
-						Mesh = GenerateTorus(InnerRadius, SideCount, SegmentCount);
-						break;
-					default:
-						break;
+						MB_WARN("이미 존재하는 이름입니다.", "오브젝트 생성 실패");
+						IsObjectCreated = false;
 					}
-					Object3D->Create(Mesh, Material);
+					else
+					{
+						InsertObject3D(NewObejctName);
+						CObject3D* const Object3D{ GetObject3D(NewObejctName) };
+
+						SMesh Mesh{};
+						CMaterial Material{};
+						Material.SetUniformColor(XMFLOAT3(MaterialUniformColor.x, MaterialUniformColor.y, MaterialUniformColor.z));
+						switch (iSelected3DPrimitiveType)
+						{
+						case 0:
+							Mesh = GenerateSquareXYPlane();
+							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, HeightScalar3D, 1.0f, 0));
+							break;
+						case 1:
+							Mesh = GenerateSquareXZPlane();
+							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, 1.0f, HeightScalar3D, 0));
+							break;
+						case 2:
+							Mesh = GenerateSquareYZPlane();
+							ScaleMesh(Mesh, XMVectorSet(1.0f, WidthScalar3D, HeightScalar3D, 0));
+							break;
+						case 3:
+							Mesh = GenerateCircleXZPlane(SideCount);
+							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, 1.0f, HeightScalar3D, 0));
+							break;
+						case 4:
+							Mesh = GeneratePyramid();
+							break;
+						case 5:
+							Mesh = GenerateCube();
+							break;
+						case 6:
+							Mesh = GenerateCone(RadiusFactor, 1.0f, 1.0f, SideCount);
+							break;
+						case 7:
+							Mesh = GenerateCylinder(1.0f, 1.0f, SideCount);
+							break;
+						case 8:
+							Mesh = GenerateSphere(SegmentCount);
+							break;
+						case 9:
+							Mesh = GenerateTorus(InnerRadius, SideCount, SegmentCount);
+							break;
+						default:
+							break;
+						}
+						Object3D->Create(Mesh, Material);
+
+						WidthScalar3D = 1.0f;
+						HeightScalar3D = 1.0f;
+					}
 				}
 				else if (iSelectedOption == 1)
 				{
-					Object3D->CreateFromFile(ModelFileNameWithPath, bIsModelRigged);
+					if (GetObject3D(NewObejctName, false))
+					{
+						MB_WARN("이미 존재하는 이름입니다.", "오브젝트 생성 실패");
+						IsObjectCreated = false;
+					}
+					else
+					{
+						InsertObject3D(NewObejctName);
+						CObject3D* const Object3D{ GetObject3D(NewObejctName) };
+						Object3D->CreateFromFile(ModelFileNameWithPath, bIsModelRigged);
+
+						memset(ModelFileNameWithPath, 0, MAX_PATH);
+						memset(ModelFileNameWithoutPath, 0, MAX_PATH);
+					}
 				}
-				
-				m_EditorGUIBools.bShowPopupObjectAdder = false;
-				WidthScalar = 1.0f;
-				HeightScalar = 1.0f;
-				memset(ModelFileNameWithPath, 0, MAX_PATH);
-				memset(ModelFileNameWithoutPath, 0, MAX_PATH);
-				memset(NewObejct3DName, 0, CGame::KObject3DNameMaxLength);
+				else if (iSelectedOption == 2)
+				{
+					if (GetObject2D(NewObejctName, false))
+					{
+						MB_WARN("이미 존재하는 이름입니다.", "오브젝트 생성 실패");
+						IsObjectCreated = false;
+					}
+					else
+					{
+						InsertObject2D(NewObejctName);
+						CObject2D* const Object2D{ GetObject2D(NewObejctName) };
+						switch (iSelected2DPrimitiveType)
+						{
+						case 0:
+							Object2D->Create(Generate2DRectangle(XMFLOAT2(PixelWidth, PixelHeight)));
+							break;
+						default:
+							break;
+						}
+					}
+				}
+
+				if (IsObjectCreated)
+				{
+					m_EditorGUIBools.bShowPopupObjectAdder = false;
+					memset(NewObejctName, 0, CGame::KObjectNameMaxLength);
+				}
 				ImGui::CloseCurrentPopup();
 			}
 		}
@@ -3425,11 +3606,11 @@ void CGame::DrawEditorGUIPopups()
 			m_EditorGUIBools.bShowPopupObjectAdder = false;
 			memset(ModelFileNameWithPath, 0, MAX_PATH);
 			memset(ModelFileNameWithoutPath, 0, MAX_PATH);
-			memset(NewObejct3DName, 0, CGame::KObject3DNameMaxLength);
+			memset(NewObejctName, 0, CGame::KObjectNameMaxLength);
 			ImGui::CloseCurrentPopup();
 		}
 
-		if (bShowDialogLoadModel)
+		if (bShowDialogLoad3DModel)
 		{
 			static CFileDialog FileDialog{ GetWorkingDirectory() };
 			if (FileDialog.OpenFileDialog("FBX 파일\0*.fbx\0모든 파일\0*.*\0", "모델 불러오기"))
@@ -4579,6 +4760,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 	if (m_EditorGUIBools.bShowWindowSceneEditor)
 	{
 		const auto& mapObject3D{ GetObject3DMap() };
+		const auto& mapObject2D{ GetObject2DMap() };
 
 		ImGui::SetNextWindowPos(ImVec2(0, 122), ImGuiCond_Appearing);
 		ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(400, 300));
@@ -4620,7 +4802,14 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 			// 오브젝트 제거
 			if (ImGui::Button(u8"오브젝트 제거"))
 			{
-				DeleteObject3D(GetSelectedObject3DName());
+				if (IsAnyObject3DSelected())
+				{
+					DeleteObject3D(GetSelectedObject3DName());
+				}
+				if (IsAnyObject2DSelected())
+				{
+					DeleteObject2D(GetSelectedObject2DName());
+				}
 			}
 
 			ImGui::Separator();
@@ -4630,88 +4819,127 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 			ImGui::Text(u8"인스턴스 관리"); ImGui::NextColumn();
 			ImGui::Separator();
 
-			// 오브젝트 목록
-			int iObject3DPair{};
-			for (const auto& Object3DPair : mapObject3D)
+			if (ImGui::TreeNodeEx(u8"3D 오브젝트", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				CObject3D* const Object3D{ GetObject3D(Object3DPair.first) };
-				bool bIsThisObject3DSelected{ false };
-				if (GetSelectedObject3DName() == Object3DPair.first) bIsThisObject3DSelected = true;
-
-				ImGuiTreeNodeFlags Flags{ ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth };
-				if (bIsThisObject3DSelected) Flags |= ImGuiTreeNodeFlags_Selected;
-				if (!Object3D->IsInstanced()) Flags |= ImGuiTreeNodeFlags_Leaf;
-
-				if (!Object3D->IsInstanced()) ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
-
-				bool bIsNodeOpen{ ImGui::TreeNodeEx(Object3DPair.first.c_str(), Flags) };
-				if (ImGui::IsItemClicked())
+				// 3D 오브젝트 목록
+				int iObject3DPair{};
+				for (const auto& Object3DPair : mapObject3D)
 				{
-					SelectObject3D(Object3DPair.first);
+					CObject3D* const Object3D{ GetObject3D(Object3DPair.first) };
+					bool bIsThisObject3DSelected{ false };
+					if (GetSelectedObject3DName() == Object3DPair.first) bIsThisObject3DSelected = true;
 
-					SelectInstance(-1);
-				}
+					ImGuiTreeNodeFlags Flags{ ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth };
+					if (bIsThisObject3DSelected) Flags |= ImGuiTreeNodeFlags_Selected;
+					if (!Object3D->IsInstanced()) Flags |= ImGuiTreeNodeFlags_Leaf;
 
-				ImGui::NextColumn();
+					if (!Object3D->IsInstanced()) ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
 
-				if (!Object3D->IsRiggedModel())
-				{
-					// 인스턴스 추가
-					ImGui::PushID(iObject3DPair * 2 + 0);
-					if (ImGui::Button(u8"추가"))
+					bool bIsNodeOpen{ ImGui::TreeNodeEx(Object3DPair.first.c_str(), Flags) };
+					if (ImGui::IsItemClicked())
 					{
-						Object3D->InsertInstance();
+						SelectObject3D(Object3DPair.first);
+
+						DeselectObject2D();
+						DeselectInstance();
 					}
-					ImGui::PopID();
 
-					// 인스턴스 제거
-					if (Object3D->IsInstanced() && IsAnyInstanceSelected())
+					ImGui::NextColumn();
+
+					if (!Object3D->IsRiggedModel())
 					{
-						ImGui::SameLine();
-
-						ImGui::PushID(iObject3DPair * 2 + 1);
-						if (ImGui::Button(u8"제거"))
+						// 인스턴스 추가
+						ImGui::PushID(iObject3DPair * 2 + 0);
+						if (ImGui::Button(u8"추가"))
 						{
-							const CObject3D::SInstanceCPUData& Instance{ Object3D->GetInstance(GetSelectedInstanceID()) };
-							Object3D->DeleteInstance(Instance.Name);
+							Object3D->InsertInstance();
 						}
 						ImGui::PopID();
-					}
-				}
 
-				ImGui::NextColumn();
-
-				if (bIsNodeOpen)
-				{
-					// 인스턴스 목록
-					if (Object3D->IsInstanced())
-					{
-						int iInstancePair{};
-						const auto& InstanceMap{ Object3D->GetInstanceMap() };
-						for (auto& InstancePair : InstanceMap)
+						// 인스턴스 제거
+						if (Object3D->IsInstanced() && IsAnyInstanceSelected())
 						{
-							bool bSelected{ (iInstancePair == GetSelectedInstanceID()) };
-							if (!bIsThisObject3DSelected) bSelected = false;
+							ImGui::SameLine();
 
-							if (ImGui::Selectable(InstancePair.first.c_str(), bSelected))
+							ImGui::PushID(iObject3DPair * 2 + 1);
+							if (ImGui::Button(u8"제거"))
 							{
-								if (!bIsThisObject3DSelected)
-								{
-									SelectObject3D(Object3DPair.first);
-								}
-
-								SelectInstance(iInstancePair);
+								const CObject3D::SInstanceCPUData& Instance{ Object3D->GetInstance(GetSelectedInstanceID()) };
+								Object3D->DeleteInstance(Instance.Name);
 							}
-							++iInstancePair;
+							ImGui::PopID();
 						}
 					}
 
-					ImGui::TreePop();
+					ImGui::NextColumn();
+
+					if (bIsNodeOpen)
+					{
+						// 인스턴스 목록
+						if (Object3D->IsInstanced())
+						{
+							int iInstancePair{};
+							const auto& InstanceMap{ Object3D->GetInstanceMap() };
+							for (auto& InstancePair : InstanceMap)
+							{
+								bool bSelected{ (iInstancePair == GetSelectedInstanceID()) };
+								if (!bIsThisObject3DSelected) bSelected = false;
+
+								if (ImGui::Selectable(InstancePair.first.c_str(), bSelected))
+								{
+									if (!bIsThisObject3DSelected)
+									{
+										SelectObject3D(Object3DPair.first);
+									}
+
+									SelectInstance(iInstancePair);
+								}
+								++iInstancePair;
+							}
+						}
+
+						ImGui::TreePop();
+					}
+
+					++iObject3DPair;
+
+					if (!Object3D->IsInstanced()) ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
 				}
 
-				++iObject3DPair;
+				ImGui::TreePop();
+			}
+			
+			if (ImGui::TreeNodeEx(u8"2D 오브젝트", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				// 2D 오브젝트 목록
+				int iObject2DPair{};
+				for (const auto& Object2DPair : mapObject2D)
+				{
+					CObject2D* const Object2D{ GetObject2D(Object2DPair.first) };
+					bool bIsThisObject2DSelected{ false };
+					if (GetSelectedObject2DName() == Object2DPair.first) bIsThisObject2DSelected = true;
 
-				if (!Object3D->IsInstanced()) ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
+					ImGuiTreeNodeFlags Flags{ ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth };
+					if (bIsThisObject2DSelected) Flags |= ImGuiTreeNodeFlags_Selected;
+					if (!Object2D->IsInstanced()) Flags |= ImGuiTreeNodeFlags_Leaf;
+
+					if (!Object2D->IsInstanced()) ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
+
+					bool bIsNodeOpen{ ImGui::TreeNodeEx(Object2DPair.first.c_str(), Flags) };
+					if (ImGui::IsItemClicked())
+					{
+						SelectObject2D(Object2DPair.first);
+
+						DeselectObject3D();
+						DeselectInstance();
+					}
+					if (bIsNodeOpen)
+					{
+						ImGui::TreePop();
+					}
+				}
+
+				ImGui::TreePop();
 			}
 		}
 		ImGui::End();
