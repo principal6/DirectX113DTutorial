@@ -154,63 +154,74 @@ void CGame::InitializeEditorAssets()
 		Grid->Create(Generate3DGrid(0));
 	}
 
-	CMaterial MaterialTest{};
 	{
-		MaterialTest.SetName("Test");
-		MaterialTest.ShouldGenerateAutoMipMap(true);
-		MaterialTest.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\test.jpg");
-		MaterialTest.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\test_normal.jpg");
-		MaterialTest.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\test_displacement.jpg");
-		AddMaterial(MaterialTest);
+		CMaterial Material{};
+		Material.SetName("test");
+		Material.ShouldGenerateAutoMipMap(true);
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\test_diffuse.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\test_normal.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\test_displacement.jpg");
+		AddMaterial(Material);
 	}
 
-	CMaterial MaterialDefaultGround{};
 	{
-		MaterialDefaultGround.SetName("DefaultGround");
-		MaterialDefaultGround.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\ground0.jpg");
-		MaterialDefaultGround.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\ground0_normal.jpg");
-		MaterialDefaultGround.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\ground0_displacement.jpg");
-		AddMaterial(MaterialDefaultGround);
+		CMaterial Material{};
+		Material.SetName("red_mud_stones");
+		Material.ShouldGenerateAutoMipMap(true);
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\red_mud_stones_diffuse.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\red_mud_stones_normal.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\red_mud_stones_displacement.jpg");
+		AddMaterial(Material);
+	}
+	
+	{
+		CMaterial Material{};
+		Material.SetName("grass_path");
+		Material.ShouldGenerateAutoMipMap(true);
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\grass_path_diffuse.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\grass_path_normal.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\grass_path_displacement.jpg");
+		AddMaterial(Material);
+	}
+	
+	{
+		CMaterial Material{};
+		Material.SetName("burned_ground");
+		Material.ShouldGenerateAutoMipMap(true);
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\burned_ground_diffuse.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\burned_ground_normal.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
+		AddMaterial(Material);
 	}
 
-	CMaterial MaterialDefaultGround1{};
 	{
-		MaterialDefaultGround1.SetName("DefaultGround1");
-		MaterialDefaultGround1.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround1.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\ground1.jpg");
-		MaterialDefaultGround1.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\ground1_normal.jpg");
-		MaterialDefaultGround1.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\ground1_displacement.jpg");
-		AddMaterial(MaterialDefaultGround1);
+		CMaterial Material{};
+		Material.SetName("cobblestone_large");
+		Material.ShouldGenerateAutoMipMap(true);
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\cobblestone_large_diffuse.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\cobblestone_large_displacement.jpg");
+		AddMaterial(Material);
 	}
 
-	CMaterial MaterialDefaultGround2{};
 	{
-		MaterialDefaultGround2.SetName("DefaultGround2");
-		MaterialDefaultGround2.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround2.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\ground2.jpg");
-		MaterialDefaultGround2.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\ground2_normal.jpg");
-		MaterialDefaultGround2.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\ground2_displacement.jpg");
-		AddMaterial(MaterialDefaultGround2);
+		CMaterial Material{};
+		Material.SetName("brown_mud_dry");
+		Material.ShouldGenerateAutoMipMap(true);
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\brown_mud_dry_diffuse.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
+		AddMaterial(Material);
 	}
 
-	CMaterial MaterialDefaultGround3{};
 	{
-		MaterialDefaultGround3.SetName("DefaultGround3");
-		MaterialDefaultGround3.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGround3.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\ground3.jpg");
-		MaterialDefaultGround3.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\ground3_normal.jpg");
-		MaterialDefaultGround3.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\ground3_displacement.jpg");
-		AddMaterial(MaterialDefaultGround3);
-	}
-
-	CMaterial MaterialDefaultGrass{};
-	{
-		MaterialDefaultGrass.SetName("DefaultGrass");
-		MaterialDefaultGrass.ShouldGenerateAutoMipMap(true);
-		MaterialDefaultGrass.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\grass.jpg");
-		MaterialDefaultGrass.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\grass_normal.jpg");
-		AddMaterial(MaterialDefaultGrass);
+		CMaterial Material{};
+		Material.SetName("castle_brick");
+		Material.ShouldGenerateAutoMipMap(true);
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\castle_brick_diffuse.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\castle_brick_normal.jpg");
+		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\castle_brick_displacement.jpg");
+		AddMaterial(Material);
 	}
 }
 
@@ -516,6 +527,7 @@ void CGame::CreateBaseShaders()
 	m_PSTerrain->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
 	m_PSTerrain->AddConstantBuffer(&m_CBTerrainSelectionData, sizeof(CTerrain::SCBTerrainSelectionData));
 	m_PSTerrain->AddConstantBuffer(&m_CBEditorTimeData, sizeof(SCBEditorTimeData));
+	m_PSTerrain->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
 
 	m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSWater->Create(EShaderType::PixelShader, L"Shader\\PSWater.hlsl", "main");
@@ -1239,6 +1251,7 @@ void CGame::UpdateCBMaterial(const CMaterial& Material)
 	m_PSBase->UpdateConstantBuffer(2);
 	m_PSFoliage->UpdateConstantBuffer(2);
 	m_PSCamera->UpdateConstantBuffer(0);
+	m_PSTerrain->UpdateConstantBuffer(4);
 }
 
 void CGame::UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix)
@@ -1419,10 +1432,10 @@ float CGame::GetAmbientLightIntensity() const
 	return m_CBLightData.AmbientLightIntensity;
 }
 
-void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, uint32_t MaskingDetail, float UniformScaling)
+void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, uint32_t MaskingDetail, float UniformScaling)
 {
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Terrain->Create(TerrainSize, Material, MaskingDetail, UniformScaling);
+	m_Terrain->Create(TerrainSize, *GetMaterial("brown_mud_dry"), MaskingDetail, UniformScaling);
 	
 	ID3D11ShaderResourceView* NullSRVs[11]{};
 	m_DeviceContext->DSSetShaderResources(0, 1, NullSRVs);
@@ -1734,8 +1747,8 @@ void CGame::DeleteObject3D(const string& Name)
 		}
 	}
 
-	m_vObject3Ds.pop_back();
 	m_mapObject3DNameToIndex.erase(Name);
+	m_vObject3Ds.pop_back();
 }
 
 void CGame::ClearObject3Ds()
@@ -2557,9 +2570,10 @@ bool CGame::PickTriangle()
 		for (SObject3DPickingCandiate& Candidate : m_vObject3DPickingCandidates)
 		{
 			// Pick only static models' triangle.
+			// Rigged models should be selected by its bounding sphere, not triangles!
 			if (Candidate.PtrObject3D->GetModel().bIsModelAnimated)
 			{
-				Candidate.bHasFailedPickingTest = true;
+				Candidate.bHasFailedPickingTest = false;
 				continue;
 			}
 
@@ -2628,6 +2642,14 @@ bool CGame::PickTriangle()
 
 void CGame::BeginRendering(const FLOAT* ClearColor)
 {
+	// For debugging
+	/* 
+	m_DeviceContext->OMSetRenderTargets(1, m_DeviceRTV.GetAddressOf(), m_DepthStencilView.Get());
+
+	m_DeviceContext->ClearRenderTargetView(m_DeviceRTV.Get(), Colors::CornflowerBlue);
+	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	*/
+	
 	m_DeviceContext->OMSetRenderTargets(1, m_ScreenQuadRTV.GetAddressOf(), m_DepthStencilView.Get());
 
 	m_DeviceContext->ClearRenderTargetView(m_ScreenQuadRTV.Get(), Colors::CornflowerBlue);
@@ -2714,7 +2736,8 @@ void CGame::Update()
 				{
 					if (IsAnyInstanceSelected())
 					{
-						GetSelectedObject3D()->DeleteInstance(GetSelectedObject3D()->GetInstanceCPUData(GetSelectedInstanceID()).Name);
+						string InstanceName{ GetSelectedObject3D()->GetInstanceCPUData(GetSelectedInstanceID()).Name };
+						GetSelectedObject3D()->DeleteInstance(InstanceName);
 						DeselectInstance();
 
 						if (GetSelectedObject3D()->GetInstanceCount() == 0) DeselectObject3D();
@@ -3550,7 +3573,7 @@ void CGame::DrawEditorGUIPopupTerrainGenerator()
 			if (GetTerrain()) eTerrainEditMode = GetTerrain()->GetEditMode();
 
 			XMFLOAT2 TerrainSize{ (float)SizeX, (float)SizeZ };
-			CreateTerrain(TerrainSize, *GetMaterial("DefaultGround"), MaskingDetail, UniformScaling);
+			CreateTerrain(TerrainSize, MaskingDetail, UniformScaling);
 
 			CTerrain* const Terrain{ GetTerrain() };
 			SetEditMode(GetEditMode(), true);
@@ -4120,7 +4143,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								XMVectorGetX(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
 								XMVectorGetY(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
 								XMVectorGetZ(Object3D->ComponentPhysics.BoundingSphere.CenterOffset) };
-							if (ImGui::DragFloat3(u8"##오브젝트 BS중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
+							if (ImGui::DragFloat3(u8"##오브젝트 BS 중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
 								CGame::KBSCenterOffsetMinLimit, CGame::KBSCenterOffsetMaxLimit, "%.2f"))
 							{
 								Object3D->ComponentPhysics.BoundingSphere.CenterOffset =
@@ -4128,14 +4151,21 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							}
 
 							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"오브젝트 BS 반지름");
+							ImGui::Text(u8"오브젝트 BS 반지름 편중치");
+							ImGui::SameLine(ItemsOffsetX);
+							float BSRadiusBias{ Object3D->ComponentPhysics.BoundingSphere.RadiusBias };
+							if (ImGui::DragFloat(u8"##오브젝트 BS반지름 편중치", &BSRadiusBias, CGame::KBSRadiusBiasUnit,
+								CGame::KBSRadiusBiasMinLimit, CGame::KBSRadiusBiasMaxLimit, "%.2f"))
+							{
+								Object3D->ComponentPhysics.BoundingSphere.RadiusBias = BSRadiusBias;
+							}
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"오브젝트 BS 반지름 (자동)");
 							ImGui::SameLine(ItemsOffsetX);
 							float BSRadius{ Object3D->ComponentPhysics.BoundingSphere.Radius };
-							if (ImGui::DragFloat(u8"##오브젝트 BS반지름", &BSRadius, CGame::KBSRadiusUnit,
-								CGame::KBSRadiusMinLimit, CGame::KBSRadiusMaxLimit, "%.2f"))
-							{
-								Object3D->ComponentPhysics.BoundingSphere.RadiusBase = BSRadius;
-							}
+							ImGui::DragFloat(u8"##오브젝트 BS반지름 (자동)", &BSRadius, CGame::KBSRadiusUnit,
+								CGame::KBSRadiusMinLimit, CGame::KBSRadiusMaxLimit, "%.2f");
 
 							ImGui::Separator();
 
@@ -5481,6 +5511,7 @@ void CGame::EndRendering()
 
 	// Pass-through drawing
 	DrawScreenQuadToSceen(m_PSScreenQuad.get(), true);
+	//DrawScreenQuadToSceen(m_PSScreenQuad.get(), false); // For debugging
 
 	// Edge detection
 	{

@@ -189,6 +189,7 @@ private:
 
 public:
 	static constexpr int KMaterialMaxCount{ 5 }; // It includes 1 main texture + 4 layer textures
+	static constexpr int KTextureSubdivisionDetail{ 4 };
 
 	static constexpr float KMinUniformScaling{ 1.0f };
 	static constexpr float KMaxUniformScaling{ 16.0f };
@@ -258,6 +259,7 @@ private:
 
 private:
 	std::unique_ptr<CObject3D>				m_Object3DWater{};
+	std::unique_ptr<CMaterial::CTexture>	m_WaterDiffuseTexture{};
 	std::unique_ptr<CMaterial::CTexture>	m_WaterNormalTexture{};
 	std::unique_ptr<CMaterial::CTexture>	m_WaterDisplacementTexture{};
 

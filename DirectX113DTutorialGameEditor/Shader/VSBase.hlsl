@@ -6,21 +6,28 @@ cbuffer cbSpace : register(b0)
 	float4x4 ViewProjection;
 }
 
-VS_OUTPUT main(VS_INPUT input)
+VS_OUTPUT main(VS_INPUT Input)
 {
-	VS_OUTPUT output;
+	VS_OUTPUT Output;
 
-	output.WorldPosition = mul(input.Position, World);
-	output.Position = mul(output.WorldPosition, ViewProjection);
+	Output.WorldPosition = mul(Input.Position, World);
+	Output.Position = mul(Output.WorldPosition, ViewProjection);
 
-	output.Color = input.Color;
-	output.UV = input.UV;
+	Output.Color = Input.Color;
+	Output.UV = Input.UV;
 
-	output.WorldNormal = normalize(mul(input.Normal, World));
-	output.WorldTangent = normalize(mul(input.Tangent, World));
-	output.WorldBitangent = CalculateBitangent(output.WorldNormal, output.WorldTangent);
+	//Output.WorldNormal = normalize(mul(Input.Normal, World));
+	//Output.WorldTangent = normalize(mul(Input.Tangent, World));
+	//Output.WorldBitangent = CalculateBitangent(Output.WorldNormal, Output.WorldTangent);
 
-	output.bUseVertexColor = 0;
+	float4 ResultNormal = normalize(mul(Input.Normal, World));
+	float4 ResultBitangent = normalize(float4(cross(ResultNormal.xyz, Input.Tangent.xyz), 0));
+	float4 ResultTangent = normalize(float4(cross(ResultBitangent.xyz, ResultNormal.xyz), 0));
+	Output.WorldNormal = ResultNormal;
+	Output.WorldTangent = normalize(mul(ResultTangent, World));
+	Output.WorldBitangent = normalize(mul(ResultBitangent, World));
 
-	return output;
+	Output.bUseVertexColor = 0;
+
+	return Output;
 }

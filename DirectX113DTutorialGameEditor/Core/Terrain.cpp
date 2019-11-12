@@ -164,7 +164,7 @@ void CTerrain::CreateTerrainObject3D(vector<CMaterial>& vMaterials)
 	assert(vMaterials.size());
 
 	Model.vMeshes.clear();
-	Model.vMeshes.emplace_back(GenerateTerrainBase(XMFLOAT2(m_TerrainFileData.SizeX, m_TerrainFileData.SizeZ)));
+	Model.vMeshes.emplace_back(GenerateTerrainBase(XMFLOAT2(m_TerrainFileData.SizeX, m_TerrainFileData.SizeZ), KTextureSubdivisionDetail)); // @important
 	Model.vMaterials = vMaterials;
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
 
@@ -227,13 +227,18 @@ void CTerrain::CreateWater()
 
 	m_Object3DWater = make_unique<CObject3D>("Water", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 
-	SMesh WaterMesh{ GenerateTerrainBase(XMFLOAT2(m_TerrainFileData.SizeX, m_TerrainFileData.SizeZ), false, KWaterColor) };
+	SMesh WaterMesh{ GenerateTerrainBase(XMFLOAT2(m_TerrainFileData.SizeX, m_TerrainFileData.SizeZ), KTextureSubdivisionDetail, KWaterColor) };
 	m_Object3DWater->Create(WaterMesh);
 	m_Object3DWater->ShouldTessellate(true);
 
+	m_WaterDiffuseTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_WaterDiffuseTexture->CreateTextureFromFile("Asset\\water_diffuse.jpg", false);
+	m_WaterDiffuseTexture->SetSlot(0);
+	m_WaterDiffuseTexture->Use();
+
 	m_WaterNormalTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_WaterNormalTexture->CreateTextureFromFile("Asset\\water_normal.jpg", false);
-	m_WaterNormalTexture->SetSlot(0);
+	m_WaterNormalTexture->SetSlot(1);
 	m_WaterNormalTexture->Use();
 
 	m_WaterDisplacementTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
@@ -969,9 +974,11 @@ void CTerrain::DrawWater()
 	m_Object3DWater->ComponentTransform.Translation += XMVectorSet(0, m_TerrainFileData.WaterHeight, 0, 1);
 	m_Object3DWater->UpdateWorldMatrix();
 
-	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
+	//m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
+
 	m_PtrGame->UpdateCBSpace(m_Object3DWater->ComponentTransform.MatrixWorld);
 	m_PtrGame->UpdateCBTessFactor(m_TerrainFileData.WaterTessellationFactor);
+
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->Use();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->UpdateAllConstantBuffers();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::HSWater)->Use();
@@ -980,10 +987,13 @@ void CTerrain::DrawWater()
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::DSWater)->UpdateAllConstantBuffers();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSWater)->Use();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSWater)->UpdateAllConstantBuffers();
+
+	m_WaterDiffuseTexture->Use();
 	m_WaterNormalTexture->Use();
 	m_WaterDisplacementTexture->Use();
 	m_Object3DWater->Draw();
-	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
+
+	//m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }
 
 void CTerrain::DrawFoliageCluster()

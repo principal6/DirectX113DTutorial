@@ -1,5 +1,7 @@
 #include "Terrain.hlsli"
 
+static const float KDisplacementFactor = 0.25f;
+
 cbuffer cbSpace : register(b0)
 {
 	float4x4 ViewProjection;
@@ -19,10 +21,10 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 {
 	DS_OUTPUT Output;
 
+	Output.UV = Patch[0].UV * Domain.x + Patch[1].UV * Domain.y + Patch[2].UV * Domain.z;
+
 	Output.WorldNormal = Patch[0].WorldNormal * Domain.x + Patch[1].WorldNormal * Domain.y + Patch[2].WorldNormal * Domain.z;
 	Output.WorldNormal = normalize(Output.WorldNormal);
-
-	Output.UV = Patch[0].UV * Domain.x + Patch[1].UV * Domain.y + Patch[2].UV * Domain.z;
 
 	Output.bUseVertexColor = Patch[0].bUseVertexColor + Patch[1].bUseVertexColor + Patch[2].bUseVertexColor;
 	
@@ -35,10 +37,9 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 	float4 N3 = normalize(Patch[2].WorldNormal);
 
 	float4 Bezier = GetBezier(P1, P2, P3, N1, N2, N3, Domain);
-
-	float2 ResultUV = Output.UV.xy - float2(0, Time);
-	float4 Displacement = DisplacementTexture.SampleLevel(CurrentSampler, ResultUV, 0);
-	const float KDisplacementFactor = 0.2f;
+	
+	float2 AnimatedUV = Output.UV.xy - float2(0, Time);
+	float Displacement = DisplacementTexture.SampleLevel(CurrentSampler, AnimatedUV, 0).r;
 	Bezier += Output.WorldNormal * Displacement * KDisplacementFactor;
 	Bezier.y -= KDisplacementFactor;
 

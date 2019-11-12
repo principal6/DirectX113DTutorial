@@ -357,7 +357,7 @@ public:
 	float GetAmbientLightIntensity() const;
 
 public:
-	void CreateTerrain(const XMFLOAT2& TerrainSize, const CMaterial& Material, uint32_t MaskingDetail, float UniformScaling);
+	void CreateTerrain(const XMFLOAT2& TerrainSize, uint32_t MaskingDetail, float UniformScaling);
 	void LoadTerrain(const std::string& TerrainFileName);
 	void SaveTerrain(const std::string& TerrainFileName);
 	void AddTerrainMaterial(const CMaterial& Material);
@@ -545,6 +545,9 @@ public:
 	static constexpr float KBSRadiusUnit{ +0.01f };
 	static constexpr float KBSRadiusMinLimit{ 0.001f };
 	static constexpr float KBSRadiusMaxLimit{ 10.0f };
+	static constexpr float KBSRadiusBiasUnit{ +0.01f };
+	static constexpr float KBSRadiusBiasMinLimit{ 0.001f };
+	static constexpr float KBSRadiusBiasMaxLimit{ 1000.0f };
 	static constexpr int KObjectNameMaxLength{ 100 };
 
 private:

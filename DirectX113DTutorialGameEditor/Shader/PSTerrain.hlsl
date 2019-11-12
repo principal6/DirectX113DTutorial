@@ -47,18 +47,33 @@ cbuffer cbEditorTime : register(b3)
 	float2 Pad2;
 }
 
-float4 main(VS_OUTPUT input) : SV_TARGET
+cbuffer cbMaterial : register(b4)
 {
-	float4 WorldMaskingPosition = float4(input.WorldPosition.x, 0, -input.WorldPosition.z, 1);
-	float4 LocalMaskingPosition = mul(WorldMaskingPosition, InverseTerrainWorld);
+	float3	MaterialAmbient;
+	float	SpecularExponent;
+	float3	MaterialDiffuse;
+	float	SpecularIntensity;
+	float3	MaterialSpecular;
+	bool	bHasDiffuseTexture;
+
+	bool	bHasNormalTexture;
+	bool	bHasOpacityTexture;
+	bool2	Pads2;
+}
+
+float4 main(VS_OUTPUT Input) : SV_TARGET
+{
+	float4 WorldVertexPosition = float4(Input.WorldPosition.x, 0, -Input.WorldPosition.z, 1);
+	float4 LocalMaskingPosition = mul(WorldVertexPosition, InverseTerrainWorld);
 	float4 MaskingSpacePosition = mul(LocalMaskingPosition, MaskingSpaceMatrix);
 	float4 Masking = MaskingTexture.Sample(CurrentSampler, MaskingSpacePosition.xz);
 
-	float4 DiffuseLayer0 = Layer0DiffuseTexture.Sample(CurrentSampler, input.UV.xy);
-	float4 DiffuseLayer1 = Layer1DiffuseTexture.Sample(CurrentSampler, input.UV.xy);
-	float4 DiffuseLayer2 = Layer2DiffuseTexture.Sample(CurrentSampler, input.UV.xy);
-	float4 DiffuseLayer3 = Layer3DiffuseTexture.Sample(CurrentSampler, input.UV.xy);
-	float4 DiffuseLayer4 = Layer4DiffuseTexture.Sample(CurrentSampler, input.UV.xy);
+	float2 TexCoord = Input.UV.xy;
+	float4 DiffuseLayer0 = Layer0DiffuseTexture.Sample(CurrentSampler, TexCoord);
+	float4 DiffuseLayer1 = Layer1DiffuseTexture.Sample(CurrentSampler, TexCoord);
+	float4 DiffuseLayer2 = Layer2DiffuseTexture.Sample(CurrentSampler, TexCoord);
+	float4 DiffuseLayer3 = Layer3DiffuseTexture.Sample(CurrentSampler, TexCoord);
+	float4 DiffuseLayer4 = Layer4DiffuseTexture.Sample(CurrentSampler, TexCoord);
 
 	float4 Albedo = DiffuseLayer0;
 	Albedo.xyz = lerp(Albedo.xyz, DiffuseLayer1.xyz, Masking.r);
@@ -66,13 +81,13 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	Albedo.xyz = lerp(Albedo.xyz, DiffuseLayer3.xyz, Masking.b);
 	Albedo.xyz = lerp(Albedo.xyz, DiffuseLayer4.xyz, Masking.a);
 	
-	float4 NormalLayer0 = normalize((Layer0NormalTexture.Sample(CurrentSampler, input.UV.xy) * 2.0f) - 1.0f);
-	float4 NormalLayer1 = normalize((Layer1NormalTexture.Sample(CurrentSampler, input.UV.xy) * 2.0f) - 1.0f);
-	float4 NormalLayer2 = normalize((Layer2NormalTexture.Sample(CurrentSampler, input.UV.xy) * 2.0f) - 1.0f);
-	float4 NormalLayer3 = normalize((Layer3NormalTexture.Sample(CurrentSampler, input.UV.xy) * 2.0f) - 1.0f);
-	float4 NormalLayer4 = normalize((Layer4NormalTexture.Sample(CurrentSampler, input.UV.xy) * 2.0f) - 1.0f);
+	float4 NormalLayer0 = normalize((Layer0NormalTexture.Sample(CurrentSampler, TexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer1 = normalize((Layer1NormalTexture.Sample(CurrentSampler, TexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer2 = normalize((Layer2NormalTexture.Sample(CurrentSampler, TexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer3 = normalize((Layer3NormalTexture.Sample(CurrentSampler, TexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer4 = normalize((Layer4NormalTexture.Sample(CurrentSampler, TexCoord) * 2.0f) - 1.0f);
 
-	float3x3 TextureSpace = float3x3(input.WorldTangent.xyz, input.WorldBitangent.xyz, input.WorldNormal.xyz);
+	float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
 	float4 ResultNormal;
 	ResultNormal = NormalLayer0;
 	ResultNormal.xyz = lerp(ResultNormal.xyz, NormalLayer1.xyz, Masking.r);
@@ -91,7 +106,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 		const float3 HighlightFactor = float3(0.2f, 0.2f, 0.2f);
 		const float Sine = sin(NormalizedTimeHalfSpeed * KPI);
 		
-		float4 TerrainPosition = float4(input.WorldPosition.x, 0, input.WorldPosition.z, 1);
+		float4 TerrainPosition = float4(Input.WorldPosition.x, 0, Input.WorldPosition.z, 1);
 		float4 WorldSelectionPosition = float4(AnaloguePosition.x, 0, AnaloguePosition.y, 1);
 		float Distance = distance(TerrainPosition, WorldSelectionPosition);
 		if (Distance <= SelectionRadius)
@@ -109,8 +124,8 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	float4 ResultColor = Albedo;
 	{
 		float4 Ambient = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
-		float4 Directional = CalculateDirectional(Albedo, Albedo, 1, 0,
-			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), normalize(input.WorldNormal));
+		float4 Directional = CalculateDirectional(Albedo, float4(MaterialSpecular, 1.0), SpecularExponent, SpecularIntensity,
+			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - Input.WorldPosition), normalize(ResultNormal));
 
 		// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
 		float Dot = dot(DirectionalLightDirection, KUpDirection);
@@ -123,9 +138,9 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	ResultColor.xyz = pow(ResultColor.xyz, 0.5f);
 
 	// For normal & tangent drawing
-	if (input.bUseVertexColor != 0)
+	if (Input.bUseVertexColor != 0)
 	{
-		return input.Color;
+		return Input.Color;
 	}
 
 	if (bIsHighlitPixel == true)

@@ -1,7 +1,8 @@
 #include "Terrain.hlsli"
 
 SamplerState CurrentSampler : register(s0);
-Texture2D WaterNormalTexture : register(t0);
+Texture2D DiffuseTexture : register(t0);
+Texture2D NormalTexture : register(t1);
 
 cbuffer cbTime : register(b0)
 {
@@ -18,13 +19,13 @@ cbuffer cbLights : register(b1)
 	float4	EyePosition;
 }
 
-float4 main(VS_OUTPUT input) : SV_TARGET
+float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	float4 Albedo = input.Color;
-
-	float3x3 TextureSpace = float3x3(input.WorldTangent.xyz, input.WorldBitangent.xyz, input.WorldNormal.xyz);
-	float2 ResultUV = input.UV.xy - float2(0, Time);
-	float4 ResultNormal = normalize((WaterNormalTexture.Sample(CurrentSampler, ResultUV) * 2.0f) - 1.0f);
+	//float4 Albedo = Input.Color;
+	float2 AnimatedUV = Input.UV.xy - float2(0, Time); // UV animation
+	float4 Albedo = DiffuseTexture.SampleLevel(CurrentSampler, AnimatedUV, 0);
+	float4 ResultNormal = normalize((NormalTexture.SampleLevel(CurrentSampler, AnimatedUV, 0) * 2.0f) - 1.0f);
+	float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
 	ResultNormal = normalize(float4(mul(ResultNormal.xyz, TextureSpace), 0.0f));
 
 	// # Gamma correction
@@ -33,14 +34,15 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	float4 ResultColor = Albedo;
 	{
 		float4 Ambient = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
-		float4 Directional = CalculateDirectional(Albedo, float4(1, 1, 1, 1), 64.0f, 1.0f,
-			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), normalize(ResultNormal));
+		float4 Directional = CalculateDirectional(Albedo, float4(1, 1, 1, 1), 32.0, 0.1,
+			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - Input.WorldPosition), normalize(ResultNormal));
 
-		ResultColor.xyz = Ambient.xyz + Directional.xyz;
+		ResultColor = Ambient + Directional;
 	}
 
 	// # Gamma correction
 	ResultColor.xyz = pow(ResultColor.xyz, 0.5f);
+	ResultColor.a = Input.Color.a;
 
 	return ResultColor;
 }

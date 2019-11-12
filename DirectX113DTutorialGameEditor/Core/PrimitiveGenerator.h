@@ -22,7 +22,7 @@ static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVE
 static SMesh GenerateSquareXYPlane(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSquareXZPlane(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSquareYZPlane(const XMVECTOR& Color = KColorWhite);
-static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord = false, const XMVECTOR& Color = KColorWhite);
+static SMesh GenerateTerrainBase(const XMFLOAT2& Size, int TexCoordSubdivisionFactor = 1, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateCircleXZPlane(uint32_t SideCount = 16, const XMVECTOR& Color = KColorWhite);
 static SMesh GeneratePyramid(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateCube(const XMVECTOR& Color = KColorWhite);
@@ -306,7 +306,7 @@ static SMesh GenerateSquareYZPlane(const XMVECTOR& Color)
 	return Mesh;
 }
 
-static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord, const XMVECTOR& Color)
+static SMesh GenerateTerrainBase(const XMFLOAT2& Size, int TexCoordSubdivisionFactor, const XMVECTOR& Color)
 {
 	using std::max;
 
@@ -321,19 +321,9 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord, 
 	{
 		for (int x = 0; x < SizeX; ++x)
 		{
-			if (bSubdivideTexCoord)
-			{
-				U0 = (float)(x)		/ (float)SizeX;
-				U1 = (float)(x + 1)	/ (float)SizeX;
+			U0 = V0 = 0.0f;
+			U1 = V1 = 1.0f;
 
-				V0 = (float)(z)		/ (float)SizeZ;
-				V1 = (float)(z + 1)	/ (float)SizeZ;
-			}
-			else
-			{
-				U0 = V0 = 0.0f;
-				U1 = V1 = 1.0f;
-			}
 			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z + 0), 1), Color, XMVectorSet(U0, V0, 0, 0));
 			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 1), +0.0f, static_cast<float>(-z + 0), 1), Color, XMVectorSet(U1, V0, 0, 0));
 			Mesh.vVertices.emplace_back(XMVectorSet(static_cast<float>(x + 0), +0.0f, static_cast<float>(-z - 1), 1), Color, XMVectorSet(U0, V1, 0, 0));
@@ -346,6 +336,32 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size, bool bSubdivideTexCoord, 
 	CalculateNormals(Mesh);
 
 	CalculateTangents(Mesh);
+
+	// @important
+	if (TexCoordSubdivisionFactor > 1)
+	{
+		int iVertex{};
+		for (int z = 0; z < SizeZ; ++z)
+		{
+			for (int x = 0; x < SizeX; ++x)
+			{
+				int rX{ x % TexCoordSubdivisionFactor };
+				int rZ{ z % TexCoordSubdivisionFactor };
+
+				U0 = (float)(rX) / (float)TexCoordSubdivisionFactor;
+				U1 = (float)(rX + 1) / (float)TexCoordSubdivisionFactor;
+				V0 = (float)(rZ) / (float)TexCoordSubdivisionFactor;
+				V1 = (float)(rZ + 1) / (float)TexCoordSubdivisionFactor;
+
+				Mesh.vVertices[iVertex + 0].TexCoord = XMVectorSet(U0, V0, 0, 0);
+				Mesh.vVertices[iVertex + 1].TexCoord = XMVectorSet(U1, V0, 0, 0);
+				Mesh.vVertices[iVertex + 2].TexCoord = XMVectorSet(U0, V1, 0, 0);
+				Mesh.vVertices[iVertex + 3].TexCoord = XMVectorSet(U1, V1, 0, 0);
+
+				iVertex += 4;
+			}
+		}
+	}
 
 	TranslateMesh(Mesh, XMVectorSet(static_cast<float>(-SizeX / 2), 0, static_cast<float>(SizeZ / 2), 1));
 	

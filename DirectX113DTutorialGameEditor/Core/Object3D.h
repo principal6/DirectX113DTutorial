@@ -20,7 +20,7 @@ public:
 	struct SBoundingSphere
 	{
 		float		Radius{ KBoundingSphereDefaultRadius };
-		float		RadiusBase{ KBoundingSphereDefaultRadius };
+		float		RadiusBias{ KBoundingSphereDefaultRadius };
 		XMVECTOR	CenterOffset{};
 	};
 

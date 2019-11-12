@@ -654,7 +654,7 @@ void CObject3D::UpdateWorldMatrix()
 	float ScalingY{ XMVectorGetY(ComponentTransform.Scaling) };
 	float ScalingZ{ XMVectorGetZ(ComponentTransform.Scaling) };
 	float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
-	ComponentPhysics.BoundingSphere.Radius = ComponentPhysics.BoundingSphere.RadiusBase * MaxScaling;
+	ComponentPhysics.BoundingSphere.Radius = ComponentPhysics.BoundingSphere.RadiusBias * MaxScaling;
 
 	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(ComponentPhysics.BoundingSphere.CenterOffset) };
 	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-ComponentPhysics.BoundingSphere.CenterOffset) };
@@ -688,7 +688,7 @@ void CObject3D::UpdateInstanceWorldMatrix(uint32_t InstanceID)
 	float ScalingY{ XMVectorGetY(m_vInstanceCPUData[InstanceID].Scaling) };
 	float ScalingZ{ XMVectorGetZ(m_vInstanceCPUData[InstanceID].Scaling) };
 	float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
-	m_vInstanceCPUData[InstanceID].BoundingSphere.Radius = ComponentPhysics.BoundingSphere.RadiusBase * MaxScaling;
+	m_vInstanceCPUData[InstanceID].BoundingSphere.Radius = ComponentPhysics.BoundingSphere.RadiusBias * MaxScaling;
 
 	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(ComponentPhysics.BoundingSphere.CenterOffset) };
 	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-ComponentPhysics.BoundingSphere.CenterOffset) };

@@ -24,31 +24,31 @@ float GetHeightFromHeightMap(float2 XZ)
 	return (y_norm * TerrainHeightRange - TerrainHeightRange / 2.0f);
 }
 
-VS_OUTPUT main(VS_INPUT input)
+VS_OUTPUT main(VS_INPUT Input)
 {
-	VS_OUTPUT output;
+	VS_OUTPUT Output;
 
-	float4 ResultPosition = input.Position;
+	float4 ResultPosition = Input.Position;
 	ResultPosition.y = GetHeightFromHeightMap(ResultPosition.xz);
-	output.WorldPosition = mul(ResultPosition, World);
-	output.Position = mul(output.WorldPosition, ViewProjection);
+	Output.WorldPosition = mul(ResultPosition, World);
+	Output.Position = mul(Output.WorldPosition, ViewProjection);
 
-	output.Color = input.Color;
-	output.UV = input.UV;
+	Output.Color = Input.Color;
+	Output.UV = Input.UV;
 
 	float HeightXMinus = GetHeightFromHeightMap(ResultPosition.xz + float2(-1, 0));
 	float HeightXPlus = GetHeightFromHeightMap(ResultPosition.xz + float2(+1, 0));
 	float HeightZMinus = GetHeightFromHeightMap(ResultPosition.xz + float2(0, -1));
 	float HeightZPlus = GetHeightFromHeightMap(ResultPosition.xz + float2(0, +1));
 	float4 ResultNormal = CalculateHeightMapNormal(HeightXMinus, HeightXPlus, HeightZMinus, HeightZPlus);
-	output.WorldNormal = normalize(mul(ResultNormal, World));
+	Output.WorldNormal = normalize(mul(ResultNormal, World));
 
-	float4 ResultBitangent = normalize(float4(cross(ResultNormal.xyz, input.Tangent.xyz), 0));
+	float4 ResultBitangent = normalize(float4(cross(ResultNormal.xyz, Input.Tangent.xyz), 0));
 	float4 ResultTangent = normalize(float4(cross(ResultBitangent.xyz, ResultNormal.xyz), 0));
-	output.WorldTangent = normalize(mul(ResultTangent, World));
-	output.WorldBitangent = normalize(mul(ResultBitangent, World));
+	Output.WorldTangent = normalize(mul(ResultTangent, World));
+	Output.WorldBitangent = normalize(mul(ResultBitangent, World));
 
-	output.bUseVertexColor = 0;
+	Output.bUseVertexColor = 0;
 
-	return output;
+	return Output;
 }
