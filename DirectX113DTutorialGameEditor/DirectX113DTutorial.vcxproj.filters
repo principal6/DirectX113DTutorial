@@ -519,6 +519,9 @@
     <None Include="Shader\Foliage.hlsli">
       <Filter>Shader</Filter>
     </None>
+    <None Include="Shader\Deferred.hlsli">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\GSNormal.hlsl">
@@ -609,6 +612,15 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\PSCamera.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PSEdgeDetector.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\VSScreenQuad.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PSScreenQuad.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

@@ -32,6 +32,13 @@ static constexpr D3D11_INPUT_ELEMENT_DESC KBaseInputElementDescs[]
 	{ "INSTANCEWORLD"	, 3, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
 };
 
+// FOR DEBUGGING SHADER...
+static constexpr D3D11_INPUT_ELEMENT_DESC KScreenQuadInputElementDescs[]
+{
+	{ "POSITION"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "TEXCOORD"	, 0, DXGI_FORMAT_R32G32_FLOAT		, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+};
+
 void CGame::CreateWin32(WNDPROC const WndProc, const std::string& WindowName, bool bWindowed)
 {
 	GetCurrentDirectoryA(MAX_PATH, m_WorkingDirectory);
@@ -104,7 +111,7 @@ void CGame::InitializeDirectX(bool bWindowed)
 {
 	CreateSwapChain(bWindowed);
 
-	CreateSetViews();
+	CreateViews();
 
 	SetViewports();
 
@@ -125,6 +132,8 @@ void CGame::InitializeDirectX(bool bWindowed)
 	CreateBoundingSphere();
 
 	Create3DGizmos();
+
+	CreateScreenQuadVertexBuffer();
 
 	m_MatrixProjection2D = XMMatrixOrthographicLH(m_WindowSize.x, m_WindowSize.y, 0.0f, 1.0f);
 	m_CommonStates = make_unique<CommonStates>(m_Device.Get());
@@ -242,12 +251,40 @@ void CGame::CreateSwapChain(bool bWindowed)
 		&SwapChainDesc, &m_SwapChain, &m_Device, nullptr, &m_DeviceContext);
 }
 
-void CGame::CreateSetViews()
+void CGame::CreateViews()
 {
 	ComPtr<ID3D11Texture2D> BackBuffer{};
 	m_SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), &BackBuffer);
 
-	m_Device->CreateRenderTargetView(BackBuffer.Get(), nullptr, &m_RenderTargetView);
+	m_Device->CreateRenderTargetView(BackBuffer.Get(), nullptr, &m_DeviceRTV);
+
+	{
+		D3D11_TEXTURE2D_DESC Texture2DDesc{};
+		Texture2DDesc.ArraySize = 1;
+		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		Texture2DDesc.CPUAccessFlags = 0;
+		Texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		Texture2DDesc.Height = static_cast<UINT>(m_WindowSize.y);
+		Texture2DDesc.MipLevels = 1;
+		Texture2DDesc.SampleDesc.Count = 1;
+		Texture2DDesc.SampleDesc.Quality = 0;
+		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+		Texture2DDesc.Width = static_cast<UINT>(m_WindowSize.x);
+		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_ScreenQuadTexture.ReleaseAndGetAddressOf());
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC ScreenQuadSRVDesc{};
+		ScreenQuadSRVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		ScreenQuadSRVDesc.Texture2D.MipLevels = 1;
+		ScreenQuadSRVDesc.Texture2D.MostDetailedMip = 0;
+		ScreenQuadSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		m_Device->CreateShaderResourceView(m_ScreenQuadTexture.Get(), &ScreenQuadSRVDesc, m_ScreenQuadSRV.ReleaseAndGetAddressOf());
+
+		D3D11_RENDER_TARGET_VIEW_DESC ScreenQuadRTVDesc{};
+		ScreenQuadRTVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
+		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		m_Device->CreateRenderTargetView(m_ScreenQuadTexture.Get(), &ScreenQuadRTVDesc, m_ScreenQuadRTV.ReleaseAndGetAddressOf());
+	}
 
 	D3D11_TEXTURE2D_DESC DepthStencilBufferDesc{};
 	DepthStencilBufferDesc.ArraySize = 1;
@@ -263,8 +300,6 @@ void CGame::CreateSetViews()
 	DepthStencilBufferDesc.Usage = D3D11_USAGE_DEFAULT;
 	m_Device->CreateTexture2D(&DepthStencilBufferDesc, nullptr, &m_DepthStencilBuffer);
 	m_Device->CreateDepthStencilView(m_DepthStencilBuffer.Get(), nullptr, &m_DepthStencilView);
-
-	m_DeviceContext->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), m_DepthStencilView.Get());
 }
 
 void CGame::SetViewports()
@@ -415,6 +450,10 @@ void CGame::CreateBaseShaders()
 	m_VSParticle->Create(EShaderType::VertexShader, L"Shader\\VSParticle.hlsl", "main",
 		CParticlePool::KInputElementDescs, ARRAYSIZE(CParticlePool::KInputElementDescs));
 
+	m_VSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	//m_VSScreenQuad->Create(EShaderType::VertexShader, L"Shader\\VSScreenQuad.hlsl", "main");
+	m_VSScreenQuad->Create(EShaderType::VertexShader, L"Shader\\VSScreenQuad.hlsl", "main", KScreenQuadInputElementDescs, ARRAYSIZE(KScreenQuadInputElementDescs));
+
 	m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSBase2D->Create(EShaderType::VertexShader, L"Shader\\VSBase2D.hlsl", "main", CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
 	m_VSBase2D->AddConstantBuffer(&m_CBSpace2DData, sizeof(SCBSpace2DData));
@@ -497,6 +536,14 @@ void CGame::CreateBaseShaders()
 	m_PSCamera->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
 	m_PSCamera->AddConstantBuffer(&m_CBEditorTimeData, sizeof(SCBEditorTimeData));
 	m_PSCamera->AddConstantBuffer(&m_CBCameraSelectionData, sizeof(SCBCameraSelectionData));
+
+	m_PSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSScreenQuad->Create(EShaderType::PixelShader, L"Shader\\PSScreenQuad.hlsl", "main");
+
+	m_CBScreenData.InverseScreenSize = XMFLOAT2(1.0f / m_WindowSize.x, 1.0f / m_WindowSize.y);
+	m_PSEdgeDetector = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSEdgeDetector->Create(EShaderType::PixelShader, L"Shader\\PSEdgeDetector.hlsl", "main");
+	m_PSEdgeDetector->AddConstantBuffer(&m_CBScreenData, sizeof(SCBScreenData));
 
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
@@ -693,6 +740,21 @@ void CGame::Create3DGizmos()
 		m_Object3D_3DGizmoScalingZ->ComponentRender.PtrVS = m_VSGizmo.get();
 		m_Object3D_3DGizmoScalingZ->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
+}
+
+void CGame::CreateScreenQuadVertexBuffer()
+{
+	D3D11_BUFFER_DESC BufferDesc{};
+	BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SScreenQuadVertex) * m_vScreenQuadVertices.size());
+	BufferDesc.CPUAccessFlags = 0;
+	BufferDesc.MiscFlags = 0;
+	BufferDesc.StructureByteStride = 0;
+	BufferDesc.Usage = D3D11_USAGE_DEFAULT;
+
+	D3D11_SUBRESOURCE_DATA SubresourceData{};
+	SubresourceData.pSysMem = &m_vScreenQuadVertices[0];
+	m_Device->CreateBuffer(&BufferDesc, &SubresourceData, &m_ScreenQuadVertexBuffer);
 }
 
 void CGame::LoadScene(const string& FileName)
@@ -1542,6 +1604,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::VSParticle:
 		Result = m_VSParticle.get();
 		break;
+	case EBaseShader::VSScreenQuad:
+		Result = m_VSScreenQuad.get();
+		break;
 	case EBaseShader::VSBase2D:
 		Result = m_VSBase2D.get();
 		break;
@@ -1595,6 +1660,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSCamera:
 		Result = m_PSCamera.get();
+		break;
+	case EBaseShader::PSScreenQuad:
+		Result = m_PSScreenQuad.get();
 		break;
 	case EBaseShader::PSBase2D:
 		Result = m_PSBase2D.get();
@@ -2560,7 +2628,9 @@ bool CGame::PickTriangle()
 
 void CGame::BeginRendering(const FLOAT* ClearColor)
 {
-	m_DeviceContext->ClearRenderTargetView(m_RenderTargetView.Get(), Colors::CornflowerBlue);
+	m_DeviceContext->OMSetRenderTargets(1, m_ScreenQuadRTV.GetAddressOf(), m_DepthStencilView.Get());
+
+	m_DeviceContext->ClearRenderTargetView(m_ScreenQuadRTV.Get(), Colors::CornflowerBlue);
 	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	ID3D11SamplerState* SamplerState{ m_CommonStates->LinearWrap() };
@@ -2766,11 +2836,6 @@ void CGame::Draw()
 			DrawPickedTriangle();
 		}
 
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
-		{
-			Draw3DGizmos();
-		}
-
 		DrawCameraRepresentations();
 
 		DrawObject3DLines();
@@ -2822,11 +2887,6 @@ void CGame::Draw()
 	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
 
 	DrawObject2Ds();
-
-	if (m_eMode != EMode::Play)
-	{
-		DrawEditorGUI();
-	}
 }
 
 void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
@@ -2863,7 +2923,7 @@ void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
 	PS->UpdateAllConstantBuffers();
 }
 
-void CGame::DrawObject3D(const CObject3D* const PtrObject3D)
+void CGame::DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstances)
 {
 	if (!PtrObject3D) return;
 
@@ -2887,7 +2947,7 @@ void CGame::DrawObject3D(const CObject3D* const PtrObject3D)
 		SetUniversalRSState();
 	}
 
-	PtrObject3D->Draw();
+	PtrObject3D->Draw(false, bIgnoreInstances);
 
 	if (PtrObject3D->ShouldTessellate())
 	{
@@ -5419,7 +5479,83 @@ void CGame::EndRendering()
 {
 	if (m_IsDestroyed) return;
 
+	// Pass-through drawing
+	DrawScreenQuadToSceen(m_PSScreenQuad.get(), true);
+
+	// Edge detection
+	{
+		m_DeviceContext->OMSetRenderTargets(1, m_ScreenQuadRTV.GetAddressOf(), m_DepthStencilView.Get());
+		m_DeviceContext->ClearRenderTargetView(m_ScreenQuadRTV.Get(), Colors::Transparent);
+		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+		if (IsAnyObject3DSelected())
+		{
+			CObject3D* const Object3D{ GetSelectedObject3D() };
+			if (IsAnyInstanceSelected())
+			{
+				int InstanceID{ GetSelectedInstanceID() };
+				const auto& InstanceGPUData{ Object3D->GetInstanceGPUData(InstanceID) };
+				
+				UpdateObject3D(Object3D);
+
+				UpdateCBSpace(InstanceGPUData.WorldMatrix);
+				m_VSBase->Use();
+				m_VSBase->UpdateAllConstantBuffers();
+
+				DrawObject3D(Object3D, true);
+			}
+			else
+			{
+				UpdateObject3D(Object3D);
+				DrawObject3D(Object3D);
+			}
+		}
+
+		DrawScreenQuadToSceen(m_PSEdgeDetector.get(), false);
+	}
+
+	if (m_eMode != EMode::Play)
+	{
+		m_DeviceContext->OMSetRenderTargets(1, m_DeviceRTV.GetAddressOf(), m_DepthStencilView.Get());
+		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+		if (m_eMode == EMode::Edit)
+		{
+			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos))
+			{
+				Draw3DGizmos();
+			}
+		}
+
+		DrawEditorGUI();
+	}
+
 	m_SwapChain->Present(0, 0);
+}
+
+void CGame::DrawScreenQuadToSceen(CShader* const PixelShader, bool bShouldClearDeviceRTV)
+{
+	m_DeviceContext->RSSetState(m_CommonStates->CullNone());
+
+	// Deferred texture to screen
+	m_DeviceContext->OMSetRenderTargets(1, m_DeviceRTV.GetAddressOf(), m_DepthStencilView.Get());
+	if (bShouldClearDeviceRTV) m_DeviceContext->ClearRenderTargetView(m_DeviceRTV.Get(), Colors::Transparent);
+	//m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+	m_VSScreenQuad->Use();
+	PixelShader->UpdateAllConstantBuffers();
+	PixelShader->Use();
+
+	ID3D11SamplerState* const PointSampler{ m_CommonStates->PointWrap() };
+	m_DeviceContext->PSSetSamplers(0, 1, &PointSampler);
+	m_DeviceContext->PSSetShaderResources(0, 1, m_ScreenQuadSRV.GetAddressOf());
+
+	// Draw full-screen quad vertices
+	m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_DeviceContext->IASetVertexBuffers(0, 1, m_ScreenQuadVertexBuffer.GetAddressOf(), &m_ScreenQuadVertexBufferStride, &m_ScreenQuadVertexBufferOffset);
+	m_DeviceContext->Draw(6, 0);
+
+	SetUniversalRSState();
 }
 
 Keyboard::State CGame::GetKeyState() const

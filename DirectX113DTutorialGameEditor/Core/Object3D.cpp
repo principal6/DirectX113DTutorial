@@ -846,7 +846,7 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentA
 	}
 }
 
-void CObject3D::Draw(bool bIgnoreOwnTexture) const
+void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 {
 	if (m_BakedAnimationTexture) m_BakedAnimationTexture->Use();
 	
@@ -896,7 +896,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 				&m_vMeshBuffers[iMesh].VertexBufferAnimationStride, &m_vMeshBuffers[iMesh].VertexBufferAnimationOffset);
 		}
 
-		if (IsInstanced())
+		if (IsInstanced() && !bIgnoreInstances)
 		{
 			m_PtrDeviceContext->IASetVertexBuffers(2, 1, m_vInstanceBuffers[iMesh].Buffer.GetAddressOf(),
 				&m_vInstanceBuffers[iMesh].Stride, &m_vInstanceBuffers[iMesh].Offset);
@@ -911,7 +911,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture) const
 			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		}
 		
-		if (m_vInstanceCPUData.size())
+		if (m_vInstanceCPUData.size() && !bIgnoreInstances)
 		{
 			m_PtrDeviceContext->DrawIndexedInstanced(static_cast<UINT>(Mesh.vTriangles.size() * 3), static_cast<UINT>(m_vInstanceCPUData.size()), 0, 0, 0);
 		}

@@ -157,7 +157,7 @@ public:
 	void UpdateAllInstancesWorldMatrix();
 
 	void Animate(float DeltaTime);
-	void Draw(bool bIgnoreOwnTexture = false) const;
+	void Draw(bool bIgnoreOwnTexture = false, bool bIgnoreInstances = false) const;
 
 public:
 	bool ShouldTessellate() const { return m_bShouldTesselate; }

@@ -35,6 +35,7 @@ public:
 		VSTerrain,
 		VSFoliage,
 		VSParticle,
+		VSScreenQuad,
 		VSBase2D,
 
 		HSTerrain,
@@ -57,6 +58,8 @@ public:
 		PSFoliage,
 		PSParticle,
 		PSCamera,
+		PSScreenQuad,
+		PSEdgeDetector,
 
 		PSBase2D,
 		PSMasking2D,
@@ -173,6 +176,12 @@ public:
 		float		Pads[3]{};
 	};
 
+	struct SCBScreenData
+	{
+		XMFLOAT2	InverseScreenSize{};
+		float		Pads[2]{};
+	};
+
 	enum class EFlagsRendering
 	{
 		None = 0x000,
@@ -262,6 +271,13 @@ public:
 		bool		bHasFailedPickingTest{ false };
 	};
 
+	struct SScreenQuadVertex
+	{
+		SScreenQuadVertex(const XMFLOAT4& _Position, const XMFLOAT2& _TexCoord) : Position{ _Position }, TexCoord{ _TexCoord } {}
+		XMFLOAT4 Position;
+		XMFLOAT2 TexCoord;
+	};
+
 public:
 	CGame(HINSTANCE hInstance, const XMFLOAT2& WindowSize) : m_hInstance{ hInstance }, m_WindowSize{ WindowSize } {}
 	~CGame() {}
@@ -279,7 +295,7 @@ private:
 
 private:
 	void CreateSwapChain(bool bWindowed);
-	void CreateSetViews();
+	void CreateViews();
 	void SetViewports();
 	void CreateDepthStencilStates();
 	void CreateBlendStates();
@@ -290,6 +306,7 @@ private:
 	void CreateBoundingSphere();
 	void CreatePickedTriangle();
 	void Create3DGizmos();
+	void CreateScreenQuadVertexBuffer();
 
 public:
 	void LoadScene(const std::string& FileName);
@@ -455,6 +472,9 @@ public:
 	void Draw();
 	void EndRendering();
 
+private:
+	void DrawScreenQuadToSceen(CShader* const PixelShader, bool bShouldClearDeviceRTV);
+
 public:
 	auto GethWnd() const->HWND { return m_hWnd; }
 	auto GetDevicePtr() const->ID3D11Device* { return m_Device.Get(); }
@@ -473,7 +493,7 @@ public:
 
 private:
 	void UpdateObject3D(CObject3D* const PtrObject3D);
-	void DrawObject3D(const CObject3D* const PtrObject3D);
+	void DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstances = false);
 	void DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D);
 
 	void DrawObject3DLines();
@@ -553,6 +573,7 @@ private:
 	std::unique_ptr<CShader>	m_VSTerrain{};
 	std::unique_ptr<CShader>	m_VSFoliage{};
 	std::unique_ptr<CShader>	m_VSParticle{};
+	std::unique_ptr<CShader>	m_VSScreenQuad{};
 
 	std::unique_ptr<CShader>	m_VSBase2D{};
 
@@ -576,6 +597,8 @@ private:
 	std::unique_ptr<CShader>	m_PSFoliage{};
 	std::unique_ptr<CShader>	m_PSParticle{};
 	std::unique_ptr<CShader>	m_PSCamera{};
+	std::unique_ptr<CShader>	m_PSScreenQuad{};
+	std::unique_ptr<CShader>	m_PSEdgeDetector{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
@@ -606,6 +629,7 @@ private:
 	SCBWaterTimeData					m_CBWaterTimeData{};
 	SCBEditorTimeData					m_CBEditorTimeData{};
 	SCBCameraSelectionData				m_CBCameraSelectionData{};
+	SCBScreenData						m_CBScreenData{};
 
 private:
 	std::vector<std::unique_ptr<CShader>>				m_vShaders{};
@@ -718,15 +742,35 @@ private:
 	EFlagsRendering		m_eFlagsRendering{};
 
 private:
-	ComPtr<IDXGISwapChain>			m_SwapChain{};
-	ComPtr<ID3D11Device>			m_Device{};
-	ComPtr<ID3D11DeviceContext>		m_DeviceContext{};
-	ComPtr<ID3D11RenderTargetView>	m_RenderTargetView{};
-	ComPtr<ID3D11DepthStencilView>	m_DepthStencilView{};
-	ComPtr<ID3D11Texture2D>			m_DepthStencilBuffer{};
-	ComPtr<ID3D11DepthStencilState>	m_DepthStencilStateLessEqualNoWrite{};
-	ComPtr<ID3D11DepthStencilState>	m_DepthStencilStateAlways{};
-	ComPtr<ID3D11BlendState>		m_BlendAlphaToCoverage{};
+	std::vector<SScreenQuadVertex>		m_vScreenQuadVertices
+	{
+		{ XMFLOAT4(-1, +1, 0, 1), XMFLOAT2(0, 0) },
+		{ XMFLOAT4(+1, +1, 0, 1), XMFLOAT2(1, 0) },
+		{ XMFLOAT4(-1, -1, 0, 1), XMFLOAT2(0, 1) },
+		{ XMFLOAT4(+1, +1, 0, 1), XMFLOAT2(1, 0) },
+		{ XMFLOAT4(+1, -1, 0, 1), XMFLOAT2(1, 1) },
+		{ XMFLOAT4(-1, -1, 0, 1), XMFLOAT2(0, 1) },
+	};
+	ComPtr<ID3D11Buffer>				m_ScreenQuadVertexBuffer{};
+	UINT								m_ScreenQuadVertexBufferStride{ sizeof(SScreenQuadVertex) };
+	UINT								m_ScreenQuadVertexBufferOffset{};
+
+private:
+	ComPtr<IDXGISwapChain>				m_SwapChain{};
+	ComPtr<ID3D11Device>				m_Device{};
+	ComPtr<ID3D11DeviceContext>			m_DeviceContext{};
+
+	ComPtr<ID3D11RenderTargetView>		m_DeviceRTV{};
+	ComPtr<ID3D11RenderTargetView>		m_ScreenQuadRTV{};
+	ComPtr<ID3D11ShaderResourceView>	m_ScreenQuadSRV{};
+	ComPtr<ID3D11Texture2D>				m_ScreenQuadTexture{};
+	
+	ComPtr<ID3D11DepthStencilView>		m_DepthStencilView{};
+	ComPtr<ID3D11Texture2D>				m_DepthStencilBuffer{};
+
+	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateLessEqualNoWrite{};
+	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateAlways{};
+	ComPtr<ID3D11BlendState>			m_BlendAlphaToCoverage{};
 
 	std::unique_ptr<Keyboard>			m_Keyboard{};
 	std::unique_ptr<Mouse>				m_Mouse{};

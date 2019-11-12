@@ -68,15 +68,15 @@ void CShader::Create(EShaderType Type, const wstring& FileName, const string& En
 	switch (m_ShaderType)
 	{
 	case EShaderType::VertexShader:
-		assert(InputElementDescs);
-
 		D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
 			"vs_4_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
 
 		m_PtrDevice->CreateVertexShader(m_Blob->GetBufferPointer(), m_Blob->GetBufferSize(), nullptr, &m_VertexShader);
 
-		m_PtrDevice->CreateInputLayout(InputElementDescs, NumElements,
-			m_Blob->GetBufferPointer(), m_Blob->GetBufferSize(), &m_InputLayout);
+		if (InputElementDescs)
+		{
+			m_PtrDevice->CreateInputLayout(InputElementDescs, NumElements, m_Blob->GetBufferPointer(), m_Blob->GetBufferSize(), &m_InputLayout);
+		}
 		break;
 	case EShaderType::HullShader:
 		D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
