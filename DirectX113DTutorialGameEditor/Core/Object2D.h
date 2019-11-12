@@ -113,5 +113,5 @@ private:
 	UINT									m_VertexBufferOffset{};
 	ComPtr<ID3D11Buffer>					m_IndexBuffer{};
 
-	std::unique_ptr<CMaterial::CTexture>	m_Texture{};
+	std::unique_ptr<CTexture>	m_Texture{};
 };

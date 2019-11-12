@@ -25,7 +25,7 @@ void CParticlePool::SetSpawningInterval(float Value)
 
 void CParticlePool::SetTexture(const string& FileName)
 {
-	m_ParticleTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_ParticleTexture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_ParticleTexture->CreateTextureFromFile(FileName, false);
 	m_ParticleTexture->SetSlot(0);
 

@@ -1,8 +1,5 @@
 #include "Core/Game.h"
 
-// ### TODO ###
-// Add edge detection on selected object
-
 IMGUI_IMPL_API LRESULT  ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_ LPARAM lParam);
 
@@ -42,8 +39,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		}
 		else
 		{
-			Game.BeginRendering(Colors::CornflowerBlue);
-
 			if (KeyDown == VK_F1)
 			{
 				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawWireFrame);
@@ -60,6 +55,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			{
 				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawBoundingSphere);
 			}
+
+			Game.BeginRendering(Colors::CornflowerBlue);
 
 			Game.Update();
 			Game.Draw();

@@ -76,7 +76,7 @@ public:
 		std::vector<std::string> vFoliageFileNames{};
 		std::vector<SPixel8UInt> vFoliagePlacingTextureRawData{};
 
-		std::vector<CMaterial> vTerrainMaterials{};
+		std::vector<CMaterialData> vTerrainMaterialData{};
 	};
 
 public:
@@ -89,7 +89,7 @@ public:
 	~CTerrain() {}
 
 public:
-	void Create(const XMFLOAT2& TerrainSize, const CMaterial& Material, uint32_t MaskingDetail, float UniformScaling = 1.0f);
+	void Create(const XMFLOAT2& TerrainSize, const CMaterialData& MaterialData, uint32_t MaskingDetail, float UniformScaling = 1.0f);
 	void Load(const std::string& FileName);
 	void Save(const std::string& FileName);
 
@@ -109,7 +109,7 @@ public:
 	float GetWindRadius() const;
 
 private:
-	void CreateTerrainObject3D(std::vector<CMaterial>& vMaterialsl);
+	void CreateTerrainObject3D(const std::vector<CMaterialData>& vMaterialData);
 	void CreateHeightMapTexture(bool bShouldClear);
 	void CreateMaskingTexture(bool bShouldClear);
 	void CreateWater();
@@ -117,9 +117,9 @@ private:
 	void CreateWindRepresentation();
 
 public:
-	void AddMaterial(const CMaterial& Material);
-	void SetMaterial(int MaterialID, const CMaterial& NewMaterial);
-	const CMaterial& GetMaterial(int Index) const;
+	void AddMaterial(const CMaterialData& MaterialData);
+	void SetMaterial(int MaterialID, const CMaterialData& NewMaterialData);
+	const CMaterialData& GetMaterial(int Index) const;
 	
 public:
 	void Select(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton);
@@ -211,7 +211,7 @@ public:
 	static constexpr int KMinSize{ 2 };
 	static constexpr int KDefaultSize{ 10 };
 
-	static constexpr size_t KMaskingTextureSlot{ 10 };
+	static constexpr size_t KMaskingTextureSlot{ 20 };
 	static constexpr float KMaskingMinRatio{ 0.0f };
 	static constexpr float KMaskingMaxRatio{ 1.0f };
 	static constexpr float KMaskingDefaultRatio{ KMaskingMaxRatio };
@@ -250,23 +250,23 @@ private:
 
 private:
 	XMFLOAT2								m_HeightMapTextureSize{};
-	std::unique_ptr<CMaterial::CTexture>	m_HeightMapTexture{};
+	std::unique_ptr<CTexture>	m_HeightMapTexture{};
 
 private:
 	XMFLOAT2								m_MaskingTextureSize{};
-	std::unique_ptr<CMaterial::CTexture>	m_MaskingTexture{};
+	std::unique_ptr<CTexture>	m_MaskingTexture{};
 	XMMATRIX								m_MatrixMaskingSpace{};
 
 private:
 	std::unique_ptr<CObject3D>				m_Object3DWater{};
-	std::unique_ptr<CMaterial::CTexture>	m_WaterDiffuseTexture{};
-	std::unique_ptr<CMaterial::CTexture>	m_WaterNormalTexture{};
-	std::unique_ptr<CMaterial::CTexture>	m_WaterDisplacementTexture{};
+	std::unique_ptr<CTexture>	m_WaterDiffuseTexture{};
+	std::unique_ptr<CTexture>	m_WaterNormalTexture{};
+	std::unique_ptr<CTexture>	m_WaterDisplacementTexture{};
 
 private:
 	std::vector<std::unique_ptr<CObject3D>>	m_vFoliages{};
 	XMFLOAT2								m_FoliagePlacingTextureSize{};
-	std::unique_ptr<CMaterial::CTexture>	m_FoliagePlacingTexture{};
+	std::unique_ptr<CTexture>	m_FoliagePlacingTexture{};
 
 	SCBWindData							m_CBWindData{};
 	std::unique_ptr<CObject3D>			m_Object3DWindRepresentation{};

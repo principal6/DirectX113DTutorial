@@ -148,80 +148,55 @@ void CGame::InitializeEditorAssets()
 	m_Object3D_CameraRepresentation->ComponentRender.PtrVS = GetBaseShader(EBaseShader::VSBase);
 	m_Object3D_CameraRepresentation->ComponentRender.PtrPS = GetBaseShader(EBaseShader::PSCamera);
 
-	InsertObject3DLine("Grid");
+	if (InsertObject3DLine("Grid"))
 	{
 		CObject3DLine* Grid{ GetObject3DLine("Grid") };
 		Grid->Create(Generate3DGrid(0));
 	}
 
+	if (InsertMaterial("test"))
 	{
-		CMaterial Material{};
-		Material.SetName("test");
-		Material.ShouldGenerateAutoMipMap(true);
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\test_diffuse.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\test_normal.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\test_displacement.jpg");
-		AddMaterial(Material);
+		CMaterialData* MaterialData{ GetMaterial("test") };
+		MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\test_diffuse.jpg");
+		MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\test_normal.jpg");
+		MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\test_displacement.jpg");
+		CreateMaterialTextures(*MaterialData);
 	}
 
+	if (InsertMaterial("grass_path"))
 	{
-		CMaterial Material{};
-		Material.SetName("red_mud_stones");
-		Material.ShouldGenerateAutoMipMap(true);
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\red_mud_stones_diffuse.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\red_mud_stones_normal.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\red_mud_stones_displacement.jpg");
-		AddMaterial(Material);
-	}
-	
-	{
-		CMaterial Material{};
-		Material.SetName("grass_path");
-		Material.ShouldGenerateAutoMipMap(true);
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\grass_path_diffuse.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\grass_path_normal.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\grass_path_displacement.jpg");
-		AddMaterial(Material);
-	}
-	
-	{
-		CMaterial Material{};
-		Material.SetName("burned_ground");
-		Material.ShouldGenerateAutoMipMap(true);
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\burned_ground_diffuse.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\burned_ground_normal.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
-		AddMaterial(Material);
+		CMaterialData* MaterialData{ GetMaterial("grass_path") };
+		MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\grass_path_diffuse.jpg");
+		MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\grass_path_normal.jpg");
+		MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\grass_path_displacement.jpg");
+		CreateMaterialTextures(*MaterialData);
 	}
 
+	if (InsertMaterial("burned_ground"))
 	{
-		CMaterial Material{};
-		Material.SetName("cobblestone_large");
-		Material.ShouldGenerateAutoMipMap(true);
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\cobblestone_large_diffuse.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\cobblestone_large_displacement.jpg");
-		AddMaterial(Material);
+		CMaterialData* MaterialData{ GetMaterial("burned_ground") };
+		MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\burned_ground_diffuse.jpg");
+		MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\burned_ground_normal.jpg");
+		MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
+		CreateMaterialTextures(*MaterialData);
 	}
 
+	if (InsertMaterial("cobblestone_large"))
 	{
-		CMaterial Material{};
-		Material.SetName("brown_mud_dry");
-		Material.ShouldGenerateAutoMipMap(true);
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\brown_mud_dry_diffuse.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
-		AddMaterial(Material);
+		CMaterialData* MaterialData{ GetMaterial("cobblestone_large") };
+		MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\cobblestone_large_diffuse.jpg");
+		MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
+		MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\cobblestone_large_displacement.jpg");
+		CreateMaterialTextures(*MaterialData);
 	}
 
+	if (InsertMaterial("brown_mud_dry"))
 	{
-		CMaterial Material{};
-		Material.SetName("castle_brick");
-		Material.ShouldGenerateAutoMipMap(true);
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, "Asset\\castle_brick_diffuse.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, "Asset\\castle_brick_normal.jpg");
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, "Asset\\castle_brick_displacement.jpg");
-		AddMaterial(Material);
+		CMaterialData* MaterialData{ GetMaterial("brown_mud_dry") };
+		MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\brown_mud_dry_diffuse.jpg");
+		MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
+		MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
+		CreateMaterialTextures(*MaterialData);
 	}
 }
 
@@ -575,23 +550,23 @@ void CGame::CreateMiniAxes()
 	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>("AxisZ", m_Device.Get(), m_DeviceContext.Get(), this));
 
 	SMesh Cone{ GenerateCone(0, 1.0f, 1.0f, 16) };
-	vector<CMaterial> vMaterials{};
-	vMaterials.resize(3);
-	vMaterials[0].SetUniformColor(XMFLOAT3(1, 0, 0));
-	vMaterials[1].SetUniformColor(XMFLOAT3(0, 1, 0));
-	vMaterials[2].SetUniformColor(XMFLOAT3(0, 0, 1));
-	m_vObject3DMiniAxes[0]->Create(Cone, vMaterials[0]);
+	vector<CMaterialData> vMaterialData{};
+	vMaterialData.resize(3);
+	vMaterialData[0].SetUniformColor(XMFLOAT3(1, 0, 0));
+	vMaterialData[1].SetUniformColor(XMFLOAT3(0, 1, 0));
+	vMaterialData[2].SetUniformColor(XMFLOAT3(0, 0, 1));
+	m_vObject3DMiniAxes[0]->Create(Cone, vMaterialData[0]);
 	m_vObject3DMiniAxes[0]->ComponentRender.PtrVS = m_VSBase.get();
 	m_vObject3DMiniAxes[0]->ComponentRender.PtrPS = m_PSBase.get();
 	m_vObject3DMiniAxes[0]->ComponentTransform.Roll = -XM_PIDIV2;
 	m_vObject3DMiniAxes[0]->eFlagsRendering = CObject3D::EFlagsRendering::NoLighting;
 
-	m_vObject3DMiniAxes[1]->Create(Cone, vMaterials[1]);
+	m_vObject3DMiniAxes[1]->Create(Cone, vMaterialData[1]);
 	m_vObject3DMiniAxes[1]->ComponentRender.PtrVS = m_VSBase.get();
 	m_vObject3DMiniAxes[1]->ComponentRender.PtrPS = m_PSBase.get();
 	m_vObject3DMiniAxes[1]->eFlagsRendering = CObject3D::EFlagsRendering::NoLighting;
 
-	m_vObject3DMiniAxes[2]->Create(Cone, vMaterials[2]);
+	m_vObject3DMiniAxes[2]->Create(Cone, vMaterialData[2]);
 	m_vObject3DMiniAxes[2]->ComponentRender.PtrVS = m_VSBase.get();
 	m_vObject3DMiniAxes[2]->ComponentRender.PtrPS = m_PSBase.get();
 	m_vObject3DMiniAxes[2]->ComponentTransform.Yaw = -XM_PIDIV2;
@@ -871,6 +846,12 @@ void CGame::LoadScene(const string& FileName)
 						Object3D->ComponentPhysics.BoundingSphere.Radius = Radius;
 					}
 
+					if (strcmp(ID, "BSRadiusBias") == 0)
+					{
+						float RadiusBias{ xmlObjectChild->FloatAttribute("Value") };
+						Object3D->ComponentPhysics.BoundingSphere.RadiusBias = RadiusBias;
+					}
+
 					if (strcmp(ID, "InstanceList") == 0)
 					{
 						vector<XMLElement*> vxmlInstances{};
@@ -1057,6 +1038,13 @@ void CGame::SaveScene(const string& FileName)
 					xmlObject->InsertEndChild(xmlBSRadius);
 				}
 
+				XMLElement* xmlBSRadiusBias{ xmlDocument.NewElement("BSRadiusBias") };
+				{
+					xmlBSRadiusBias->SetAttribute("ID", "BSRadiusBias");
+					xmlBSRadiusBias->SetAttribute("Value", Object3D->ComponentPhysics.BoundingSphere.RadiusBias);
+					xmlObject->InsertEndChild(xmlBSRadiusBias);
+				}
+
 				if (Object3D->IsInstanced())
 				{
 					XMLElement* xmlInstanceList{ xmlDocument.NewElement("InstanceList") };
@@ -1236,17 +1224,17 @@ void CGame::UpdateCBDisplacementData(bool bUseDisplacement)
 	m_DSTerrain->UpdateAllConstantBuffers();
 }
 
-void CGame::UpdateCBMaterial(const CMaterial& Material)
+void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
 {
-	m_CBMaterialData.MaterialAmbient = Material.GetAmbientColor();
-	m_CBMaterialData.MaterialDiffuse = Material.GetDiffuseColor();
-	m_CBMaterialData.MaterialSpecular = Material.GetSpecularColor();
-	m_CBMaterialData.SpecularExponent = Material.GetSpecularExponent();
-	m_CBMaterialData.SpecularIntensity = Material.GetSpecularIntensity();
+	m_CBMaterialData.MaterialAmbient = MaterialData.AmbientColor();
+	m_CBMaterialData.MaterialDiffuse = MaterialData.DiffuseColor();
+	m_CBMaterialData.MaterialSpecular = MaterialData.SpecularColor();
+	m_CBMaterialData.SpecularExponent = MaterialData.SpecularExponent();
+	m_CBMaterialData.SpecularIntensity = MaterialData.SpecularIntensity();
 
-	m_CBMaterialData.bHasDiffuseTexture = Material.HasTexture(CMaterial::CTexture::EType::DiffuseTexture);
-	m_CBMaterialData.bHasNormalTexture = Material.HasTexture(CMaterial::CTexture::EType::NormalTexture);
-	m_CBMaterialData.bHasOpacityTexture = Material.HasTexture(CMaterial::CTexture::EType::OpacityTexture);
+	m_CBMaterialData.bHasDiffuseTexture = MaterialData.HasTexture(STextureData::EType::DiffuseTexture);
+	m_CBMaterialData.bHasNormalTexture = MaterialData.HasTexture(STextureData::EType::NormalTexture);
+	m_CBMaterialData.bHasOpacityTexture = MaterialData.HasTexture(STextureData::EType::OpacityTexture);
 
 	m_PSBase->UpdateConstantBuffer(2);
 	m_PSFoliage->UpdateConstantBuffer(2);
@@ -1305,10 +1293,10 @@ void CGame::CreateDynamicSky(const string& SkyDataFileName, float ScalingFactor)
 		LoadSkyObjectData(xmlCloud, m_SkyData.Cloud);
 	}
 
-	m_SkyMaterial.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, m_SkyData.TextureFileName);
+	m_SkyMaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, m_SkyData.TextureFileName);
 
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterial);
+	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterialData);
 	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
 	m_Object3DSkySphere->ComponentRender.PtrVS = m_VSSky.get();
 	m_Object3DSkySphere->ComponentRender.PtrPS = m_PSDynamicSky.get();
@@ -1316,7 +1304,7 @@ void CGame::CreateDynamicSky(const string& SkyDataFileName, float ScalingFactor)
 	m_Object3DSkySphere->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
 
 	m_Object3DSun = make_unique<CObject3D>("Sun", m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DSun->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
+	m_Object3DSun->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterialData);
 	m_Object3DSun->UpdateQuadUV(m_SkyData.Sun.UVOffset, m_SkyData.Sun.UVSize);
 	m_Object3DSun->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Sun.WidthHeightRatio, 0);
 	m_Object3DSun->ComponentRender.PtrVS = m_VSSky.get();
@@ -1326,7 +1314,7 @@ void CGame::CreateDynamicSky(const string& SkyDataFileName, float ScalingFactor)
 	m_Object3DSun->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
 	
 	m_Object3DMoon = make_unique<CObject3D>("Moon", m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DMoon->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterial);
+	m_Object3DMoon->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterialData);
 	m_Object3DMoon->UpdateQuadUV(m_SkyData.Moon.UVOffset, m_SkyData.Moon.UVSize);
 	m_Object3DMoon->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Moon.WidthHeightRatio, 0);
 	m_Object3DMoon->ComponentRender.PtrVS = m_VSSky.get();
@@ -1434,6 +1422,19 @@ float CGame::GetAmbientLightIntensity() const
 
 void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, uint32_t MaskingDetail, float UniformScaling)
 {
+	CMaterialData* DefaultMaterial{ GetMaterial("brown_mud_dry") };
+	if (!DefaultMaterial)
+	{
+		if (InsertMaterial("brown_mud_dry"))
+		{
+			CMaterialData* MaterialData{ GetMaterial("brown_mud_dry") };
+			MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\brown_mud_dry_diffuse.jpg");
+			MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
+			MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
+			CreateMaterialTextures(*MaterialData);
+		}
+	}
+
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Create(TerrainSize, *GetMaterial("brown_mud_dry"), MaskingDetail, UniformScaling);
 	
@@ -1453,9 +1454,11 @@ void CGame::LoadTerrain(const string& TerrainFileName)
 	int MaterialCount{ m_Terrain->GetMaterialCount() };
 	for (int iMaterial = 0; iMaterial < MaterialCount; ++iMaterial)
 	{
-		const CMaterial& Material{ m_Terrain->GetMaterial(iMaterial) };
-
-		AddMaterial(Material);
+		const CMaterialData& TerrainMaterialData{ m_Terrain->GetMaterial(iMaterial) };
+		
+		InsertMaterial(TerrainMaterialData.Name());
+		CMaterialData* MaterialData{ GetMaterial(TerrainMaterialData.Name()) };
+		*MaterialData = TerrainMaterialData;
 	}
 }
 
@@ -1467,41 +1470,29 @@ void CGame::SaveTerrain(const string& TerrainFileName)
 	m_Terrain->Save(TerrainFileName);
 }
 
-void CGame::AddTerrainMaterial(const CMaterial& Material)
-{
-	if (!m_Terrain) return;
-
-	m_Terrain->AddMaterial(Material);
-}
-
-void CGame::SetTerrainMaterial(int MaterialID, const CMaterial& Material)
-{
-	if (!m_Terrain) return;
-
-	m_Terrain->SetMaterial(MaterialID, Material);
-}
-
-void CGame::InsertCamera(const string& Name)
+bool CGame::InsertCamera(const string& Name)
 {
 	if (m_mapCameraNameToIndex.find(Name) != m_mapCameraNameToIndex.end())
 	{
 		MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Camera 생성 실패");
-		return;
+		return false;
 	}
 
-	if (Name.size() >= KObjectNameMaxLength)
+	if (Name.size() >= KAssetNameMaxLength)
 	{
 		MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Camera 생성 실패");
-		return;
+		return false;
 	}
 	else if (Name.size() == 0)
 	{
 		MB_WARN("이름은 공백일 수 없습니다.", "Camera 생성 실패");
-		return;
+		return false;
 	}
 
 	m_vCameras.emplace_back(make_unique<CCamera>(Name));
 	m_mapCameraNameToIndex[Name] = m_vCameras.size() - 1;
+
+	return true;
 }
 
 void CGame::DeleteCamera(const std::string& Name)
@@ -1560,7 +1551,9 @@ CCamera* CGame::GetCamera(const string& Name, bool bShowWarning)
 
 void CGame::CreateEditorCamera()
 {
-	InsertCamera(u8"Editor Camera");
+	if (GetEditorCamera(false)) return;
+
+	assert(InsertCamera(u8"Editor Camera"));
 	CCamera* EditorCamera{ GetEditorCamera() };
 	EditorCamera->SetData(CCamera::SCameraData(CCamera::EType::FreeLook, XMVectorSet(0, 0, 0, 0), XMVectorSet(0, 0, 1, 0)));
 	EditorCamera->SetEyePosition(XMVectorSet(0, 2, 0, 1));
@@ -1568,9 +1561,9 @@ void CGame::CreateEditorCamera()
 	m_PtrCurrentCamera = EditorCamera;
 }
 
-CCamera* CGame::GetEditorCamera()
+CCamera* CGame::GetEditorCamera(bool bShowWarning)
 {
-	return GetCamera(u8"Editor Camera");
+	return GetCamera(u8"Editor Camera", bShowWarning);
 }
 
 CShader* CGame::AddCustomShader()
@@ -1694,23 +1687,23 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	return Result;
 }
 
-void CGame::InsertObject3D(const string& Name)
+bool CGame::InsertObject3D(const string& Name)
 {
 	if (m_mapObject3DNameToIndex.find(Name) != m_mapObject3DNameToIndex.end())
 	{
 		MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Object3D 생성 실패");
-		return;
+		return false;
 	}
 
-	if (Name.size() >= KObjectNameMaxLength)
+	if (Name.size() >= KAssetNameMaxLength)
 	{
 		MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Object3D 생성 실패");
-		return;
+		return false;
 	}
 	else if (Name.size() == 0)
 	{
 		MB_WARN("이름은 공백일 수 없습니다.", "Object3D 생성 실패");
-		return;
+		return false;
 	}
 
 	m_vObject3Ds.emplace_back(make_unique<CObject3D>(Name, m_Device.Get(), m_DeviceContext.Get(), this));
@@ -1718,6 +1711,8 @@ void CGame::InsertObject3D(const string& Name)
 	m_vObject3Ds.back()->ComponentRender.PtrPS = m_PSBase.get();
 
 	m_mapObject3DNameToIndex[Name] = m_vObject3Ds.size() - 1;
+
+	return true;
 }
 
 void CGame::DeleteObject3D(const string& Name)
@@ -1769,13 +1764,35 @@ CObject3D* CGame::GetObject3D(const string& Name, bool bShowWarning) const
 	return m_vObject3Ds[m_mapObject3DNameToIndex.at(Name)].get();
 }
 
-void CGame::InsertObject3DLine(const string& Name)
+bool CGame::InsertObject3DLine(const string& Name)
 {
-	assert(m_mapObject3DLineNameToIndex.find(Name) == m_mapObject3DLineNameToIndex.end());
+	if (m_mapObject3DLineNameToIndex.find(Name) != m_mapObject3DLineNameToIndex.end())
+	{
+		MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Object3DLine 생성 실패");
+		return false;
+	}
+
+	if (Name.size() >= KAssetNameMaxLength)
+	{
+		MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Object3DLine 생성 실패");
+		return false;
+	}
+	else if (Name.size() == 0)
+	{
+		MB_WARN("이름은 공백일 수 없습니다.", "Object3DLine 생성 실패");
+		return false;
+	}
 
 	m_vObject3DLines.emplace_back(make_unique<CObject3DLine>(Name, m_Device.Get(), m_DeviceContext.Get()));
-	
 	m_mapObject3DLineNameToIndex[Name] = m_vObject3DLines.size() - 1;
+
+	return true;
+}
+
+void CGame::ClearObject3DLines()
+{
+	m_mapObject3DLineNameToIndex.clear();
+	m_vObject3DLines.clear();
 }
 
 CObject3DLine* CGame::GetObject3DLine(const string& Name) const
@@ -1784,27 +1801,29 @@ CObject3DLine* CGame::GetObject3DLine(const string& Name) const
 	return m_vObject3DLines[m_mapObject3DLineNameToIndex.at(Name)].get();
 }
 
-void CGame::InsertObject2D(const string& Name)
+bool CGame::InsertObject2D(const string& Name)
 {
 	if (m_mapObject2DNameToIndex.find(Name) != m_mapObject2DNameToIndex.end())
 	{
 		MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Object2D 생성 실패");
-		return;
+		return false;
 	}
 
-	if (Name.size() >= KObjectNameMaxLength)
+	if (Name.size() >= KAssetNameMaxLength)
 	{
 		MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Object2D 생성 실패");
-		return;
+		return false;
 	}
 	else if (Name.size() == 0)
 	{
 		MB_WARN("이름은 공백일 수 없습니다.", "Object2D 생성 실패");
-		return;
+		return false;
 	}
 
 	m_vObject2Ds.emplace_back(make_unique<CObject2D>(Name, m_Device.Get(), m_DeviceContext.Get()));
 	m_mapObject2DNameToIndex[Name] = m_vObject2Ds.size() - 1;
+
+	return true;
 }
 
 void CGame::DeleteObject2D(const std::string& Name)
@@ -1854,136 +1873,84 @@ CObject2D* CGame::GetObject2D(const string& Name, bool bShowWarning) const
 	return m_vObject2Ds[m_mapObject2DNameToIndex.at(Name)].get();
 }
 
-CMaterial* CGame::AddMaterial(const CMaterial& Material)
+bool CGame::InsertMaterial(const string& Name)
 {
-	if (m_mapMaterialNameToIndex.find(Material.GetName()) != m_mapMaterialNameToIndex.end()) return nullptr;
+	if (m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end())
+	{
+		MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Material 생성 실패");
+		return false;
+	}
 
-	m_vMaterials.emplace_back(make_unique<CMaterial>(Material));
+	if (Name.size() >= KAssetNameMaxLength)
+	{
+		MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Material 생성 실패");
+		return false;
+	}
+	else if (Name.size() == 0)
+	{
+		MB_WARN("이름은 공백일 수 없습니다.", "Material 생성 실패");
+		return false;
+	}
+
+	m_vMaterialData.emplace_back();
+	m_vMaterialData.back().Name(Name);
+	m_vMaterialTextureSets.emplace_back();
 	
-	m_vMaterialDiffuseTextures.resize(m_vMaterials.size());
-	m_vMaterialNormalTextures.resize(m_vMaterials.size());
-	m_vMaterialDisplacementTextures.resize(m_vMaterials.size());
-
-	m_mapMaterialNameToIndex[Material.GetName()] = m_vMaterials.size() - 1;
-
-	ReloadMaterial(Material.GetName());
-
-	return m_vMaterials.back().get();
+	m_mapMaterialNameToIndex[Name] = m_vMaterialData.size() - 1;
+	
+	return true;
 }
 
-CMaterial* CGame::GetMaterial(const string& Name) const
+void CGame::DeleteMaterial(const std::string& Name)
+{
+
+}
+
+void CGame::CreateMaterialTextures(CMaterialData& MaterialData)
+{
+	size_t iMaterial{ m_mapMaterialNameToIndex[MaterialData.Name()] };
+	m_vMaterialTextureSets[iMaterial] = make_unique<CMaterialTextureSet>(m_Device.Get(), m_DeviceContext.Get());
+	m_vMaterialTextureSets[iMaterial]->CreateTextures(MaterialData);
+}
+
+CMaterialData* CGame::GetMaterial(const string& Name)
 {
 	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end()) return nullptr;
 
-	return m_vMaterials[m_mapMaterialNameToIndex.at(Name)].get();
+	return &m_vMaterialData[m_mapMaterialNameToIndex.at(Name)];
 }
 
 void CGame::ClearMaterials()
 {
-	m_vMaterials.clear();
-	m_vMaterialDiffuseTextures.clear();
-	m_vMaterialNormalTextures.clear();
+	m_vMaterialData.clear();
+	m_vMaterialTextureSets.clear();
 	m_mapMaterialNameToIndex.clear();
 }
 
 size_t CGame::GetMaterialCount() const
 {
-	return m_vMaterials.size();
+	return m_vMaterialData.size();
 }
 
 void CGame::ChangeMaterialName(const string& OldName, const string& NewName)
 {
 	size_t iMaterial{ m_mapMaterialNameToIndex[OldName] };
-	CMaterial* Material{ m_vMaterials[iMaterial].get() };
+	CMaterialData* Material{ GetMaterial(OldName) };
 	auto a =m_mapMaterialNameToIndex.find(OldName);
 	
 	m_mapMaterialNameToIndex.erase(OldName);
 	m_mapMaterialNameToIndex.insert(make_pair(NewName, iMaterial));
 
-	Material->SetName(NewName);
+	Material->Name(NewName);
 }
 
-void CGame::ReloadMaterial(const string& Name)
-{
-	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end()) return;
-
-	size_t iMaterial{ m_mapMaterialNameToIndex[Name] };
-	CMaterial* Material{ m_vMaterials[iMaterial].get() };
-	if (!Material->HasTexture()) return;
-
-	CreateMaterialTexture(CMaterial::CTexture::EType::DiffuseTexture, *Material);
-	CreateMaterialTexture(CMaterial::CTexture::EType::NormalTexture, *Material);
-	CreateMaterialTexture(CMaterial::CTexture::EType::DisplacementTexture, *Material);
-	CreateMaterialTexture(CMaterial::CTexture::EType::OpacityTexture, *Material);
-}
-
-void CGame::CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& Material)
-{
-	if (Material.HasTexture(eType))
-	{
-		CMaterial::CTexture* PtrTexture{};
-		size_t iTexture{};
-
-		switch (eType)
-		{
-		case CMaterial::CTexture::EType::DiffuseTexture:
-			m_vMaterialDiffuseTextures.back() = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
-			PtrTexture = m_vMaterialDiffuseTextures.back().get();
-			iTexture = m_vMaterialDiffuseTextures.size() - 1;
-			break;
-		case CMaterial::CTexture::EType::NormalTexture:
-			m_vMaterialNormalTextures.back() = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
-			PtrTexture = m_vMaterialNormalTextures.back().get();
-			iTexture = m_vMaterialNormalTextures.size() - 1;
-			break;
-		case CMaterial::CTexture::EType::DisplacementTexture:
-			m_vMaterialDisplacementTextures.back() = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
-			PtrTexture = m_vMaterialDisplacementTextures.back().get();
-			iTexture = m_vMaterialDisplacementTextures.size() - 1;
-			break;
-		case CMaterial::CTexture::EType::OpacityTexture:
-			m_vMaterialOpacityTextures.back() = make_unique<CMaterial::CTexture>(m_Device.Get(), m_DeviceContext.Get());
-			PtrTexture = m_vMaterialOpacityTextures.back().get();
-			iTexture = m_vMaterialOpacityTextures.size() - 1;
-			break;
-		default:
-			break;
-		}
-
-		if (Material.IsTextureEmbedded(eType))
-		{
-			PtrTexture->CreateTextureFromMemory(Material.GetTextureRawData(eType), Material.ShouldGenerateAutoMipMap());
-			Material.ClearEmbeddedTextureData(eType);
-		}
-		else
-		{
-			PtrTexture->CreateTextureFromFile(Material.GetTextureFileName(eType), Material.ShouldGenerateAutoMipMap());
-		}
-	}
-}
-
-CMaterial::CTexture* CGame::GetMaterialTexture(CMaterial::CTexture::EType eType, const string& Name) const
+ID3D11ShaderResourceView* CGame::GetMaterialTextureSRV(STextureData::EType eType, const string& Name) const
 {
 	assert(m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end());
 	size_t iMaterial{ m_mapMaterialNameToIndex.at(Name) };
 
-	switch (eType)
-	{
-	case CMaterial::CTexture::EType::DiffuseTexture:
-		if (m_vMaterialDiffuseTextures.size() <= iMaterial) return nullptr;
-		return m_vMaterialDiffuseTextures[iMaterial].get();
-	case CMaterial::CTexture::EType::NormalTexture:
-		if (m_vMaterialNormalTextures.size() <= iMaterial) return nullptr;
-		return m_vMaterialNormalTextures[iMaterial].get();
-	case CMaterial::CTexture::EType::DisplacementTexture:
-		if (m_vMaterialDisplacementTextures.size() <= iMaterial) return nullptr;
-		return m_vMaterialDisplacementTextures[iMaterial].get();
-	case CMaterial::CTexture::EType::OpacityTexture:
-		if (m_vMaterialOpacityTextures.size() <= iMaterial) return nullptr;
-		return m_vMaterialOpacityTextures[iMaterial].get();
-	default:
-		return nullptr;
-	}
+	if (m_vMaterialTextureSets[iMaterial]) return m_vMaterialTextureSets[iMaterial]->GetTextureSRV(eType);
+	return nullptr;
 }
 
 void CGame::SetMode(EMode eMode)
@@ -2582,7 +2549,7 @@ bool CGame::PickTriangle()
 			if (Candidate.InstanceID >= 0)
 			{
 				const auto& InstanceGPUData{ Candidate.PtrObject3D->GetInstanceGPUData(Candidate.InstanceID) };
-				WorldMatrix *= InstanceGPUData.WorldMatrix;
+				WorldMatrix = InstanceGPUData.WorldMatrix;
 			}
 			for (const SMesh& Mesh : Candidate.PtrObject3D->GetModel().vMeshes)
 			{
@@ -2640,20 +2607,24 @@ bool CGame::PickTriangle()
 	return false;
 }
 
-void CGame::BeginRendering(const FLOAT* ClearColor)
+void CGame::BeginRendering(const FLOAT* ClearColor, bool bUseDeferredRendering)
 {
-	// For debugging
-	/* 
-	m_DeviceContext->OMSetRenderTargets(1, m_DeviceRTV.GetAddressOf(), m_DepthStencilView.Get());
+	m_bUseDeferredRendering = bUseDeferredRendering;
 
-	m_DeviceContext->ClearRenderTargetView(m_DeviceRTV.Get(), Colors::CornflowerBlue);
-	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-	*/
-	
-	m_DeviceContext->OMSetRenderTargets(1, m_ScreenQuadRTV.GetAddressOf(), m_DepthStencilView.Get());
+	if (m_bUseDeferredRendering)
+	{
+		m_DeviceContext->OMSetRenderTargets(1, m_ScreenQuadRTV.GetAddressOf(), m_DepthStencilView.Get());
 
-	m_DeviceContext->ClearRenderTargetView(m_ScreenQuadRTV.Get(), Colors::CornflowerBlue);
-	m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		m_DeviceContext->ClearRenderTargetView(m_ScreenQuadRTV.Get(), Colors::CornflowerBlue);
+		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	}
+	else
+	{
+		m_DeviceContext->OMSetRenderTargets(1, m_DeviceRTV.GetAddressOf(), m_DepthStencilView.Get());
+
+		m_DeviceContext->ClearRenderTargetView(m_DeviceRTV.Get(), Colors::CornflowerBlue);
+		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	}
 
 	ID3D11SamplerState* SamplerState{ m_CommonStates->LinearWrap() };
 	m_DeviceContext->PSSetSamplers(0, 1, &SamplerState);
@@ -3607,7 +3578,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 	ImGui::SetNextWindowPosCenter();
 	if (ImGui::BeginPopup(u8"오브젝트 추가기", ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		static char NewObejctName[CGame::KObjectNameMaxLength]{};
+		static char NewObejctName[CGame::KAssetNameMaxLength]{};
 		static char ModelFileNameWithPath[MAX_PATH]{};
 		static char ModelFileNameWithoutPath[MAX_PATH]{};
 		static bool bIsModelRigged{ false };
@@ -3642,7 +3613,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 
 		ImGui::SetItemDefaultFocus();
 		ImGui::SetNextItemWidth(140);
-		ImGui::InputText(u8"오브젝트 이름", NewObejctName, CGame::KObjectNameMaxLength);
+		ImGui::InputText(u8"오브젝트 이름", NewObejctName, CGame::KAssetNameMaxLength);
 
 		for (int iOption = 0; iOption < ARRAYSIZE(KOptions); ++iOption)
 		{
@@ -3834,8 +3805,8 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 						CObject3D* const Object3D{ GetObject3D(NewObejctName) };
 
 						SMesh Mesh{};
-						CMaterial Material{};
-						Material.SetUniformColor(XMFLOAT3(MaterialUniformColor.x, MaterialUniformColor.y, MaterialUniformColor.z));
+						CMaterialData MaterialData{};
+						MaterialData.SetUniformColor(XMFLOAT3(MaterialUniformColor.x, MaterialUniformColor.y, MaterialUniformColor.z));
 						switch (iSelected3DPrimitiveType)
 						{
 						case 0:
@@ -3878,7 +3849,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 						default:
 							break;
 						}
-						Object3D->Create(Mesh, Material);
+						Object3D->Create(Mesh, MaterialData);
 						
 						WidthScalar3D = 1.0f;
 						HeightScalar3D = 1.0f;
@@ -3953,7 +3924,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 				if (IsObjectCreated)
 				{
 					m_EditorGUIBools.bShowPopupObjectAdder = false;
-					memset(NewObejctName, 0, CGame::KObjectNameMaxLength);
+					memset(NewObejctName, 0, CGame::KAssetNameMaxLength);
 				}
 				ImGui::CloseCurrentPopup();
 			}
@@ -3966,7 +3937,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 			m_EditorGUIBools.bShowPopupObjectAdder = false;
 			memset(ModelFileNameWithPath, 0, MAX_PATH);
 			memset(ModelFileNameWithoutPath, 0, MAX_PATH);
-			memset(NewObejctName, 0, CGame::KObjectNameMaxLength);
+			memset(NewObejctName, 0, CGame::KAssetNameMaxLength);
 			ImGui::CloseCurrentPopup();
 		}
 
@@ -4195,58 +4166,59 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ImGui::Text(u8"오브젝트 재질");
 							if (Object3D->GetMaterialCount() == 1)
 							{
-								CMaterial& Material{ Object3D->GetModel().vMaterials[0] };
+								CMaterialData& MaterialData{ Object3D->GetModel().vMaterialData[0] };
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"Diffuse 색상");
 								ImGui::SameLine(ItemsOffsetX);
-								XMFLOAT3 DiffuseColor{ Material.GetDiffuseColor() };
+								XMFLOAT3 DiffuseColor{ MaterialData.DiffuseColor() };
 								if (ImGui::ColorEdit3(u8"##Diffuse 색상", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
 								{
-									Material.SetDiffuseColor(DiffuseColor);
+									MaterialData.DiffuseColor(DiffuseColor);
 								}
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"Ambient 색상");
 								ImGui::SameLine(ItemsOffsetX);
-								XMFLOAT3 AmbientColor{ Material.GetAmbientColor() };
+								XMFLOAT3 AmbientColor{ MaterialData.AmbientColor() };
 								if (ImGui::ColorEdit3(u8"##Ambient 색상", &AmbientColor.x, ImGuiColorEditFlags_RGB))
 								{
-									Material.SetAmbientColor(AmbientColor);
+									MaterialData.AmbientColor(AmbientColor);
 								}
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"Specular 색상");
 								ImGui::SameLine(ItemsOffsetX);
-								XMFLOAT3 SpecularColor{ Material.GetSpecularColor() };
+								XMFLOAT3 SpecularColor{ MaterialData.SpecularColor() };
 								if (ImGui::ColorEdit3(u8"##Specular 색상", &SpecularColor.x, ImGuiColorEditFlags_RGB))
 								{
-									Material.SetSpecularColor(SpecularColor);
+									MaterialData.SpecularColor(SpecularColor);
 								}
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"Specular 지수");
 								ImGui::SameLine(ItemsOffsetX);
-								float SpecularExponent{ Material.GetSpecularExponent() };
+								float SpecularExponent{ MaterialData.SpecularExponent() };
 								if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, 1.0f, 256.0f, "%.1f"))
 								{
-									Material.SetSpecularExponent(SpecularExponent);
+									MaterialData.SpecularExponent(SpecularExponent);
 								}
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"Specular 강도");
 								ImGui::SameLine(ItemsOffsetX);
-								float SpecularIntensity{ Material.GetSpecularIntensity() };
+								float SpecularIntensity{ MaterialData.SpecularIntensity() };
 								if (ImGui::DragFloat(u8"##Specular 강도", &SpecularIntensity, 0.1f, 0.0f, 1.0f, "%.1f"))
 								{
-									Material.SetSpecularIntensity(SpecularIntensity);
+									MaterialData.SpecularIntensity(SpecularIntensity);
 								}
 							}
 							else
 							{
+								// @TODO
 								for (size_t iMaterial = 0; iMaterial < Object3D->GetMaterialCount(); ++iMaterial)
 								{
-									CMaterial& Material{ Object3D->GetModel().vMaterials[iMaterial] };
+									CMaterialData& MaterialData{ Object3D->GetModel().vMaterialData[iMaterial] };
 									
 
 								}
@@ -4797,8 +4769,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 								ImGui::SameLine();
 
-								const CMaterial& Material{ Terrain->GetMaterial(iMaterial) };
-								ImGui::Text(u8"재질[%d] %s", iMaterial, Material.GetName().c_str());
+								const CMaterialData& MaterialData{ Terrain->GetMaterial(iMaterial) };
+								ImGui::Text(u8"재질[%d] %s", iMaterial, MaterialData.Name().c_str());
 							}
 						}
 						else
@@ -4834,11 +4806,11 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								{
 									if (iSelectedMaterialID == -1)
 									{
-										AddTerrainMaterial(*GetMaterial(*SelectedMaterialName));
+										Terrain->AddMaterial(*GetMaterial(*SelectedMaterialName));
 									}
 									else
 									{
-										SetTerrainMaterial(iSelectedMaterialID, *GetMaterial(*SelectedMaterialName));
+										Terrain->SetMaterial(iSelectedMaterialID, *GetMaterial(*SelectedMaterialName));
 									}
 								}
 
@@ -4957,12 +4929,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					if (ImGui::Button(u8"새 재질 추가"))
 					{
 						size_t Count{ GetMaterialCount() };
-
-						CMaterial Material{};
-						Material.SetName("Material" + to_string(Count));
-						Material.ShouldGenerateAutoMipMap(true);
-
-						AddMaterial(Material);
+						InsertMaterial("Material" + to_string(Count));
 					}
 					ImGui::PopID();
 
@@ -4977,51 +4944,51 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					const auto& mapMaterialList{ GetMaterialMap() };
 					for (auto& pairMaterial : mapMaterialList)
 					{
-						CMaterial* Material{ GetMaterial(pairMaterial.first) };
+						CMaterialData* MaterialData{ GetMaterial(pairMaterial.first) };
 
 						if (ImGui::TreeNodeEx(pairMaterial.first.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth))
 						{
 							if (ImGui::Button(u8"이름 변경"))
 							{
-								strcpy_s(OldName, Material->GetName().c_str());
-								strcpy_s(NewName, Material->GetName().c_str());
+								strcpy_s(OldName, MaterialData->Name().c_str());
+								strcpy_s(NewName, MaterialData->Name().c_str());
 
 								bShowMaterialNameChangeWindow = true;
 							}
 
 							ImGui::SetNextItemWidth(KUniformWidth);
-							XMFLOAT3 AmbientColor{ Material->GetAmbientColor() };
+							XMFLOAT3 AmbientColor{ MaterialData->AmbientColor() };
 							if (ImGui::ColorEdit3(u8"환경광(Ambient)", &AmbientColor.x, ImGuiColorEditFlags_RGB))
 							{
-								Material->SetAmbientColor(AmbientColor);
+								MaterialData->AmbientColor(AmbientColor);
 							}
 
 							ImGui::SetNextItemWidth(KUniformWidth);
-							XMFLOAT3 DiffuseColor{ Material->GetDiffuseColor() };
+							XMFLOAT3 DiffuseColor{ MaterialData->DiffuseColor() };
 							if (ImGui::ColorEdit3(u8"난반사광(Diffuse)", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
 							{
-								Material->SetDiffuseColor(DiffuseColor);
+								MaterialData->DiffuseColor(DiffuseColor);
 							}
 
 							ImGui::SetNextItemWidth(KUniformWidth);
-							XMFLOAT3 SpecularColor{ Material->GetSpecularColor() };
+							XMFLOAT3 SpecularColor{ MaterialData->SpecularColor() };
 							if (ImGui::ColorEdit3(u8"정반사광(Specular)", &SpecularColor.x, ImGuiColorEditFlags_RGB))
 							{
-								Material->SetSpecularColor(SpecularColor);
+								MaterialData->SpecularColor(SpecularColor);
 							}
 
 							ImGui::SetNextItemWidth(KUniformWidth);
-							float SpecularExponent{ Material->GetSpecularExponent() };
+							float SpecularExponent{ MaterialData->SpecularExponent() };
 							if (ImGui::DragFloat(u8"정반사광(Specular) 지수", &SpecularExponent, 0.001f, 0.0f, 1.0f, "%.3f"))
 							{
-								Material->SetSpecularExponent(SpecularExponent);
+								MaterialData->SpecularExponent(SpecularExponent);
 							}
 
 							ImGui::SetNextItemWidth(KUniformWidth);
-							float SpecularIntensity{ Material->GetSpecularIntensity() };
+							float SpecularIntensity{ MaterialData->SpecularIntensity() };
 							if (ImGui::DragFloat(u8"정반사광(Specular) 강도", &SpecularIntensity, 0.001f, 0.0f, 1.0f, "%.3f"))
 							{
-								Material->SetSpecularIntensity(SpecularIntensity);
+								MaterialData->SpecularIntensity(SpecularIntensity);
 							}
 
 							static const char KTextureDialogFilter[]{ "PNG 파일\0*.png\0JPG 파일\0*.jpg\0모든 파일\0*.*\0" };
@@ -5030,10 +4997,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							// Diffuse texture
 							{
 								const char* PtrDiffuseTextureLabel{ KLabelAdd };
-								if (Material->HasTexture(CMaterial::CTexture::EType::DiffuseTexture))
+								if (MaterialData->HasTexture(STextureData::EType::DiffuseTexture))
 								{
-									ImGui::Image(GetMaterialTexture(CMaterial::CTexture::EType::DiffuseTexture,
-										pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
+									ImGui::Image(GetMaterialTextureSRV(STextureData::EType::DiffuseTexture,
+										pairMaterial.first), ImVec2(50, 50));
 									ImGui::SameLine();
 									ImGui::SetNextItemWidth(KUniformWidth);
 									ImGui::Text(u8"Diffuse 텍스쳐");
@@ -5058,8 +5025,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									static CFileDialog FileDialog{ GetWorkingDirectory() };
 									if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 									{
-										Material->SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, FileDialog.GetRelativeFileName());
-										ReloadMaterial(pairMaterial.first);
+										MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, FileDialog.GetRelativeFileName());
+										CreateMaterialTextures(*MaterialData);
 									}
 								}
 								ImGui::PopID();
@@ -5068,10 +5035,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							// Normal texture
 							{
 								const char* PtrNormalTextureLabel{ KLabelAdd };
-								if (Material->HasTexture(CMaterial::CTexture::EType::NormalTexture))
+								if (MaterialData->HasTexture(STextureData::EType::NormalTexture))
 								{
-									ImGui::Image(GetMaterialTexture(CMaterial::CTexture::EType::NormalTexture,
-										pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
+									ImGui::Image(GetMaterialTextureSRV(STextureData::EType::NormalTexture,
+										pairMaterial.first), ImVec2(50, 50));
 									ImGui::SameLine();
 									ImGui::Text(u8"Normal 텍스쳐");
 
@@ -5095,8 +5062,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									static CFileDialog FileDialog{ GetWorkingDirectory() };
 									if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 									{
-										Material->SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, FileDialog.GetRelativeFileName());
-										ReloadMaterial(pairMaterial.first);
+										MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, FileDialog.GetRelativeFileName());
+										CreateMaterialTextures(*MaterialData);
 									}
 								}
 								ImGui::PopID();
@@ -5105,10 +5072,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							// Displacement texture
 							{
 								const char* PtrDisplacementTextureLabel{ KLabelAdd };
-								if (Material->HasTexture(CMaterial::CTexture::EType::DisplacementTexture))
+								if (MaterialData->HasTexture(STextureData::EType::DisplacementTexture))
 								{
-									ImGui::Image(GetMaterialTexture(CMaterial::CTexture::EType::DisplacementTexture,
-										pairMaterial.first)->GetShaderResourceViewPtr(), ImVec2(50, 50));
+									ImGui::Image(GetMaterialTextureSRV(STextureData::EType::DisplacementTexture,
+										pairMaterial.first), ImVec2(50, 50));
 									ImGui::SameLine();
 									ImGui::Text(u8"Displacement 텍스쳐");
 
@@ -5132,8 +5099,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									static CFileDialog FileDialog{ GetWorkingDirectory() };
 									if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 									{
-										Material->SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, FileDialog.GetRelativeFileName());
-										ReloadMaterial(pairMaterial.first);
+										MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, FileDialog.GetRelativeFileName());
+										CreateMaterialTextures(*MaterialData);
 									}
 								}
 								ImGui::PopID();
@@ -5510,39 +5477,45 @@ void CGame::EndRendering()
 	if (m_IsDestroyed) return;
 
 	// Pass-through drawing
-	DrawScreenQuadToSceen(m_PSScreenQuad.get(), true);
-	//DrawScreenQuadToSceen(m_PSScreenQuad.get(), false); // For debugging
-
-	// Edge detection
+	if (m_bUseDeferredRendering)
 	{
-		m_DeviceContext->OMSetRenderTargets(1, m_ScreenQuadRTV.GetAddressOf(), m_DepthStencilView.Get());
-		m_DeviceContext->ClearRenderTargetView(m_ScreenQuadRTV.Get(), Colors::Transparent);
-		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		DrawScreenQuadToSceen(m_PSScreenQuad.get(), true);
 
-		if (IsAnyObject3DSelected())
+		// Edge detection
 		{
-			CObject3D* const Object3D{ GetSelectedObject3D() };
-			if (IsAnyInstanceSelected())
-			{
-				int InstanceID{ GetSelectedInstanceID() };
-				const auto& InstanceGPUData{ Object3D->GetInstanceGPUData(InstanceID) };
-				
-				UpdateObject3D(Object3D);
+			m_DeviceContext->OMSetRenderTargets(1, m_ScreenQuadRTV.GetAddressOf(), m_DepthStencilView.Get());
+			m_DeviceContext->ClearRenderTargetView(m_ScreenQuadRTV.Get(), Colors::Transparent);
+			m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-				UpdateCBSpace(InstanceGPUData.WorldMatrix);
-				m_VSBase->Use();
-				m_VSBase->UpdateAllConstantBuffers();
-
-				DrawObject3D(Object3D, true);
-			}
-			else
+			if (IsAnyObject3DSelected())
 			{
-				UpdateObject3D(Object3D);
-				DrawObject3D(Object3D);
+				CObject3D* const Object3D{ GetSelectedObject3D() };
+				if (IsAnyInstanceSelected())
+				{
+					int InstanceID{ GetSelectedInstanceID() };
+					const auto& InstanceGPUData{ Object3D->GetInstanceGPUData(InstanceID) };
+
+					UpdateObject3D(Object3D);
+
+					UpdateCBSpace(InstanceGPUData.WorldMatrix);
+					m_VSBase->Use();
+					m_VSBase->UpdateAllConstantBuffers();
+
+					DrawObject3D(Object3D, true);
+				}
+				else
+				{
+					UpdateObject3D(Object3D);
+					DrawObject3D(Object3D);
+				}
 			}
+
+			DrawScreenQuadToSceen(m_PSEdgeDetector.get(), false);
 		}
-
-		DrawScreenQuadToSceen(m_PSEdgeDetector.get(), false);
+	}
+	else
+	{
+		DrawScreenQuadToSceen(m_PSScreenQuad.get(), false);
 	}
 
 	if (m_eMode != EMode::Play)

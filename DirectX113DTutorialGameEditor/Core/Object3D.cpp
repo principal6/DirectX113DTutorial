@@ -13,8 +13,8 @@ void CObject3D::Create(const SMesh& Mesh)
 	m_Model.vMeshes.clear();
 	m_Model.vMeshes.emplace_back(Mesh);
 
-	m_Model.vMaterials.clear();
-	m_Model.vMaterials.emplace_back();
+	m_Model.vMaterialData.clear();
+	m_Model.vMaterialData.emplace_back();
 
 	CreateMeshBuffers();
 	CreateMaterialTextures();
@@ -22,13 +22,13 @@ void CObject3D::Create(const SMesh& Mesh)
 	m_bIsCreated = true;
 }
 
-void CObject3D::Create(const SMesh& Mesh, const CMaterial& Material)
+void CObject3D::Create(const SMesh& Mesh, const CMaterialData& MaterialData)
 {
 	m_Model.vMeshes.clear();
 	m_Model.vMeshes.emplace_back(Mesh);
 
-	m_Model.vMaterials.clear();
-	m_Model.vMaterials.emplace_back(Material);
+	m_Model.vMaterialData.clear();
+	m_Model.vMaterialData.emplace_back(MaterialData);
 	
 	CreateMeshBuffers();
 	CreateMaterialTextures();
@@ -36,10 +36,10 @@ void CObject3D::Create(const SMesh& Mesh, const CMaterial& Material)
 	m_bIsCreated = true;
 }
 
-void CObject3D::Create(const vector<SMesh>& vMeshes, const vector<CMaterial>& vMaterials)
+void CObject3D::Create(const vector<SMesh>& vMeshes, const vector<CMaterialData>& vMaterialData)
 {
 	m_Model.vMeshes = vMeshes;
-	m_Model.vMaterials = vMaterials;
+	m_Model.vMaterialData = vMaterialData;
 	
 	CreateMeshBuffers();
 	CreateMaterialTextures();
@@ -77,10 +77,10 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 	CreateMeshBuffers();
 	CreateMaterialTextures();
 
-	for (const CMaterial& Material : m_Model.vMaterials)
+	for (const CMaterialData& Material : m_Model.vMaterialData)
 	{
 		// @important
-		if (Material.HasTexture(CMaterial::CTexture::EType::OpacityTexture))
+		if (Material.HasTexture(STextureData::EType::OpacityTexture))
 		{
 			ComponentRender.bIsTransparent = true;
 			break;
@@ -160,8 +160,8 @@ void CObject3D::BakeAnimationTexture()
 		TextureHeight += vAnimationHeights.back();
 	}
 
-	m_BakedAnimationTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
-	m_BakedAnimationTexture->CreateBlankTexture(CMaterial::CTexture::EFormat::Pixel128Float, XMFLOAT2((float)KAnimationTextureWidth, (float)TextureHeight));
+	m_BakedAnimationTexture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_BakedAnimationTexture->CreateBlankTexture(CTexture::EFormat::Pixel128Float, XMFLOAT2((float)KAnimationTextureWidth, (float)TextureHeight));
 	m_BakedAnimationTexture->SetShaderType(EShaderType::VertexShader);
 
 	vector<SPixel128Float> vRawData{};
@@ -230,7 +230,7 @@ void CObject3D::SaveBakedAnimationTexture(const string& FileName)
 
 void CObject3D::LoadBakedAnimationTexture(const string& FileName)
 {
-	m_BakedAnimationTexture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_BakedAnimationTexture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_BakedAnimationTexture->CreateTextureFromFile(FileName, false);
 
 	ID3D11Texture2D* const AnimationTexture{ m_BakedAnimationTexture->GetTexture2DPtr() };
@@ -285,27 +285,27 @@ void CObject3D::LoadBakedAnimationTexture(const string& FileName)
 	m_bIsBakedAnimationLoaded = true;
 }
 
-void CObject3D::AddMaterial(const CMaterial& Material)
+void CObject3D::AddMaterial(const CMaterialData& MaterialData)
 {
-	m_Model.vMaterials.emplace_back(Material);
-	m_Model.vMaterials.back().SetIndex(m_Model.vMaterials.size() - 1);
+	m_Model.vMaterialData.emplace_back(MaterialData);
+	m_Model.vMaterialData.back().Index(m_Model.vMaterialData.size() - 1);
 
-	CreateMaterialTextures();
+	CreateMaterialTexture(m_Model.vMaterialData.size() - 1);
 }
 
-void CObject3D::SetMaterial(size_t Index, const CMaterial& Material)
+void CObject3D::SetMaterial(size_t Index, const CMaterialData& MaterialData)
 {
-	assert(Index < m_Model.vMaterials.size());
+	assert(Index < m_Model.vMaterialData.size());
 
-	m_Model.vMaterials[Index] = Material;
-	m_Model.vMaterials[Index].SetIndex(Index);
+	m_Model.vMaterialData[Index] = MaterialData;
+	m_Model.vMaterialData[Index].Index(Index);
 
-	CreateMaterialTextures();
+	CreateMaterialTexture(Index);
 }
 
 size_t CObject3D::GetMaterialCount() const
 {
-	return m_Model.vMaterials.size();
+	return m_Model.vMaterialData.size();
 }
 
 void CObject3D::CreateInstances(int InstanceCount)
@@ -574,10 +574,29 @@ void CObject3D::CreateInstanceBuffer(size_t MeshIndex)
 
 void CObject3D::CreateMaterialTextures()
 {
-	for (CMaterial& Material : m_Model.vMaterials)
+	m_vMaterialTextureSets.clear();
+	
+	for (CMaterialData& MaterialData : m_Model.vMaterialData)
 	{
-		Material.CreateTextures(m_PtrDevice, m_PtrDeviceContext);
+		if (MaterialData.HasAnyTexture())
+		{
+			m_vMaterialTextureSets.emplace_back(make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext));
+			m_vMaterialTextureSets.back()->CreateTextures(MaterialData);
+		}
 	}
+}
+
+void CObject3D::CreateMaterialTexture(size_t Index)
+{
+	if (Index == m_vMaterialTextureSets.size())
+	{
+		m_vMaterialTextureSets.emplace_back(make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext));
+	}
+	else
+	{
+		m_vMaterialTextureSets[Index] = make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext);
+	}
+	m_vMaterialTextureSets[Index]->CreateTextures(m_Model.vMaterialData[Index]);
 }
 
 void CObject3D::UpdateQuadUV(const XMFLOAT2& UVOffset, const XMFLOAT2& UVSize)
@@ -853,35 +872,40 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
 	{
 		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };
-		const CMaterial& Material{ m_Model.vMaterials[Mesh.MaterialID] };
+		const CMaterialData& MaterialData{ m_Model.vMaterialData[Mesh.MaterialID] };
 
-		m_PtrGame->UpdateCBMaterial(Material);
+		m_PtrGame->UpdateCBMaterialData(MaterialData);
 		m_PtrGame->UpdateCBDisplacementData(false);
 
-		if (m_Model.bUseMultipleTexturesInSingleMesh) // This bool is for CTerrain
+		if (MaterialData.HasAnyTexture())
 		{
-			for (const CMaterial& Material : m_Model.vMaterials)
+			if (m_Model.bUseMultipleTexturesInSingleMesh) // This bool is for CTerrain
 			{
-				if (Material.HasTexture() && !bIgnoreOwnTexture)
+				for (const CMaterialData& MaterialDatum : m_Model.vMaterialData)
 				{
-					if (Material.HasTexture(CMaterial::CTexture::EType::DisplacementTexture))
+					const CMaterialTextureSet* MaterialTextureSet{ m_vMaterialTextureSets[MaterialDatum.Index()].get() };
+					if (MaterialDatum.HasAnyTexture() && !bIgnoreOwnTexture)
+					{
+						if (MaterialDatum.HasTexture(STextureData::EType::DisplacementTexture))
+						{
+							m_PtrGame->UpdateCBDisplacementData(true);
+						}
+						MaterialTextureSet->UseTextures();
+					}
+				}
+			}
+			else
+			{
+				const CMaterialTextureSet* MaterialTextureSet{ m_vMaterialTextureSets[Mesh.MaterialID].get() };
+				m_PtrGame->UpdateCBMaterialData(MaterialData);
+				if (MaterialData.HasAnyTexture() && !bIgnoreOwnTexture)
+				{
+					if (MaterialData.HasTexture(STextureData::EType::DisplacementTexture))
 					{
 						m_PtrGame->UpdateCBDisplacementData(true);
 					}
-					Material.UseTextures();
+					MaterialTextureSet->UseTextures();
 				}
-			}
-		}
-		else
-		{
-			m_PtrGame->UpdateCBMaterial(Material);
-			if (Material.HasTexture() && !bIgnoreOwnTexture)
-			{
-				if (Material.HasTexture(CMaterial::CTexture::EType::DisplacementTexture))
-				{
-					m_PtrGame->UpdateCBDisplacementData(true);
-				}
-				Material.UseTextures();
 			}
 		}
 

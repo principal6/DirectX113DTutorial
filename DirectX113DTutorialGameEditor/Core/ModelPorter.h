@@ -20,9 +20,9 @@ public:
 
 private:
 	void ReadStaticModelFile(SModel& Model);
-	void ReadModelMaterials(std::vector<CMaterial>& vMaterials);
+	void ReadModelMaterials(std::vector<CMaterialData>& vMaterialData);
 	void WriteStaticModelFile(const SModel& Model);
-	void WriteModelMaterials(const std::vector<CMaterial>& vMaterials);
+	void WriteModelMaterials(const std::vector<CMaterialData>& vMaterialData);
 
 private:
 	CBinaryFile m_BinaryFile{};

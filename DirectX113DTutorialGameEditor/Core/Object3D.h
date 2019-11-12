@@ -112,8 +112,8 @@ public:
 
 public:
 	void Create(const SMesh& Mesh);
-	void Create(const SMesh& Mesh, const CMaterial& Material);
-	void Create(const std::vector<SMesh>& vMeshes, const std::vector<CMaterial>& vMaterials);
+	void Create(const SMesh& Mesh, const CMaterialData& MaterialData);
+	void Create(const std::vector<SMesh>& vMeshes, const std::vector<CMaterialData>& vMaterialData);
 	void Create(const SModel& Model);
 
 	void CreateFromFile(const std::string& FileName, bool bIsModelRigged);
@@ -133,8 +133,8 @@ public:
 	void LoadBakedAnimationTexture(const std::string& FileName);
 
 public:
-	void AddMaterial(const CMaterial& Material);
-	void SetMaterial(size_t Index, const CMaterial& Material);
+	void AddMaterial(const CMaterialData& MaterialData);
+	void SetMaterial(size_t Index, const CMaterialData& MaterialData);
 	size_t GetMaterialCount() const;
 
 	void CreateInstances(int InstanceCount);
@@ -181,6 +181,7 @@ private:
 	void CreateInstanceBuffer(size_t MeshIndex);
 
 	void CreateMaterialTextures();
+	void CreateMaterialTexture(size_t Index);
 
 	void CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick, const SModel::SNode& Node, XMMATRIX ParentTransform);
 
@@ -212,6 +213,7 @@ private:
 	std::string						m_ModelFileName{};
 	bool							m_bIsCreated{ false };
 	SModel							m_Model{};
+	std::vector<std::unique_ptr<CMaterialTextureSet>> m_vMaterialTextureSets{};
 	std::vector<SMeshBuffers>		m_vMeshBuffers{};
 	std::vector<SInstanceBuffer>	m_vInstanceBuffers{};
 
@@ -220,9 +222,9 @@ private:
 	float							m_CurrentAnimationTick{};
 	bool							m_bShouldTesselate{ false };
 
-	std::unique_ptr<CMaterial::CTexture>	m_BakedAnimationTexture{};
-	SCBAnimationData						m_CBAnimationData{};
-	bool									m_bIsBakedAnimationLoaded{ false };
+	std::unique_ptr<CTexture>		m_BakedAnimationTexture{};
+	SCBAnimationData				m_CBAnimationData{};
+	bool							m_bIsBakedAnimationLoaded{ false };
 
 private:
 	std::vector<SInstanceGPUData>	m_vInstanceGPUData{};
@@ -230,7 +232,7 @@ private:
 	std::map<std::string, size_t>	m_mapInstanceNameToIndex{};
 
 private:
-	CAssimpLoader				m_AssimpLoader{};
+	CAssimpLoader					m_AssimpLoader{};
 };
 
 ENUM_CLASS_FLAG(CObject3D::EFlagsRendering)

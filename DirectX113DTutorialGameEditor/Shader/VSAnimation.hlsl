@@ -8,7 +8,7 @@ cbuffer cbSpace : register(b0)
 
 cbuffer cbBones : register(b1)
 {
-	float4x4 BoneMatrices[KBoneMatrixMaxCount];
+	float4x4 BoneMatrices[KBoneMatrixMaxCount]; // For CPU skinning
 }
 
 cbuffer cbAnimation : register(b2)
@@ -19,7 +19,7 @@ cbuffer cbAnimation : register(b2)
 	float AnimationTick;
 }
 
-Texture2D<float4> AnimationTexture : register(t0);
+Texture2D<float4> AnimationTexture : register(t0); // For GPU skinning
 
 float4x4 GetBoneMatrixFromAnimationTexture(int BoneIndex, int AnimationOffset)
 {

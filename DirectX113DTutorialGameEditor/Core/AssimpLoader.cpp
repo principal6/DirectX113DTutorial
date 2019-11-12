@@ -16,7 +16,7 @@ void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel& Mode
 	assert(m_Scene->mRootNode);
 
 	LoadMeshesFromFile(m_Scene, Model.vMeshes);
-	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model.vMaterials);
+	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model.vMaterialData);
 }
 
 void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
@@ -38,7 +38,7 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 		Mesh.vVerticesAnimation.resize(Mesh.vVertices.size());
 	}
 
-	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model.vMaterials);
+	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model.vMaterialData);
 
 	// Scene에서 재귀적으로 Node의 Tree를 만든다.
 	LoadNodes(m_Scene, m_Scene->mRootNode, -1, Model);
@@ -167,24 +167,29 @@ void CAssimpLoader::LoadMeshesFromFile(const aiScene* const Scene, vector<SMesh>
 	}
 }
 
-void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext, vector<CMaterial>& vMaterials)
+void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext, 
+	vector<CMaterialData>& vMaterialData)
 {
 	unsigned int MaterialCount{ Scene->mNumMaterials };
-	vMaterials.resize(MaterialCount);
+	vMaterialData.resize(MaterialCount);
 	for (unsigned int iMaterial{}; iMaterial < MaterialCount; ++iMaterial)
 	{
 		const aiMaterial* const _aiMaterial{ Scene->mMaterials[iMaterial] };
-		CMaterial& Material{ vMaterials[iMaterial] };
+		CMaterialData& MaterialData{ vMaterialData[iMaterial] };
 
+		aiString aiMaterialName{};
 		aiColor4D aiAmbient{}, aiDiffuse{}, aiSpecular{};
 		float aiShininess{};
 		float aiShininessStength{};
+		aiGetMaterialString(_aiMaterial, AI_MATKEY_NAME, &aiMaterialName);
 		aiGetMaterialColor(_aiMaterial, AI_MATKEY_COLOR_AMBIENT, &aiAmbient);
 		aiGetMaterialColor(_aiMaterial, AI_MATKEY_COLOR_DIFFUSE, &aiDiffuse);
 		aiGetMaterialColor(_aiMaterial, AI_MATKEY_COLOR_SPECULAR, &aiSpecular);
 		aiGetMaterialFloat(_aiMaterial, AI_MATKEY_SHININESS, &aiShininess);
 		aiGetMaterialFloat(_aiMaterial, AI_MATKEY_SHININESS_STRENGTH, &aiShininessStength);
 		
+		MaterialData.Name(aiMaterialName.C_Str());
+
 		if (Scene->HasTextures())
 		{
 			aiString DiffuseTextureFileName{};
@@ -197,54 +202,54 @@ void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Devi
 			aiGetMaterialTexture(_aiMaterial, aiTextureType_DISPLACEMENT, 0, &DisplacementTextureFileName);
 			aiGetMaterialTexture(_aiMaterial, aiTextureType_OPACITY, 0, &OpacityTextureFileName);
 
-			LoadTextureData(Scene, DiffuseTextureFileName, Material, CMaterial::CTexture::EType::DiffuseTexture);
-			LoadTextureData(Scene, NormalTextureFileName, Material, CMaterial::CTexture::EType::NormalTexture);
-			LoadTextureData(Scene, DisplacementTextureFileName, Material, CMaterial::CTexture::EType::DisplacementTexture);
-			LoadTextureData(Scene, OpacityTextureFileName, Material, CMaterial::CTexture::EType::OpacityTexture);
+			LoadTextureData(Scene, DiffuseTextureFileName, MaterialData, STextureData::EType::DiffuseTexture);
+			LoadTextureData(Scene, NormalTextureFileName, MaterialData, STextureData::EType::NormalTexture);
+			LoadTextureData(Scene, DisplacementTextureFileName, MaterialData, STextureData::EType::DisplacementTexture);
+			LoadTextureData(Scene, OpacityTextureFileName, MaterialData, STextureData::EType::OpacityTexture);
+
+			MaterialData.HasAnyTexture(true);
 		}
 
+		// temporary?
 		if (aiAmbient.r == 0.0f && aiAmbient.g == 0.0f && aiAmbient.b == 0.0f)
 		{
 			aiAmbient = aiDiffuse;
 		}
 
-		Material.SetAmbientColor(XMFLOAT3(aiAmbient.r, aiAmbient.g, aiAmbient.b));
-		Material.SetDiffuseColor(XMFLOAT3(aiDiffuse.r, aiDiffuse.g, aiDiffuse.b));
-		Material.SetSpecularColor(XMFLOAT3(aiSpecular.r, aiSpecular.g, aiSpecular.b));
-		Material.SetSpecularExponent(aiShininess);
-		Material.SetSpecularIntensity(aiShininessStength);
-
-		// @warning
-		Material.ShouldGenerateAutoMipMap(true);
+		MaterialData.AmbientColor(XMFLOAT3(aiAmbient.r, aiAmbient.g, aiAmbient.b));
+		MaterialData.DiffuseColor(XMFLOAT3(aiDiffuse.r, aiDiffuse.g, aiDiffuse.b));
+		MaterialData.SpecularColor(XMFLOAT3(aiSpecular.r, aiSpecular.g, aiSpecular.b));
+		MaterialData.SpecularExponent(aiShininess);
+		MaterialData.SpecularIntensity(aiShininessStength);
 	}
 }
 
-void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString& TextureFileName, CMaterial& Material, CMaterial::CTexture::EType eTextureType)
+void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString& TextureFileName, CMaterialData& MaterialData,
+	STextureData::EType eTextureType)
 {
-	if (TextureFileName.length == 0) return;
-
 	const aiTexture* const _aiTexture{ Scene->GetEmbeddedTexture(TextureFileName.C_Str()) };
+	if (TextureFileName.length == 0 && _aiTexture == nullptr) return; // No texture
+	STextureData& TextureData{ MaterialData.GetTextureData(eTextureType) };
 	if (_aiTexture)
 	{
 		unsigned int TexelCount{ _aiTexture->mWidth / 4 };
 		if (_aiTexture->mHeight) TexelCount *= _aiTexture->mHeight;
 
-		vector<uint8_t> vEmbeddedTextureRawData{};
-		vEmbeddedTextureRawData.reserve(_aiTexture->mWidth);
+		TextureData.bHasTexture = true;
+		TextureData.vRawData.reserve(_aiTexture->mWidth);
 		for (unsigned int iTexel = 0; iTexel < TexelCount; ++iTexel)
 		{
 			const aiTexel& _aiTexel{ _aiTexture->pcData[iTexel] };
-			vEmbeddedTextureRawData.emplace_back((uint8_t)_aiTexel.b);
-			vEmbeddedTextureRawData.emplace_back((uint8_t)_aiTexel.g);
-			vEmbeddedTextureRawData.emplace_back((uint8_t)_aiTexel.r);
-			vEmbeddedTextureRawData.emplace_back((uint8_t)_aiTexel.a);
+			TextureData.vRawData.emplace_back((uint8_t)_aiTexel.b);
+			TextureData.vRawData.emplace_back((uint8_t)_aiTexel.g);
+			TextureData.vRawData.emplace_back((uint8_t)_aiTexel.r);
+			TextureData.vRawData.emplace_back((uint8_t)_aiTexel.a);
 		}
-
-		Material.SetTextureRawData(eTextureType, vEmbeddedTextureRawData);
 	}
 	else
 	{
-		Material.SetTextureFileName(eTextureType, TextureFileName.C_Str());
+		TextureData.bHasTexture = true;
+		TextureData.FileName = TextureFileName.C_Str();
 	}
 }
 

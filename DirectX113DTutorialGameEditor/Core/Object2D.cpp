@@ -25,7 +25,7 @@ void CObject2D::Create(const SModel2D& Model2D, bool bIsDynamic)
 
 void CObject2D::CreateTexture(const std::string& FileName)
 {
-	m_Texture = make_unique<CMaterial::CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_Texture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_Texture->CreateTextureFromFile(FileName, false);
 }
 

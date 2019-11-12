@@ -334,7 +334,7 @@ public:
 	void UpdateCBTessFactor(float TessFactor);
 	void UpdateCBDisplacementData(bool bUseDisplacement);
 
-	void UpdateCBMaterial(const CMaterial& Material);
+	void UpdateCBMaterialData(const CMaterialData& MaterialData);
 	void UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix);
 	void UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection);
 
@@ -360,13 +360,11 @@ public:
 	void CreateTerrain(const XMFLOAT2& TerrainSize, uint32_t MaskingDetail, float UniformScaling);
 	void LoadTerrain(const std::string& TerrainFileName);
 	void SaveTerrain(const std::string& TerrainFileName);
-	void AddTerrainMaterial(const CMaterial& Material);
-	void SetTerrainMaterial(int MaterialID, const CMaterial& Material);
 	CTerrain* GetTerrain() const { return m_Terrain.get(); }
 
 // Object pool
 public:	
-	void InsertCamera(const std::string& Name);
+	bool InsertCamera(const std::string& Name);
 	void DeleteCamera(const std::string& Name);
 	void ClearCameras();
 	CCamera* GetCamera(const std::string& Name, bool bShowWarning = true);
@@ -374,39 +372,38 @@ public:
 
 private:
 	void CreateEditorCamera();
-	CCamera* GetEditorCamera();
+	CCamera* GetEditorCamera(bool bShowWarning = true);
 
 public:
 	CShader* AddCustomShader();
 	CShader* GetCustomShader(size_t Index) const;
 	CShader* GetBaseShader(EBaseShader eShader) const;
 
-	void InsertObject3D(const std::string& Name);
+	bool InsertObject3D(const std::string& Name);
 	void DeleteObject3D(const std::string& Name);
 	void ClearObject3Ds();
 	CObject3D* GetObject3D(const std::string& Name, bool bShowWarning = true) const;
 	const std::map<std::string, size_t>& GetObject3DMap() const { return m_mapObject3DNameToIndex; }
 
-	void InsertObject3DLine(const std::string& Name);
+	bool InsertObject3DLine(const std::string& Name);
+	void ClearObject3DLines();
 	CObject3DLine* GetObject3DLine(const std::string& Name) const;
 
-	void InsertObject2D(const std::string& Name);
+	bool InsertObject2D(const std::string& Name);
 	void DeleteObject2D(const std::string& Name);
 	void ClearObject2Ds();
 	CObject2D* GetObject2D(const std::string& Name, bool bShowWarning = true) const;
 	const std::map<std::string, size_t>& GetObject2DMap() const { return m_mapObject2DNameToIndex; }
 
-	CMaterial* AddMaterial(const CMaterial& Material);
-	CMaterial* GetMaterial(const std::string& Name) const;
+	bool InsertMaterial(const std::string& Name);
+	void DeleteMaterial(const std::string& Name);
+	void CreateMaterialTextures(CMaterialData& MaterialData);
 	void ClearMaterials();
+	CMaterialData* GetMaterial(const std::string& Name);
 	size_t GetMaterialCount() const;
 	void ChangeMaterialName(const std::string& OldName, const std::string& NewName);
-	void ReloadMaterial(const std::string& Name);
 	const std::map<std::string, size_t>& GetMaterialMap() const { return m_mapMaterialNameToIndex; }
-	CMaterial::CTexture* GetMaterialTexture(CMaterial::CTexture::EType eType, const std::string& Name) const;
-
-private:
-	void CreateMaterialTexture(CMaterial::CTexture::EType eType, CMaterial& Material);
+	ID3D11ShaderResourceView* GetMaterialTextureSRV(STextureData::EType eType, const std::string& Name) const;
 
 public:
 	void SetMode(EMode eMode);
@@ -467,7 +464,7 @@ private:
 	bool PickTriangle();
 
 public:
-	void BeginRendering(const FLOAT* ClearColor);
+	void BeginRendering(const FLOAT* ClearColor, bool bUseDeferredRendering = true);
 	void Update();
 	void Draw();
 	void EndRendering();
@@ -548,7 +545,7 @@ public:
 	static constexpr float KBSRadiusBiasUnit{ +0.01f };
 	static constexpr float KBSRadiusBiasMinLimit{ 0.001f };
 	static constexpr float KBSRadiusBiasMaxLimit{ 1000.0f };
-	static constexpr int KObjectNameMaxLength{ 100 };
+	static constexpr int KAssetNameMaxLength{ 100 };
 
 private:
 	static constexpr float KDefaultFOV{ 50.0f / 360.0f * XM_2PI };
@@ -639,12 +636,9 @@ private:
 	std::vector<std::unique_ptr<CObject3D>>				m_vObject3Ds{};
 	std::vector<std::unique_ptr<CObject3DLine>>			m_vObject3DLines{};
 	std::vector<std::unique_ptr<CObject2D>>				m_vObject2Ds{};
-	std::vector<std::unique_ptr<CMaterial>>				m_vMaterials{};
-	std::vector<std::unique_ptr<CMaterial::CTexture>>	m_vMaterialDiffuseTextures{};
-	std::vector<std::unique_ptr<CMaterial::CTexture>>	m_vMaterialNormalTextures{};
-	std::vector<std::unique_ptr<CMaterial::CTexture>>	m_vMaterialDisplacementTextures{};
-	std::vector<std::unique_ptr<CMaterial::CTexture>>	m_vMaterialOpacityTextures{};
-
+	std::vector<CMaterialData>							m_vMaterialData{};
+	std::vector<std::unique_ptr<CMaterialTextureSet>>	m_vMaterialTextureSets{};
+	
 	std::unique_ptr<CObject3DLine>				m_Object3DLinePickingRay{};
 	std::unique_ptr<CObject3D>					m_Object3DPickedTriangle{};
 
@@ -655,7 +649,7 @@ private:
 	std::string								m_SkyFileName{};
 	float									m_SkyScalingFactor{};
 	SSkyData								m_SkyData{};
-	CMaterial								m_SkyMaterial{};
+	CMaterialData							m_SkyMaterialData{};
 	std::unique_ptr<CObject3D>				m_Object3DSkySphere{};
 	std::unique_ptr<CObject3D>				m_Object3DSun{};
 	std::unique_ptr<CObject3D>				m_Object3DMoon{};
@@ -786,6 +780,7 @@ private:
 	std::unique_ptr<SpriteFont>			m_SpriteFont{};
 	std::unique_ptr<CommonStates>		m_CommonStates{};
 	bool								m_IsDestroyed{ false };
+	bool								m_bUseDeferredRendering{ true };
 };
 
 ENUM_CLASS_FLAG(CGame::EFlagsRendering)

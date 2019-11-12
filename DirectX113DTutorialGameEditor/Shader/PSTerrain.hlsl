@@ -3,18 +3,31 @@
 SamplerState CurrentSampler : register(s0);
 
 Texture2D Layer0DiffuseTexture : register(t0);
-Texture2D Layer1DiffuseTexture : register(t1);
-Texture2D Layer2DiffuseTexture : register(t2);
-Texture2D Layer3DiffuseTexture : register(t3);
-Texture2D Layer4DiffuseTexture : register(t4);
+Texture2D Layer0NormalTexture : register(t1);
+Texture2D Layer0OpacityTexture : register(t2);
+// Dispacement texture slot
 
-Texture2D Layer0NormalTexture : register(t5);
-Texture2D Layer1NormalTexture : register(t6);
-Texture2D Layer2NormalTexture : register(t7);
-Texture2D Layer3NormalTexture : register(t8);
-Texture2D Layer4NormalTexture : register(t9);
+Texture2D Layer1DiffuseTexture : register(t4);
+Texture2D Layer1NormalTexture : register(t5);
+Texture2D Layer1OpacityTexture : register(t6);
+// Dispacement texture slot
 
-Texture2D MaskingTexture : register(t10);
+Texture2D Layer2DiffuseTexture : register(t8);
+Texture2D Layer2NormalTexture : register(t9);
+Texture2D Layer2OpacityTexture : register(t10);
+// Dispacement texture slot
+
+Texture2D Layer3DiffuseTexture : register(t12);
+Texture2D Layer3NormalTexture : register(t13);
+Texture2D Layer3OpacityTexture : register(t14);
+// Dispacement texture slot
+
+Texture2D Layer4DiffuseTexture : register(t16);
+Texture2D Layer4NormalTexture : register(t17);
+Texture2D Layer4OpacityTexture : register(t18);
+// Dispacement texture slot
+
+Texture2D MaskingTexture : register(t20);
 
 cbuffer cbMaskingSpace : register(b0)
 {

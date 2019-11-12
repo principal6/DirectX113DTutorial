@@ -6,7 +6,7 @@ using std::string;
 using std::wstring;
 using std::make_unique;
 
-void CMaterial::CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerateMipMap)
+void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerateMipMap)
 {
 	m_FileName = FileName;
 
@@ -65,7 +65,7 @@ void CMaterial::CTexture::CreateTextureFromFile(const string& FileName, bool bSh
 	m_bIsCreated = true;
 }
 
-void CMaterial::CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData, bool bShouldGenerateMipMap)
+void CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData, bool bShouldGenerateMipMap)
 {
 	if (bShouldGenerateMipMap)
 	{
@@ -108,7 +108,7 @@ void CMaterial::CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData
 	m_bIsCreated = true;
 }
 
-void CMaterial::CTexture::CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize)
+void CTexture::CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize)
 {
 	m_TextureSize = TextureSize;
 
@@ -130,7 +130,7 @@ void CMaterial::CTexture::CreateBlankTexture(EFormat Format, const XMFLOAT2& Tex
 	m_bIsCreated = true;
 }
 
-void CMaterial::CTexture::SaveToDDSFile(const string& FileName)
+void CTexture::SaveToDDSFile(const string& FileName)
 {
 	wstring wFileName{ FileName.begin(), FileName.end() };
 	D3D11_TEXTURE2D_DESC Desc{};
@@ -138,7 +138,7 @@ void CMaterial::CTexture::SaveToDDSFile(const string& FileName)
 	assert(SUCCEEDED(SaveDDSTextureToFile(m_PtrDeviceContext, (ID3D11Resource*)m_Texture2D.Get(), wFileName.c_str())));
 }
 
-void CMaterial::CTexture::UpdateTextureSize()
+void CTexture::UpdateTextureSize()
 {
 	D3D11_TEXTURE2D_DESC Texture2DDesc{};
 	m_Texture2D->GetDesc(&Texture2DDesc);
@@ -147,7 +147,7 @@ void CMaterial::CTexture::UpdateTextureSize()
 	m_TextureSize.x = static_cast<float>(Texture2DDesc.Height);
 }
 
-void CMaterial::CTexture::UpdateTextureRawData(const SPixel8UInt* const PtrData)
+void CTexture::UpdateTextureRawData(const SPixel8UInt* const PtrData)
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
@@ -169,7 +169,7 @@ void CMaterial::CTexture::UpdateTextureRawData(const SPixel8UInt* const PtrData)
 	}
 }
 
-void CMaterial::CTexture::UpdateTextureRawData(const SPixel32UInt* const PtrData)
+void CTexture::UpdateTextureRawData(const SPixel32UInt* const PtrData)
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
@@ -191,7 +191,7 @@ void CMaterial::CTexture::UpdateTextureRawData(const SPixel32UInt* const PtrData
 	}
 }
 
-void CMaterial::CTexture::UpdateTextureRawData(const SPixel128Float* const PtrData)
+void CTexture::UpdateTextureRawData(const SPixel128Float* const PtrData)
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
@@ -214,17 +214,17 @@ void CMaterial::CTexture::UpdateTextureRawData(const SPixel128Float* const PtrDa
 	}
 }
 
-void CMaterial::CTexture::SetSlot(UINT Slot)
+void CTexture::SetSlot(UINT Slot)
 {
 	m_Slot = Slot;
 }
 
-void CMaterial::CTexture::SetShaderType(EShaderType eShaderType)
+void CTexture::SetShaderType(EShaderType eShaderType)
 {
 	m_eShaderType = eShaderType;
 }
 
-void CMaterial::CTexture::Use(int ForcedSlot) const
+void CTexture::Use(int ForcedSlot) const
 {
 	UINT Slot{ m_Slot };
 	if (ForcedSlot != -1) Slot = static_cast<UINT>(ForcedSlot);
@@ -251,270 +251,165 @@ void CMaterial::CTexture::Use(int ForcedSlot) const
 	}
 }
 
-void CMaterial::SetName(const string& Name)
+void CMaterialTextureSet::CreateTextures(CMaterialData& MaterialData)
+{
+	UINT SlotOffset{ (UINT)(MaterialData.Index() * KMaxTextureCountPerMaterial) };
+	for (int iTexture = 0; iTexture < KMaxTextureCountPerMaterial; ++iTexture)
+	{
+		STextureData::EType eTextureType{ (STextureData::EType)iTexture };
+		if (MaterialData.HasTexture(eTextureType))
+		{
+			STextureData& TextureData{ MaterialData.GetTextureData(eTextureType) };
+			if (TextureData.vRawData.empty())
+			{
+				m_Textures[iTexture].CreateTextureFromFile(TextureData.FileName, true);
+			}
+			else
+			{
+				m_Textures[iTexture].CreateTextureFromMemory(TextureData.vRawData, true);
+			}
+
+			// @important
+			m_Textures[iTexture].SetSlot(SlotOffset + iTexture);
+
+			// @important
+			if (eTextureType == STextureData::EType::DisplacementTexture)
+			{
+				m_Textures[iTexture].SetShaderType(EShaderType::DomainShader);
+				m_Textures[iTexture].SetSlot((UINT)MaterialData.Index()); // @warning
+			}
+
+			TextureData.vRawData.clear(); // @important
+		}
+	}
+}
+
+void CMaterialTextureSet::UseTextures() const
+{
+	for (int iTexture = 0; iTexture < KMaxTextureCountPerMaterial; ++iTexture)
+	{
+		if (m_Textures[iTexture].IsCreated()) m_Textures[iTexture].Use();
+	}
+}
+
+ID3D11ShaderResourceView* CMaterialTextureSet::GetTextureSRV(STextureData::EType eType)
+{
+	return m_Textures[(int)eType].GetShaderResourceViewPtr();
+}
+
+void CMaterialData::Name(const string& Name)
 {
 	m_Name = Name;
 }
 
-void CMaterial::SetIndex(size_t Index)
+const string& CMaterialData::Name() const
 {
-	m_Index = Index;
+	return m_Name;
 }
 
-void CMaterial::SetTextureRawData(CTexture::EType eType, const vector<uint8_t>& Data)
+void CMaterialData::Index(size_t Value)
 {
-	if (!m_bHasTexture) m_bHasTexture = true;
-
-	switch (eType)
-	{
-	case CMaterial::CTexture::EType::DiffuseTexture:
-		m_bHasDiffuseTexture = true;
-		m_vEmbeddedDiffuseTextureRawData = Data;
-		break;
-	case CMaterial::CTexture::EType::NormalTexture:
-		m_bHasNormalTexture = true;
-		m_vEmbeddedNormalTextureRawData = Data;
-		break;
-	case CMaterial::CTexture::EType::DisplacementTexture:
-		m_bHasDisplacementTexture = true;
-		m_vEmbeddedDisplacementTextureRawData = Data;
-		break;
-	case CMaterial::CTexture::EType::OpacityTexture:
-		m_bHasOpacityTexture = true;
-		m_vEmbeddedOpacityTextureRawData = Data;
-		break;
-	default:
-		break;
-	}
+	m_Index = Value;
 }
 
-void CMaterial::SetTextureFileName(CTexture::EType eType, const string& FileName)
+size_t CMaterialData::Index() const
 {
-	if (FileName.size() == 0) return;
-	if (!m_bHasTexture) m_bHasTexture = true;
-
-	switch (eType)
-	{
-	case CMaterial::CTexture::EType::DiffuseTexture:
-		m_bHasDiffuseTexture = true;
-		m_DiffuseTextureFileName = FileName;
-		m_vEmbeddedDiffuseTextureRawData.clear();
-		break;
-	case CMaterial::CTexture::EType::NormalTexture:
-		m_bHasNormalTexture = true;
-		m_NormalTextureFileName = FileName;
-		m_vEmbeddedNormalTextureRawData.clear();
-		break;
-	case CMaterial::CTexture::EType::DisplacementTexture:
-		m_bHasDisplacementTexture = true;
-		m_DisplacementTextureFileName = FileName;
-		m_vEmbeddedDisplacementTextureRawData.clear();
-		break;
-	case CMaterial::CTexture::EType::OpacityTexture:
-		m_bHasOpacityTexture = true;
-		m_OpacityTextureFileName = FileName;
-		m_vEmbeddedOpacityTextureRawData.clear();
-		break;
-	default:
-		break;
-	}
+	return m_Index;
 }
 
-void CMaterial::CreateTextures(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext)
+void CMaterialData::AmbientColor(const XMFLOAT3& Color)
 {
-	CreateTexture(CTexture::EType::DiffuseTexture, PtrDevice, PtrDeviceContext);
-	CreateTexture(CTexture::EType::NormalTexture, PtrDevice, PtrDeviceContext);
-	CreateTexture(CTexture::EType::DisplacementTexture, PtrDevice, PtrDeviceContext);
-	CreateTexture(CTexture::EType::OpacityTexture, PtrDevice, PtrDeviceContext);
+	m_AmbientColor = Color;
 }
 
-void CMaterial::UseTextures() const
+const XMFLOAT3& CMaterialData::AmbientColor() const
 {
-	if (m_DiffuseTexture) m_DiffuseTexture->Use();
-	if (m_NormalTexture) m_NormalTexture->Use();
-	if (m_DisplacementTexture) m_DisplacementTexture->Use();
-	if (m_OpacityTexture) m_OpacityTexture->Use();
+	return m_AmbientColor;
 }
 
-void CMaterial::CreateTexture(CMaterial::CTexture::EType eType, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext)
+void CMaterialData::DiffuseColor(const XMFLOAT3& Color)
 {
-	if (HasTexture(eType))
-	{
-		CMaterial::CTexture* PtrTexture{};
-
-		switch (eType)
-		{
-		case CMaterial::CTexture::EType::DiffuseTexture:
-			m_DiffuseTexture = make_unique<CMaterial::CTexture>(PtrDevice, PtrDeviceContext);
-			PtrTexture = m_DiffuseTexture.get();
-			break;
-		case CMaterial::CTexture::EType::NormalTexture:
-			m_NormalTexture = make_unique<CMaterial::CTexture>(PtrDevice, PtrDeviceContext);
-			PtrTexture = m_NormalTexture.get();
-			break;
-		case CMaterial::CTexture::EType::DisplacementTexture:
-			m_DisplacementTexture = make_unique<CMaterial::CTexture>(PtrDevice, PtrDeviceContext);
-			PtrTexture = m_DisplacementTexture.get();
-			break;
-		case CMaterial::CTexture::EType::OpacityTexture:
-			m_OpacityTexture = make_unique<CMaterial::CTexture>(PtrDevice, PtrDeviceContext);
-			PtrTexture = m_OpacityTexture.get();
-			break;
-		default:
-			break;
-		}
-
-		if (IsTextureEmbedded(eType))
-		{
-			PtrTexture->CreateTextureFromMemory(GetTextureRawData(eType), ShouldGenerateAutoMipMap());
-			ClearEmbeddedTextureData(eType);
-		}
-		else
-		{
-			PtrTexture->CreateTextureFromFile(GetTextureFileName(eType), ShouldGenerateAutoMipMap());
-		}
-
-		UINT Offset{};
-		switch (eType)
-		{
-		case CMaterial::CTexture::EType::DiffuseTexture:
-			Offset = KDiffuseTextureSlotOffset;
-			break;
-		case CMaterial::CTexture::EType::NormalTexture:
-			Offset = KNormalTextureSlotOffset;
-			break;
-		case CMaterial::CTexture::EType::DisplacementTexture:
-			Offset = KDisplacementTextureSlotOffset;
-			PtrTexture->SetShaderType(EShaderType::DomainShader);
-			break;
-		case CMaterial::CTexture::EType::OpacityTexture:
-			Offset = KOpacityTextureSlotOffset;
-			break;
-		default:
-			break;
-		}
-
-		PtrTexture->SetSlot(static_cast<UINT>(Offset + m_Index));
-	}
+	m_DiffuseColor = Color;
 }
 
-void CMaterial::SetUniformColor(const XMFLOAT3& Color)
+const XMFLOAT3& CMaterialData::DiffuseColor() const
 {
-	SetAmbientColor(Color);
-	SetDiffuseColor(Color);
-	SetSpecularColor(Color);
+	return m_DiffuseColor;
 }
 
-void CMaterial::SetAmbientColor(const XMFLOAT3& Color)
+void CMaterialData::SpecularColor(const XMFLOAT3& Color)
 {
-	m_MaterialAmbient = Color;
+	m_SpecularColor = Color;
 }
 
-void CMaterial::SetDiffuseColor(const XMFLOAT3& Color)
+const XMFLOAT3& CMaterialData::SpecularColor() const
 {
-	m_MaterialDiffuse = Color;
+	return m_SpecularColor;
 }
 
-void CMaterial::SetSpecularColor(const XMFLOAT3& Color)
+void CMaterialData::SpecularExponent(float Value)
 {
-	m_MaterialSpecular = Color;
+	m_SpecularExponent = Value;
 }
 
-void CMaterial::SetSpecularExponent(float Exponent)
+float CMaterialData::SpecularExponent() const
 {
-	m_SpecularExponent = Exponent;
+	return m_SpecularExponent;
 }
 
-void CMaterial::SetSpecularIntensity(float Intensity)
+void CMaterialData::SpecularIntensity(float Value)
 {
-	m_SpecularIntensity = Intensity;
+	m_SpecularIntensity = Value;
 }
 
-void CMaterial::ClearEmbeddedTextureData(CTexture::EType eType)
+float CMaterialData::SpecularIntensity() const
 {
-	switch (eType)
-	{
-	case CMaterial::CTexture::EType::DiffuseTexture:
-		m_vEmbeddedDiffuseTextureRawData.clear();
-		break;
-	case CMaterial::CTexture::EType::NormalTexture:
-		m_vEmbeddedNormalTextureRawData.clear();
-		break;
-	case CMaterial::CTexture::EType::DisplacementTexture:
-		m_vEmbeddedDisplacementTextureRawData.clear();
-		break;
-	case CMaterial::CTexture::EType::OpacityTexture:
-		m_vEmbeddedOpacityTextureRawData.clear();
-		break;
-	default:
-		break;
-	}
+	return m_SpecularIntensity;
 }
 
-bool CMaterial::HasTexture(CTexture::EType eType) const
+STextureData& CMaterialData::GetTextureData(STextureData::EType eType)
 {
-	switch (eType)
-	{
-	case CMaterial::CTexture::EType::DiffuseTexture:
-		return m_bHasDiffuseTexture;
-	case CMaterial::CTexture::EType::NormalTexture:
-		return m_bHasNormalTexture;
-	case CMaterial::CTexture::EType::DisplacementTexture:
-		return m_bHasDisplacementTexture;
-	case CMaterial::CTexture::EType::OpacityTexture:
-		return m_bHasOpacityTexture;
-	default:
-		return false;
-	}
+	return m_TextureData[(int)eType];
 }
 
-bool CMaterial::IsTextureEmbedded(CTexture::EType eType) const
+void CMaterialData::SetTextureFileName(STextureData::EType eType, const string& FileName)
 {
-	switch (eType)
-	{
-	case CMaterial::CTexture::EType::DiffuseTexture:
-		return (m_vEmbeddedDiffuseTextureRawData.size()) ? true : false;
-	case CMaterial::CTexture::EType::NormalTexture:
-		return (m_vEmbeddedNormalTextureRawData.size()) ? true : false;
-	case CMaterial::CTexture::EType::DisplacementTexture:
-		return (m_vEmbeddedDisplacementTextureRawData.size()) ? true : false;
-	case CMaterial::CTexture::EType::OpacityTexture:
-		return (m_vEmbeddedOpacityTextureRawData.size()) ? true : false;
-	default:
-		return false;
-	}
+	if (FileName.empty()) return;
+
+	m_bHasAnyTexture = true;
+	m_TextureData[(int)eType].bHasTexture = true;
+	m_TextureData[(int)eType].FileName = FileName;
 }
 
-const string& CMaterial::GetTextureFileName(CTexture::EType eType) const
+const std::string CMaterialData::GetTextureFileName(STextureData::EType eType) const
 {
-	switch (eType)
-	{
-	case CMaterial::CTexture::EType::DiffuseTexture:
-		return m_DiffuseTextureFileName;
-	case CMaterial::CTexture::EType::NormalTexture:
-		return m_NormalTextureFileName;
-	case CMaterial::CTexture::EType::DisplacementTexture:
-		return m_DisplacementTextureFileName;
-	case CMaterial::CTexture::EType::OpacityTexture:
-		return m_OpacityTextureFileName;
-	default:
-		return m_DiffuseTextureFileName;
-	}
+	return m_TextureData[(int)eType].FileName;
 }
 
-const vector<uint8_t>& CMaterial::GetTextureRawData(CTexture::EType eType) const
+void CMaterialData::ShouldGenerateMipMap(bool Value)
 {
-	switch (eType)
-	{
-	case CMaterial::CTexture::EType::DiffuseTexture:
-		return m_vEmbeddedDiffuseTextureRawData;
-	case CMaterial::CTexture::EType::NormalTexture:
-		return m_vEmbeddedNormalTextureRawData;
-	case CMaterial::CTexture::EType::DisplacementTexture:
-		return m_vEmbeddedDisplacementTextureRawData;
-	case CMaterial::CTexture::EType::OpacityTexture:
-		return m_vEmbeddedOpacityTextureRawData;
-	default:
-		return m_vEmbeddedDiffuseTextureRawData;
-	}
+	m_bShouldGenerateMipMap = Value;
 }
+
+bool CMaterialData::ShouldGenerateMipMap() const
+{
+	return m_bShouldGenerateMipMap;
+}
+
+void CMaterialData::HasAnyTexture(bool Value)
+{
+	m_bHasAnyTexture = Value;
+}
+
+bool CMaterialData::HasAnyTexture() const
+{
+	return m_bHasAnyTexture;
+}
+
+
+
+void CMaterialData::SetUniformColor(const XMFLOAT3& Color)
+{
+	m_AmbientColor = m_DiffuseColor = m_SpecularColor = Color;
+}
+

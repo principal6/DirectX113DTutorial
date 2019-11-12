@@ -154,15 +154,15 @@ void CModelPorter::ImportTerrain(const std::string& FileName, CTerrain::STerrain
 	}
 
 	// 1B (uint8_t) Material count
-	Data.vTerrainMaterials.resize(m_BinaryFile.ReadUInt8());
+	Data.vTerrainMaterialData.resize(m_BinaryFile.ReadUInt8());
 
 	// Material data
-	ReadModelMaterials(Data.vTerrainMaterials);
+	ReadModelMaterials(Data.vTerrainMaterialData);
 
 	// @important
-	for (size_t iMaterial = 0; iMaterial < Data.vTerrainMaterials.size(); ++iMaterial)
+	for (size_t iMaterial = 0; iMaterial < Data.vTerrainMaterialData.size(); ++iMaterial)
 	{
-		Data.vTerrainMaterials[iMaterial].SetIndex(iMaterial);
+		Data.vTerrainMaterialData[iMaterial].Index(iMaterial);
 	}
 
 	m_BinaryFile.Close();
@@ -283,9 +283,9 @@ void CModelPorter::ExportTerrain(const std::string& FileName, const CTerrain::ST
 	}
 
 	// 1B (uint8_t) Material count
-	m_BinaryFile.WriteUInt8((uint8_t)Data.vTerrainMaterials.size());
+	m_BinaryFile.WriteUInt8((uint8_t)Data.vTerrainMaterialData.size());
 
-	WriteModelMaterials(Data.vTerrainMaterials);
+	WriteModelMaterials(Data.vTerrainMaterialData);
 
 	m_BinaryFile.Close();
 }
@@ -294,9 +294,9 @@ void CModelPorter::ReadStaticModelFile(SModel& Model)
 {
 	// ##### MATERIAL #####
 	// 1B (uint8_t) Material count
-	Model.vMaterials.resize(m_BinaryFile.ReadUInt8());
+	Model.vMaterialData.resize(m_BinaryFile.ReadUInt8());
 
-	ReadModelMaterials(Model.vMaterials);
+	ReadModelMaterials(Model.vMaterialData);
 
 	// ##### MESH #####
 	// 1B (uint8_t) Mesh count
@@ -350,57 +350,57 @@ void CModelPorter::ReadStaticModelFile(SModel& Model)
 	}
 }
 
-void CModelPorter::ReadModelMaterials(std::vector<CMaterial>& vMaterials)
+void CModelPorter::ReadModelMaterials(std::vector<CMaterialData>& vMaterialData)
 {
-	for (CMaterial& Material : vMaterials)
+	for (CMaterialData& MaterialData : vMaterialData)
 	{
 		// # 1B (uint8_t) Material index
 		m_BinaryFile.ReadUInt8();
 
 		// # 512B (string) Material name
-		Material.SetName(m_BinaryFile.ReadString(512));
+		MaterialData.Name(m_BinaryFile.ReadString(512));
 
 		// # 1B (bool) bHasTexture ( automatically set by SetTextureFileName() )
 		m_BinaryFile.ReadBool();
 
 		// # 12B (XMFLOAT3) Ambient color
-		Material.SetAmbientColor(m_BinaryFile.ReadXMFLOAT3());
+		MaterialData.AmbientColor(m_BinaryFile.ReadXMFLOAT3());
 
 		// # 12B (XMFLOAT3) Diffuse color
-		Material.SetDiffuseColor(m_BinaryFile.ReadXMFLOAT3());
+		MaterialData.DiffuseColor(m_BinaryFile.ReadXMFLOAT3());
 
 		// # 12B (XMFLOAT3) Specular color
-		Material.SetSpecularColor(m_BinaryFile.ReadXMFLOAT3());
+		MaterialData.SpecularColor(m_BinaryFile.ReadXMFLOAT3());
 
 		// # 4B (float) Specular exponent
-		Material.SetSpecularExponent(m_BinaryFile.ReadFloat());
+		MaterialData.SpecularExponent(m_BinaryFile.ReadFloat());
 
 		// # 4B (float) Specular intensity
-		Material.SetSpecularIntensity(m_BinaryFile.ReadFloat());
+		MaterialData.SpecularIntensity(m_BinaryFile.ReadFloat());
 
 		// # 1B (bool) bShouldGenerateAutoMipMap
-		Material.ShouldGenerateAutoMipMap(m_BinaryFile.ReadBool());
+		MaterialData.ShouldGenerateMipMap(m_BinaryFile.ReadBool());
 
 		// # 512B (string, File name) Diffuse texture file name
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture, m_BinaryFile.ReadString(512));
+		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, m_BinaryFile.ReadString(512));
 
 		// # 512B (string, File name) Normal texture file name
-		Material.SetTextureFileName(CMaterial::CTexture::EType::NormalTexture, m_BinaryFile.ReadString(512));
+		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, m_BinaryFile.ReadString(512));
 
 		// # 512B (string, File name) Displacement texture file name
-		Material.SetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture, m_BinaryFile.ReadString(512));
+		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, m_BinaryFile.ReadString(512));
 
 		// # 512B (string, File name) Opacity texture file name
-		Material.SetTextureFileName(CMaterial::CTexture::EType::OpacityTexture, m_BinaryFile.ReadString(512));
+		MaterialData.SetTextureFileName(STextureData::EType::OpacityTexture, m_BinaryFile.ReadString(512));
 	}
 }
 
 void CModelPorter::WriteStaticModelFile(const SModel& Model)
 {
 	// 1B (uint8_t) Material count
-	m_BinaryFile.WriteUInt8((uint8_t)Model.vMaterials.size());
+	m_BinaryFile.WriteUInt8((uint8_t)Model.vMaterialData.size());
 
-	WriteModelMaterials(Model.vMaterials);
+	WriteModelMaterials(Model.vMaterialData);
 
 	// 1B (uint8_t) Mesh count
 	m_BinaryFile.WriteUInt8((uint8_t)Model.vMeshes.size());
@@ -459,50 +459,50 @@ void CModelPorter::WriteStaticModelFile(const SModel& Model)
 	}
 }
 
-void CModelPorter::WriteModelMaterials(const std::vector<CMaterial>& vMaterials)
+void CModelPorter::WriteModelMaterials(const std::vector<CMaterialData>& vMaterialData)
 {
 	uint8_t iMaterial{};
 
-	for (const CMaterial& Material : vMaterials)
+	for (const CMaterialData& MaterialData : vMaterialData)
 	{
 		// 1B (uint8_t) Material index
 		m_BinaryFile.WriteUInt8(iMaterial);
 
 		// 512B (string) Material name
-		m_BinaryFile.WriteString(Material.GetName(), 512);
+		m_BinaryFile.WriteString(MaterialData.Name(), 512);
 		
 		// 1B (bool) bHasTexture
-		m_BinaryFile.WriteBool(Material.HasTexture());
+		m_BinaryFile.WriteBool(MaterialData.HasAnyTexture());
 
 		// 12B (XMFLOAT3) Ambient color
-		m_BinaryFile.WriteXMFLOAT3(Material.GetAmbientColor());
+		m_BinaryFile.WriteXMFLOAT3(MaterialData.AmbientColor());
 
 		// 12B (XMFLOAT3) Diffuse color
-		m_BinaryFile.WriteXMFLOAT3(Material.GetDiffuseColor());
+		m_BinaryFile.WriteXMFLOAT3(MaterialData.DiffuseColor());
 
 		// 12B (XMFLOAT3) Specular color
-		m_BinaryFile.WriteXMFLOAT3(Material.GetSpecularColor());
+		m_BinaryFile.WriteXMFLOAT3(MaterialData.SpecularColor());
 
 		// 4B (float) Specular exponent
-		m_BinaryFile.WriteFloat(Material.GetSpecularExponent());
+		m_BinaryFile.WriteFloat(MaterialData.SpecularExponent());
 
 		// 4B (float) Specular intensity
-		m_BinaryFile.WriteFloat(Material.GetSpecularIntensity());
+		m_BinaryFile.WriteFloat(MaterialData.SpecularIntensity());
 
 		// 1B (bool) bShouldGenerateAutoMipMap
-		m_BinaryFile.WriteBool(Material.ShouldGenerateAutoMipMap());
+		m_BinaryFile.WriteBool(MaterialData.ShouldGenerateMipMap());
 
 		// 512B (string, File name) Diffuse texture file name
-		m_BinaryFile.WriteString(Material.GetTextureFileName(CMaterial::CTexture::EType::DiffuseTexture), 512);
+		m_BinaryFile.WriteString(MaterialData.GetTextureFileName(STextureData::EType::DiffuseTexture), 512);
 		
 		// 512B (string, File name) Normal texture file name
-		m_BinaryFile.WriteString(Material.GetTextureFileName(CMaterial::CTexture::EType::NormalTexture), 512);
+		m_BinaryFile.WriteString(MaterialData.GetTextureFileName(STextureData::EType::NormalTexture), 512);
 
 		// 512B (string, File name) Displacement texture file name
-		m_BinaryFile.WriteString(Material.GetTextureFileName(CMaterial::CTexture::EType::DisplacementTexture), 512);
+		m_BinaryFile.WriteString(MaterialData.GetTextureFileName(STextureData::EType::DisplacementTexture), 512);
 
 		// 512B (string, File name) Opacity texture file name
-		m_BinaryFile.WriteString(Material.GetTextureFileName(CMaterial::CTexture::EType::OpacityTexture), 512);
+		m_BinaryFile.WriteString(MaterialData.GetTextureFileName(STextureData::EType::OpacityTexture), 512);
 
 		++iMaterial;
 	}

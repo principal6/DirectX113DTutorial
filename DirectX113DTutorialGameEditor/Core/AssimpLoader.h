@@ -98,7 +98,7 @@ struct SModel
 	};
 
 	std::vector<SMesh>						vMeshes{};
-	std::vector<CMaterial>					vMaterials{};
+	std::vector<CMaterialData>				vMaterialData{};
 
 	std::vector<SNode>						vNodes{};
 	std::unordered_map<std::string, size_t>	mapNodeNameToIndex{};
@@ -125,10 +125,10 @@ private:
 	XMMATRIX ConvertaiMatrix4x4ToXMMATRIX(const aiMatrix4x4& Matrix);
 
 	void LoadMeshesFromFile(const aiScene* const Scene, std::vector<SMesh>& vMeshes);
-	void LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext, std::vector<CMaterial>& vMaterials);
+	void LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext, std::vector<CMaterialData>& vMaterialData);
 
 private:
-	void LoadTextureData(const aiScene* const Scene, const aiString& TextureFileName, CMaterial& Material, CMaterial::CTexture::EType eTextureType);
+	void LoadTextureData(const aiScene* const Scene, const aiString& TextureFileName, CMaterialData& MaterialData, STextureData::EType eTextureType);
 
 private:
 	void LoadNodes(const aiScene* const Scene, aiNode* const aiCurrentNode, int32_t ParentNodeIndex, SModel& Model);

@@ -86,7 +86,7 @@ protected:
 	std::vector<SParticleData>				m_vParticleData{};
 	
 	bool									m_bUseTexture{ false };
-	std::unique_ptr<CMaterial::CTexture>	m_ParticleTexture{};
+	std::unique_ptr<CTexture>	m_ParticleTexture{};
 
 	XMFLOAT2						m_ParticleScalingFactor{ 1.0f, 1.0f };
 	float							m_ParticleDuration{ 1.0f };

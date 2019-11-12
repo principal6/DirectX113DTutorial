@@ -2,7 +2,8 @@
 
 SamplerState CurrentSampler : register(s0);
 Texture2D DiffuseTexture : register(t0);
-Texture2D OpacityTexture : register(t10);
+// Normal texture slot
+Texture2D OpacityTexture : register(t2);
 
 cbuffer cbFlags : register(b0)
 {
