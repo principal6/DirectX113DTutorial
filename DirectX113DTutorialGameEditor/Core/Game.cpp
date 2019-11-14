@@ -49,7 +49,7 @@ void CGame::CreateWin32(WNDPROC const WndProc, const std::string& WindowName, bo
 
 	InitializeEditorAssets();
 
-	InitializeImGui();
+	InitializeImGui("Asset\\D2Coding.ttf", 15.0f);
 }
 
 void CGame::CreateSpriteFont(const wstring& FontFileName)
@@ -77,22 +77,22 @@ void CGame::Destroy()
 
 void CGame::CreateWin32Window(WNDPROC const WndProc, const std::string& WindowName)
 {
-	assert(!m_hWnd);
+	if (m_hWnd) return;
 
-	constexpr LPCTSTR KClassName{ TEXT("GameWindow") };
+	constexpr LPCSTR KClassName{ "GameWindow" };
 	constexpr DWORD KWindowStyle{ WS_CAPTION | WS_SYSMENU };
 
-	WNDCLASSEX WindowClass{};
+	WNDCLASSEXA WindowClass{};
 	WindowClass.cbSize = sizeof(WNDCLASSEX);
 	WindowClass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
-	WindowClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
-	WindowClass.hIcon = WindowClass.hIconSm = LoadIcon(nullptr, IDI_APPLICATION);
+	WindowClass.hCursor = LoadCursorA(nullptr, IDC_ARROW);
+	WindowClass.hIcon = WindowClass.hIconSm = LoadIconA(nullptr, IDI_APPLICATION);
 	WindowClass.hInstance = m_hInstance;
 	WindowClass.lpfnWndProc = WndProc;
 	WindowClass.lpszClassName = KClassName;
 	WindowClass.lpszMenuName = nullptr;
 	WindowClass.style = CS_VREDRAW | CS_HREDRAW;
-	RegisterClassEx(&WindowClass);
+	RegisterClassExA(&WindowClass);
 
 	RECT WindowRect{};
 	WindowRect.right = static_cast<LONG>(m_WindowSize.x);
@@ -113,29 +113,24 @@ void CGame::InitializeDirectX(bool bWindowed)
 
 	CreateViews();
 
-	SetViewports();
-
 	CreateDepthStencilStates();
 	CreateBlendStates();
-
-	SetPerspective(KDefaultFOV, KDefaultNearZ, KDefaultFarZ);
 
 	CreateInputDevices();
 
 	CreateBaseShaders();
 
 	CreateMiniAxes();
-
 	CreatePickingRay();
 	CreatePickedTriangle();
-
 	CreateBoundingSphere();
-
 	Create3DGizmos();
 
 	CreateScreenQuadVertexBuffer();
 
-	m_MatrixProjection2D = XMMatrixOrthographicLH(m_WindowSize.x, m_WindowSize.y, 0.0f, 1.0f);
+	SetProjectionMatrices(KDefaultFOV, KDefaultNearZ, KDefaultFarZ);
+	InitializeViewports();
+
 	m_CommonStates = make_unique<CommonStates>(m_Device.Get());
 }
 
@@ -143,64 +138,67 @@ void CGame::InitializeEditorAssets()
 {
 	CreateEditorCamera();
 
-	m_Object3D_CameraRepresentation = make_unique<CObject3D>("CameraRepresentation", m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3D_CameraRepresentation->CreateFromFile("Asset\\camera_repr.fbx", false);
-	m_Object3D_CameraRepresentation->ComponentRender.PtrVS = GetBaseShader(EBaseShader::VSBase);
-	m_Object3D_CameraRepresentation->ComponentRender.PtrPS = GetBaseShader(EBaseShader::PSCamera);
-
-	if (InsertObject3DLine("Grid"))
+	if (!m_Object3D_CameraRepresentation)
 	{
-		CObject3DLine* Grid{ GetObject3DLine("Grid") };
+		m_Object3D_CameraRepresentation = make_unique<CObject3D>("CameraRepresentation", m_Device.Get(), m_DeviceContext.Get(), this);
+		m_Object3D_CameraRepresentation->CreateFromFile("Asset\\camera_repr.fbx", false);
+		m_Object3D_CameraRepresentation->ComponentRender.PtrVS = GetBaseShader(EBaseShader::VSBase);
+		m_Object3D_CameraRepresentation->ComponentRender.PtrPS = GetBaseShader(EBaseShader::PSCamera);
+	}
+
+	if (InsertObject3DLine("Default3DAxes", false))
+	{
+		CObject3DLine* Grid{ GetObject3DLine("Default3DAxes") };
 		Grid->Create(Generate3DGrid(0));
 	}
 
-	if (InsertMaterial("test"))
 	{
-		CMaterialData* MaterialData{ GetMaterial("test") };
-		MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\test_diffuse.jpg");
-		MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\test_normal.jpg");
-		MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\test_displacement.jpg");
-		CreateMaterialTextures(*MaterialData);
+		CMaterialData MaterialData{ "test" };
+		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\test_diffuse.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\test_normal.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\test_displacement.jpg");
+
+		InsertMaterialCreateTextures(MaterialData);
 	}
 
-	if (InsertMaterial("grass_path"))
 	{
-		CMaterialData* MaterialData{ GetMaterial("grass_path") };
-		MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\grass_path_diffuse.jpg");
-		MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\grass_path_normal.jpg");
-		MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\grass_path_displacement.jpg");
-		CreateMaterialTextures(*MaterialData);
+		CMaterialData MaterialData{ "grass_path" };
+		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\grass_path_diffuse.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\grass_path_normal.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\grass_path_displacement.jpg");
+
+		InsertMaterialCreateTextures(MaterialData);
 	}
 
-	if (InsertMaterial("burned_ground"))
 	{
-		CMaterialData* MaterialData{ GetMaterial("burned_ground") };
-		MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\burned_ground_diffuse.jpg");
-		MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\burned_ground_normal.jpg");
-		MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
-		CreateMaterialTextures(*MaterialData);
+		CMaterialData MaterialData{ "burned_ground" };
+		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\burned_ground_diffuse.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\burned_ground_normal.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
+
+		InsertMaterialCreateTextures(MaterialData);
 	}
 
-	if (InsertMaterial("cobblestone_large"))
 	{
-		CMaterialData* MaterialData{ GetMaterial("cobblestone_large") };
-		MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\cobblestone_large_diffuse.jpg");
-		MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
-		MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\cobblestone_large_displacement.jpg");
-		CreateMaterialTextures(*MaterialData);
+		CMaterialData MaterialData{ "cobblestone_large" };
+		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\cobblestone_large_diffuse.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\cobblestone_large_displacement.jpg");
+
+		InsertMaterialCreateTextures(MaterialData);
 	}
 
-	if (InsertMaterial("brown_mud_dry"))
 	{
-		CMaterialData* MaterialData{ GetMaterial("brown_mud_dry") };
-		MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\brown_mud_dry_diffuse.jpg");
-		MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
-		MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
-		CreateMaterialTextures(*MaterialData);
+		CMaterialData MaterialData{ "brown_mud_dry" };
+		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\brown_mud_dry_diffuse.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
+
+		InsertMaterialCreateTextures(MaterialData);
 	}
 }
 
-void CGame::InitializeImGui()
+void CGame::InitializeImGui(const std::string& FontFileName, float FontSize)
 {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -211,7 +209,7 @@ void CGame::InitializeImGui()
 	ImGuiIO& igIO{ ImGui::GetIO() };
 	igIO.Fonts->AddFontDefault();
 
-	m_EditorGUIFont = igIO.Fonts->AddFontFromFileTTF("Asset\\D2Coding.ttf", 15.0f, nullptr, igIO.Fonts->GetGlyphRangesKorean());
+	m_EditorGUIFont = igIO.Fonts->AddFontFromFileTTF(FontFileName.c_str(), FontSize, nullptr, igIO.Fonts->GetGlyphRangesKorean());
 }
 
 void CGame::CreateSwapChain(bool bWindowed)
@@ -239,11 +237,12 @@ void CGame::CreateSwapChain(bool bWindowed)
 
 void CGame::CreateViews()
 {
+	// Create back buffer RTV
 	ComPtr<ID3D11Texture2D> BackBuffer{};
 	m_SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), &BackBuffer);
-
 	m_Device->CreateRenderTargetView(BackBuffer.Get(), nullptr, &m_DeviceRTV);
 
+	// Create deferred RTV
 	{
 		D3D11_TEXTURE2D_DESC Texture2DDesc{};
 		Texture2DDesc.ArraySize = 1;
@@ -272,6 +271,7 @@ void CGame::CreateViews()
 		m_Device->CreateRenderTargetView(m_ScreenQuadTexture.Get(), &ScreenQuadRTVDesc, m_ScreenQuadRTV.ReleaseAndGetAddressOf());
 	}
 
+	// Create depth-stencil view
 	D3D11_TEXTURE2D_DESC DepthStencilBufferDesc{};
 	DepthStencilBufferDesc.ArraySize = 1;
 	DepthStencilBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
@@ -288,7 +288,7 @@ void CGame::CreateViews()
 	m_Device->CreateDepthStencilView(m_DepthStencilBuffer.Get(), nullptr, &m_DepthStencilView);
 }
 
-void CGame::SetViewports()
+void CGame::InitializeViewports()
 {
 	{
 		m_vViewports.emplace_back();
@@ -359,12 +359,12 @@ void CGame::CreateDepthStencilStates()
 	DepthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 	DepthStencilDesc.StencilEnable = FALSE;
 
-	assert(SUCCEEDED(m_Device->CreateDepthStencilState(&DepthStencilDesc, m_DepthStencilStateLessEqualNoWrite.GetAddressOf())));
+	assert(SUCCEEDED(m_Device->CreateDepthStencilState(&DepthStencilDesc, m_DepthStencilStateLessEqualNoWrite.ReleaseAndGetAddressOf())));
 
 	DepthStencilDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
 	DepthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 
-	assert(SUCCEEDED(m_Device->CreateDepthStencilState(&DepthStencilDesc, m_DepthStencilStateAlways.GetAddressOf())));
+	assert(SUCCEEDED(m_Device->CreateDepthStencilState(&DepthStencilDesc, m_DepthStencilStateAlways.ReleaseAndGetAddressOf())));
 }
 
 void CGame::CreateBlendStates()
@@ -396,38 +396,46 @@ void CGame::CreateInputDevices()
 void CGame::CreateBaseShaders()
 {
 	m_VSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSBase->Create(EShaderType::VertexShader, L"Shader\\VSBase.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+	m_VSBase->Create(EShaderType::VertexShader, L"Shader\\VSBase.hlsl", "main",
+		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSBase->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 
 	m_VSInstance = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSInstance->Create(EShaderType::VertexShader, L"Shader\\VSInstance.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+	m_VSInstance->Create(EShaderType::VertexShader, L"Shader\\VSInstance.hlsl", "main",
+		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSInstance->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 
 	m_VSAnimation = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSAnimation->Create(EShaderType::VertexShader, L"Shader\\VSAnimation.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+	m_VSAnimation->Create(EShaderType::VertexShader, L"Shader\\VSAnimation.hlsl", "main", 
+		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSAnimation->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 	m_VSAnimation->AddConstantBuffer(&m_CBAnimationBonesData, sizeof(SCBAnimationBonesData));
 	m_VSAnimation->AddConstantBuffer(&m_CBAnimationData, sizeof(CObject3D::SCBAnimationData));
 
 	m_VSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSSky->Create(EShaderType::VertexShader, L"Shader\\VSSky.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+	m_VSSky->Create(EShaderType::VertexShader, L"Shader\\VSSky.hlsl", "main", 
+		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSSky->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 
 	m_VSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSLine->Create(EShaderType::VertexShader, L"Shader\\VSLine.hlsl", "main", CObject3DLine::KInputElementDescs, ARRAYSIZE(CObject3DLine::KInputElementDescs));
+	m_VSLine->Create(EShaderType::VertexShader, L"Shader\\VSLine.hlsl", "main", 
+		CObject3DLine::KInputElementDescs, ARRAYSIZE(CObject3DLine::KInputElementDescs));
 	m_VSLine->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 
 	m_VSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSGizmo->Create(EShaderType::VertexShader, L"Shader\\VSGizmo.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+	m_VSGizmo->Create(EShaderType::VertexShader, L"Shader\\VSGizmo.hlsl", "main", 
+		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSGizmo->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 
 	m_VSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSTerrain->Create(EShaderType::VertexShader, L"Shader\\VSTerrain.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+	m_VSTerrain->Create(EShaderType::VertexShader, L"Shader\\VSTerrain.hlsl", "main",
+		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSTerrain->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 	m_VSTerrain->AddConstantBuffer(&m_CBTerrainData, sizeof(CTerrain::SCBTerrainData));
 
 	m_VSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSFoliage->Create(EShaderType::VertexShader, L"Shader\\VSFoliage.hlsl", "main", KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+	m_VSFoliage->Create(EShaderType::VertexShader, L"Shader\\VSFoliage.hlsl", "main",
+		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSFoliage->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
 	m_VSFoliage->AddConstantBuffer(&m_CBTerrainData, sizeof(CTerrain::SCBTerrainData));
 	m_VSFoliage->AddConstantBuffer(&m_CBWindData, sizeof(CTerrain::SCBWindData));
@@ -438,10 +446,12 @@ void CGame::CreateBaseShaders()
 
 	m_VSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	//m_VSScreenQuad->Create(EShaderType::VertexShader, L"Shader\\VSScreenQuad.hlsl", "main");
-	m_VSScreenQuad->Create(EShaderType::VertexShader, L"Shader\\VSScreenQuad.hlsl", "main", KScreenQuadInputElementDescs, ARRAYSIZE(KScreenQuadInputElementDescs));
+	m_VSScreenQuad->Create(EShaderType::VertexShader, L"Shader\\VSScreenQuad.hlsl", "main", 
+		KScreenQuadInputElementDescs, ARRAYSIZE(KScreenQuadInputElementDescs));
 
 	m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSBase2D->Create(EShaderType::VertexShader, L"Shader\\VSBase2D.hlsl", "main", CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
+	m_VSBase2D->Create(EShaderType::VertexShader, L"Shader\\VSBase2D.hlsl", "main",
+		CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
 	m_VSBase2D->AddConstantBuffer(&m_CBSpace2DData, sizeof(SCBSpace2DData));
 
 	m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
@@ -549,24 +559,24 @@ void CGame::CreateMiniAxes()
 	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>("AxisY", m_Device.Get(), m_DeviceContext.Get(), this));
 	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>("AxisZ", m_Device.Get(), m_DeviceContext.Get(), this));
 
-	SMesh Cone{ GenerateCone(0, 1.0f, 1.0f, 16) };
+	const SMesh KAxisCone{ GenerateCone(0, 1.0f, 1.0f, 16) };
 	vector<CMaterialData> vMaterialData{};
 	vMaterialData.resize(3);
 	vMaterialData[0].SetUniformColor(XMFLOAT3(1, 0, 0));
 	vMaterialData[1].SetUniformColor(XMFLOAT3(0, 1, 0));
 	vMaterialData[2].SetUniformColor(XMFLOAT3(0, 0, 1));
-	m_vObject3DMiniAxes[0]->Create(Cone, vMaterialData[0]);
+	m_vObject3DMiniAxes[0]->Create(KAxisCone, vMaterialData[0]);
 	m_vObject3DMiniAxes[0]->ComponentRender.PtrVS = m_VSBase.get();
 	m_vObject3DMiniAxes[0]->ComponentRender.PtrPS = m_PSBase.get();
 	m_vObject3DMiniAxes[0]->ComponentTransform.Roll = -XM_PIDIV2;
 	m_vObject3DMiniAxes[0]->eFlagsRendering = CObject3D::EFlagsRendering::NoLighting;
 
-	m_vObject3DMiniAxes[1]->Create(Cone, vMaterialData[1]);
+	m_vObject3DMiniAxes[1]->Create(KAxisCone, vMaterialData[1]);
 	m_vObject3DMiniAxes[1]->ComponentRender.PtrVS = m_VSBase.get();
 	m_vObject3DMiniAxes[1]->ComponentRender.PtrPS = m_PSBase.get();
 	m_vObject3DMiniAxes[1]->eFlagsRendering = CObject3D::EFlagsRendering::NoLighting;
 
-	m_vObject3DMiniAxes[2]->Create(Cone, vMaterialData[2]);
+	m_vObject3DMiniAxes[2]->Create(KAxisCone, vMaterialData[2]);
 	m_vObject3DMiniAxes[2]->ComponentRender.PtrVS = m_VSBase.get();
 	m_vObject3DMiniAxes[2]->ComponentRender.PtrPS = m_PSBase.get();
 	m_vObject3DMiniAxes[2]->ComponentTransform.Yaw = -XM_PIDIV2;
@@ -589,13 +599,6 @@ void CGame::CreatePickingRay()
 	m_Object3DLinePickingRay->Create(Vertices);
 }
 
-void CGame::CreateBoundingSphere()
-{
-	m_Object3DBoundingSphere = make_unique<CObject3D>("BoundingSphere", m_Device.Get(), m_DeviceContext.Get(), this);
-
-	m_Object3DBoundingSphere->Create(GenerateSphere(16));
-}
-
 void CGame::CreatePickedTriangle()
 {
 	m_Object3DPickedTriangle = make_unique<CObject3D>("PickedTriangle", m_Device.Get(), m_DeviceContext.Get(), this);
@@ -604,92 +607,87 @@ void CGame::CreatePickedTriangle()
 		XMVectorSet(1.0f, 1.0f, 0.0f, 1.0f)));
 }
 
+void CGame::CreateBoundingSphere()
+{
+	m_Object3DBoundingSphere = make_unique<CObject3D>("BoundingSphere", m_Device.Get(), m_DeviceContext.Get(), this);
+
+	m_Object3DBoundingSphere->Create(GenerateSphere(16));
+}
+
 void CGame::Create3DGizmos()
 {
-	static constexpr float KGizmoRadius{ 0.05f };
-	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
 	const static XMVECTOR ColorX{ XMVectorSet(1.00f, 0.25f, 0.25f, 1) };
 	const static XMVECTOR ColorY{ XMVectorSet(0.25f, 1.00f, 0.25f, 1) };
 	const static XMVECTOR ColorZ{ XMVectorSet(0.25f, 0.25f, 1.00f, 1) };
 
-	m_Object3D_3DGizmoRotationPitch = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+	if (!m_Object3D_3DGizmoRotationPitch)
 	{
-		SMesh MeshRing{ GenerateTorus(KGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorX) };
-		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorX) };
+		m_Object3D_3DGizmoRotationPitch = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorX) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorX) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		MeshRing = MergeStaticMeshes(MeshRing, MeshAxis);
-		m_Object3D_3DGizmoRotationPitch->Create(MeshRing);
+		m_Object3D_3DGizmoRotationPitch->Create(MergeStaticMeshes(MeshRing, MeshAxis));
 		m_Object3D_3DGizmoRotationPitch->ComponentTransform.Roll = -XM_PIDIV2;
-		m_Object3D_3DGizmoRotationPitch->ComponentRender.PtrVS = m_VSGizmo.get();
-		m_Object3D_3DGizmoRotationPitch->ComponentRender.PtrPS = m_PSGizmo.get();
+	}
+	
+	if (!m_Object3D_3DGizmoRotationYaw)
+	{
+		m_Object3D_3DGizmoRotationYaw = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorY) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorY) };
+		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
+		m_Object3D_3DGizmoRotationYaw->Create(MergeStaticMeshes(MeshRing, MeshAxis));
 	}
 
-	m_Object3D_3DGizmoRotationYaw = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+	if (!m_Object3D_3DGizmoRotationRoll)
 	{
-		SMesh MeshRing{ GenerateTorus(KGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorY) };
-		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorY) };
+		m_Object3D_3DGizmoRotationRoll = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorZ) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorZ) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		MeshRing = MergeStaticMeshes(MeshRing, MeshAxis);
-		m_Object3D_3DGizmoRotationYaw->Create(MeshRing);
-		m_Object3D_3DGizmoRotationYaw->ComponentRender.PtrVS = m_VSGizmo.get();
-		m_Object3D_3DGizmoRotationYaw->ComponentRender.PtrPS = m_PSGizmo.get();
-	}
-
-	m_Object3D_3DGizmoRotationRoll = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-	{
-		SMesh MeshRing{ GenerateTorus(KGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorZ) };
-		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorZ) };
-		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		MeshRing = MergeStaticMeshes(MeshRing, MeshAxis);
-		m_Object3D_3DGizmoRotationRoll->Create(MeshRing);
+		m_Object3D_3DGizmoRotationRoll->Create(MergeStaticMeshes(MeshRing, MeshAxis));
 		m_Object3D_3DGizmoRotationRoll->ComponentTransform.Pitch = XM_PIDIV2;
-		m_Object3D_3DGizmoRotationRoll->ComponentRender.PtrVS = m_VSGizmo.get();
-		m_Object3D_3DGizmoRotationRoll->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
-
-
-	m_Object3D_3DGizmoTranslationX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+	
+	if (!m_Object3D_3DGizmoTranslationX)
 	{
-		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorX) };
+		m_Object3D_3DGizmoTranslationX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorX) };
 		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorX) };
 		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoTranslationX->Create(MeshAxis);
 		m_Object3D_3DGizmoTranslationX->ComponentTransform.Roll = -XM_PIDIV2;
-		m_Object3D_3DGizmoTranslationX->ComponentRender.PtrVS = m_VSGizmo.get();
-		m_Object3D_3DGizmoTranslationX->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
-
-	m_Object3D_3DGizmoTranslationY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+	
+	if (!m_Object3D_3DGizmoTranslationY)
 	{
-		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorY) };
+		m_Object3D_3DGizmoTranslationY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorY) };
 		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorY) };
 		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoTranslationY->Create(MeshAxis);
-		m_Object3D_3DGizmoTranslationY->ComponentRender.PtrVS = m_VSGizmo.get();
-		m_Object3D_3DGizmoTranslationY->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
-
-	m_Object3D_3DGizmoTranslationZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+	
+	if (!m_Object3D_3DGizmoTranslationZ)
 	{
-		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorZ) };
+		m_Object3D_3DGizmoTranslationZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorZ) };
 		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorZ) };
 		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoTranslationZ->Create(MeshAxis);
 		m_Object3D_3DGizmoTranslationZ->ComponentTransform.Pitch = XM_PIDIV2;
-		m_Object3D_3DGizmoTranslationZ->ComponentRender.PtrVS = m_VSGizmo.get();
-		m_Object3D_3DGizmoTranslationZ->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 
-
-	m_Object3D_3DGizmoScalingX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+	if (!m_Object3D_3DGizmoScalingX)
 	{
-		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorX) };
+		m_Object3D_3DGizmoScalingX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorX) };
 		SMesh MeshCube{ GenerateCube(ColorX) };
 		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
 		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
@@ -697,26 +695,24 @@ void CGame::Create3DGizmos()
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoScalingX->Create(MeshAxis);
 		m_Object3D_3DGizmoScalingX->ComponentTransform.Roll = -XM_PIDIV2;
-		m_Object3D_3DGizmoScalingX->ComponentRender.PtrVS = m_VSGizmo.get();
-		m_Object3D_3DGizmoScalingX->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 
-	m_Object3D_3DGizmoScalingY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+	if (!m_Object3D_3DGizmoScalingY)
 	{
-		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorY) };
+		m_Object3D_3DGizmoScalingY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorY) };
 		SMesh MeshCube{ GenerateCube(ColorY) };
 		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
 		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoScalingY->Create(MeshAxis);
-		m_Object3D_3DGizmoScalingY->ComponentRender.PtrVS = m_VSGizmo.get();
-		m_Object3D_3DGizmoScalingY->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
 
-	m_Object3D_3DGizmoScalingZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+	if (!m_Object3D_3DGizmoScalingZ)
 	{
-		SMesh MeshAxis{ GenerateCylinder(KGizmoRadius, 1.0f, 16, ColorZ) };
+		m_Object3D_3DGizmoScalingZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorZ) };
 		SMesh MeshCube{ GenerateCube(ColorZ) };
 		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
 		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
@@ -724,9 +720,21 @@ void CGame::Create3DGizmos()
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoScalingZ->Create(MeshAxis);
 		m_Object3D_3DGizmoScalingZ->ComponentTransform.Pitch = XM_PIDIV2;
-		m_Object3D_3DGizmoScalingZ->ComponentRender.PtrVS = m_VSGizmo.get();
-		m_Object3D_3DGizmoScalingZ->ComponentRender.PtrPS = m_PSGizmo.get();
 	}
+
+	m_Object3D_3DGizmoRotationPitch->ComponentRender.PtrVS =
+		m_Object3D_3DGizmoRotationYaw->ComponentRender.PtrVS = m_Object3D_3DGizmoRotationRoll->ComponentRender.PtrVS =
+		m_Object3D_3DGizmoTranslationX->ComponentRender.PtrVS =
+		m_Object3D_3DGizmoTranslationY->ComponentRender.PtrVS = m_Object3D_3DGizmoTranslationZ->ComponentRender.PtrVS =
+		m_Object3D_3DGizmoScalingX->ComponentRender.PtrVS =
+		m_Object3D_3DGizmoScalingX->ComponentRender.PtrPS = m_Object3D_3DGizmoScalingY->ComponentRender.PtrVS = m_VSGizmo.get();
+
+	m_Object3D_3DGizmoRotationPitch->ComponentRender.PtrPS =
+		m_Object3D_3DGizmoRotationYaw->ComponentRender.PtrPS = m_Object3D_3DGizmoRotationRoll->ComponentRender.PtrPS =
+		m_Object3D_3DGizmoTranslationX->ComponentRender.PtrPS =
+		m_Object3D_3DGizmoTranslationY->ComponentRender.PtrPS = m_Object3D_3DGizmoTranslationZ->ComponentRender.PtrPS =
+		m_Object3D_3DGizmoScalingY->ComponentRender.PtrPS =
+		m_Object3D_3DGizmoScalingZ->ComponentRender.PtrVS = m_Object3D_3DGizmoScalingZ->ComponentRender.PtrPS = m_PSGizmo.get();
 }
 
 void CGame::CreateScreenQuadVertexBuffer()
@@ -1131,12 +1139,13 @@ void CGame::SaveScene(const string& FileName)
 	xmlDocument.SaveFile(FileName.c_str());
 }
 
-void CGame::SetPerspective(float FOV, float NearZ, float FarZ)
+void CGame::SetProjectionMatrices(float FOV, float NearZ, float FarZ)
 {
 	m_NearZ = NearZ;
 	m_FarZ = FarZ;
 
 	m_MatrixProjection = XMMatrixPerspectiveFovLH(FOV, m_WindowSize.x / m_WindowSize.y, m_NearZ, m_FarZ);
+	m_MatrixProjection2D = XMMatrixOrthographicLH(m_WindowSize.x, m_WindowSize.y, 0.0f, 1.0f);
 }
 
 void CGame::SetRenderingFlags(EFlagsRendering Flags)
@@ -1186,6 +1195,7 @@ void CGame::SetUniversalbUseLighiting()
 void CGame::UpdateCBSpace(const XMMATRIX& World)
 {
 	m_CBSpaceWVPData.World = m_CBSpace2DData.World = XMMatrixTranspose(World);
+
 	m_CBSpaceWVPData.ViewProjection = GetTransposedViewProjectionMatrix();
 	m_CBSpaceVPData.ViewProjection = GetTransposedViewProjectionMatrix();
 
@@ -1422,25 +1432,14 @@ float CGame::GetAmbientLightIntensity() const
 
 void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, uint32_t MaskingDetail, float UniformScaling)
 {
-	CMaterialData* DefaultMaterial{ GetMaterial("brown_mud_dry") };
-	if (!DefaultMaterial)
-	{
-		if (InsertMaterial("brown_mud_dry"))
-		{
-			CMaterialData* MaterialData{ GetMaterial("brown_mud_dry") };
-			MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\brown_mud_dry_diffuse.jpg");
-			MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
-			MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
-			CreateMaterialTextures(*MaterialData);
-		}
-	}
+	if (!GetMaterial("brown_mud_dry")) InitializeEditorAssets();
 
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Create(TerrainSize, *GetMaterial("brown_mud_dry"), MaskingDetail, UniformScaling);
 	
-	ID3D11ShaderResourceView* NullSRVs[11]{};
+	ID3D11ShaderResourceView* NullSRVs[20]{};
 	m_DeviceContext->DSSetShaderResources(0, 1, NullSRVs);
-	m_DeviceContext->PSSetShaderResources(0, 11, NullSRVs);
+	m_DeviceContext->PSSetShaderResources(0, 20, NullSRVs);
 }
 
 void CGame::LoadTerrain(const string& TerrainFileName)
@@ -1450,15 +1449,11 @@ void CGame::LoadTerrain(const string& TerrainFileName)
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Load(TerrainFileName);
 	
-	ClearMaterials();
 	int MaterialCount{ m_Terrain->GetMaterialCount() };
 	for (int iMaterial = 0; iMaterial < MaterialCount; ++iMaterial)
 	{
 		const CMaterialData& TerrainMaterialData{ m_Terrain->GetMaterial(iMaterial) };
-		
-		InsertMaterial(TerrainMaterialData.Name());
-		CMaterialData* MaterialData{ GetMaterial(TerrainMaterialData.Name()) };
-		*MaterialData = TerrainMaterialData;
+		InsertMaterialCreateTextures(TerrainMaterialData, false);
 	}
 }
 
@@ -1764,22 +1759,22 @@ CObject3D* CGame::GetObject3D(const string& Name, bool bShowWarning) const
 	return m_vObject3Ds[m_mapObject3DNameToIndex.at(Name)].get();
 }
 
-bool CGame::InsertObject3DLine(const string& Name)
+bool CGame::InsertObject3DLine(const string& Name, bool bShowWarning)
 {
 	if (m_mapObject3DLineNameToIndex.find(Name) != m_mapObject3DLineNameToIndex.end())
 	{
-		MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Object3DLine 생성 실패");
+		if (bShowWarning) MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Object3DLine 생성 실패");
 		return false;
 	}
 
 	if (Name.size() >= KAssetNameMaxLength)
 	{
-		MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Object3DLine 생성 실패");
+		if (bShowWarning) MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Object3DLine 생성 실패");
 		return false;
 	}
 	else if (Name.size() == 0)
 	{
-		MB_WARN("이름은 공백일 수 없습니다.", "Object3DLine 생성 실패");
+		if (bShowWarning) MB_WARN("이름은 공백일 수 없습니다.", "Object3DLine 생성 실패");
 		return false;
 	}
 
@@ -1795,9 +1790,13 @@ void CGame::ClearObject3DLines()
 	m_vObject3DLines.clear();
 }
 
-CObject3DLine* CGame::GetObject3DLine(const string& Name) const
+CObject3DLine* CGame::GetObject3DLine(const string& Name, bool bShowWarning) const
 {
-	assert(m_mapObject3DLineNameToIndex.find(Name) != m_mapObject3DLineNameToIndex.end());
+	if (m_mapObject3DLineNameToIndex.find(Name) == m_mapObject3DLineNameToIndex.end())
+	{
+		if (bShowWarning) MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Object3DLine 얻어오기 실패");
+		return nullptr;
+	}
 	return m_vObject3DLines[m_mapObject3DLineNameToIndex.at(Name)].get();
 }
 
@@ -1873,22 +1872,22 @@ CObject2D* CGame::GetObject2D(const string& Name, bool bShowWarning) const
 	return m_vObject2Ds[m_mapObject2DNameToIndex.at(Name)].get();
 }
 
-bool CGame::InsertMaterial(const string& Name)
+bool CGame::InsertMaterial(const string& Name, bool bShowWarning)
 {
 	if (m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end())
 	{
-		MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Material 생성 실패");
+		if (bShowWarning) MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Material 생성 실패");
 		return false;
 	}
 
 	if (Name.size() >= KAssetNameMaxLength)
 	{
-		MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Material 생성 실패");
+		if (bShowWarning) MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Material 생성 실패");
 		return false;
 	}
 	else if (Name.size() == 0)
 	{
-		MB_WARN("이름은 공백일 수 없습니다.", "Material 생성 실패");
+		if (bShowWarning) MB_WARN("이름은 공백일 수 없습니다.", "Material 생성 실패");
 		return false;
 	}
 
@@ -1901,9 +1900,43 @@ bool CGame::InsertMaterial(const string& Name)
 	return true;
 }
 
+bool CGame::InsertMaterialCreateTextures(const CMaterialData& MaterialData, bool bShowWarning)
+{
+	if (InsertMaterial(MaterialData.Name(), bShowWarning))
+	{
+		CMaterialData* const Material{ GetMaterial(MaterialData.Name()) };
+		*Material = MaterialData; // copy it!
+
+		CreateMaterialTextures(*Material);
+		return true;
+	}
+	return false;
+}
+
 void CGame::DeleteMaterial(const std::string& Name)
 {
+	if (!m_vMaterialData.size()) return;
+	if (Name.length() == 0) return;
+	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end())
+	{
+		MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Material 삭제 실패");
+		return;
+	}
 
+	size_t iMaterial{ m_mapMaterialNameToIndex[Name] };
+	if (iMaterial < m_vMaterialData.size() - 1)
+	{
+		const string& SwappedName{ m_vMaterialData.back().Name() };
+
+		swap(m_vMaterialData[iMaterial], m_vMaterialData.back());
+		swap(m_vMaterialTextureSets[iMaterial], m_vMaterialTextureSets.back());
+
+		m_mapMaterialNameToIndex[SwappedName] = iMaterial;
+	}
+
+	m_mapMaterialNameToIndex.erase(Name);
+	m_vMaterialData.pop_back();
+	m_vMaterialTextureSets.pop_back();
 }
 
 void CGame::CreateMaterialTextures(CMaterialData& MaterialData)
@@ -1913,10 +1946,13 @@ void CGame::CreateMaterialTextures(CMaterialData& MaterialData)
 	m_vMaterialTextureSets[iMaterial]->CreateTextures(MaterialData);
 }
 
-CMaterialData* CGame::GetMaterial(const string& Name)
+CMaterialData* CGame::GetMaterial(const string& Name, bool bShowWarning)
 {
-	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end()) return nullptr;
-
+	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end())
+	{
+		if (bShowWarning) MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Material 얻어오기 실패");
+		return nullptr;
+	}
 	return &m_vMaterialData[m_mapMaterialNameToIndex.at(Name)];
 }
 
@@ -2017,11 +2053,8 @@ bool CGame::Pick()
 
 const string& CGame::GetPickedObject3DName() const
 {
-	if (m_PtrPickedObject3D)
-	{
-		return m_PtrPickedObject3D->GetName();
-	}
-	return m_NullString;
+	assert(m_PtrPickedObject3D);
+	return m_PtrPickedObject3D->GetName();
 }
 
 int CGame::GetPickedInstanceID() const
@@ -2036,9 +2069,13 @@ void CGame::SelectObject3D(const string& Name)
 	m_PtrSelectedObject3D = GetObject3D(Name);
 	if (m_PtrSelectedObject3D)
 	{
+		const XMVECTOR& BSTransaltion{ m_PtrSelectedObject3D->ComponentPhysics.BoundingSphere.CenterOffset };
+		const XMVECTOR KObjectTranslation{ m_PtrSelectedObject3D->ComponentTransform.Translation + BSTransaltion };
+		m_CapturedGizmoTranslation = KObjectTranslation;
+
 		if (!m_PtrSelectedObject3D->IsInstanced())
 		{
-			m_SelectedInstanceID = -1;
+			DeselectInstance();
 			Select3DGizmos();
 		}
 	}
@@ -2062,11 +2099,8 @@ CObject3D* CGame::GetSelectedObject3D()
 
 const string& CGame::GetSelectedObject3DName() const
 {
-	if (m_PtrSelectedObject3D)
-	{
-		return m_PtrSelectedObject3D->GetName();
-	}
-	return m_NullString;
+	assert(m_PtrSelectedObject3D);
+	return m_PtrSelectedObject3D->GetName();
 }
 
 void CGame::SelectObject2D(const string& Name)
@@ -2101,11 +2135,8 @@ CObject2D* CGame::GetSelectedObject2D()
 
 const string& CGame::GetSelectedObject2DName() const
 {
-	if (m_PtrSelectedObject2D)
-	{
-		return m_PtrSelectedObject2D->GetName();
-	}
-	return m_NullString;
+	assert(m_PtrSelectedObject2D);
+	return m_PtrSelectedObject2D->GetName();
 }
 
 void CGame::SelectCamera(const string& Name)
@@ -2136,11 +2167,8 @@ CCamera* CGame::GetSelectedCamera()
 
 const string& CGame::GetSelectedCameraName() const
 {
-	if (m_PtrSelectedCamera)
-	{
-		return m_PtrSelectedCamera->GetName();
-	}
-	return m_NullString;
+	assert(m_PtrSelectedCamera);
+	return m_PtrSelectedCamera->GetName();
 }
 
 CCamera* CGame::GetCurrentCamera()
@@ -2156,6 +2184,11 @@ void CGame::SelectInstance(int InstanceID)
 
 	if (IsAnyObject3DSelected() && IsAnyInstanceSelected())
 	{
+		int iInstance{ GetSelectedInstanceID() };
+		const XMVECTOR& BSTransaltion{ m_PtrSelectedObject3D->ComponentPhysics.BoundingSphere.CenterOffset };
+		const XMVECTOR KInstanceTranslation{ m_PtrSelectedObject3D->GetInstanceCPUData(iInstance).Translation + BSTransaltion };
+		m_CapturedGizmoTranslation = KInstanceTranslation;
+
 		Select3DGizmos();
 	}
 }
@@ -2218,21 +2251,23 @@ void CGame::Select3DGizmos()
 
 	// Translate 3D gizmos
 	const XMVECTOR& BSTransaltion{ m_PtrSelectedObject3D->ComponentPhysics.BoundingSphere.CenterOffset };
+	const XMVECTOR KGizmoTranslation{ *pTranslation + BSTransaltion };
 	m_Object3D_3DGizmoTranslationX->ComponentTransform.Translation =
-		m_Object3D_3DGizmoTranslationY->ComponentTransform.Translation =
-		m_Object3D_3DGizmoTranslationZ->ComponentTransform.Translation = *pTranslation + BSTransaltion;
-	m_Object3D_3DGizmoRotationPitch->ComponentTransform.Translation =
-		m_Object3D_3DGizmoRotationYaw->ComponentTransform.Translation =
-		m_Object3D_3DGizmoRotationRoll->ComponentTransform.Translation = *pTranslation + BSTransaltion;
-	m_Object3D_3DGizmoScalingX->ComponentTransform.Translation =
-		m_Object3D_3DGizmoScalingY->ComponentTransform.Translation =
-		m_Object3D_3DGizmoScalingZ->ComponentTransform.Translation = *pTranslation + BSTransaltion;
+		m_Object3D_3DGizmoTranslationY->ComponentTransform.Translation = m_Object3D_3DGizmoTranslationZ->ComponentTransform.Translation =
+		m_Object3D_3DGizmoRotationPitch->ComponentTransform.Translation =
+		m_Object3D_3DGizmoRotationYaw->ComponentTransform.Translation = m_Object3D_3DGizmoRotationRoll->ComponentTransform.Translation =
+		m_Object3D_3DGizmoScalingX->ComponentTransform.Translation =
+		m_Object3D_3DGizmoScalingY->ComponentTransform.Translation = m_Object3D_3DGizmoScalingZ->ComponentTransform.Translation = KGizmoTranslation;
 
 	if (IsGizmoSelected())
 	{
 		int DeltaX{ m_CapturedMouseState.x - m_PrevCapturedMouseX };
 		int DeltaY{ m_CapturedMouseState.y - m_PrevCapturedMouseY };
 		int DeltaSum{ DeltaY - DeltaX };
+
+		float DistanceObejctCamera{ abs(XMVectorGetX(m_CapturedGizmoTranslation - GetCurrentCamera()->GetEyePosition())) };
+		if (DistanceObejctCamera < K3DGizmoCameraDistanceThreshold) DistanceObejctCamera = K3DGizmoCameraDistanceThreshold;
+		const float KDeltaFactor{ pow(DistanceObejctCamera, K3DGizmoDistanceFactorExponent) };
 
 		float TranslationX{ XMVectorGetX(*pTranslation) };
 		float TranslationY{ XMVectorGetY(*pTranslation) };
@@ -2247,13 +2282,13 @@ void CGame::Select3DGizmos()
 			switch (m_e3DGizmoSelectedAxis)
 			{
 			case E3DGizmoAxis::AxisX:
-				*pTranslation = XMVectorSetX(*pTranslation, TranslationX - DeltaSum * CGame::KTranslationUnit);
+				*pTranslation = XMVectorSetX(*pTranslation, TranslationX - DeltaSum * KTranslationDelta * KDeltaFactor);
 				break;
 			case E3DGizmoAxis::AxisY:
-				*pTranslation = XMVectorSetY(*pTranslation, TranslationY - DeltaSum * CGame::KTranslationUnit);
+				*pTranslation = XMVectorSetY(*pTranslation, TranslationY - DeltaSum * KTranslationDelta * KDeltaFactor);
 				break;
 			case E3DGizmoAxis::AxisZ:
-				*pTranslation = XMVectorSetZ(*pTranslation, TranslationZ - DeltaSum * CGame::KTranslationUnit);
+				*pTranslation = XMVectorSetZ(*pTranslation, TranslationZ - DeltaSum * KTranslationDelta * KDeltaFactor);
 				break;
 			default:
 				break;
@@ -2263,13 +2298,13 @@ void CGame::Select3DGizmos()
 			switch (m_e3DGizmoSelectedAxis)
 			{
 			case E3DGizmoAxis::AxisX:
-				*pPitch -= DeltaSum * CGame::KRotation360To2PI;
+				*pPitch -= DeltaSum * KRotation360To2PI * KRotationDelta * KDeltaFactor;
 				break;
 			case E3DGizmoAxis::AxisY:
-				*pYaw -= DeltaSum * CGame::KRotation360To2PI;
+				*pYaw -= DeltaSum * KRotation360To2PI * KRotationDelta * KDeltaFactor;
 				break;
 			case E3DGizmoAxis::AxisZ:
-				*pRoll -= DeltaSum * CGame::KRotation360To2PI;
+				*pRoll -= DeltaSum * KRotation360To2PI * KRotationDelta * KDeltaFactor;
 				break;
 			default:
 				break;
@@ -2280,13 +2315,13 @@ void CGame::Select3DGizmos()
 			switch (m_e3DGizmoSelectedAxis)
 			{
 			case E3DGizmoAxis::AxisX:
-				*pScaling = XMVectorSetX(*pScaling, ScalingX - DeltaSum * CGame::KScalingUnit);
+				*pScaling = XMVectorSetX(*pScaling, ScalingX - DeltaSum * KScalingDelta * KDeltaFactor);
 				break;
 			case E3DGizmoAxis::AxisY:
-				*pScaling = XMVectorSetY(*pScaling, ScalingY - DeltaSum * CGame::KScalingUnit);
+				*pScaling = XMVectorSetY(*pScaling, ScalingY - DeltaSum * KScalingDelta * KDeltaFactor);
 				break;
 			case E3DGizmoAxis::AxisZ:
-				*pScaling = XMVectorSetZ(*pScaling, ScalingZ - DeltaSum * CGame::KScalingUnit);
+				*pScaling = XMVectorSetZ(*pScaling, ScalingZ - DeltaSum * KScalingDelta * KDeltaFactor);
 				break;
 			default:
 				break;
@@ -2688,15 +2723,15 @@ void CGame::Update()
 		}
 		if (m_CapturedKeyboardState.D1)
 		{
-			Set3DGizmoMode(CGame::E3DGizmoMode::Translation);
+			Set3DGizmoMode(E3DGizmoMode::Translation);
 		}
 		if (m_CapturedKeyboardState.D2)
 		{
-			Set3DGizmoMode(CGame::E3DGizmoMode::Rotation);
+			Set3DGizmoMode(E3DGizmoMode::Rotation);
 		}
 		if (m_CapturedKeyboardState.D3)
 		{
-			Set3DGizmoMode(CGame::E3DGizmoMode::Scaling);
+			Set3DGizmoMode(E3DGizmoMode::Scaling);
 		}
 		if (m_CapturedKeyboardState.Delete)
 		{
@@ -2712,6 +2747,13 @@ void CGame::Update()
 						DeselectInstance();
 
 						if (GetSelectedObject3D()->GetInstanceCount() == 0) DeselectObject3D();
+					}
+					else
+					{
+						DeselectInstance();
+
+						DeleteObject3D(GetSelectedObject3DName());
+						DeselectObject3D();
 					}
 				}
 				else
@@ -2738,6 +2780,8 @@ void CGame::Update()
 			{
 				if (Pick() && !IsGizmoSelected())
 				{
+					DeselectAll();
+
 					SelectObject3D(GetPickedObject3DName());
 					SelectInstance(GetPickedInstanceID());
 				}
@@ -3151,7 +3195,6 @@ void CGame::DrawTerrain(float DeltaTime)
 	if (!m_Terrain) return;
 	
 	SetUniversalRSState();
-
 	SetUniversalbUseLighiting();
 
 	m_Terrain->UpdateWind(DeltaTime);
@@ -3363,9 +3406,16 @@ void CGame::DrawCameraRepresentations()
 		XMMATRIX Translation{ XMMatrixTranslationFromVector(Camera->GetEyePosition()) };
 		UpdateCBSpace(Rotation * Translation);
 
-		if (Camera.get() == GetSelectedCamera())
+		if (IsAnyCameraSelected())
 		{
-			m_CBCameraSelectionData.bIsSelected = TRUE;
+			if (Camera.get() == GetSelectedCamera())
+			{
+				m_CBCameraSelectionData.bIsSelected = TRUE;
+			}
+			else
+			{
+				m_CBCameraSelectionData.bIsSelected = FALSE;
+			}
 		}
 		else
 		{
@@ -3389,7 +3439,7 @@ void CGame::DrawEditorGUI()
 
 	ImGui::PushFont(m_EditorGUIFont);
 
-	if (m_eMode == CGame::EMode::Edit)
+	if (m_eMode == EMode::Edit)
 	{
 		DrawEditorGUIMenuBar();
 
@@ -3407,13 +3457,13 @@ void CGame::DrawEditorGUI()
 		{
 			if (ImGui::Button(u8"테스트 시작"))
 			{
-				SetMode(CGame::EMode::Test);
+				SetMode(EMode::Test);
 			}
 
 			ImGui::End();
 		}
 	}
-	else if (m_eMode == CGame::EMode::Test)
+	else if (m_eMode == EMode::Test)
 	{
 		static constexpr float KTestWindowSizeX{ 110.0f };
 		ImGui::SetNextWindowPos(ImVec2((m_WindowSize.x - KTestWindowSizeX) * 0.5f, 21), ImGuiCond_Always);
@@ -3423,7 +3473,7 @@ void CGame::DrawEditorGUI()
 		{
 			if (ImGui::Button(u8"테스트 종료"))
 			{
-				SetMode(CGame::EMode::Edit);
+				SetMode(EMode::Edit);
 			}
 
 			ImGui::End();
@@ -3578,7 +3628,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 	ImGui::SetNextWindowPosCenter();
 	if (ImGui::BeginPopup(u8"오브젝트 추가기", ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		static char NewObejctName[CGame::KAssetNameMaxLength]{};
+		static char NewObejctName[KAssetNameMaxLength]{};
 		static char ModelFileNameWithPath[MAX_PATH]{};
 		static char ModelFileNameWithoutPath[MAX_PATH]{};
 		static bool bIsModelRigged{ false };
@@ -3613,7 +3663,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 
 		ImGui::SetItemDefaultFocus();
 		ImGui::SetNextItemWidth(140);
-		ImGui::InputText(u8"오브젝트 이름", NewObejctName, CGame::KAssetNameMaxLength);
+		ImGui::InputText(u8"오브젝트 이름", NewObejctName, KAssetNameMaxLength);
 
 		for (int iOption = 0; iOption < ARRAYSIZE(KOptions); ++iOption)
 		{
@@ -3924,7 +3974,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 				if (IsObjectCreated)
 				{
 					m_EditorGUIBools.bShowPopupObjectAdder = false;
-					memset(NewObejctName, 0, CGame::KAssetNameMaxLength);
+					memset(NewObejctName, 0, KAssetNameMaxLength);
 				}
 				ImGui::CloseCurrentPopup();
 			}
@@ -3937,7 +3987,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 			m_EditorGUIBools.bShowPopupObjectAdder = false;
 			memset(ModelFileNameWithPath, 0, MAX_PATH);
 			memset(ModelFileNameWithoutPath, 0, MAX_PATH);
-			memset(NewObejctName, 0, CGame::KAssetNameMaxLength);
+			memset(NewObejctName, 0, KAssetNameMaxLength);
 			ImGui::CloseCurrentPopup();
 		}
 
@@ -3978,7 +4028,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					static bool bShowAnimationEditor{ false };
 					static int iSelectedAnimationID{};
 
-					SetEditMode(CGame::EEditMode::EditObject);
+					SetEditMode(EEditMode::EditObject);
 
 					static constexpr float KLabelsWidth{ 200 };
 					static constexpr float KItemsMaxWidth{ 240 };
@@ -4024,8 +4074,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									ImGui::SameLine(ItemsOffsetX);
 									float Translation[3]{ XMVectorGetX(InstanceCPUData.Translation),
 										XMVectorGetY(InstanceCPUData.Translation), XMVectorGetZ(InstanceCPUData.Translation) };
-									if (ImGui::DragFloat3(u8"##위치", Translation, CGame::KTranslationUnit,
-										CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.2f"))
+									if (ImGui::DragFloat3(u8"##위치", Translation, KTranslationDelta,
+										KTranslationMinLimit, KTranslationMaxLimit, "%.2f"))
 									{
 										InstanceCPUData.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
 										Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
@@ -4034,15 +4084,15 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"회전");
 									ImGui::SameLine(ItemsOffsetX);
-									int PitchYawRoll360[3]{ (int)(InstanceCPUData.Pitch * CGame::KRotation2PITo360),
-										(int)(InstanceCPUData.Yaw * CGame::KRotation2PITo360),
-										(int)(InstanceCPUData.Roll * CGame::KRotation2PITo360) };
-									if (ImGui::DragInt3(u8"##회전", PitchYawRoll360, CGame::KRotation360Unit,
-										CGame::KRotation360MinLimit, CGame::KRotation360MaxLimit))
+									int PitchYawRoll360[3]{ (int)(InstanceCPUData.Pitch * KRotation2PITo360),
+										(int)(InstanceCPUData.Yaw * KRotation2PITo360),
+										(int)(InstanceCPUData.Roll * KRotation2PITo360) };
+									if (ImGui::DragInt3(u8"##회전", PitchYawRoll360, KRotation360Unit,
+										KRotation360MinLimit, KRotation360MaxLimit))
 									{
-										InstanceCPUData.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
-										InstanceCPUData.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
-										InstanceCPUData.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
+										InstanceCPUData.Pitch = PitchYawRoll360[0] * KRotation360To2PI;
+										InstanceCPUData.Yaw = PitchYawRoll360[1] * KRotation360To2PI;
+										InstanceCPUData.Roll = PitchYawRoll360[2] * KRotation360To2PI;
 										Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
 									}
 
@@ -4051,8 +4101,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									ImGui::SameLine(ItemsOffsetX);
 									float Scaling[3]{ XMVectorGetX(InstanceCPUData.Scaling),
 										XMVectorGetY(InstanceCPUData.Scaling), XMVectorGetZ(InstanceCPUData.Scaling) };
-									if (ImGui::DragFloat3(u8"##크기", Scaling, CGame::KScalingUnit,
-										CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.3f"))
+									if (ImGui::DragFloat3(u8"##크기", Scaling, KScalingDelta,
+										KScalingMinLimit, KScalingMaxLimit, "%.3f"))
 									{
 										InstanceCPUData.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
 										Object3D->UpdateInstanceWorldMatrix(iSelectedInstance);
@@ -4070,8 +4120,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::SameLine(ItemsOffsetX);
 								float Translation[3]{ XMVectorGetX(Object3D->ComponentTransform.Translation),
 								XMVectorGetY(Object3D->ComponentTransform.Translation), XMVectorGetZ(Object3D->ComponentTransform.Translation) };
-								if (ImGui::DragFloat3(u8"##위치", Translation, CGame::KTranslationUnit,
-									CGame::KTranslationMinLimit, CGame::KTranslationMaxLimit, "%.2f"))
+								if (ImGui::DragFloat3(u8"##위치", Translation, KTranslationDelta,
+									KTranslationMinLimit, KTranslationMaxLimit, "%.2f"))
 								{
 									Object3D->ComponentTransform.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
 									Object3D->UpdateWorldMatrix();
@@ -4080,15 +4130,15 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"회전");
 								ImGui::SameLine(ItemsOffsetX);
-								int PitchYawRoll360[3]{ (int)(Object3D->ComponentTransform.Pitch * CGame::KRotation2PITo360),
-									(int)(Object3D->ComponentTransform.Yaw * CGame::KRotation2PITo360),
-									(int)(Object3D->ComponentTransform.Roll * CGame::KRotation2PITo360) };
-								if (ImGui::DragInt3(u8"##회전", PitchYawRoll360, CGame::KRotation360Unit,
-									CGame::KRotation360MinLimit, CGame::KRotation360MaxLimit))
+								int PitchYawRoll360[3]{ (int)(Object3D->ComponentTransform.Pitch * KRotation2PITo360),
+									(int)(Object3D->ComponentTransform.Yaw * KRotation2PITo360),
+									(int)(Object3D->ComponentTransform.Roll * KRotation2PITo360) };
+								if (ImGui::DragInt3(u8"##회전", PitchYawRoll360, KRotation360Unit,
+									KRotation360MinLimit, KRotation360MaxLimit))
 								{
-									Object3D->ComponentTransform.Pitch = PitchYawRoll360[0] * CGame::KRotation360To2PI;
-									Object3D->ComponentTransform.Yaw = PitchYawRoll360[1] * CGame::KRotation360To2PI;
-									Object3D->ComponentTransform.Roll = PitchYawRoll360[2] * CGame::KRotation360To2PI;
+									Object3D->ComponentTransform.Pitch = PitchYawRoll360[0] * KRotation360To2PI;
+									Object3D->ComponentTransform.Yaw = PitchYawRoll360[1] * KRotation360To2PI;
+									Object3D->ComponentTransform.Roll = PitchYawRoll360[2] * KRotation360To2PI;
 									Object3D->UpdateWorldMatrix();
 								}
 
@@ -4097,8 +4147,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::SameLine(ItemsOffsetX);
 								float Scaling[3]{ XMVectorGetX(Object3D->ComponentTransform.Scaling),
 									XMVectorGetY(Object3D->ComponentTransform.Scaling), XMVectorGetZ(Object3D->ComponentTransform.Scaling) };
-								if (ImGui::DragFloat3(u8"##크기", Scaling, CGame::KScalingUnit,
-									CGame::KScalingMinLimit, CGame::KScalingMaxLimit, "%.3f"))
+								if (ImGui::DragFloat3(u8"##크기", Scaling, KScalingDelta,
+									KScalingMinLimit, KScalingMaxLimit, "%.3f"))
 								{
 									Object3D->ComponentTransform.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
 									Object3D->UpdateWorldMatrix();
@@ -4114,8 +4164,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								XMVectorGetX(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
 								XMVectorGetY(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
 								XMVectorGetZ(Object3D->ComponentPhysics.BoundingSphere.CenterOffset) };
-							if (ImGui::DragFloat3(u8"##오브젝트 BS 중심", BSCenterOffset, CGame::KBSCenterOffsetUnit,
-								CGame::KBSCenterOffsetMinLimit, CGame::KBSCenterOffsetMaxLimit, "%.2f"))
+							if (ImGui::DragFloat3(u8"##오브젝트 BS 중심", BSCenterOffset, KBSCenterOffsetDelta,
+								KBSCenterOffsetMinLimit, KBSCenterOffsetMaxLimit, "%.2f"))
 							{
 								Object3D->ComponentPhysics.BoundingSphere.CenterOffset =
 									XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f);
@@ -4125,8 +4175,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ImGui::Text(u8"오브젝트 BS 반지름 편중치");
 							ImGui::SameLine(ItemsOffsetX);
 							float BSRadiusBias{ Object3D->ComponentPhysics.BoundingSphere.RadiusBias };
-							if (ImGui::DragFloat(u8"##오브젝트 BS반지름 편중치", &BSRadiusBias, CGame::KBSRadiusBiasUnit,
-								CGame::KBSRadiusBiasMinLimit, CGame::KBSRadiusBiasMaxLimit, "%.2f"))
+							if (ImGui::DragFloat(u8"##오브젝트 BS반지름 편중치", &BSRadiusBias, KBSRadiusBiasDelta,
+								KBSRadiusBiasMinLimit, KBSRadiusBiasMaxLimit, "%.2f"))
 							{
 								Object3D->ComponentPhysics.BoundingSphere.RadiusBias = BSRadiusBias;
 							}
@@ -4135,8 +4185,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ImGui::Text(u8"오브젝트 BS 반지름 (자동)");
 							ImGui::SameLine(ItemsOffsetX);
 							float BSRadius{ Object3D->ComponentPhysics.BoundingSphere.Radius };
-							ImGui::DragFloat(u8"##오브젝트 BS반지름 (자동)", &BSRadius, CGame::KBSRadiusUnit,
-								CGame::KBSRadiusMinLimit, CGame::KBSRadiusMaxLimit, "%.2f");
+							ImGui::DragFloat(u8"##오브젝트 BS반지름 (자동)", &BSRadius, KBSRadiusDelta,
+								KBSRadiusMinLimit, KBSRadiusMaxLimit, "%.2f");
 
 							ImGui::Separator();
 
@@ -4507,7 +4557,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
 					float ItemsOffsetX{ WindowWidth - ItemsWidth };
 
-					SetEditMode(CGame::EEditMode::EditTerrain);
+					SetEditMode(EEditMode::EditTerrain);
 
 					CTerrain* const Terrain{ GetTerrain() };
 					if (Terrain)
@@ -5316,7 +5366,10 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				{
 					CObject3D* const Object3D{ GetObject3D(Object3DPair.first) };
 					bool bIsThisObject3DSelected{ false };
-					if (GetSelectedObject3DName() == Object3DPair.first) bIsThisObject3DSelected = true;
+					if (IsAnyObject3DSelected())
+					{
+						if (GetSelectedObject3DName() == Object3DPair.first) bIsThisObject3DSelected = true;
+					}
 
 					ImGuiTreeNodeFlags Flags{ ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth };
 					if (bIsThisObject3DSelected) Flags |= ImGuiTreeNodeFlags_Selected;
@@ -5372,7 +5425,9 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 							const auto& InstanceMap{ Object3D->GetInstanceMap() };
 							for (auto& InstancePair : InstanceMap)
 							{
-								bool bSelected{ (iInstancePair == GetSelectedInstanceID()) };
+								bool bSelected{ false };
+								if (IsAnyInstanceSelected()) bSelected = (iInstancePair == GetSelectedInstanceID());
+								
 								if (!bIsThisObject3DSelected) bSelected = false;
 
 								if (ImGui::Selectable(InstancePair.first.c_str(), bSelected))
@@ -5406,7 +5461,10 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				{
 					CObject2D* const Object2D{ GetObject2D(Object2DPair.first) };
 					bool bIsThisObject2DSelected{ false };
-					if (GetSelectedObject2DName() == Object2DPair.first) bIsThisObject2DSelected = true;
+					if (IsAnyObject2DSelected())
+					{
+						if (GetSelectedObject2DName() == Object2DPair.first) bIsThisObject2DSelected = true;
+					}
 
 					ImGuiTreeNodeFlags Flags{ ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth };
 					if (bIsThisObject2DSelected) Flags |= ImGuiTreeNodeFlags_Selected;
@@ -5443,7 +5501,10 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				{
 					CCamera* const Camera{ GetCamera(CameraPair.first) };
 					bool bIsThisCameraSelected{ false };
-					if (GetSelectedCameraName() == CameraPair.first) bIsThisCameraSelected = true;
+					if (IsAnyCameraSelected())
+					{
+						if (GetSelectedCameraName() == CameraPair.first) bIsThisCameraSelected = true;
+					}
 
 					ImGuiTreeNodeFlags Flags{ ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_Leaf };
 					if (bIsThisCameraSelected) Flags |= ImGuiTreeNodeFlags_Selected;

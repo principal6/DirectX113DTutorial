@@ -187,25 +187,31 @@ void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Devi
 		aiGetMaterialColor(_aiMaterial, AI_MATKEY_COLOR_SPECULAR, &aiSpecular);
 		aiGetMaterialFloat(_aiMaterial, AI_MATKEY_SHININESS, &aiShininess);
 		aiGetMaterialFloat(_aiMaterial, AI_MATKEY_SHININESS_STRENGTH, &aiShininessStength);
-		
-		MaterialData.Name(aiMaterialName.C_Str());
 
 		if (Scene->HasTextures())
 		{
 			aiString DiffuseTextureFileName{};
 			aiString NormalTextureFileName{};
-			aiString DisplacementTextureFileName{};
 			aiString OpacityTextureFileName{};
+			
+			aiString MetalnessTextureFileName{};
+			aiString AmbientOcclusionTextureFileName{};
+
+			aiString DisplacementTextureFileName{};
 
 			aiGetMaterialTexture(_aiMaterial, aiTextureType_DIFFUSE, 0, &DiffuseTextureFileName);
 			aiGetMaterialTexture(_aiMaterial, aiTextureType_NORMALS, 0, &NormalTextureFileName);
-			aiGetMaterialTexture(_aiMaterial, aiTextureType_DISPLACEMENT, 0, &DisplacementTextureFileName);
 			aiGetMaterialTexture(_aiMaterial, aiTextureType_OPACITY, 0, &OpacityTextureFileName);
+			
+			aiGetMaterialTexture(_aiMaterial, aiTextureType_METALNESS, 0, &MetalnessTextureFileName);
+			aiGetMaterialTexture(_aiMaterial, aiTextureType_AMBIENT_OCCLUSION, 0, &AmbientOcclusionTextureFileName);
+
+			aiGetMaterialTexture(_aiMaterial, aiTextureType_DISPLACEMENT, 0, &DisplacementTextureFileName);
 
 			LoadTextureData(Scene, DiffuseTextureFileName, MaterialData, STextureData::EType::DiffuseTexture);
 			LoadTextureData(Scene, NormalTextureFileName, MaterialData, STextureData::EType::NormalTexture);
-			LoadTextureData(Scene, DisplacementTextureFileName, MaterialData, STextureData::EType::DisplacementTexture);
 			LoadTextureData(Scene, OpacityTextureFileName, MaterialData, STextureData::EType::OpacityTexture);
+			LoadTextureData(Scene, DisplacementTextureFileName, MaterialData, STextureData::EType::DisplacementTexture);
 
 			MaterialData.HasAnyTexture(true);
 		}

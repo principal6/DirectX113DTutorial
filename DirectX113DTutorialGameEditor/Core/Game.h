@@ -291,20 +291,20 @@ private:
 	void CreateWin32Window(WNDPROC const WndProc, const std::string& WindowName);
 	void InitializeDirectX(bool bWindowed);
 	void InitializeEditorAssets();
-	void InitializeImGui();
+	void InitializeImGui(const std::string& FontFileName, float FontSize);
 
 private:
 	void CreateSwapChain(bool bWindowed);
 	void CreateViews();
-	void SetViewports();
+	void InitializeViewports();
 	void CreateDepthStencilStates();
 	void CreateBlendStates();
 	void CreateInputDevices();
 	void CreateBaseShaders();
 	void CreateMiniAxes();
 	void CreatePickingRay();
-	void CreateBoundingSphere();
 	void CreatePickedTriangle();
+	void CreateBoundingSphere();
 	void Create3DGizmos();
 	void CreateScreenQuadVertexBuffer();
 
@@ -314,7 +314,7 @@ public:
 
 	// Advanced settings
 public:
-	void SetPerspective(float FOV, float NearZ, float FarZ);
+	void SetProjectionMatrices(float FOV, float NearZ, float FarZ);
 	void SetRenderingFlags(EFlagsRendering Flags);
 	void ToggleGameRenderingFlags(EFlagsRendering Flags);
 	void Set3DGizmoMode(E3DGizmoMode Mode);
@@ -385,9 +385,9 @@ public:
 	CObject3D* GetObject3D(const std::string& Name, bool bShowWarning = true) const;
 	const std::map<std::string, size_t>& GetObject3DMap() const { return m_mapObject3DNameToIndex; }
 
-	bool InsertObject3DLine(const std::string& Name);
+	bool InsertObject3DLine(const std::string& Name, bool bShowWarning = true);
 	void ClearObject3DLines();
-	CObject3DLine* GetObject3DLine(const std::string& Name) const;
+	CObject3DLine* GetObject3DLine(const std::string& Name, bool bShowWarning = true) const;
 
 	bool InsertObject2D(const std::string& Name);
 	void DeleteObject2D(const std::string& Name);
@@ -395,11 +395,12 @@ public:
 	CObject2D* GetObject2D(const std::string& Name, bool bShowWarning = true) const;
 	const std::map<std::string, size_t>& GetObject2DMap() const { return m_mapObject2DNameToIndex; }
 
-	bool InsertMaterial(const std::string& Name);
+	bool InsertMaterial(const std::string& Name, bool bShowWarning = true);
+	bool InsertMaterialCreateTextures(const CMaterialData& MaterialData, bool bShowWarning = true);
 	void DeleteMaterial(const std::string& Name);
 	void CreateMaterialTextures(CMaterialData& MaterialData);
 	void ClearMaterials();
-	CMaterialData* GetMaterial(const std::string& Name);
+	CMaterialData* GetMaterial(const std::string& Name, bool bShowWarning = true);
 	size_t GetMaterialCount() const;
 	void ChangeMaterialName(const std::string& OldName, const std::string& NewName);
 	const std::map<std::string, size_t>& GetMaterialMap() const { return m_mapMaterialNameToIndex; }
@@ -525,9 +526,10 @@ private:
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
 	static constexpr float KTranslationMaxLimit{ +1000.0f };
-	static constexpr float KTranslationUnit{ +0.01f };
+	static constexpr float KTranslationDelta{ +0.0078125f };
 	static constexpr float KRotationMaxLimit{ +XM_2PI };
 	static constexpr float KRotationMinLimit{ -XM_2PI };
+	static constexpr float KRotationDelta{ +0.25f };
 	static constexpr int KRotation360MaxLimit{ 360 };
 	static constexpr int KRotation360MinLimit{ 360 };
 	static constexpr int KRotation360Unit{ 1 };
@@ -535,16 +537,16 @@ public:
 	static constexpr float KRotation2PITo360{ 1.0f / XM_2PI * 360.0f };
 	static constexpr float KScalingMaxLimit{ +100.0f };
 	static constexpr float KScalingMinLimit{ +0.001f };
-	static constexpr float KScalingUnit{ +0.001f };
-	static constexpr float KBSCenterOffsetUnit{ +0.01f };
+	static constexpr float KScalingDelta{ +0.0078125f };
 	static constexpr float KBSCenterOffsetMinLimit{ -10.0f };
 	static constexpr float KBSCenterOffsetMaxLimit{ +10.0f };
-	static constexpr float KBSRadiusUnit{ +0.01f };
+	static constexpr float KBSCenterOffsetDelta{ +0.01f };
 	static constexpr float KBSRadiusMinLimit{ 0.001f };
 	static constexpr float KBSRadiusMaxLimit{ 10.0f };
-	static constexpr float KBSRadiusBiasUnit{ +0.01f };
+	static constexpr float KBSRadiusDelta{ +0.01f };
 	static constexpr float KBSRadiusBiasMinLimit{ 0.001f };
 	static constexpr float KBSRadiusBiasMaxLimit{ 1000.0f };
+	static constexpr float KBSRadiusBiasDelta{ +0.01f };
 	static constexpr int KAssetNameMaxLength{ 100 };
 
 private:
@@ -558,10 +560,14 @@ private:
 	static constexpr XMVECTOR KColorWhite{ 1.0f, 1.0f, 1.0f, 1.0f };
 	static constexpr XMVECTOR KSkySphereColorUp{ 0.1f, 0.5f, 1.0f, 1.0f };
 	static constexpr XMVECTOR KSkySphereColorBottom{ 1.2f, 1.2f, 1.2f, 1.0f };
+	static constexpr float K3DGizmoRadius{ 0.05f };
 	static constexpr float K3DGizmoSelectionRadius{ 1.1f };
 	static constexpr float K3DGizmoSelectionLowBoundary{ 0.8f };
 	static constexpr float K3DGizmoSelectionHighBoundary{ 1.2f };
 	static constexpr float K3DGizmoMovementFactor{ 0.01f };
+	static constexpr float K3DGizmoCameraDistanceThreshold{ 0.03125f };
+	static constexpr float K3DGizmoDistanceFactorExponent{ 0.75f };
+	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
 
 private:
 	std::unique_ptr<CShader>	m_VSBase{};
@@ -679,6 +685,7 @@ private:
 	E3DGizmoAxis				m_e3DGizmoSelectedAxis{};
 	E3DGizmoMode				m_e3DGizmoMode{};
 	float						m_3DGizmoDistanceScalar{};
+	XMVECTOR					m_CapturedGizmoTranslation{};
 
 private:
 	std::vector<D3D11_VIEWPORT>	m_vViewports{};
@@ -709,7 +716,6 @@ private:
 	CObject3D*	m_PtrPickedObject3D{};
 	CObject3D*	m_PtrSelectedObject3D{};
 	CObject2D*	m_PtrSelectedObject2D{};
-	std::string	m_NullString{};
 	int			m_PickedInstanceID{ -1 };
 	int			m_SelectedInstanceID{ -1 };
 	XMVECTOR	m_PickedTriangleV0{};

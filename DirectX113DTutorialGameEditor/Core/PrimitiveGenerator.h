@@ -35,6 +35,7 @@ static void TranslateMesh(SMesh& Mesh, const XMVECTOR& Translation);
 static void RotateMesh(SMesh& Mesh, float Pitch, float Yaw, float Roll);
 static void ScaleMesh(SMesh& Mesh, const XMVECTOR& Scaling);
 static void ScaleMeshTexCoord(SMesh& Mesh, const XMVECTOR& Scaling);
+static void SetMeshColor(SMesh& Mesh, const XMVECTOR& Color);
 static SMesh MergeStaticMeshes(const SMesh& MeshA, const SMesh& MeshB);
 static std::vector<SVertex3DLine> Generate3DLineCircleYZ(const XMVECTOR& Color = KColorWhite, uint32_t SegmentCount = 32);
 static std::vector<SVertex3DLine> Generate3DGrid(int GuidelineCount = 10, float Interval = 1.0f);
@@ -353,10 +354,10 @@ static SMesh GenerateTerrainBase(const XMFLOAT2& Size, int TexCoordSubdivisionFa
 				V0 = (float)(rZ) / (float)TexCoordSubdivisionFactor;
 				V1 = (float)(rZ + 1) / (float)TexCoordSubdivisionFactor;
 
-				Mesh.vVertices[iVertex + 0].TexCoord = XMVectorSet(U0, V0, 0, 0);
-				Mesh.vVertices[iVertex + 1].TexCoord = XMVectorSet(U1, V0, 0, 0);
-				Mesh.vVertices[iVertex + 2].TexCoord = XMVectorSet(U0, V1, 0, 0);
-				Mesh.vVertices[iVertex + 3].TexCoord = XMVectorSet(U1, V1, 0, 0);
+				Mesh.vVertices[(size_t)iVertex + 0].TexCoord = XMVectorSet(U0, V0, 0, 0);
+				Mesh.vVertices[(size_t)iVertex + 1].TexCoord = XMVectorSet(U1, V0, 0, 0);
+				Mesh.vVertices[(size_t)iVertex + 2].TexCoord = XMVectorSet(U0, V1, 0, 0);
+				Mesh.vVertices[(size_t)iVertex + 3].TexCoord = XMVectorSet(U1, V1, 0, 0);
 
 				iVertex += 4;
 			}
@@ -800,6 +801,14 @@ static void ScaleMeshTexCoord(SMesh& Mesh, const XMVECTOR& Scaling)
 	for (auto& Vertex : Mesh.vVertices)
 	{
 		Vertex.TexCoord = XMVector3TransformCoord(Vertex.TexCoord, Matrix);
+	}
+}
+
+static void SetMeshColor(SMesh& Mesh, const XMVECTOR& Color)
+{
+	for (auto& Vertex : Mesh.vVertices)
+	{
+		Vertex.Color = Color;
 	}
 }
 

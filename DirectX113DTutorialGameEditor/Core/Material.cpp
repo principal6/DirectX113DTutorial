@@ -33,7 +33,7 @@ void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerat
 
 			if (!NonMipMappedTexture)
 			{
-				MB_WARN(("텍스처를 찾을 수 없습니다." + m_FileName).c_str(), "텍스처 생성 실패");
+				MB_WARN(("텍스처를 찾을 수 없습니다. (" + m_FileName + ")").c_str(), "텍스처 생성 실패");
 				return;
 			}
 

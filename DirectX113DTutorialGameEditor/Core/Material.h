@@ -44,6 +44,7 @@ class CMaterialData
 {
 public:
 	CMaterialData() {}
+	CMaterialData(const std::string& Name) : m_Name{ Name } {}
 	~CMaterialData() {}
 
 	void Name(const std::string& Name);
