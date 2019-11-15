@@ -23,7 +23,7 @@ struct alignas(4) SPixel128Float
 	float A{};
 };
 
-static constexpr int KMaxTextureCountPerMaterial{ 4 };
+static constexpr int KMaxTextureCountPerMaterial{ 5 };
 
 struct STextureData
 {
@@ -32,6 +32,7 @@ struct STextureData
 		DiffuseTexture,
 		NormalTexture,
 		OpacityTexture,
+		SpecularIntensityTexture,
 		DisplacementTexture
 	};
 
@@ -190,6 +191,7 @@ private:
 private:
 	CTexture					m_Textures[KMaxTextureCountPerMaterial]
 	{
+		{ m_PtrDevice, m_PtrDeviceContext },
 		{ m_PtrDevice, m_PtrDeviceContext },
 		{ m_PtrDevice, m_PtrDeviceContext },
 		{ m_PtrDevice, m_PtrDeviceContext },

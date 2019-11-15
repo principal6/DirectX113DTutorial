@@ -441,8 +441,6 @@ bool CMaterialData::HasAnyTexture() const
 	return m_bHasAnyTexture;
 }
 
-
-
 void CMaterialData::SetUniformColor(const XMFLOAT3& Color)
 {
 	m_AmbientColor = m_DiffuseColor = m_SpecularColor = Color;

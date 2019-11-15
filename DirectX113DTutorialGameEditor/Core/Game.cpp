@@ -162,24 +162,6 @@ void CGame::InitializeEditorAssets()
 	}
 
 	{
-		CMaterialData MaterialData{ "grass_path" };
-		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\grass_path_diffuse.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\grass_path_normal.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\grass_path_displacement.jpg");
-
-		InsertMaterialCreateTextures(MaterialData);
-	}
-
-	{
-		CMaterialData MaterialData{ "burned_ground" };
-		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\burned_ground_diffuse.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\burned_ground_normal.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
-
-		InsertMaterialCreateTextures(MaterialData);
-	}
-
-	{
 		CMaterialData MaterialData{ "cobblestone_large" };
 		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\cobblestone_large_diffuse.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
@@ -189,9 +171,30 @@ void CGame::InitializeEditorAssets()
 	}
 
 	{
+		CMaterialData MaterialData{ "grass_path" };
+		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\grass_path_diffuse.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\grass_path_normal.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\grass_path_specular.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\grass_path_displacement.jpg");
+
+		InsertMaterialCreateTextures(MaterialData);
+	}
+
+	{
+		CMaterialData MaterialData{ "burned_ground" };
+		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\burned_ground_diffuse.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\burned_ground_normal.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\burned_ground_specular.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
+
+		InsertMaterialCreateTextures(MaterialData);
+	}
+
+	{
 		CMaterialData MaterialData{ "brown_mud_dry" };
 		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\brown_mud_dry_diffuse.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\brown_mud_dry_specular.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
@@ -1978,6 +1981,16 @@ CMaterialData* CGame::GetMaterial(const string& Name, bool bShowWarning)
 	return &m_vMaterialData[m_mapMaterialNameToIndex.at(Name)];
 }
 
+CMaterialTextureSet* CGame::GetMaterialTextureSet(const std::string& Name, bool bShowWarning)
+{
+	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end())
+	{
+		if (bShowWarning) MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Material 얻어오기 실패");
+		return nullptr;
+	}
+	return m_vMaterialTextureSets[m_mapMaterialNameToIndex.at(Name)].get();
+}
+
 void CGame::ClearMaterials()
 {
 	m_vMaterialData.clear();
@@ -1990,8 +2003,14 @@ size_t CGame::GetMaterialCount() const
 	return m_vMaterialData.size();
 }
 
-void CGame::ChangeMaterialName(const string& OldName, const string& NewName)
+bool CGame::ChangeMaterialName(const string& OldName, const string& NewName)
 {
+	if (GetMaterial(NewName, false))
+	{
+		MB_WARN(("[" + NewName + "] 은 이미 존재하는 이름입니다. 다른 이름을 골라주세요.").c_str(), "재질 이름 충돌");
+		return false;
+	}
+
 	size_t iMaterial{ m_mapMaterialNameToIndex[OldName] };
 	CMaterialData* Material{ GetMaterial(OldName) };
 	auto a =m_mapMaterialNameToIndex.find(OldName);
@@ -2000,6 +2019,8 @@ void CGame::ChangeMaterialName(const string& OldName, const string& NewName)
 	m_mapMaterialNameToIndex.insert(make_pair(NewName, iMaterial));
 
 	Material->Name(NewName);
+
+	return true;
 }
 
 ID3D11ShaderResourceView* CGame::GetMaterialTextureSRV(STextureData::EType eType, const string& Name) const
@@ -3453,7 +3474,8 @@ void CGame::DrawEditorGUI()
 	{
 		DrawEditorGUIMenuBar();
 
-		DrawEditorGUIPopups();
+		DrawEditorGUIPopupTerrainGenerator();
+		DrawEditorGUIPopupObjectAdder();
 		
 		DrawEditorGUIWindowPropertyEditor();
 
@@ -3554,13 +3576,6 @@ void CGame::DrawEditorGUIMenuBar()
 
 		ImGui::EndMainMenuBar();
 	}
-}
-
-void CGame::DrawEditorGUIPopups()
-{
-	DrawEditorGUIPopupTerrainGenerator();
-
-	DrawEditorGUIPopupObjectAdder();
 }
 
 void CGame::DrawEditorGUIPopupTerrainGenerator()
@@ -4033,6 +4048,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 			if (ImGui::BeginTabBar(u8"탭바", ImGuiTabBarFlags_None))
 			{
+				// 오브젝트 탭
 				if (ImGui::BeginTabItem(u8"오브젝트"))
 				{
 					static bool bShowAnimationAdder{ false };
@@ -4269,177 +4285,29 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ImGui::Text(u8"오브젝트 재질");
 							if (Object3D->GetMaterialCount() > 0)
 							{
-								static STextureData::EType SelectedTextureType{};
-								static size_t iSelectedMaterial{};
-								bool bShowTextureExplorer{ false };
+								static CMaterialData* capturedMaterialData{};
+								static CMaterialTextureSet* capturedMaterialTextureSet{};
+								static STextureData::EType ecapturedTextureType{};
+								if (!ImGui::IsPopupOpen(u8"텍스처탐색기")) m_EditorGUIBools.bShowPopupMaterialTextureExplorer = false;
+
 								for (size_t iMaterial = 0; iMaterial < Object3D->GetMaterialCount(); ++iMaterial)
 								{
 									CMaterialData& MaterialData{ Object3D->GetModel().vMaterialData[iMaterial] };
+									CMaterialTextureSet* const MaterialTextureSet{ Object3D->GetMaterialTextureSet(iMaterial) };
 
 									ImGui::PushID((int)iMaterial);
 
-									if (ImGui::TreeNodeEx(MaterialData.Name().c_str(), ImGuiTreeNodeFlags_SpanAvailWidth))
+									if (DrawEditorGUIWindowPropertyEditor_MaterialData(MaterialData, MaterialTextureSet, ecapturedTextureType, ItemsOffsetX))
 									{
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"Diffuse 색상");
-										ImGui::SameLine(ItemsOffsetX);
-										XMFLOAT3 DiffuseColor{ MaterialData.DiffuseColor() };
-										if (ImGui::ColorEdit3(u8"##Diffuse 색상", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
-										{
-											MaterialData.DiffuseColor(DiffuseColor);
-										}
-
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"Ambient 색상");
-										ImGui::SameLine(ItemsOffsetX);
-										XMFLOAT3 AmbientColor{ MaterialData.AmbientColor() };
-										if (ImGui::ColorEdit3(u8"##Ambient 색상", &AmbientColor.x, ImGuiColorEditFlags_RGB))
-										{
-											MaterialData.AmbientColor(AmbientColor);
-										}
-
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"Specular 색상");
-										ImGui::SameLine(ItemsOffsetX);
-										XMFLOAT3 SpecularColor{ MaterialData.SpecularColor() };
-										if (ImGui::ColorEdit3(u8"##Specular 색상", &SpecularColor.x, ImGuiColorEditFlags_RGB))
-										{
-											MaterialData.SpecularColor(SpecularColor);
-										}
-
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"Specular 지수");
-										ImGui::SameLine(ItemsOffsetX);
-										float SpecularExponent{ MaterialData.SpecularExponent() };
-										if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, 1.0f, 1024.0f, "%.1f"))
-										{
-											MaterialData.SpecularExponent(SpecularExponent);
-										}
-
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"Specular 강도");
-										ImGui::SameLine(ItemsOffsetX);
-										float SpecularIntensity{ MaterialData.SpecularIntensity() };
-										if (ImGui::DragFloat(u8"##Specular 강도", &SpecularIntensity, 0.01f, 0.0f, 1.0f, "%.2f"))
-										{
-											MaterialData.SpecularIntensity(SpecularIntensity);
-										}
-
-										ImGui::Separator();
-
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"텍스처");
-
-										ImTextureID imTextureIDDiffuse{};
-										ImTextureID imTextureIDNormal{};
-										ImTextureID imTextureIDOpacity{};
-										ImTextureID imTextureIDDisplacement{};
-
-										CMaterialTextureSet* const TextureSet{ Object3D->GetMaterialTextureSet(iMaterial) };
-										if (TextureSet)
-										{
-											imTextureIDDiffuse = TextureSet->GetTextureSRV(STextureData::EType::DiffuseTexture);
-											imTextureIDNormal = TextureSet->GetTextureSRV(STextureData::EType::NormalTexture);
-											imTextureIDOpacity = TextureSet->GetTextureSRV(STextureData::EType::OpacityTexture);
-											imTextureIDDisplacement = TextureSet->GetTextureSRV(STextureData::EType::DisplacementTexture);
-										}
-										
-										static const ImVec2 KTextureSmallViewSize{ 60.0f, 60.0f };
-										ImGui::PushID(0);
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"Diffuse");
-										ImGui::SameLine(ItemsOffsetX);
-										if (ImGui::ImageButton(imTextureIDDiffuse, KTextureSmallViewSize))
-										{
-											iSelectedMaterial = iMaterial;
-											SelectedTextureType = STextureData::EType::DiffuseTexture;
-											bShowTextureExplorer = true;
-										}
-										ImGui::PopID();
-
-										ImGui::PushID(1);
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"Normal");
-										ImGui::SameLine(ItemsOffsetX);
-										if (ImGui::ImageButton(imTextureIDNormal, KTextureSmallViewSize))
-										{
-											iSelectedMaterial = iMaterial;
-											SelectedTextureType = STextureData::EType::NormalTexture;
-											bShowTextureExplorer = true;
-										}
-										ImGui::PopID();
-
-										ImGui::PushID(2);
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"Opacity");
-										ImGui::SameLine(ItemsOffsetX);
-										if (ImGui::ImageButton(imTextureIDOpacity, KTextureSmallViewSize))
-										{
-											iSelectedMaterial = iMaterial;
-											SelectedTextureType = STextureData::EType::OpacityTexture;
-											bShowTextureExplorer = true;
-										}
-										ImGui::PopID();
-
-										ImGui::PushID(3);
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"Displacement");
-										ImGui::SameLine(ItemsOffsetX);
-										if (ImGui::ImageButton(imTextureIDDisplacement, KTextureSmallViewSize))
-										{
-											iSelectedMaterial = iMaterial;
-											SelectedTextureType = STextureData::EType::DisplacementTexture;
-											bShowTextureExplorer = true;
-										}
-										ImGui::PopID();
-
-										ImGui::TreePop();
+										capturedMaterialData = &MaterialData;
+										capturedMaterialTextureSet = MaterialTextureSet;
 									}
-
+	
 									ImGui::PopID();
 								}
 
-								if (bShowTextureExplorer) ImGui::OpenPopup(u8"텍스처탐색기");
-								if (ImGui::BeginPopup(u8"텍스처탐색기", ImGuiWindowFlags_AlwaysAutoResize))
-								{
-									CMaterialData& MaterialData{ Object3D->GetModel().vMaterialData[iSelectedMaterial] };
-									CMaterialTextureSet* const TextureSet{ Object3D->GetMaterialTextureSet(iSelectedMaterial) };
-									ID3D11ShaderResourceView* SRV{};
-									if (TextureSet) SRV = TextureSet->GetTextureSRV(SelectedTextureType);
-
-									if (ImGui::Button(u8"파일에서 텍스처 불러오기"))
-									{
-										static CFileDialog FileDialog{ GetWorkingDirectory() };
-										if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
-										{
-											MaterialData.SetTextureFileName(SelectedTextureType, FileDialog.GetRelativeFileName());
-											TextureSet->CreateTexture(SelectedTextureType, MaterialData);
-											if (SelectedTextureType == STextureData::EType::DisplacementTexture)
-											{
-												// TODO
-												// Additional work ..?
-											}
-										}
-									}
-
-									ImGui::SameLine();
-
-									if (ImGui::Button(u8"텍스처 해제하기"))
-									{
-										MaterialData.ClearTextureData(SelectedTextureType);
-										TextureSet->DestroyTexture(SelectedTextureType);
-
-										if (SelectedTextureType == STextureData::EType::DisplacementTexture)
-										{
-											// TODO
-											// Additional work ..?
-										}
-									}
-
-									ImGui::Image(SRV, ImVec2(600, 600));
-
-									ImGui::EndPopup();
-								}
+								DrawEditorGUIPopupMaterialTextureExplorer(capturedMaterialData, capturedMaterialTextureSet, ecapturedTextureType);
+								DrawEditorGUIPopupMaterialNameChanger(capturedMaterialData, true);
 							}
 
 							// Rigged model
@@ -4715,15 +4583,15 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					ImGui::EndTabItem();
 				}
 
-				// 지형 편집기
+				// 지형 탭
 				static bool bShowFoliageClusterGenerator{ false };
 				if (ImGui::BeginTabItem(u8"지형"))
 				{
-					static constexpr float KLabelsWidth{ 200 };
+					static constexpr float KLabelsWidth{ 220 };
 					static constexpr float KItemsMaxWidth{ 240 };
 					float ItemsWidth{ WindowWidth - KLabelsWidth };
 					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
-					float ItemsOffsetX{ WindowWidth - ItemsWidth };
+					float ItemsOffsetX{ WindowWidth - ItemsWidth - 20 };
 
 					SetEditMode(EEditMode::EditTerrain);
 
@@ -5141,231 +5009,53 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					ImGui::EndPopup();
 				}
 
+				// 재질 탭
 				if (ImGui::BeginTabItem(u8"재질"))
 				{
-					ImGui::PushID(0);
-					if (ImGui::Button(u8"새 재질 추가"))
+					static constexpr float KLabelsWidth{ 220 };
+					static constexpr float KItemsMaxWidth{ 240 };
+					float ItemsWidth{ WindowWidth - KLabelsWidth };
+					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
+					float ItemsOffsetX{ WindowWidth - ItemsWidth - 20 };
+
+					ImGui::PushItemWidth(ItemsWidth);
+
 					{
-						size_t Count{ GetMaterialCount() };
-						InsertMaterial("Material" + to_string(Count));
-					}
-					ImGui::PopID();
-
-					static constexpr float KUniformWidth{ 180.0f };
-					static const char KLabelAdd[]{ u8"추가" };
-					static const char KLabelChange[]{ u8"변경" };
-
-					static constexpr size_t KNameMaxLength{ 255 };
-					static char OldName[KNameMaxLength]{};
-					static char NewName[KNameMaxLength]{};
-					static bool bShowMaterialNameChangeWindow{ false };
-					const auto& mapMaterialList{ GetMaterialMap() };
-					for (auto& pairMaterial : mapMaterialList)
-					{
-						CMaterialData* MaterialData{ GetMaterial(pairMaterial.first) };
-
-						if (ImGui::TreeNodeEx(pairMaterial.first.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth))
+						ImGui::PushID(0);
+						if (ImGui::Button(u8"새 재질 추가"))
 						{
-							if (ImGui::Button(u8"이름 변경"))
-							{
-								strcpy_s(OldName, MaterialData->Name().c_str());
-								strcpy_s(NewName, MaterialData->Name().c_str());
-
-								bShowMaterialNameChangeWindow = true;
-							}
-
-							ImGui::SetNextItemWidth(KUniformWidth);
-							XMFLOAT3 AmbientColor{ MaterialData->AmbientColor() };
-							if (ImGui::ColorEdit3(u8"환경광(Ambient)", &AmbientColor.x, ImGuiColorEditFlags_RGB))
-							{
-								MaterialData->AmbientColor(AmbientColor);
-							}
-
-							ImGui::SetNextItemWidth(KUniformWidth);
-							XMFLOAT3 DiffuseColor{ MaterialData->DiffuseColor() };
-							if (ImGui::ColorEdit3(u8"난반사광(Diffuse)", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
-							{
-								MaterialData->DiffuseColor(DiffuseColor);
-							}
-
-							ImGui::SetNextItemWidth(KUniformWidth);
-							XMFLOAT3 SpecularColor{ MaterialData->SpecularColor() };
-							if (ImGui::ColorEdit3(u8"정반사광(Specular)", &SpecularColor.x, ImGuiColorEditFlags_RGB))
-							{
-								MaterialData->SpecularColor(SpecularColor);
-							}
-
-							ImGui::SetNextItemWidth(KUniformWidth);
-							float SpecularExponent{ MaterialData->SpecularExponent() };
-							if (ImGui::DragFloat(u8"정반사광(Specular) 지수", &SpecularExponent, 0.001f, 0.0f, 1.0f, "%.3f"))
-							{
-								MaterialData->SpecularExponent(SpecularExponent);
-							}
-
-							ImGui::SetNextItemWidth(KUniformWidth);
-							float SpecularIntensity{ MaterialData->SpecularIntensity() };
-							if (ImGui::DragFloat(u8"정반사광(Specular) 강도", &SpecularIntensity, 0.001f, 0.0f, 1.0f, "%.3f"))
-							{
-								MaterialData->SpecularIntensity(SpecularIntensity);
-							}
-
-							// Diffuse texture
-							{
-								const char* PtrDiffuseTextureLabel{ KLabelAdd };
-								if (MaterialData->HasTexture(STextureData::EType::DiffuseTexture))
-								{
-									ImGui::Image(GetMaterialTextureSRV(STextureData::EType::DiffuseTexture,
-										pairMaterial.first), ImVec2(50, 50));
-									ImGui::SameLine();
-									ImGui::SetNextItemWidth(KUniformWidth);
-									ImGui::Text(u8"Diffuse 텍스쳐");
-
-									PtrDiffuseTextureLabel = KLabelChange;
-								}
-								else
-								{
-									ImGui::Image(0, ImVec2(100, 100));
-									ImGui::SameLine();
-									ImGui::SetNextItemWidth(KUniformWidth);
-									ImGui::Text(u8"Diffuse 텍스쳐: 없음");
-
-									PtrDiffuseTextureLabel = KLabelAdd;
-								}
-
-								ImGui::SameLine();
-
-								ImGui::PushID(0);
-								if (ImGui::Button(PtrDiffuseTextureLabel))
-								{
-									static CFileDialog FileDialog{ GetWorkingDirectory() };
-									if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
-									{
-										MaterialData->SetTextureFileName(STextureData::EType::DiffuseTexture, FileDialog.GetRelativeFileName());
-										CreateMaterialTextures(*MaterialData);
-									}
-								}
-								ImGui::PopID();
-							}
-
-							// Normal texture
-							{
-								const char* PtrNormalTextureLabel{ KLabelAdd };
-								if (MaterialData->HasTexture(STextureData::EType::NormalTexture))
-								{
-									ImGui::Image(GetMaterialTextureSRV(STextureData::EType::NormalTexture,
-										pairMaterial.first), ImVec2(50, 50));
-									ImGui::SameLine();
-									ImGui::Text(u8"Normal 텍스쳐");
-
-									PtrNormalTextureLabel = KLabelChange;
-								}
-								else
-								{
-									ImGui::Image(0, ImVec2(100, 100));
-									ImGui::SameLine();
-									ImGui::SetNextItemWidth(KUniformWidth);
-									ImGui::Text(u8"Normal 텍스쳐: 없음");
-
-									PtrNormalTextureLabel = KLabelAdd;
-								}
-
-								ImGui::SameLine();
-
-								ImGui::PushID(1);
-								if (ImGui::Button(PtrNormalTextureLabel))
-								{
-									static CFileDialog FileDialog{ GetWorkingDirectory() };
-									if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
-									{
-										MaterialData->SetTextureFileName(STextureData::EType::NormalTexture, FileDialog.GetRelativeFileName());
-										CreateMaterialTextures(*MaterialData);
-									}
-								}
-								ImGui::PopID();
-							}
-
-							// Displacement texture
-							{
-								const char* PtrDisplacementTextureLabel{ KLabelAdd };
-								if (MaterialData->HasTexture(STextureData::EType::DisplacementTexture))
-								{
-									ImGui::Image(GetMaterialTextureSRV(STextureData::EType::DisplacementTexture,
-										pairMaterial.first), ImVec2(50, 50));
-									ImGui::SameLine();
-									ImGui::Text(u8"Displacement 텍스쳐");
-
-									PtrDisplacementTextureLabel = KLabelChange;
-								}
-								else
-								{
-									ImGui::Image(0, ImVec2(100, 100));
-									ImGui::SameLine();
-									ImGui::SetNextItemWidth(KUniformWidth);
-									ImGui::Text(u8"Displacement 텍스쳐: 없음");
-
-									PtrDisplacementTextureLabel = KLabelAdd;
-								}
-
-								ImGui::SameLine();
-
-								ImGui::PushID(2);
-								if (ImGui::Button(PtrDisplacementTextureLabel))
-								{
-									static CFileDialog FileDialog{ GetWorkingDirectory() };
-									if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
-									{
-										MaterialData->SetTextureFileName(STextureData::EType::DisplacementTexture, FileDialog.GetRelativeFileName());
-										CreateMaterialTextures(*MaterialData);
-									}
-								}
-								ImGui::PopID();
-							}
-
-							ImGui::TreePop();
+							size_t Count{ GetMaterialCount() };
+							InsertMaterial("Material" + to_string(Count));
 						}
-					}
+						ImGui::PopID();
 
-					// ### 재질 이름 변경 윈도우 ###
-					if (bShowMaterialNameChangeWindow) ImGui::OpenPopup(u8"재질 이름 변경");
-					{
-						ImGui::SetNextWindowSize(ImVec2(240, 100), ImGuiCond_Always);
-						if (ImGui::BeginPopupModal(u8"재질 이름 변경", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+						static CMaterialData* capturedMaterialData{};
+						static CMaterialTextureSet* capturedMaterialTextureSet{};
+						static STextureData::EType ecapturedTextureType{};
+						if (!ImGui::IsPopupOpen(u8"텍스처탐색기")) m_EditorGUIBools.bShowPopupMaterialTextureExplorer = false;
+
+						const auto& mapMaterialList{ GetMaterialMap() };
+						for (auto& pairMaterial : mapMaterialList)
 						{
-							ImGui::SetNextItemWidth(160);
-							ImGui::InputText(u8"새 이름", NewName, KNameMaxLength, ImGuiInputTextFlags_EnterReturnsTrue);
-
-							ImGui::Separator();
-
-							if (ImGui::Button(u8"결정") || ImGui::IsKeyDown(VK_RETURN))
+							CMaterialData* MaterialData{ GetMaterial(pairMaterial.first) };
+							CMaterialTextureSet* MaterialTextureSet{ GetMaterialTextureSet(pairMaterial.first) };
+							if (DrawEditorGUIWindowPropertyEditor_MaterialData(*MaterialData, MaterialTextureSet, ecapturedTextureType, ItemsWidth))
 							{
-								if (mapMaterialList.find(NewName) != mapMaterialList.end())
-								{
-									MB_WARN("이미 존재하는 이름입니다. 다른 이름을 골라 주세요.", "오류");
-								}
-								else
-								{
-									ChangeMaterialName(OldName, NewName);
-
-									ImGui::CloseCurrentPopup();
-									bShowMaterialNameChangeWindow = false;
-								}
+								capturedMaterialData = MaterialData;
+								capturedMaterialTextureSet = MaterialTextureSet;
 							}
-
-							ImGui::SameLine();
-
-							if (ImGui::Button(u8"닫기") || ImGui::IsKeyDown(VK_ESCAPE))
-							{
-								ImGui::CloseCurrentPopup();
-								bShowMaterialNameChangeWindow = false;
-							}
-
-							ImGui::EndPopup();
 						}
-					}
 
-					ImGui::EndTabItem();
+						DrawEditorGUIPopupMaterialTextureExplorer(capturedMaterialData, capturedMaterialTextureSet, ecapturedTextureType);
+						DrawEditorGUIPopupMaterialNameChanger(capturedMaterialData, true);
+
+						ImGui::EndTabItem();
+					}
+					
+					ImGui::PopItemWidth();
 				}
 
+				// 기타 탭
 				if (ImGui::BeginTabItem(u8"기타"))
 				{
 					const XMVECTOR& KDirectionalLightDirection{ GetDirectionalLightDirection() };
@@ -5376,11 +5066,11 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					float DirectionalLightColor[3]{ XMVectorGetX(KDirectionalLightColor), XMVectorGetY(KDirectionalLightColor),
 						XMVectorGetZ(KDirectionalLightColor) };
 
-					static constexpr float KLabelsWidth{ 200 };
+					static constexpr float KLabelsWidth{ 220 };
 					static constexpr float KItemsMaxWidth{ 240 };
 					float ItemsWidth{ WindowWidth - KLabelsWidth };
 					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
-					float ItemsOffsetX{ WindowWidth - ItemsWidth };
+					float ItemsOffsetX{ WindowWidth - ItemsWidth - 20 };
 					ImGui::PushItemWidth(ItemsWidth);
 					{
 						if (ImGui::TreeNodeEx(u8"조명", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen))
@@ -5447,6 +5137,221 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 		}
 
 		ImGui::End();
+	}
+}
+
+bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& MaterialData, CMaterialTextureSet* const TextureSet, 
+	STextureData::EType& eSeletedTextureType, float ItemsOffsetX)
+{
+	bool Result{ false };
+
+	if (ImGui::TreeNodeEx(MaterialData.Name().c_str(), ImGuiTreeNodeFlags_SpanAvailWidth))
+	{
+		if (ImGui::Button(u8"재질 이름 변경"))
+		{
+			m_EditorGUIBools.bShowPopupMaterialNameChanger = true;
+			Result = true;
+		}
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text(u8"Diffuse 색상");
+		ImGui::SameLine(ItemsOffsetX);
+		XMFLOAT3 DiffuseColor{ MaterialData.DiffuseColor() };
+		if (ImGui::ColorEdit3(u8"##Diffuse 색상", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
+		{
+			MaterialData.DiffuseColor(DiffuseColor);
+		}
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text(u8"Ambient 색상");
+		ImGui::SameLine(ItemsOffsetX);
+		XMFLOAT3 AmbientColor{ MaterialData.AmbientColor() };
+		if (ImGui::ColorEdit3(u8"##Ambient 색상", &AmbientColor.x, ImGuiColorEditFlags_RGB))
+		{
+			MaterialData.AmbientColor(AmbientColor);
+		}
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text(u8"Specular 색상");
+		ImGui::SameLine(ItemsOffsetX);
+		XMFLOAT3 SpecularColor{ MaterialData.SpecularColor() };
+		if (ImGui::ColorEdit3(u8"##Specular 색상", &SpecularColor.x, ImGuiColorEditFlags_RGB))
+		{
+			MaterialData.SpecularColor(SpecularColor);
+		}
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text(u8"Specular 지수");
+		ImGui::SameLine(ItemsOffsetX);
+		float SpecularExponent{ MaterialData.SpecularExponent() };
+		if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, 1.0f, 1024.0f, "%.1f"))
+		{
+			MaterialData.SpecularExponent(SpecularExponent);
+		}
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text(u8"Specular 강도");
+		ImGui::SameLine(ItemsOffsetX);
+		float SpecularIntensity{ MaterialData.SpecularIntensity() };
+		if (ImGui::DragFloat(u8"##Specular 강도", &SpecularIntensity, 0.01f, 0.0f, 1.0f, "%.2f"))
+		{
+			MaterialData.SpecularIntensity(SpecularIntensity);
+		}
+
+		ImGui::Separator();
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text(u8"텍스처");
+
+		static const ImVec2 KTextureSmallViewSize{ 60.0f, 60.0f };
+		ImGui::PushID(0);
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text(u8"Diffuse");
+		ImGui::SameLine(ItemsOffsetX);
+		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::DiffuseTexture) : nullptr, KTextureSmallViewSize))
+		{
+			eSeletedTextureType = STextureData::EType::DiffuseTexture;
+			m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
+			Result = true;
+		}
+		ImGui::PopID();
+
+		ImGui::PushID(1);
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text(u8"Normal");
+		ImGui::SameLine(ItemsOffsetX);
+		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::NormalTexture) : nullptr, KTextureSmallViewSize))
+		{
+			eSeletedTextureType = STextureData::EType::NormalTexture;
+			m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
+			Result = true;
+		}
+		ImGui::PopID();
+
+		ImGui::PushID(2);
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text(u8"Opacity");
+		ImGui::SameLine(ItemsOffsetX);
+		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::OpacityTexture) : nullptr, KTextureSmallViewSize))
+		{
+			eSeletedTextureType = STextureData::EType::OpacityTexture;
+			m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
+			Result = true;
+		}
+		ImGui::PopID();
+
+		ImGui::PushID(3);
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text(u8"Specular Intensity");
+		ImGui::SameLine(ItemsOffsetX);
+		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::SpecularIntensityTexture) : nullptr, KTextureSmallViewSize))
+		{
+			eSeletedTextureType = STextureData::EType::SpecularIntensityTexture;
+			m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
+			Result = true;
+		}
+		ImGui::PopID();
+
+		ImGui::PushID(4);
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text(u8"Displacement");
+		ImGui::SameLine(ItemsOffsetX);
+		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::DisplacementTexture) : nullptr, KTextureSmallViewSize))
+		{
+			eSeletedTextureType = STextureData::EType::DisplacementTexture;
+			m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
+			Result = true;
+		}
+		ImGui::PopID();
+
+		ImGui::TreePop();
+	}
+
+	return Result;
+}
+
+void CGame::DrawEditorGUIPopupMaterialNameChanger(CMaterialData*& capturedMaterialData, bool bIsEditorMaterial)
+{
+	static char OldName[KAssetNameMaxLength]{};
+	static char NewName[KAssetNameMaxLength]{};
+
+	// ### 재질 이름 변경 윈도우 ###
+	if (m_EditorGUIBools.bShowPopupMaterialNameChanger) ImGui::OpenPopup(u8"재질 이름 변경");
+
+	ImGui::SetNextWindowSize(ImVec2(240, 100), ImGuiCond_Always);
+	if (ImGui::BeginPopupModal(u8"재질 이름 변경", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+	{
+		ImGui::SetNextItemWidth(160);
+		ImGui::InputText(u8"새 이름", NewName, KAssetNameMaxLength, ImGuiInputTextFlags_EnterReturnsTrue);
+
+		ImGui::Separator();
+
+		if (ImGui::Button(u8"결정") || ImGui::IsKeyDown(VK_RETURN))
+		{
+			strcpy_s(OldName, capturedMaterialData->Name().c_str());
+
+			if (bIsEditorMaterial)
+			{
+				if (ChangeMaterialName(OldName, NewName))
+				{
+					ImGui::CloseCurrentPopup();
+					m_EditorGUIBools.bShowPopupMaterialNameChanger = false;
+					capturedMaterialData = nullptr;
+				}
+			}
+			else
+			{
+				// TODO: 이름 충돌 검사
+				// 에디터 재질이 아니면.. 이름 충돌해도 괜찮을까?
+
+				capturedMaterialData->Name(NewName);
+			}
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button(u8"닫기") || ImGui::IsKeyDown(VK_ESCAPE))
+		{
+			ImGui::CloseCurrentPopup();
+			m_EditorGUIBools.bShowPopupMaterialNameChanger = false;
+			capturedMaterialData = nullptr;
+		}
+
+		ImGui::EndPopup();
+	}
+}
+
+void CGame::DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const capturedMaterialData, CMaterialTextureSet* const capturedMaterialTextureSet,
+	STextureData::EType eSelectedTextureType)
+{
+	// ### 텍스처 탐색기 윈도우 ###
+	if (m_EditorGUIBools.bShowPopupMaterialTextureExplorer) ImGui::OpenPopup(u8"텍스처탐색기");
+	if (ImGui::BeginPopup(u8"텍스처탐색기", ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ID3D11ShaderResourceView* SRV{};
+		if (capturedMaterialTextureSet) SRV = capturedMaterialTextureSet->GetTextureSRV(eSelectedTextureType);
+
+		if (ImGui::Button(u8"파일에서 텍스처 불러오기"))
+		{
+			static CFileDialog FileDialog{ GetWorkingDirectory() };
+			if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
+			{
+				capturedMaterialData->SetTextureFileName(eSelectedTextureType, FileDialog.GetRelativeFileName());
+				capturedMaterialTextureSet->CreateTexture(eSelectedTextureType, *capturedMaterialData);
+			}
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button(u8"텍스처 해제하기"))
+		{
+			capturedMaterialData->ClearTextureData(eSelectedTextureType);
+			capturedMaterialTextureSet->DestroyTexture(eSelectedTextureType);
+		}
+
+		ImGui::Image(SRV, ImVec2(600, 600));
+
+		ImGui::EndPopup();
 	}
 }
 

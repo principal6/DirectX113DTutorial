@@ -247,6 +247,8 @@ public:
 		bool bShowWindowSceneEditor{ true };
 		bool bShowPopupTerrainGenerator{ false };
 		bool bShowPopupObjectAdder{ false };
+		bool bShowPopupMaterialNameChanger{ false };
+		bool bShowPopupMaterialTextureExplorer{ false };
 	};
 
 	struct SObject3DPickingCandiate
@@ -391,8 +393,9 @@ public:
 	void CreateMaterialTextures(CMaterialData& MaterialData);
 	void ClearMaterials();
 	CMaterialData* GetMaterial(const std::string& Name, bool bShowWarning = true);
+	CMaterialTextureSet* GetMaterialTextureSet(const std::string& Name, bool bShowWarning = true);
 	size_t GetMaterialCount() const;
-	void ChangeMaterialName(const std::string& OldName, const std::string& NewName);
+	bool ChangeMaterialName(const std::string& OldName, const std::string& NewName);
 	const std::map<std::string, size_t>& GetMaterialMap() const { return m_mapMaterialNameToIndex; }
 	ID3D11ShaderResourceView* GetMaterialTextureSRV(STextureData::EType eType, const std::string& Name) const;
 
@@ -507,10 +510,16 @@ private:
 
 	void DrawEditorGUI();
 	void DrawEditorGUIMenuBar();
-	void DrawEditorGUIPopups();
 	void DrawEditorGUIPopupTerrainGenerator();
 	void DrawEditorGUIPopupObjectAdder();
 	void DrawEditorGUIWindowPropertyEditor();
+
+	// return true if any interaction is required
+	bool DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& MaterialData, CMaterialTextureSet* const TextureSet,
+		STextureData::EType& eSeletedTextureType ,float ItemsOffsetX);
+	void DrawEditorGUIPopupMaterialNameChanger(CMaterialData*& capturedMaterialData, bool bIsEditorMaterial);
+	void DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const capturedMaterialData, CMaterialTextureSet* const capturedMaterialTextureSet,
+		STextureData::EType eSelectedTextureType);
 	void DrawEditorGUIWindowSceneEditor();
 
 public:

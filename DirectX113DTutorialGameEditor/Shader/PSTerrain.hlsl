@@ -5,29 +5,34 @@ SamplerState CurrentSampler : register(s0);
 Texture2D Layer0DiffuseTexture : register(t0);
 Texture2D Layer0NormalTexture : register(t1);
 Texture2D Layer0OpacityTexture : register(t2);
-// Dispacement texture slot
+Texture2D Layer0SpecularIntensityTexture : register(t3);
+// Displacement texture slot
 
-Texture2D Layer1DiffuseTexture : register(t4);
-Texture2D Layer1NormalTexture : register(t5);
-Texture2D Layer1OpacityTexture : register(t6);
-// Dispacement texture slot
+Texture2D Layer1DiffuseTexture : register(t5);
+Texture2D Layer1NormalTexture : register(t6);
+Texture2D Layer1OpacityTexture : register(t7);
+Texture2D Layer1SpecularIntensityTexture : register(t8);
+// Displacement texture slot
 
-Texture2D Layer2DiffuseTexture : register(t8);
-Texture2D Layer2NormalTexture : register(t9);
-Texture2D Layer2OpacityTexture : register(t10);
-// Dispacement texture slot
+Texture2D Layer2DiffuseTexture : register(t10);
+Texture2D Layer2NormalTexture : register(t11);
+Texture2D Layer2OpacityTexture : register(t12);
+Texture2D Layer2SpecularIntensityTexture : register(t13);
+// Displacement texture slot
 
-Texture2D Layer3DiffuseTexture : register(t12);
-Texture2D Layer3NormalTexture : register(t13);
-Texture2D Layer3OpacityTexture : register(t14);
-// Dispacement texture slot
+Texture2D Layer3DiffuseTexture : register(t15);
+Texture2D Layer3NormalTexture : register(t16);
+Texture2D Layer3OpacityTexture : register(t17);
+Texture2D Layer3SpecularIntensityTexture : register(t18);
+// Displacement texture slot
 
-Texture2D Layer4DiffuseTexture : register(t16);
-Texture2D Layer4NormalTexture : register(t17);
-Texture2D Layer4OpacityTexture : register(t18);
-// Dispacement texture slot
+Texture2D Layer4DiffuseTexture : register(t20);
+Texture2D Layer4NormalTexture : register(t21);
+Texture2D Layer4OpacityTexture : register(t22);
+Texture2D Layer4SpecularIntensityTexture : register(t23);
+// Displacement texture slot
 
-Texture2D MaskingTexture : register(t20);
+Texture2D MaskingTexture : register(t25);
 
 cbuffer cbMaskingSpace : register(b0)
 {

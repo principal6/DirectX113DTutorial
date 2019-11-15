@@ -211,7 +211,7 @@ public:
 	static constexpr int KMinSize{ 2 };
 	static constexpr int KDefaultSize{ 10 };
 
-	static constexpr size_t KMaskingTextureSlot{ 20 };
+	static constexpr size_t KMaskingTextureSlot{ 25 }; // @important
 	static constexpr float KMaskingMinRatio{ 0.0f };
 	static constexpr float KMaskingMaxRatio{ 1.0f };
 	static constexpr float KMaskingDefaultRatio{ KMaskingMaxRatio };
