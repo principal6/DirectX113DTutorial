@@ -97,7 +97,7 @@ bool CObject3D::HasAnimations()
 
 void CObject3D::AddAnimationFromFile(const string& FileName, const string& AnimationName)
 {
-	if (!m_Model.bIsModelAnimated) return;
+	if (!m_Model.bIsModelRigged) return;
 
 	m_AssimpLoader.AddAnimationFromFile(FileName, m_Model);
 	m_Model.vAnimations.back().Name = AnimationName;
@@ -140,6 +140,11 @@ void CObject3D::SetAnimationName(int ID, const string& Name)
 const string& CObject3D::GetAnimationName(int ID) const
 {
 	return m_Model.vAnimations[ID].Name;
+}
+
+bool CObject3D::HasBakedAnimationTexture() const
+{
+	return (m_BakedAnimationTexture) ? true : false;
 }
 
 bool CObject3D::CanBakeAnimationTexture() const
@@ -493,7 +498,7 @@ void CObject3D::CreateMeshBuffers()
 	m_vMeshBuffers.resize(m_Model.vMeshes.size());
 	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
 	{
-		CreateMeshBuffer(iMesh, m_Model.bIsModelAnimated);
+		CreateMeshBuffer(iMesh, m_Model.bIsModelRigged);
 	}
 }
 
@@ -578,9 +583,11 @@ void CObject3D::CreateMaterialTextures()
 	
 	for (CMaterialData& MaterialData : m_Model.vMaterialData)
 	{
+		// @important
+		m_vMaterialTextureSets.emplace_back(make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext));
+
 		if (MaterialData.HasAnyTexture())
 		{
-			m_vMaterialTextureSets.emplace_back(make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext));
 			m_vMaterialTextureSets.back()->CreateTextures(MaterialData);
 		}
 	}
@@ -781,6 +788,32 @@ void CObject3D::ShouldTessellate(bool Value)
 	m_bShouldTesselate = Value;
 }
 
+void CObject3D::SetTessFactorData(const CObject3D::SCBTessFactorData& Data)
+{
+	m_CBTessFactorData = Data;
+}
+
+CObject3D::SCBTessFactorData& CObject3D::GetTessFactorData()
+{
+	return m_CBTessFactorData;
+}
+
+void CObject3D::SetDisplacementData(const CObject3D::SCBDisplacementData& Data)
+{
+	m_CBDisplacementData = Data;
+}
+
+CObject3D::SCBDisplacementData& CObject3D::GetDisplacementData()
+{
+	return m_CBDisplacementData;
+}
+
+CMaterialTextureSet* CObject3D::GetMaterialTextureSet(size_t iMaterial)
+{
+	if (iMaterial >= m_vMaterialTextureSets.size()) return nullptr;
+	return m_vMaterialTextureSets[iMaterial].get();
+}
+
 void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick, 
 	const SModel::SNode& Node, XMMATRIX ParentTransform)
 {
@@ -867,15 +900,19 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentA
 
 void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 {
-	if (m_BakedAnimationTexture) m_BakedAnimationTexture->Use();
-	
+	if (HasBakedAnimationTexture()) m_BakedAnimationTexture->Use();
+
+	// per model
+	m_PtrGame->UpdateCBTessFactorData(m_CBTessFactorData);
+	m_PtrGame->UpdateCBDisplacementData(m_CBDisplacementData);
+
 	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
 	{
 		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };
 		const CMaterialData& MaterialData{ m_Model.vMaterialData[Mesh.MaterialID] };
 
+		// per mesh
 		m_PtrGame->UpdateCBMaterialData(MaterialData);
-		m_PtrGame->UpdateCBDisplacementData(false);
 
 		if (MaterialData.HasAnyTexture())
 		{
@@ -886,10 +923,6 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 					const CMaterialTextureSet* MaterialTextureSet{ m_vMaterialTextureSets[MaterialDatum.Index()].get() };
 					if (MaterialDatum.HasAnyTexture() && !bIgnoreOwnTexture)
 					{
-						if (MaterialDatum.HasTexture(STextureData::EType::DisplacementTexture))
-						{
-							m_PtrGame->UpdateCBDisplacementData(true);
-						}
 						MaterialTextureSet->UseTextures();
 					}
 				}
@@ -900,13 +933,18 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 				m_PtrGame->UpdateCBMaterialData(MaterialData);
 				if (MaterialData.HasAnyTexture() && !bIgnoreOwnTexture)
 				{
-					if (MaterialData.HasTexture(STextureData::EType::DisplacementTexture))
-					{
-						m_PtrGame->UpdateCBDisplacementData(true);
-					}
 					MaterialTextureSet->UseTextures();
 				}
 			}
+		}
+
+		if (ShouldTessellate())
+		{
+			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+		}
+		else
+		{
+			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		}
 
 		m_PtrDeviceContext->IASetIndexBuffer(m_vMeshBuffers[iMesh].IndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
@@ -914,7 +952,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 		m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_vMeshBuffers[iMesh].VertexBuffer.GetAddressOf(), 
 			&m_vMeshBuffers[iMesh].VertexBufferStride, &m_vMeshBuffers[iMesh].VertexBufferOffset);
 
-		if (m_Model.bIsModelAnimated)
+		if (IsRiggedModel())
 		{
 			m_PtrDeviceContext->IASetVertexBuffers(1, 1, m_vMeshBuffers[iMesh].VertexBufferAnimation.GetAddressOf(),
 				&m_vMeshBuffers[iMesh].VertexBufferAnimationStride, &m_vMeshBuffers[iMesh].VertexBufferAnimationOffset);
@@ -924,19 +962,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 		{
 			m_PtrDeviceContext->IASetVertexBuffers(2, 1, m_vInstanceBuffers[iMesh].Buffer.GetAddressOf(),
 				&m_vInstanceBuffers[iMesh].Stride, &m_vInstanceBuffers[iMesh].Offset);
-		}
 
-		if (m_bShouldTesselate)
-		{
-			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
-		}
-		else
-		{
-			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		}
-		
-		if (m_vInstanceCPUData.size() && !bIgnoreInstances)
-		{
 			m_PtrDeviceContext->DrawIndexedInstanced(static_cast<UINT>(Mesh.vTriangles.size() * 3), static_cast<UINT>(m_vInstanceCPUData.size()), 0, 0, 0);
 		}
 		else

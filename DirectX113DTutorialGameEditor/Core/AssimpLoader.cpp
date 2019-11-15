@@ -67,7 +67,7 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 		}
 	}
 
-	Model.bIsModelAnimated = true;
+	Model.bIsModelRigged = true;
 }
 
 void CAssimpLoader::AddAnimationFromFile(const string& FileName, SModel& Model)
@@ -216,12 +216,13 @@ void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Devi
 			MaterialData.HasAnyTexture(true);
 		}
 
-		// temporary?
+		// @temporary?
 		if (aiAmbient.r == 0.0f && aiAmbient.g == 0.0f && aiAmbient.b == 0.0f)
 		{
 			aiAmbient = aiDiffuse;
 		}
 
+		MaterialData.Name(aiMaterialName.C_Str());
 		MaterialData.AmbientColor(XMFLOAT3(aiAmbient.r, aiAmbient.g, aiAmbient.b));
 		MaterialData.DiffuseColor(XMFLOAT3(aiDiffuse.r, aiDiffuse.g, aiDiffuse.b));
 		MaterialData.SpecularColor(XMFLOAT3(aiSpecular.r, aiSpecular.g, aiSpecular.b));

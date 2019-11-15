@@ -705,6 +705,8 @@ float CTerrain::GetWaterHeight() const
 void CTerrain::SetTerrainTessFactor(float Value)
 {
 	m_TerrainFileData.TerrainTessellationFactor = Value;
+	
+	if (m_Object3DTerrain) m_Object3DTerrain->SetTessFactorData(CObject3D::SCBTessFactorData(Value));
 }
 
 float CTerrain::GetTerrainTessFactor() const
@@ -715,6 +717,7 @@ float CTerrain::GetTerrainTessFactor() const
 void CTerrain::SetWaterTessFactor(float Value)
 {
 	m_TerrainFileData.WaterTessellationFactor = Value;
+	if (m_Object3DWater) m_Object3DWater->SetTessFactorData(CObject3D::SCBTessFactorData(Value));
 }
 
 float CTerrain::GetWaterTessFactor() const
@@ -858,7 +861,7 @@ void CTerrain::UpdateWind(float DeltaTime)
 	m_PtrGame->UpdateCBWindData(m_CBWindData);
 }
 
-void CTerrain::Draw(bool bDrawNormals)
+void CTerrain::Draw(bool bDrawNormals, bool bShouldTessellate)
 {
 	if (!m_Object3DTerrain) return;
 
@@ -867,11 +870,23 @@ void CTerrain::Draw(bool bDrawNormals)
 	m_PtrGame->UpdateCBTerrainSelection(m_CBTerrainSelectionData);
 	m_PtrGame->UpdateCBSpace(m_CBTerrainSelectionData.TerrainWorld);
 
-	CShader* VS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::VSTerrain) };
-	CShader* PS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::PSTerrain) };
+	CShader* const VS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::VSTerrain) };
+	CShader* const PS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::PSTerrain) };
 
 	VS->Use();
 	VS->UpdateAllConstantBuffers();
+
+	if (bShouldTessellate)
+	{
+		CShader* const HS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::HSTerrain) };
+		CShader* const DS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::DSTerrain) };
+		
+		HS->UpdateAllConstantBuffers();
+		HS->Use();
+		
+		DS->UpdateAllConstantBuffers();
+		DS->Use();
+	}
 
 	PS->Use();
 	PS->UpdateAllConstantBuffers();
@@ -894,12 +909,18 @@ void CTerrain::Draw(bool bDrawNormals)
 		m_PtrDeviceContext->GSSetShader(nullptr, nullptr, 0);
 	}
 
-	if (m_TerrainFileData.bShouldDrawWater)
+	if (bShouldTessellate)
+	{
+		m_PtrDeviceContext->HSSetShader(nullptr, nullptr, 0);
+		m_PtrDeviceContext->DSSetShader(nullptr, nullptr, 0);
+	}
+
+	if (ShouldDrawWater())
 	{
 		DrawWater();
 	}
 
-	if (m_TerrainFileData.bHasFoliageCluster)
+	if (HasFoliageCluster())
 	{
 		DrawFoliageCluster();
 	}
@@ -974,7 +995,6 @@ void CTerrain::DrawWater()
 	//m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
 
 	m_PtrGame->UpdateCBSpace(m_Object3DWater->ComponentTransform.MatrixWorld);
-	m_PtrGame->UpdateCBTessFactor(m_TerrainFileData.WaterTessellationFactor);
 
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->Use();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->UpdateAllConstantBuffers();

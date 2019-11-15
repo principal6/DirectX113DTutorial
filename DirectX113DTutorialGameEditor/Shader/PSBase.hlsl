@@ -36,23 +36,32 @@ cbuffer cbMaterial : register(b2)
 	bool2	Pads2;
 }
 
-float4 main(VS_OUTPUT input) : SV_TARGET
+float4 main(VS_OUTPUT Input) : SV_TARGET
 {
 	float4 AmbientColor = float4(MaterialAmbient, 1);
 	float4 DiffuseColor = float4(MaterialDiffuse, 1);
 	float4 SpecularColor = float4(MaterialSpecular, 1);
+	float4 WorldNormal = normalize(Input.WorldNormal);
 	float Opacity = 1.0f;
 	
 	if (bUseTexture == true)
 	{
 		if (bHasDiffuseTexture == true)
 		{
-			AmbientColor = DiffuseColor = SpecularColor = DiffuseTexture.Sample(CurrentSampler, input.UV.xy);
+			AmbientColor = DiffuseColor = SpecularColor = DiffuseTexture.Sample(CurrentSampler, Input.UV.xy);
+		}
+
+		if (bHasNormalTexture == true)
+		{
+			WorldNormal = normalize((NormalTexture.Sample(CurrentSampler, Input.UV.xy) * 2.0f) - 1.0f);
+
+			float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
+			WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
 		}
 		
 		if (bHasOpacityTexture == true)
 		{
-			float4 Sampled = OpacityTexture.Sample(CurrentSampler, input.UV.xy);
+			float4 Sampled = OpacityTexture.Sample(CurrentSampler, Input.UV.xy);
 			if (Sampled.r == Sampled.g && Sampled.g == Sampled.b)
 			{
 				Opacity = Sampled.r;
@@ -74,7 +83,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	{
 		float4 Ambient = CalculateAmbient(AmbientColor, AmbientLightColor, AmbientLightIntensity);
 		float4 Directional = CalculateDirectional(DiffuseColor, SpecularColor, SpecularExponent, SpecularIntensity,
-			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - input.WorldPosition), normalize(input.WorldNormal));
+			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - Input.WorldPosition), WorldNormal);
 
 		// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
 		float Dot = dot(DirectionalLightDirection, KUpDirection);
@@ -86,7 +95,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	// # Gamma correction
 	ResultColor.xyz = pow(ResultColor.xyz, 0.5f);
 
-	if (input.bUseVertexColor != 0) ResultColor = input.Color;
+	if (Input.bUseVertexColor != 0) ResultColor = Input.Color;
 	if (bHasOpacityTexture == true) ResultColor.a *= Opacity;
 	
 	return ResultColor;

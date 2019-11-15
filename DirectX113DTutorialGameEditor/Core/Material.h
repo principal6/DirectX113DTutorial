@@ -68,6 +68,7 @@ public:
 	void SpecularIntensity(float Value);
 	float SpecularIntensity() const;
 
+	void ClearTextureData(STextureData::EType eType);
 	STextureData& GetTextureData(STextureData::EType eType);
 	void SetTextureFileName(STextureData::EType eType, const std::string& FileName);
 	const std::string GetTextureFileName(STextureData::EType eType) const;
@@ -96,7 +97,7 @@ private:
 	bool			m_bShouldGenerateMipMap{ true };
 
 private:
-	std::string		m_Name{};
+	std::string		m_Name{ "DefaultMaterial" };
 	size_t			m_Index{};
 };
 
@@ -123,6 +124,7 @@ public:
 	void CreateTextureFromFile(const std::string& FileName, bool bShouldGenerateMipMap);
 	void CreateTextureFromMemory(const std::vector<uint8_t>& RawData, bool bShouldGenerateMipMap);
 	void CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize);
+	void ReleaseResources();
 
 	void SaveToDDSFile(const std::string& FileName);
 
@@ -141,8 +143,8 @@ public:
 	bool IsCreated() const { return m_bIsCreated; }
 	const std::string& GetFileName() const { return m_FileName; }
 	const XMFLOAT2& GetTextureSize() const { return m_TextureSize; }
-	ID3D11Texture2D* GetTexture2DPtr() const { return m_Texture2D.Get(); }
-	ID3D11ShaderResourceView* GetShaderResourceViewPtr() { return m_ShaderResourceView.Get(); }
+	ID3D11Texture2D* GetTexture2DPtr() const { return (m_Texture2D) ? m_Texture2D.Get() : nullptr; }
+	ID3D11ShaderResourceView* GetShaderResourceViewPtr() { return (m_ShaderResourceView) ? m_ShaderResourceView.Get() : nullptr; }
 
 private:
 	ID3D11Device* const					m_PtrDevice{};
@@ -173,6 +175,9 @@ public:
 
 public:
 	void CreateTextures(CMaterialData& MaterialData);
+	void CreateTexture(STextureData::EType eType, CMaterialData& MaterialData);
+	void DestroyTexture(STextureData::EType eType);
+
 	void UseTextures() const;
 
 public:

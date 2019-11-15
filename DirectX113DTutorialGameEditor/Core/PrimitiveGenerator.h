@@ -241,6 +241,8 @@ static SMesh GenerateTriangle(const XMVECTOR& V0, const XMVECTOR& V1, const XMVE
 
 	CalculateNormals(Mesh);
 
+	CalculateTangents(Mesh);
+
 	return Mesh;
 }
 
@@ -260,7 +262,7 @@ static SMesh GenerateSquareXYPlane(const XMVECTOR& Color)
 
 	CalculateNormals(Mesh);
 
-	AverageNormals(Mesh);
+	CalculateTangents(Mesh);
 
 	return Mesh;
 }
@@ -281,7 +283,7 @@ static SMesh GenerateSquareXZPlane(const XMVECTOR& Color)
 
 	CalculateNormals(Mesh);
 
-	AverageNormals(Mesh);
+	CalculateTangents(Mesh);
 
 	return Mesh;
 }
@@ -302,7 +304,7 @@ static SMesh GenerateSquareYZPlane(const XMVECTOR& Color)
 
 	CalculateNormals(Mesh);
 
-	AverageNormals(Mesh);
+	CalculateTangents(Mesh);
 
 	return Mesh;
 }
@@ -402,7 +404,7 @@ static SMesh GenerateCircleXZPlane(uint32_t SideCount, const XMVECTOR& Color)
 
 	CalculateNormals(Mesh);
 
-	AverageNormals(Mesh);
+	CalculateTangents(Mesh);
 
 	return Mesh;
 }
@@ -452,8 +454,10 @@ static SMesh GeneratePyramid(const XMVECTOR& Color)
 	}
 
 	CalculateNormals(Mesh);
-
 	AverageNormals(Mesh);
+
+	CalculateTangents(Mesh);
+	AverageTangents(Mesh);
 
 	return Mesh;
 }
@@ -506,8 +510,10 @@ static SMesh GenerateCube(const XMVECTOR& Color)
 	Mesh.vTriangles = GenerateContinuousQuads(6);
 	
 	CalculateNormals(Mesh);
-
 	AverageNormals(Mesh);
+
+	CalculateTangents(Mesh);
+	AverageTangents(Mesh);
 
 	return Mesh;
 }
@@ -574,8 +580,10 @@ static SMesh GenerateCone(float RadiusFactor, float Radius, float Height, uint32
 	}
 
 	CalculateNormals(Mesh);
-
 	AverageNormals(Mesh);
+
+	CalculateTangents(Mesh);
+	AverageTangents(Mesh);
 
 	if (CapturedRadiusFactor == 0.0f)
 	{
@@ -690,8 +698,10 @@ static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& ColorTop, con
 	}
 
 	CalculateNormals(Mesh);
-
 	AverageNormals(Mesh);
+
+	CalculateTangents(Mesh);
+	AverageTangents(Mesh);
 
 	return Mesh;
 }
@@ -759,8 +769,10 @@ static SMesh GenerateTorus(float InnerRadius, uint32_t SideCount, uint32_t Segme
 	}
 
 	CalculateNormals(Mesh);
-
 	AverageNormals(Mesh);
+
+	CalculateTangents(Mesh);
+	AverageTangents(Mesh);
 
 	return Mesh;
 }

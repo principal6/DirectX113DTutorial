@@ -40,9 +40,11 @@ public:
 
 		HSTerrain,
 		HSWater,
+		HSStatic,
 
 		DSTerrain,
 		DSWater,
+		DSStatic,
 
 		GSNormal,
 		GSParticle,
@@ -91,18 +93,6 @@ public:
 	struct SCBCameraData
 	{
 		XMVECTOR	EyePosition{};
-	};
-
-	struct SCBTessFactorData
-	{
-		float		TessFactor{};
-		float		Pads[3]{};
-	};
-
-	struct SCBDisplacementData
-	{
-		BOOL		bUseDisplacement{};
-		float		Pads[3]{};
 	};
 
 	struct SCBPSBaseFlagsData
@@ -331,8 +321,8 @@ public:
 	void UpdateCBTerrainData(const CTerrain::SCBTerrainData& Data);
 	void UpdateCBWindData(const CTerrain::SCBWindData& Data);
 
-	void UpdateCBTessFactor(float TessFactor);
-	void UpdateCBDisplacementData(bool bUseDisplacement);
+	void UpdateCBTessFactorData(const CObject3D::SCBTessFactorData& Data);
+	void UpdateCBDisplacementData(const CObject3D::SCBDisplacementData& Data);
 
 	void UpdateCBMaterialData(const CMaterialData& MaterialData);
 	void UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix);
@@ -569,6 +559,9 @@ private:
 	static constexpr float K3DGizmoDistanceFactorExponent{ 0.75f };
 	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
 
+	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
+	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
+
 private:
 	std::unique_ptr<CShader>	m_VSBase{};
 	std::unique_ptr<CShader>	m_VSInstance{};
@@ -585,9 +578,11 @@ private:
 
 	std::unique_ptr<CShader>	m_HSTerrain{};
 	std::unique_ptr<CShader>	m_HSWater{};
+	std::unique_ptr<CShader>	m_HSStatic{};
 
 	std::unique_ptr<CShader>	m_DSTerrain{};
 	std::unique_ptr<CShader>	m_DSWater{};
+	std::unique_ptr<CShader>	m_DSStatic{};
 
 	std::unique_ptr<CShader>	m_GSNormal{};
 	std::unique_ptr<CShader>	m_GSParticle{};
@@ -620,8 +615,8 @@ private:
 	CTerrain::SCBWindData		m_CBWindData{};
 
 	SCBCameraData				m_CBCameraData{};
-	SCBTessFactorData			m_CBTessFactorData{};
-	SCBDisplacementData			m_CBDisplacementData{};
+	CObject3D::SCBTessFactorData	m_CBTessFactorData{};
+	CObject3D::SCBDisplacementData	m_CBDisplacementData{};
 
 	SCBLightData				m_CBLightData{};
 	SCBMaterialData				m_CBMaterialData{};

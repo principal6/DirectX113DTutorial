@@ -1,7 +1,5 @@
 #include "Terrain.hlsli"
 
-static const float KDisplacementFactor = 0.25f;
-
 cbuffer cbSpace : register(b0)
 {
 	float4x4 ViewProjection;
@@ -26,7 +24,7 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 
 	Output.WorldNormal = Patch[0].WorldNormal * Domain.x + Patch[1].WorldNormal * Domain.y + Patch[2].WorldNormal * Domain.z;
 	Output.WorldNormal = normalize(Output.WorldNormal);
-	
+
 	Output.bUseVertexColor = Patch[0].bUseVertexColor + Patch[1].bUseVertexColor + Patch[2].bUseVertexColor;
 
 	float4 P1 = Patch[0].WorldPosition;
@@ -38,12 +36,11 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 	float4 N3 = normalize(Patch[2].WorldNormal);
 
 	float4 Bezier = GetBezier(P1, P2, P3, N1, N2, N3, Domain);
-	
+
 	if (UseDisplacement)
 	{
 		float Displacement = DisplacementTexture.SampleLevel(CurrentSampler, Output.UV.xy, 0).r;
-		Bezier += Output.WorldNormal * Displacement * KDisplacementFactor;
-		Bezier.y -= KDisplacementFactor;
+		Bezier = Bezier + Output.WorldNormal * (Displacement * DisplacementFactor);
 	}
 
 	Output.Position = Output.WorldPosition = Bezier;
@@ -54,7 +51,7 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 	}
 
 	Output.Color = Patch[0].Color * Domain.x + Patch[1].Color * Domain.y + Patch[2].Color * Domain.z;
-	
+
 	Output.WorldTangent = Patch[0].WorldTangent * Domain.x + Patch[1].WorldTangent * Domain.y + Patch[2].WorldTangent * Domain.z;
 	Output.WorldTangent = normalize(Output.WorldTangent);
 

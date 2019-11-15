@@ -17,6 +17,23 @@ public:
 		UseRawVertexColor = 0x08
 	};
 
+	struct SCBTessFactorData
+	{
+		SCBTessFactorData() {}
+		SCBTessFactorData(float UniformTessFactor) : EdgeTessFactor{ UniformTessFactor }, InsideTessFactor{ UniformTessFactor } {}
+
+		float		EdgeTessFactor{ 2.0f };
+		float		InsideTessFactor{ 2.0f };
+		float		Pads[2]{};
+	};
+
+	struct SCBDisplacementData
+	{
+		BOOL		bUseDisplacement{ TRUE };
+		float		DisplacementFactor{ 1.0f };
+		float		Pads[2]{};
+	};
+
 	struct SBoundingSphere
 	{
 		float		Radius{ KBoundingSphereDefaultRadius };
@@ -127,6 +144,7 @@ public:
 	void SetAnimationName(int ID, const std::string& Name);
 	const std::string& GetAnimationName(int ID) const;
 	
+	bool HasBakedAnimationTexture() const;
 	bool CanBakeAnimationTexture() const;
 	void BakeAnimationTexture();
 	void SaveBakedAnimationTexture(const std::string& FileName);
@@ -163,9 +181,15 @@ public:
 	bool ShouldTessellate() const { return m_bShouldTesselate; }
 	void ShouldTessellate(bool Value);
 
+	void SetTessFactorData(const CObject3D::SCBTessFactorData& Data);
+	CObject3D::SCBTessFactorData& GetTessFactorData();
+
+	void SetDisplacementData(const CObject3D::SCBDisplacementData& Data);
+	CObject3D::SCBDisplacementData& GetDisplacementData();
+
 public:
 	bool IsCreated() const { return m_bIsCreated; }
-	bool IsRiggedModel() const { return m_Model.bIsModelAnimated; }
+	bool IsRiggedModel() const { return m_Model.bIsModelRigged; }
 	bool IsInstanced() const { return (m_vInstanceCPUData.size() > 0) ? true : false; }
 	uint32_t GetInstanceCount() const { return (uint32_t)m_vInstanceCPUData.size(); }
 	const SModel& GetModel() const { return m_Model; }
@@ -173,6 +197,7 @@ public:
 	const std::string& GetName() const { return m_Name; }
 	const std::string& GetModelFileName() const { return m_ModelFileName; }
 	const std::map<std::string, size_t>& GetInstanceMap() const { return m_mapInstanceNameToIndex; }
+	CMaterialTextureSet* GetMaterialTextureSet(size_t iMaterial);
 
 private:
 	void CreateMeshBuffers();
@@ -216,6 +241,8 @@ private:
 	std::vector<std::unique_ptr<CMaterialTextureSet>> m_vMaterialTextureSets{};
 	std::vector<SMeshBuffers>		m_vMeshBuffers{};
 	std::vector<SInstanceBuffer>	m_vInstanceBuffers{};
+	SCBTessFactorData				m_CBTessFactorData{};
+	SCBDisplacementData				m_CBDisplacementData{};
 
 	XMMATRIX						m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
 	int								m_CurrentAnimationID{};

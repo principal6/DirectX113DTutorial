@@ -457,22 +457,31 @@ void CGame::CreateBaseShaders()
 	m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSTerrain->Create(EShaderType::HullShader, L"Shader\\HSTerrain.hlsl", "main");
 	m_HSTerrain->AddConstantBuffer(&m_CBCameraData, sizeof(SCBCameraData));
-	m_HSTerrain->AddConstantBuffer(&m_CBTessFactorData, sizeof(SCBTessFactorData));
+	m_HSTerrain->AddConstantBuffer(&m_CBTessFactorData, sizeof(CObject3D::SCBTessFactorData));
 
 	m_HSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSWater->Create(EShaderType::HullShader, L"Shader\\HSWater.hlsl", "main");
 	m_HSWater->AddConstantBuffer(&m_CBCameraData, sizeof(SCBCameraData));
-	m_HSWater->AddConstantBuffer(&m_CBTessFactorData, sizeof(SCBTessFactorData));
+	m_HSWater->AddConstantBuffer(&m_CBTessFactorData, sizeof(CObject3D::SCBTessFactorData));
+
+	m_HSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_HSStatic->Create(EShaderType::HullShader, L"Shader\\HSStatic.hlsl", "main");
+	m_HSStatic->AddConstantBuffer(&m_CBTessFactorData, sizeof(CObject3D::SCBTessFactorData));
 
 	m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSTerrain->Create(EShaderType::DomainShader, L"Shader\\DSTerrain.hlsl", "main");
 	m_DSTerrain->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
-	m_DSTerrain->AddConstantBuffer(&m_CBDisplacementData, sizeof(SCBDisplacementData));
+	m_DSTerrain->AddConstantBuffer(&m_CBDisplacementData, sizeof(CObject3D::SCBDisplacementData));
 
 	m_DSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSWater->Create(EShaderType::DomainShader, L"Shader\\DSWater.hlsl", "main");
 	m_DSWater->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
 	m_DSWater->AddConstantBuffer(&m_CBWaterTimeData, sizeof(SCBWaterTimeData));
+
+	m_DSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_DSStatic->Create(EShaderType::DomainShader, L"Shader\\DSStatic.hlsl", "main");
+	m_DSStatic->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
+	m_DSStatic->AddConstantBuffer(&m_CBDisplacementData, sizeof(CObject3D::SCBDisplacementData));
 
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSNormal->Create(EShaderType::GeometryShader, L"Shader\\GSNormal.hlsl", "main");
@@ -727,14 +736,14 @@ void CGame::Create3DGizmos()
 		m_Object3D_3DGizmoTranslationX->ComponentRender.PtrVS =
 		m_Object3D_3DGizmoTranslationY->ComponentRender.PtrVS = m_Object3D_3DGizmoTranslationZ->ComponentRender.PtrVS =
 		m_Object3D_3DGizmoScalingX->ComponentRender.PtrVS =
-		m_Object3D_3DGizmoScalingX->ComponentRender.PtrPS = m_Object3D_3DGizmoScalingY->ComponentRender.PtrVS = m_VSGizmo.get();
+		m_Object3D_3DGizmoScalingY->ComponentRender.PtrVS = m_Object3D_3DGizmoScalingZ->ComponentRender.PtrVS = m_VSGizmo.get();
 
 	m_Object3D_3DGizmoRotationPitch->ComponentRender.PtrPS =
 		m_Object3D_3DGizmoRotationYaw->ComponentRender.PtrPS = m_Object3D_3DGizmoRotationRoll->ComponentRender.PtrPS =
 		m_Object3D_3DGizmoTranslationX->ComponentRender.PtrPS =
 		m_Object3D_3DGizmoTranslationY->ComponentRender.PtrPS = m_Object3D_3DGizmoTranslationZ->ComponentRender.PtrPS =
-		m_Object3D_3DGizmoScalingY->ComponentRender.PtrPS =
-		m_Object3D_3DGizmoScalingZ->ComponentRender.PtrVS = m_Object3D_3DGizmoScalingZ->ComponentRender.PtrPS = m_PSGizmo.get();
+		m_Object3D_3DGizmoScalingX->ComponentRender.PtrPS = 
+		m_Object3D_3DGizmoScalingY->ComponentRender.PtrPS = m_Object3D_3DGizmoScalingZ->ComponentRender.PtrPS = m_PSGizmo.get();
 }
 
 void CGame::CreateScreenQuadVertexBuffer()
@@ -1222,16 +1231,22 @@ void CGame::UpdateCBWindData(const CTerrain::SCBWindData& Data)
 	m_CBWindData = Data;
 }
 
-void CGame::UpdateCBTessFactor(float TessFactor)
+void CGame::UpdateCBTessFactorData(const CObject3D::SCBTessFactorData& Data)
 {
-	m_CBTessFactorData.TessFactor = TessFactor;
+	m_CBTessFactorData = Data;
+
+	m_HSTerrain->UpdateAllConstantBuffers();
+	m_HSWater->UpdateAllConstantBuffers();
+	m_HSStatic->UpdateAllConstantBuffers();
 }
 
-void CGame::UpdateCBDisplacementData(bool bUseDisplacement)
+void CGame::UpdateCBDisplacementData(const CObject3D::SCBDisplacementData& Data)
 {
-	m_CBDisplacementData.bUseDisplacement = bUseDisplacement;
+	m_CBDisplacementData = Data;
 
 	m_DSTerrain->UpdateAllConstantBuffers();
+	m_DSWater->UpdateAllConstantBuffers();
+	m_DSStatic->UpdateAllConstantBuffers();
 }
 
 void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
@@ -1245,6 +1260,7 @@ void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
 	m_CBMaterialData.bHasDiffuseTexture = MaterialData.HasTexture(STextureData::EType::DiffuseTexture);
 	m_CBMaterialData.bHasNormalTexture = MaterialData.HasTexture(STextureData::EType::NormalTexture);
 	m_CBMaterialData.bHasOpacityTexture = MaterialData.HasTexture(STextureData::EType::OpacityTexture);
+	// Displacement texture
 
 	m_PSBase->UpdateConstantBuffer(2);
 	m_PSFoliage->UpdateConstantBuffer(2);
@@ -1617,11 +1633,17 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::HSWater:
 		Result = m_HSWater.get();
 		break;
+	case EBaseShader::HSStatic:
+		Result = m_HSStatic.get();
+		break;
 	case EBaseShader::DSTerrain:
 		Result = m_DSTerrain.get();
 		break;
 	case EBaseShader::DSWater:
 		Result = m_DSWater.get();
+		break;
+	case EBaseShader::DSStatic:
+		Result = m_DSStatic.get();
 		break;
 	case EBaseShader::GSNormal:
 		Result = m_GSNormal.get();
@@ -2573,7 +2595,7 @@ bool CGame::PickTriangle()
 		{
 			// Pick only static models' triangle.
 			// Rigged models should be selected by its bounding sphere, not triangles!
-			if (Candidate.PtrObject3D->GetModel().bIsModelAnimated)
+			if (Candidate.PtrObject3D->GetModel().bIsModelRigged)
 			{
 				Candidate.bHasFailedPickingTest = false;
 				continue;
@@ -2967,13 +2989,13 @@ void CGame::DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstanc
 
 	if (PtrObject3D->ShouldTessellate())
 	{
-		UpdateCBSpace();
 		m_CBCameraData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
 
-		m_HSTerrain->UpdateAllConstantBuffers();
-		m_HSTerrain->Use();
-		m_DSTerrain->UpdateAllConstantBuffers();
-		m_DSTerrain->Use();
+		m_HSStatic->UpdateAllConstantBuffers();
+		m_DSStatic->UpdateAllConstantBuffers();
+
+		m_HSStatic->Use();
+		m_DSStatic->Use();
 	}
 
 	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoCulling))
@@ -3196,29 +3218,17 @@ void CGame::DrawTerrain(float DeltaTime)
 	
 	SetUniversalRSState();
 	SetUniversalbUseLighiting();
+	
+	m_CBCameraData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
+	m_CBSpaceVPData.ViewProjection = GetTransposedViewProjectionMatrix();
 
 	m_Terrain->UpdateWind(DeltaTime);
 
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain))
-	{
-		m_CBCameraData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
-		m_CBTessFactorData.TessFactor = m_Terrain->GetTerrainTessFactor();
-		m_HSTerrain->UpdateAllConstantBuffers();
-		m_HSTerrain->Use();
-
-		m_CBSpaceVPData.ViewProjection = GetTransposedViewProjectionMatrix();
-		m_DSTerrain->UpdateAllConstantBuffers();
-		m_DSTerrain->Use();
-
-		m_Terrain->Draw(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals) && (m_eMode == EMode::Edit));
-
-		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
-		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
-	}
-	else
-	{
-		m_Terrain->Draw(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals) && (m_eMode == EMode::Edit));
-	}
+	m_Terrain->Draw
+	(
+		EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals) && (m_eMode == EMode::Edit),
+		EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain)
+	);
 
 	if (m_eMode == EMode::Edit)
 	{
@@ -4016,7 +4026,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 		ImGui::SetNextWindowSizeConstraints(
 			ImVec2(m_WindowSize.x * 0.25f, m_WindowSize.y), ImVec2(m_WindowSize.x * 0.5f, m_WindowSize.y));
 
-		if (ImGui::Begin(u8"속성 편집기", &m_EditorGUIBools.bShowWindowPropertyEditor, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar))
+		if (ImGui::Begin(u8"속성 편집기", &m_EditorGUIBools.bShowWindowPropertyEditor, 
+			ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysVerticalScrollbar))
 		{
 			float WindowWidth{ ImGui::GetWindowWidth() };
 
@@ -4030,11 +4041,11 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 					SetEditMode(EEditMode::EditObject);
 
-					static constexpr float KLabelsWidth{ 200 };
+					static constexpr float KLabelsWidth{ 220 };
 					static constexpr float KItemsMaxWidth{ 240 };
 					float ItemsWidth{ WindowWidth - KLabelsWidth };
 					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
-					float ItemsOffsetX{ WindowWidth - ItemsWidth };
+					float ItemsOffsetX{ WindowWidth - ItemsWidth - 20 };
 
 					if (IsAnyObject3DSelected())
 					{
@@ -4210,67 +4221,224 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							}
 							ImGui::Text(u8"%d", TriangleCount);
 
+							// Tessellation data
+							ImGui::Separator();
+
+							bool bShouldTessellate{ Object3D->ShouldTessellate() };
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"테셀레이션 사용 여부");
+							ImGui::SameLine(ItemsOffsetX);
+							if (ImGui::Checkbox(u8"##테셀레이션 사용 여부", &bShouldTessellate))
+							{
+								Object3D->ShouldTessellate(bShouldTessellate);
+							}
+
+							CObject3D::SCBTessFactorData& TessFactorData{ Object3D->GetTessFactorData() };
+							float EdgeTessFactor{ TessFactorData.EdgeTessFactor };
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"테셀레이션 변 계수");
+							ImGui::SameLine(ItemsOffsetX);
+							if (ImGui::SliderFloat(u8"##테셀레이션 변 계수", &EdgeTessFactor, 0.0f, 64.0f, "%.2f"))
+							{
+								TessFactorData.EdgeTessFactor = EdgeTessFactor;
+							}
+
+							float InsideTessFactor{ TessFactorData.InsideTessFactor };
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"테셀레이션 내부 계수");
+							ImGui::SameLine(ItemsOffsetX);
+							if (ImGui::SliderFloat(u8"##테셀레이션 내부 계수", &InsideTessFactor, 0.0f, 64.0f, "%.2f"))
+							{
+								TessFactorData.InsideTessFactor = InsideTessFactor;
+							}
+
+							CObject3D::SCBDisplacementData& DisplacementData{ Object3D->GetDisplacementData() };
+							float DisplacementFactor{ DisplacementData.DisplacementFactor };
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"변위 계수");
+							ImGui::SameLine(ItemsOffsetX);
+							if (ImGui::SliderFloat(u8"##변위 계수", &DisplacementFactor, 0.0f, 1.0f, "%.2f"))
+							{
+								DisplacementData.DisplacementFactor = DisplacementFactor;
+							}
+
+							// Material data
 							ImGui::Separator();
 
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8"오브젝트 재질");
-							if (Object3D->GetMaterialCount() == 1)
+							if (Object3D->GetMaterialCount() > 0)
 							{
-								CMaterialData& MaterialData{ Object3D->GetModel().vMaterialData[0] };
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"Diffuse 색상");
-								ImGui::SameLine(ItemsOffsetX);
-								XMFLOAT3 DiffuseColor{ MaterialData.DiffuseColor() };
-								if (ImGui::ColorEdit3(u8"##Diffuse 색상", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
-								{
-									MaterialData.DiffuseColor(DiffuseColor);
-								}
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"Ambient 색상");
-								ImGui::SameLine(ItemsOffsetX);
-								XMFLOAT3 AmbientColor{ MaterialData.AmbientColor() };
-								if (ImGui::ColorEdit3(u8"##Ambient 색상", &AmbientColor.x, ImGuiColorEditFlags_RGB))
-								{
-									MaterialData.AmbientColor(AmbientColor);
-								}
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"Specular 색상");
-								ImGui::SameLine(ItemsOffsetX);
-								XMFLOAT3 SpecularColor{ MaterialData.SpecularColor() };
-								if (ImGui::ColorEdit3(u8"##Specular 색상", &SpecularColor.x, ImGuiColorEditFlags_RGB))
-								{
-									MaterialData.SpecularColor(SpecularColor);
-								}
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"Specular 지수");
-								ImGui::SameLine(ItemsOffsetX);
-								float SpecularExponent{ MaterialData.SpecularExponent() };
-								if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, 1.0f, 256.0f, "%.1f"))
-								{
-									MaterialData.SpecularExponent(SpecularExponent);
-								}
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"Specular 강도");
-								ImGui::SameLine(ItemsOffsetX);
-								float SpecularIntensity{ MaterialData.SpecularIntensity() };
-								if (ImGui::DragFloat(u8"##Specular 강도", &SpecularIntensity, 0.1f, 0.0f, 1.0f, "%.1f"))
-								{
-									MaterialData.SpecularIntensity(SpecularIntensity);
-								}
-							}
-							else
-							{
-								// @TODO
+								static STextureData::EType SelectedTextureType{};
+								static size_t iSelectedMaterial{};
+								bool bShowTextureExplorer{ false };
 								for (size_t iMaterial = 0; iMaterial < Object3D->GetMaterialCount(); ++iMaterial)
 								{
 									CMaterialData& MaterialData{ Object3D->GetModel().vMaterialData[iMaterial] };
-									
 
+									ImGui::PushID((int)iMaterial);
+
+									if (ImGui::TreeNodeEx(MaterialData.Name().c_str(), ImGuiTreeNodeFlags_SpanAvailWidth))
+									{
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Diffuse 색상");
+										ImGui::SameLine(ItemsOffsetX);
+										XMFLOAT3 DiffuseColor{ MaterialData.DiffuseColor() };
+										if (ImGui::ColorEdit3(u8"##Diffuse 색상", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
+										{
+											MaterialData.DiffuseColor(DiffuseColor);
+										}
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Ambient 색상");
+										ImGui::SameLine(ItemsOffsetX);
+										XMFLOAT3 AmbientColor{ MaterialData.AmbientColor() };
+										if (ImGui::ColorEdit3(u8"##Ambient 색상", &AmbientColor.x, ImGuiColorEditFlags_RGB))
+										{
+											MaterialData.AmbientColor(AmbientColor);
+										}
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Specular 색상");
+										ImGui::SameLine(ItemsOffsetX);
+										XMFLOAT3 SpecularColor{ MaterialData.SpecularColor() };
+										if (ImGui::ColorEdit3(u8"##Specular 색상", &SpecularColor.x, ImGuiColorEditFlags_RGB))
+										{
+											MaterialData.SpecularColor(SpecularColor);
+										}
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Specular 지수");
+										ImGui::SameLine(ItemsOffsetX);
+										float SpecularExponent{ MaterialData.SpecularExponent() };
+										if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, 1.0f, 1024.0f, "%.1f"))
+										{
+											MaterialData.SpecularExponent(SpecularExponent);
+										}
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Specular 강도");
+										ImGui::SameLine(ItemsOffsetX);
+										float SpecularIntensity{ MaterialData.SpecularIntensity() };
+										if (ImGui::DragFloat(u8"##Specular 강도", &SpecularIntensity, 0.01f, 0.0f, 1.0f, "%.2f"))
+										{
+											MaterialData.SpecularIntensity(SpecularIntensity);
+										}
+
+										ImGui::Separator();
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"텍스처");
+
+										ImTextureID imTextureIDDiffuse{};
+										ImTextureID imTextureIDNormal{};
+										ImTextureID imTextureIDOpacity{};
+										ImTextureID imTextureIDDisplacement{};
+
+										CMaterialTextureSet* const TextureSet{ Object3D->GetMaterialTextureSet(iMaterial) };
+										if (TextureSet)
+										{
+											imTextureIDDiffuse = TextureSet->GetTextureSRV(STextureData::EType::DiffuseTexture);
+											imTextureIDNormal = TextureSet->GetTextureSRV(STextureData::EType::NormalTexture);
+											imTextureIDOpacity = TextureSet->GetTextureSRV(STextureData::EType::OpacityTexture);
+											imTextureIDDisplacement = TextureSet->GetTextureSRV(STextureData::EType::DisplacementTexture);
+										}
+										
+										static const ImVec2 KTextureSmallViewSize{ 60.0f, 60.0f };
+										ImGui::PushID(0);
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Diffuse");
+										ImGui::SameLine(ItemsOffsetX);
+										if (ImGui::ImageButton(imTextureIDDiffuse, KTextureSmallViewSize))
+										{
+											iSelectedMaterial = iMaterial;
+											SelectedTextureType = STextureData::EType::DiffuseTexture;
+											bShowTextureExplorer = true;
+										}
+										ImGui::PopID();
+
+										ImGui::PushID(1);
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Normal");
+										ImGui::SameLine(ItemsOffsetX);
+										if (ImGui::ImageButton(imTextureIDNormal, KTextureSmallViewSize))
+										{
+											iSelectedMaterial = iMaterial;
+											SelectedTextureType = STextureData::EType::NormalTexture;
+											bShowTextureExplorer = true;
+										}
+										ImGui::PopID();
+
+										ImGui::PushID(2);
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Opacity");
+										ImGui::SameLine(ItemsOffsetX);
+										if (ImGui::ImageButton(imTextureIDOpacity, KTextureSmallViewSize))
+										{
+											iSelectedMaterial = iMaterial;
+											SelectedTextureType = STextureData::EType::OpacityTexture;
+											bShowTextureExplorer = true;
+										}
+										ImGui::PopID();
+
+										ImGui::PushID(3);
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Displacement");
+										ImGui::SameLine(ItemsOffsetX);
+										if (ImGui::ImageButton(imTextureIDDisplacement, KTextureSmallViewSize))
+										{
+											iSelectedMaterial = iMaterial;
+											SelectedTextureType = STextureData::EType::DisplacementTexture;
+											bShowTextureExplorer = true;
+										}
+										ImGui::PopID();
+
+										ImGui::TreePop();
+									}
+
+									ImGui::PopID();
+								}
+
+								if (bShowTextureExplorer) ImGui::OpenPopup(u8"텍스처탐색기");
+								if (ImGui::BeginPopup(u8"텍스처탐색기", ImGuiWindowFlags_AlwaysAutoResize))
+								{
+									CMaterialData& MaterialData{ Object3D->GetModel().vMaterialData[iSelectedMaterial] };
+									CMaterialTextureSet* const TextureSet{ Object3D->GetMaterialTextureSet(iSelectedMaterial) };
+									ID3D11ShaderResourceView* SRV{};
+									if (TextureSet) SRV = TextureSet->GetTextureSRV(SelectedTextureType);
+
+									if (ImGui::Button(u8"파일에서 텍스처 불러오기"))
+									{
+										static CFileDialog FileDialog{ GetWorkingDirectory() };
+										if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
+										{
+											MaterialData.SetTextureFileName(SelectedTextureType, FileDialog.GetRelativeFileName());
+											TextureSet->CreateTexture(SelectedTextureType, MaterialData);
+											if (SelectedTextureType == STextureData::EType::DisplacementTexture)
+											{
+												// TODO
+												// Additional work ..?
+											}
+										}
+									}
+
+									ImGui::SameLine();
+
+									if (ImGui::Button(u8"텍스처 해제하기"))
+									{
+										MaterialData.ClearTextureData(SelectedTextureType);
+										TextureSet->DestroyTexture(SelectedTextureType);
+
+										if (SelectedTextureType == STextureData::EType::DisplacementTexture)
+										{
+											// TODO
+											// Additional work ..?
+										}
+									}
+
+									ImGui::Image(SRV, ImVec2(600, 600));
+
+									ImGui::EndPopup();
 								}
 							}
 
@@ -5040,9 +5208,6 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							{
 								MaterialData->SpecularIntensity(SpecularIntensity);
 							}
-
-							static const char KTextureDialogFilter[]{ "PNG 파일\0*.png\0JPG 파일\0*.jpg\0모든 파일\0*.*\0" };
-							static const char KTextureDialogTitle[]{ "텍스쳐 불러오기" };
 
 							// Diffuse texture
 							{

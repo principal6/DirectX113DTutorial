@@ -16,10 +16,6 @@ VS_OUTPUT main(VS_INPUT Input)
 	Output.Color = Input.Color;
 	Output.UV = Input.UV;
 
-	//Output.WorldNormal = normalize(mul(Input.Normal, World));
-	//Output.WorldTangent = normalize(mul(Input.Tangent, World));
-	//Output.WorldBitangent = CalculateBitangent(Output.WorldNormal, Output.WorldTangent);
-
 	float4 ResultNormal = normalize(mul(Input.Normal, World));
 	float4 ResultBitangent = normalize(float4(cross(ResultNormal.xyz, Input.Tangent.xyz), 0));
 	float4 ResultTangent = normalize(float4(cross(ResultBitangent.xyz, ResultNormal.xyz), 0));

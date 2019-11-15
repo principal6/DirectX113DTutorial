@@ -130,6 +130,13 @@ void CTexture::CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize)
 	m_bIsCreated = true;
 }
 
+void CTexture::ReleaseResources()
+{
+	m_ShaderResourceView.Reset();
+	m_Texture2D.Reset();
+	m_bIsCreated = false;
+}
+
 void CTexture::SaveToDDSFile(const string& FileName)
 {
 	wstring wFileName{ FileName.begin(), FileName.end() };
@@ -257,31 +264,43 @@ void CMaterialTextureSet::CreateTextures(CMaterialData& MaterialData)
 	for (int iTexture = 0; iTexture < KMaxTextureCountPerMaterial; ++iTexture)
 	{
 		STextureData::EType eTextureType{ (STextureData::EType)iTexture };
-		if (MaterialData.HasTexture(eTextureType))
+		CreateTexture(eTextureType, MaterialData);
+	}
+}
+
+void CMaterialTextureSet::CreateTexture(STextureData::EType eType, CMaterialData& MaterialData)
+{
+	UINT SlotOffset{ (UINT)(MaterialData.Index() * KMaxTextureCountPerMaterial) };
+	if (MaterialData.HasTexture(eType))
+	{
+		size_t iTexture{ (size_t)eType };
+		STextureData& TextureData{ MaterialData.GetTextureData(eType) };
+		if (TextureData.vRawData.empty())
 		{
-			STextureData& TextureData{ MaterialData.GetTextureData(eTextureType) };
-			if (TextureData.vRawData.empty())
-			{
-				m_Textures[iTexture].CreateTextureFromFile(TextureData.FileName, true);
-			}
-			else
-			{
-				m_Textures[iTexture].CreateTextureFromMemory(TextureData.vRawData, true);
-			}
-
-			// @important
-			m_Textures[iTexture].SetSlot(SlotOffset + iTexture);
-
-			// @important
-			if (eTextureType == STextureData::EType::DisplacementTexture)
-			{
-				m_Textures[iTexture].SetShaderType(EShaderType::DomainShader);
-				m_Textures[iTexture].SetSlot((UINT)MaterialData.Index()); // @warning
-			}
-
+			m_Textures[iTexture].CreateTextureFromFile(TextureData.FileName, true);
+		}
+		else
+		{
+			m_Textures[iTexture].CreateTextureFromMemory(TextureData.vRawData, true);
 			TextureData.vRawData.clear(); // @important
 		}
+
+		// @important
+		m_Textures[iTexture].SetSlot(static_cast<UINT>(SlotOffset + iTexture));
+
+		// @important
+		if (eType == STextureData::EType::DisplacementTexture)
+		{
+			m_Textures[iTexture].SetShaderType(EShaderType::DomainShader);
+			m_Textures[iTexture].SetSlot((UINT)MaterialData.Index()); // @warning
+		}
 	}
+}
+
+void CMaterialTextureSet::DestroyTexture(STextureData::EType eType)
+{
+	size_t iTexture{ (size_t)eType };
+	m_Textures[iTexture].ReleaseResources();
 }
 
 void CMaterialTextureSet::UseTextures() const
@@ -365,6 +384,22 @@ void CMaterialData::SpecularIntensity(float Value)
 float CMaterialData::SpecularIntensity() const
 {
 	return m_SpecularIntensity;
+}
+
+void CMaterialData::ClearTextureData(STextureData::EType eType)
+{
+	if (m_bHasAnyTexture)
+	{
+		m_TextureData[(int)eType].bHasTexture = false;
+		m_TextureData[(int)eType].FileName.clear();
+		m_TextureData[(int)eType].vRawData.clear();
+
+		m_bHasAnyTexture = false;
+		for (const auto& TextureData : m_TextureData)
+		{
+			if (TextureData.bHasTexture) m_bHasAnyTexture = true;
+		}
+	}
 }
 
 STextureData& CMaterialData::GetTextureData(STextureData::EType eType)

@@ -498,9 +498,6 @@
     <None Include="Assimp\vector3.inl">
       <Filter>Assimp</Filter>
     </None>
-    <None Include="Shader\Terrain.hlsli">
-      <Filter>Shader</Filter>
-    </None>
     <None Include="Shader\Particle.hlsli">
       <Filter>Shader</Filter>
     </None>
@@ -520,6 +517,9 @@
       <Filter>Shader</Filter>
     </None>
     <None Include="Shader\Deferred.hlsli">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="Shader\Terrain.hlsli">
       <Filter>Shader</Filter>
     </None>
   </ItemGroup>
@@ -621,6 +621,12 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\PSScreenQuad.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\HSStatic.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\DSStatic.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

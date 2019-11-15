@@ -105,7 +105,7 @@ struct SModel
 	uint32_t								ModelBoneCount{};
 
 	std::vector<SAnimation>					vAnimations{};
-	bool									bIsModelAnimated{};
+	bool									bIsModelRigged{};
 	bool									bUseMultipleTexturesInSingleMesh{ false };
 };
 

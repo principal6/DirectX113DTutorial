@@ -178,7 +178,7 @@ public:
 public:
 	void UpdateWind(float DeltaTime);
 
-	void Draw(bool bDrawNormals);
+	void Draw(bool bDrawNormals, bool bShouldTessellate);
 	void DrawHeightMapTexture();
 	void DrawMaskingTexture();
 	void DrawFoliagePlacingTexture();
@@ -245,28 +245,28 @@ private:
 	CGame* const					m_PtrGame{};
 
 private:
-	std::unique_ptr<CObject2D>			m_Object2DTextureRepresentation{};
-	std::unique_ptr<CObject3D>			m_Object3DTerrain{};
+	std::unique_ptr<CObject2D>		m_Object2DTextureRepresentation{};
+	std::unique_ptr<CObject3D>		m_Object3DTerrain{};
 
 private:
-	XMFLOAT2								m_HeightMapTextureSize{};
-	std::unique_ptr<CTexture>	m_HeightMapTexture{};
+	XMFLOAT2						m_HeightMapTextureSize{};
+	std::unique_ptr<CTexture>		m_HeightMapTexture{};
 
 private:
-	XMFLOAT2								m_MaskingTextureSize{};
-	std::unique_ptr<CTexture>	m_MaskingTexture{};
-	XMMATRIX								m_MatrixMaskingSpace{};
+	XMFLOAT2						m_MaskingTextureSize{};
+	std::unique_ptr<CTexture>		m_MaskingTexture{};
+	XMMATRIX						m_MatrixMaskingSpace{};
 
 private:
-	std::unique_ptr<CObject3D>				m_Object3DWater{};
-	std::unique_ptr<CTexture>	m_WaterDiffuseTexture{};
-	std::unique_ptr<CTexture>	m_WaterNormalTexture{};
-	std::unique_ptr<CTexture>	m_WaterDisplacementTexture{};
+	std::unique_ptr<CObject3D>		m_Object3DWater{};
+	std::unique_ptr<CTexture>		m_WaterDiffuseTexture{};
+	std::unique_ptr<CTexture>		m_WaterNormalTexture{};
+	std::unique_ptr<CTexture>		m_WaterDisplacementTexture{};
 
 private:
 	std::vector<std::unique_ptr<CObject3D>>	m_vFoliages{};
 	XMFLOAT2								m_FoliagePlacingTextureSize{};
-	std::unique_ptr<CTexture>	m_FoliagePlacingTexture{};
+	std::unique_ptr<CTexture>				m_FoliagePlacingTexture{};
 
 	SCBWindData							m_CBWindData{};
 	std::unique_ptr<CObject3D>			m_Object3DWindRepresentation{};
