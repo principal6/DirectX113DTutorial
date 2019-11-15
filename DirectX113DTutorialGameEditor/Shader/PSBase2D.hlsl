@@ -9,9 +9,14 @@ cbuffer cbFlags : register(b0)
 	bool3 Pads;
 }
 
-float4 main(VS_OUTPUT input) : SV_TARGET
+float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	float4 Result = input.Color;
-	if (UseTexture == true) Result = CurrentTexture2D.Sample(CurrentSampler, input.UV);
-	return Result;
+	float4 OutputColor = Input.Color;
+
+	if (UseTexture == true)
+	{
+		OutputColor = CurrentTexture2D.Sample(CurrentSampler, Input.UV);
+	}
+
+	return OutputColor;
 }

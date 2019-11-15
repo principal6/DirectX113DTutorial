@@ -61,10 +61,14 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		}
 	}
 
-	// # Gamma correction
-	Albedo.xyz = pow(Albedo.xyz, 2.0f);
+	// # Here we make sure that input RGB values are in linear-space!
+	// (In this project, all textures are loaded with their values in gamma-space)
+	if (bHasDiffuseTexture == true)
+	{
+		Albedo.xyz = pow(Albedo.xyz, 2.2);
+	}
 
-	float4 ResultColor = Albedo;
+	float4 OutputColor = Albedo;
 	if (bUseLighting == true)
 	{
 		float4 Ambient = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
@@ -75,13 +79,14 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		float Dot = dot(DirectionalLightDirection, KUpDirection);
 		Directional.xyz *= pow(Dot, 0.6f);
 
-		ResultColor = Ambient + Directional;
+		OutputColor = Ambient + Directional;
 	}
 
-	// # Gamma correction
-	ResultColor.xyz = pow(ResultColor.xyz, 0.5f);
+	// # Here we make sure that output RGB values are in gamma-space!
+	// # Convert linear-space RGB (sRGB) to gamma-space RGB
+	OutputColor.xyz = pow(OutputColor.xyz, 0.4545);
 
-	if (bHasOpacityTexture == true) ResultColor.a *= Opacity;
+	if (bHasOpacityTexture == true) OutputColor.a *= Opacity;
 
-	return ResultColor;
+	return OutputColor;
 }

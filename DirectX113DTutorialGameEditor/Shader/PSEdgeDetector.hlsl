@@ -31,5 +31,4 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 	float4 Result = float4(1, 0.6, 0, Sobel);
 	return Result;
-	//return DeferredTexture.Sample(PointSampler, Input.TexCoord);
 }
