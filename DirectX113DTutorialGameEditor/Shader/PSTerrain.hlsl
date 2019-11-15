@@ -1,6 +1,6 @@
 #include "Terrain.hlsli"
 
-SamplerState CurrentSampler : register(s0);
+SamplerState TerrainSampler : register(s0);
 
 Texture2D Layer0DiffuseTexture : register(t0);
 Texture2D Layer0NormalTexture : register(t1);
@@ -67,16 +67,17 @@ cbuffer cbEditorTime : register(b3)
 
 cbuffer cbMaterial : register(b4)
 {
-	float3	MaterialAmbient;
-	float	SpecularExponent;
-	float3	MaterialDiffuse;
-	float	SpecularIntensity;
-	float3	MaterialSpecular;
+	float3	MaterialAmbientColor;
+	float	MaterialSpecularExponent;
+	float3	MaterialDiffuseColor;
+	float	MaterialSpecularIntensity;
+	float3	MaterialSpecularColor;
 	bool	bHasDiffuseTexture;
 
 	bool	bHasNormalTexture;
 	bool	bHasOpacityTexture;
-	bool2	Pads2;
+	bool	bHasSpecularIntensityTexture;
+	bool	Reserved;
 }
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
@@ -84,40 +85,64 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 WorldVertexPosition = float4(Input.WorldPosition.x, 0, -Input.WorldPosition.z, 1);
 	float4 LocalMaskingPosition = mul(WorldVertexPosition, InverseTerrainWorld);
 	float4 MaskingSpacePosition = mul(LocalMaskingPosition, MaskingSpaceMatrix);
-	float4 Masking = MaskingTexture.Sample(CurrentSampler, MaskingSpacePosition.xz);
+	float4 Masking = MaskingTexture.Sample(TerrainSampler, MaskingSpacePosition.xz);
 
-	float2 TexCoord = Input.UV.xy;
-	float4 DiffuseLayer0 = Layer0DiffuseTexture.Sample(CurrentSampler, TexCoord);
-	float4 DiffuseLayer1 = Layer1DiffuseTexture.Sample(CurrentSampler, TexCoord);
-	float4 DiffuseLayer2 = Layer2DiffuseTexture.Sample(CurrentSampler, TexCoord);
-	float4 DiffuseLayer3 = Layer3DiffuseTexture.Sample(CurrentSampler, TexCoord);
-	float4 DiffuseLayer4 = Layer4DiffuseTexture.Sample(CurrentSampler, TexCoord);
+	const float2 KTexCoord = Input.UV.xy;
 
-	float4 Albedo = DiffuseLayer0;
-	Albedo.xyz = lerp(Albedo.xyz, DiffuseLayer1.xyz, Masking.r);
-	Albedo.xyz = lerp(Albedo.xyz, DiffuseLayer2.xyz, Masking.g);
-	Albedo.xyz = lerp(Albedo.xyz, DiffuseLayer3.xyz, Masking.b);
-	Albedo.xyz = lerp(Albedo.xyz, DiffuseLayer4.xyz, Masking.a);
+	float4 DiffuseLayer0 = Layer0DiffuseTexture.Sample(TerrainSampler, KTexCoord);
+	float4 DiffuseLayer1 = Layer1DiffuseTexture.Sample(TerrainSampler, KTexCoord);
+	float4 DiffuseLayer2 = Layer2DiffuseTexture.Sample(TerrainSampler, KTexCoord);
+	float4 DiffuseLayer3 = Layer3DiffuseTexture.Sample(TerrainSampler, KTexCoord);
+	float4 DiffuseLayer4 = Layer4DiffuseTexture.Sample(TerrainSampler, KTexCoord);
+
+	float4 BlendedDiffuse = float4(MaterialDiffuseColor, 1);
+	if (bHasDiffuseTexture == true)
+	{
+		BlendedDiffuse = DiffuseLayer0;
+		BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer1.xyz, Masking.r);
+		BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer2.xyz, Masking.g);
+		BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer3.xyz, Masking.b);
+		BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer4.xyz, Masking.a);
+	}
 	
-	float4 NormalLayer0 = normalize((Layer0NormalTexture.Sample(CurrentSampler, TexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer1 = normalize((Layer1NormalTexture.Sample(CurrentSampler, TexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer2 = normalize((Layer2NormalTexture.Sample(CurrentSampler, TexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer3 = normalize((Layer3NormalTexture.Sample(CurrentSampler, TexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer4 = normalize((Layer4NormalTexture.Sample(CurrentSampler, TexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer0 = normalize((Layer0NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer1 = normalize((Layer1NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer2 = normalize((Layer2NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer3 = normalize((Layer3NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer4 = normalize((Layer4NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
 
-	float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
-	float4 ResultNormal;
-	ResultNormal = NormalLayer0;
-	ResultNormal.xyz = lerp(ResultNormal.xyz, NormalLayer1.xyz, Masking.r);
-	ResultNormal.xyz = lerp(ResultNormal.xyz, NormalLayer2.xyz, Masking.g);
-	ResultNormal.xyz = lerp(ResultNormal.xyz, NormalLayer3.xyz, Masking.b);
-	ResultNormal.xyz = lerp(ResultNormal.xyz, NormalLayer4.xyz, Masking.a);
-	ResultNormal = normalize(ResultNormal);
-	ResultNormal = normalize(float4(mul(ResultNormal.xyz, TextureSpace), 0.0f));
+	float4 BlendedNormal = Input.WorldNormal;
+	if (bHasNormalTexture)
+	{
+		const float3x3 KTextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
+		BlendedNormal = NormalLayer0;
+		BlendedNormal.xyz = lerp(BlendedNormal.xyz, NormalLayer1.xyz, Masking.r);
+		BlendedNormal.xyz = lerp(BlendedNormal.xyz, NormalLayer2.xyz, Masking.g);
+		BlendedNormal.xyz = lerp(BlendedNormal.xyz, NormalLayer3.xyz, Masking.b);
+		BlendedNormal.xyz = lerp(BlendedNormal.xyz, NormalLayer4.xyz, Masking.a);
+		BlendedNormal = normalize(BlendedNormal);
+		BlendedNormal = normalize(float4(mul(BlendedNormal.xyz, KTextureSpace), 0.0f));
+	}
+
+	float SpecularIntensityLayer0 = Layer0SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
+	float SpecularIntensityLayer1 = Layer1SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
+	float SpecularIntensityLayer2 = Layer2SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
+	float SpecularIntensityLayer3 = Layer3SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
+	float SpecularIntensityLayer4 = Layer4SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
+
+	float BlendedSpecularIntensity = MaterialSpecularIntensity;
+	if (bHasSpecularIntensityTexture)
+	{
+		BlendedSpecularIntensity = SpecularIntensityLayer0;
+		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer1, Masking.r);
+		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer2, Masking.g);
+		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer3, Masking.b);
+		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer4, Masking.a);
+	}
 	
 	// Selection highlight (for edit mode)
 	bool bIsHighlitPixel = false;
-	float4 HighlitAlbedo = Albedo;
+	float4 HighlitAlbedo = BlendedDiffuse;
 	if (bShowSelection == true)
 	{
 		const float3 ColorCmp = float3(0.2f, 0.4f, 0.6f);
@@ -129,10 +154,10 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		float Distance = distance(TerrainPosition, WorldSelectionPosition);
 		if (Distance <= SelectionRadius)
 		{
-			Albedo.xyz = max(Albedo.xyz, ColorCmp);
-			Albedo.xyz += HighlightFactor * Sine;
+			BlendedDiffuse.xyz = max(BlendedDiffuse.xyz, ColorCmp);
+			BlendedDiffuse.xyz += HighlightFactor * Sine;
 			bIsHighlitPixel = true;
-			HighlitAlbedo = Albedo;
+			HighlitAlbedo = BlendedDiffuse;
 		}
 	}
 
@@ -141,14 +166,14 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	if (bHasDiffuseTexture == true)
 	{
 		// # Convert gamma-space RGB to linear-space RGB (sRGB)
-		Albedo.xyz = pow(Albedo.xyz, 2.2);
+		BlendedDiffuse.xyz = pow(BlendedDiffuse.xyz, 2.2);
 	}
 
-	float4 OutputColor = Albedo;
+	float4 OutputColor = BlendedDiffuse;
 	{
-		float4 Ambient = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
-		float4 Directional = CalculateDirectional(Albedo, float4(MaterialSpecular, 1.0), SpecularExponent, SpecularIntensity,
-			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - Input.WorldPosition), normalize(ResultNormal));
+		float4 Ambient = CalculateClassicalAmbient(BlendedDiffuse, AmbientLightColor, AmbientLightIntensity);
+		float4 Directional = CalculateClassicalDirectional(BlendedDiffuse, float4(MaterialSpecularColor, 1.0), MaterialSpecularExponent, BlendedSpecularIntensity,
+			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - Input.WorldPosition), normalize(BlendedNormal));
 
 		// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
 		float Dot = dot(DirectionalLightDirection, KUpDirection);

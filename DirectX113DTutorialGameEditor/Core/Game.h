@@ -113,16 +113,17 @@ public:
 
 	struct SCBMaterialData
 	{
-		XMFLOAT3	MaterialAmbient{};
+		XMFLOAT3	AmbientColor{};
 		float		SpecularExponent{ 1 };
-		XMFLOAT3	MaterialDiffuse{};
+		XMFLOAT3	DiffuseColor{};
 		float		SpecularIntensity{ 0 };
-		XMFLOAT3	MaterialSpecular{};
+		XMFLOAT3	SpecularColor{};
 		BOOL		bHasDiffuseTexture{};
 
 		BOOL		bHasNormalTexture{};
 		BOOL		bHasOpacityTexture{};
-		BOOL		Pad[2]{};
+		BOOL		bHasSpecularIntensityTexture{};
+		BOOL		Reserved{};
 	};
 
 	struct SCBSkyTimeData

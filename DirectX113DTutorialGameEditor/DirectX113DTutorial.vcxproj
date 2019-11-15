@@ -286,6 +286,7 @@
     <None Include="DirectXTK\SimpleMath.inl" />
     <None Include="Shader\Base.hlsli" />
     <None Include="Shader\Base2D.hlsli" />
+    <None Include="Shader\BRDF.hlsli" />
     <None Include="Shader\Deferred.hlsli" />
     <None Include="Shader\Foliage.hlsli" />
     <None Include="Shader\Line.hlsli" />

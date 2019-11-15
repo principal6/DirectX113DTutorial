@@ -40,8 +40,8 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 	float4 OutputColor = Albedo;
 	{
-		float4 Ambient = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
-		float4 Directional = CalculateDirectional(Albedo, float4(1, 1, 1, 1), 32.0, 0.1,
+		float4 Ambient = CalculateClassicalAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
+		float4 Directional = CalculateClassicalDirectional(Albedo, float4(1, 1, 1, 1), 32.0, 0.1,
 			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - Input.WorldPosition), normalize(ResultNormal));
 
 		OutputColor = Ambient + Directional;

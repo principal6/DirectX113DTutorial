@@ -2,16 +2,17 @@
 
 cbuffer cbMaterial : register(b0)
 {
-	float3	MaterialAmbient;
-	float	SpecularExponent;
-	float3	MaterialDiffuse;
-	float	SpecularIntensity;
-	float3	MaterialSpecular;
+	float3	MaterialAmbientColor;
+	float	MaterialSpecularExponent;
+	float3	MaterialDiffuseColor;
+	float	MaterialSpecularIntensity;
+	float3	MaterialSpecularColor;
 	bool	bHasDiffuseTexture;
 
 	bool	bHasNormalTexture;
 	bool	bHasOpacityTexture;
-	bool2	Pads2;
+	bool	bHasSpecularIntensityTexture;
+	bool	Reserved;
 }
 
 cbuffer cbEditorTime : register(b1)
@@ -29,9 +30,9 @@ cbuffer cbCameraSelection : register(b2)
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	float4 AmbientColor = float4(MaterialAmbient, 1);
-	float4 DiffuseColor = float4(MaterialDiffuse, 1);
-	float4 SpecularColor = float4(MaterialSpecular, 1);
+	float4 AmbientColor = float4(MaterialAmbientColor, 1);
+	float4 DiffuseColor = float4(MaterialDiffuseColor, 1);
+	float4 SpecularColor = float4(MaterialSpecularColor, 1);
 
 	float4 OutputColor = DiffuseColor;
 	if (bIsSelected == true)

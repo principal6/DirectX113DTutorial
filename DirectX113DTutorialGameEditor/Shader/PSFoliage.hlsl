@@ -25,16 +25,17 @@ cbuffer cbLights : register(b1)
 
 cbuffer cbMaterial : register(b2)
 {
-	float3	MaterialAmbient;
-	float	SpecularExponent;
-	float3	MaterialDiffuse;
-	float	SpecularIntensity;
-	float3	MaterialSpecular;
+	float3	MaterialAmbientColor;
+	float	MaterialSpecularExponent;
+	float3	MaterialDiffuseColor;
+	float	MaterialSpecularIntensity;
+	float3	MaterialSpecularColor;
 	bool	bHasDiffuseTexture;
 
 	bool	bHasNormalTexture;
 	bool	bHasOpacityTexture;
-	bool2	Pads2;
+	bool	bHasSpecularIntensityTexture;
+	bool	Reserved;
 }
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
@@ -73,8 +74,8 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 OutputColor = Albedo;
 	if (bUseLighting == true)
 	{
-		float4 Ambient = CalculateAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
-		float4 Directional = CalculateDirectional(Albedo, Albedo, 1.0f, 0.0f,
+		float4 Ambient = CalculateClassicalAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
+		float4 Directional = CalculateClassicalDirectional(Albedo, Albedo, 1.0f, 0.0f,
 			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - Input.WorldPosition), normalize(Input.WorldNormal));
 
 		// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.

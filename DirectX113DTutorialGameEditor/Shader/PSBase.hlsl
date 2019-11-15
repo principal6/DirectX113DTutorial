@@ -1,4 +1,5 @@
 #include "Base.hlsli"
+#include "BRDF.hlsli"
 
 SamplerState CurrentSampler : register(s0);
 Texture2D DiffuseTexture : register(t0);
@@ -25,24 +26,26 @@ cbuffer cbLight : register(b1)
 
 cbuffer cbMaterial : register(b2)
 {
-	float3	MaterialAmbient;
-	float	SpecularExponent;
-	float3	MaterialDiffuse;
-	float	SpecularIntensity;
-	float3	MaterialSpecular;
+	float3	MaterialAmbientColor;
+	float	MaterialSpecularExponent;
+	float3	MaterialDiffuseColor;
+	float	MaterialSpecularIntensity;
+	float3	MaterialSpecularColor;
 	bool	bHasDiffuseTexture;
 
 	bool	bHasNormalTexture;
 	bool	bHasOpacityTexture;
-	bool2	Pads2;
+	bool	bHasSpecularIntensityTexture;
+	bool	Reserved;
 }
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	float4 AmbientColor = float4(MaterialAmbient, 1);
-	float4 DiffuseColor = float4(MaterialDiffuse, 1);
-	float4 SpecularColor = float4(MaterialSpecular, 1);
+	float4 AmbientColor = float4(MaterialAmbientColor, 1);
+	float4 DiffuseColor = float4(MaterialDiffuseColor, 1);
+	float4 SpecularColor = float4(MaterialSpecularColor, 1);
 	float4 WorldNormal = normalize(Input.WorldNormal);
+	float SpecularIntensity = MaterialSpecularIntensity;
 	float Opacity = 1.0f;
 	
 	if (bUseTexture == true)
@@ -72,6 +75,11 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 				Opacity = Sampled.a;
 			}
 		}
+
+		if (bHasSpecularIntensityTexture == true)
+		{
+			SpecularIntensity = SpecularIntensityTexture.Sample(CurrentSampler, Input.UV.xy).r;
+		}
 	}
 
 	// # Here we make sure that input RGB values are in linear-space!
@@ -87,8 +95,8 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 OutputColor = DiffuseColor;
 	if (bUseLighting == true)
 	{
-		float4 Ambient = CalculateAmbient(AmbientColor, AmbientLightColor, AmbientLightIntensity);
-		float4 Directional = CalculateDirectional(DiffuseColor, SpecularColor, SpecularExponent, SpecularIntensity,
+		float4 Ambient = CalculateClassicalAmbient(AmbientColor, AmbientLightColor, AmbientLightIntensity);
+		float4 Directional = CalculateClassicalDirectional(DiffuseColor, SpecularColor, MaterialSpecularExponent, SpecularIntensity,
 			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - Input.WorldPosition), WorldNormal);
 
 		// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.

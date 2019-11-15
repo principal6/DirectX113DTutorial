@@ -1254,16 +1254,17 @@ void CGame::UpdateCBDisplacementData(const CObject3D::SCBDisplacementData& Data)
 
 void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
 {
-	m_CBMaterialData.MaterialAmbient = MaterialData.AmbientColor();
-	m_CBMaterialData.MaterialDiffuse = MaterialData.DiffuseColor();
-	m_CBMaterialData.MaterialSpecular = MaterialData.SpecularColor();
+	m_CBMaterialData.AmbientColor = MaterialData.AmbientColor();
+	m_CBMaterialData.DiffuseColor = MaterialData.DiffuseColor();
+	m_CBMaterialData.SpecularColor = MaterialData.SpecularColor();
 	m_CBMaterialData.SpecularExponent = MaterialData.SpecularExponent();
 	m_CBMaterialData.SpecularIntensity = MaterialData.SpecularIntensity();
 
 	m_CBMaterialData.bHasDiffuseTexture = MaterialData.HasTexture(STextureData::EType::DiffuseTexture);
 	m_CBMaterialData.bHasNormalTexture = MaterialData.HasTexture(STextureData::EType::NormalTexture);
 	m_CBMaterialData.bHasOpacityTexture = MaterialData.HasTexture(STextureData::EType::OpacityTexture);
-	// Displacement texture
+	m_CBMaterialData.bHasSpecularIntensityTexture = MaterialData.HasTexture(STextureData::EType::SpecularIntensityTexture);
+	// Displacement texture is usually not used in PS
 
 	m_PSBase->UpdateConstantBuffer(2);
 	m_PSFoliage->UpdateConstantBuffer(2);
@@ -5184,7 +5185,7 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 		ImGui::Text(u8"Specular 지수");
 		ImGui::SameLine(ItemsOffsetX);
 		float SpecularExponent{ MaterialData.SpecularExponent() };
-		if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, 1.0f, 1024.0f, "%.1f"))
+		if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, CMaterialData::KSpecularMinExponent, CMaterialData::KSpecularMaxExponent, "%.1f"))
 		{
 			MaterialData.SpecularExponent(SpecularExponent);
 		}

@@ -85,12 +85,16 @@ public:
 public:
 	void SetUniformColor(const XMFLOAT3& Color);
 
+public:
+	static constexpr float KSpecularMinExponent{ 0.0f };
+	static constexpr float KSpecularMaxExponent{ 1024.0f };
+
 private:
 	XMFLOAT3		m_AmbientColor{};
 	XMFLOAT3		m_DiffuseColor{};
 	XMFLOAT3		m_SpecularColor{};
-	float			m_SpecularExponent{ 1.0f }; // Shininess
-	float			m_SpecularIntensity{ 0.2f }; // Shininess strength
+	float			m_SpecularExponent{ 1.0f }; // assimp - Shininess
+	float			m_SpecularIntensity{ 0.2f }; // assimp - Shininess strength
 
 	bool			m_bHasAnyTexture{ false };
 	STextureData	m_TextureData[KMaxTextureCountPerMaterial]{};

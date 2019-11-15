@@ -25,26 +25,6 @@ static float4 CalculateBitangent(float4 Normal, float4 Tangent)
 	return float4(normalize(cross(Normal.xyz, Tangent.xyz)), 0);
 }
 
-static float4 CalculateAmbient(float4 AmbientColor, float3 AmbientLightColor, float AmbientLightIntensity)
-{
-	return float4(AmbientColor.xyz * AmbientLightColor * AmbientLightIntensity, AmbientColor.a);
-}
-
-static float4 CalculateDirectional(float4 DiffuseColor, float4 SpecularColor, float SpecularExponent, float SpecularIntensity,
-	float4 LightColor, float4 LightDirection, float4 ToEye, float4 Normal)
-{
-	float NDotL = saturate(dot(LightDirection, Normal));
-	float4 PhongDiffuse = DiffuseColor * LightColor * NDotL;
-
-	float4 H = normalize(ToEye + LightDirection);
-	float NDotH = saturate(dot(H, Normal));
-	float SpecularPower = pow(NDotH, SpecularExponent);
-	float4 BlinnSpecular = SpecularColor * LightColor * SpecularPower * SpecularIntensity;
-
-	float4 Result = PhongDiffuse + BlinnSpecular;
-	return Result;
-}
-
 static float4 GetBezier(float4 P1, float4 P2, float4 P3, float4 N1, float4 N2, float4 N3, float3 uvw)
 {
 	float4 w12 = dot((P2 - P1), N1);
