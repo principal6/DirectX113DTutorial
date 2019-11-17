@@ -95,17 +95,19 @@ public:
 		XMVECTOR	EyePosition{};
 	};
 
-	struct SCBPSBaseFlagsData
+	struct SCBPSFlagsData
 	{
 		BOOL		bUseTexture{};
 		BOOL		bUseLighting{};
-		BOOL		Pads[2]{};
+		BOOL		bUsePhysicallyBasedRendering{};
+		BOOL		Reserved{};
 	};
 
 	struct SCBLightData
 	{
 		XMVECTOR	DirectionalLightDirection{ XMVectorSet(0, 1, 0, 0) };
-		XMVECTOR	DirectionalLightColor{ XMVectorSet(1, 1, 1, 1) };
+		XMFLOAT3	DirectionalLightColor{ 1, 1, 1 };
+		float		Exposure{ 1.0 };
 		XMFLOAT3	AmbientLightColor{ 1, 1, 1 };
 		float		AmbientLightIntensity{ 0.5f };
 		XMVECTOR	EyePosition{};
@@ -118,11 +120,16 @@ public:
 		XMFLOAT3	DiffuseColor{};
 		float		SpecularIntensity{ 0 };
 		XMFLOAT3	SpecularColor{};
+		float		Roughness{};
+		
+		float		Metalness{};
 		BOOL		bHasDiffuseTexture{};
-
 		BOOL		bHasNormalTexture{};
 		BOOL		bHasOpacityTexture{};
+
 		BOOL		bHasSpecularIntensityTexture{};
+		BOOL		bHasRoughnessTexture{};
+		BOOL		bHasMetalnessTexture{};
 		BOOL		Reserved{};
 	};
 
@@ -178,15 +185,16 @@ public:
 		None = 0x000,
 		DrawWireFrame = 0x001,
 		DrawNormals = 0x002,
-		UseLighting = 0x004,
+		Use3DGizmos = 0x004,
 		DrawMiniAxes = 0x008,
 		DrawPickingData = 0x010,
 		DrawBoundingSphere = 0x020,
-		Use3DGizmos = 0x040,
-		TessellateTerrain = 0x080,
-		DrawTerrainHeightMapTexture = 0x100,
-		DrawTerrainMaskingTexture = 0x200,
-		DrawTerrainFoliagePlacingTexture = 0x400
+		DrawTerrainHeightMapTexture = 0x040,
+		DrawTerrainMaskingTexture = 0x080,
+		DrawTerrainFoliagePlacingTexture = 0x100,
+		TessellateTerrain = 0x200, // 내부적으로만 사용하는 플래그!
+		UseLighting = 0x400,
+		UsePhysicallyBasedRendering = 0x800
 	};
 
 	enum class ERasterizerState
@@ -339,15 +347,18 @@ private:
 	void LoadSkyObjectData(const tinyxml2::XMLElement* const xmlSkyObject, SSkyData::SSkyObjectData& SkyObjectData);
 
 public:
-	void SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color);
+	void SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMFLOAT3& Color);
 	void SetDirectionalLightDirection(const XMVECTOR& LightSourcePosition);
-	void SetDirectionalLightColor(const XMVECTOR& Color);
+	void SetDirectionalLightColor(const XMFLOAT3& Color);
 	const XMVECTOR& GetDirectionalLightDirection() const;
-	const XMVECTOR& GetDirectionalLightColor() const;
+	const XMFLOAT3& GetDirectionalLightColor() const;
 
 	void SetAmbientlLight(const XMFLOAT3& Color, float Intensity);
 	const XMFLOAT3& GetAmbientLightColor() const;
 	float GetAmbientLightIntensity() const;
+
+	void SetExposure(float Value);
+	float GetExposure();
 
 public:
 	void CreateTerrain(const XMFLOAT2& TerrainSize, uint32_t MaskingDetail, float UniformScaling);
@@ -630,7 +641,7 @@ private:
 
 	SCBLightData				m_CBLightData{};
 	SCBMaterialData				m_CBMaterialData{};
-	SCBPSBaseFlagsData			m_cbPSBaseFlagsData{};
+	SCBPSFlagsData				m_CBPSFlagsData{};
 	SCBGizmoColorFactorData		m_CBGizmoColorFactorData{};
 
 	SCBPS2DFlagsData					m_cbPS2DFlagsData{};

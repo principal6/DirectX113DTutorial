@@ -1,3 +1,6 @@
+#ifndef __DEPENDENCY_HLSL__
+#define __DEPENDENCY_HLSL__
+
 static const float4x4 KMatrixIdentity = float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 static const int KBoneMatrixMaxCount = 60;
 static const float4 KUpDirection = float4(0, 1, 0, 0);
@@ -88,3 +91,5 @@ static float4 Slerp(float4 P0, float4 P1, float t)
 	}
 	return Result;
 }
+
+#endif

@@ -1,4 +1,5 @@
 #include "Terrain.hlsli"
+#include "BRDF.hlsli"
 
 SamplerState CurrentSampler : register(s0);
 Texture2D DiffuseTexture : register(t0);
@@ -13,10 +14,11 @@ cbuffer cbTime : register(b0)
 	float3 Pads;
 }
 
-cbuffer cbLights : register(b1)
+cbuffer cbLight : register(b1)
 {
 	float4	DirectionalLightDirection;
-	float4	DirectionalLightColor;
+	float3	DirectionalLightColor;
+	float	Exposure;
 	float3	AmbientLightColor;
 	float	AmbientLightIntensity;
 	float4	EyePosition;
@@ -40,11 +42,15 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 	float4 OutputColor = Albedo;
 	{
-		float4 Ambient = CalculateClassicalAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
-		float4 Directional = CalculateClassicalDirectional(Albedo, float4(1, 1, 1, 1), 32.0, 0.1,
-			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - Input.WorldPosition), normalize(ResultNormal));
+		float3 N = normalize(ResultNormal).xyz;
+		float3 L = DirectionalLightDirection.xyz;
+		float3 V = normalize(EyePosition.xyz - Input.WorldPosition.xyz);
 
-		OutputColor = Ambient + Directional;
+		float3 Ambient = CalculateClassicalAmbient(Albedo.xyz, AmbientLightColor, AmbientLightIntensity);
+		float3 Directional = CalculateClassicalDirectional(Albedo.xyz, float3(1, 1, 1), 32.0, 0.1,
+			DirectionalLightColor, L, V, N);
+
+		OutputColor.xyz = Ambient + Directional;
 	}
 	OutputColor.a = Input.Color.a;
 

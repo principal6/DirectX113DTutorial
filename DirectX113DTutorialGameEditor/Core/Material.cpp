@@ -386,6 +386,26 @@ float CMaterialData::SpecularIntensity() const
 	return m_SpecularIntensity;
 }
 
+void CMaterialData::Roughness(float Value)
+{
+	m_Roughness = Value;
+}
+
+float CMaterialData::Roughness() const
+{
+	return m_Roughness;
+}
+
+void CMaterialData::Metalness(float Value)
+{
+	m_Metalness = Value;
+}
+
+float CMaterialData::Metalness() const
+{
+	return m_Metalness;
+}
+
 void CMaterialData::ClearTextureData(STextureData::EType eType)
 {
 	if (m_bHasAnyTexture)

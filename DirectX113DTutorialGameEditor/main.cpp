@@ -15,7 +15,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	Game.SetRenderingFlags(CGame::EFlagsRendering::UseLighting | CGame::EFlagsRendering::DrawMiniAxes |
 		CGame::EFlagsRendering::DrawTerrainHeightMapTexture | CGame::EFlagsRendering::DrawTerrainMaskingTexture | 
 		CGame::EFlagsRendering::DrawTerrainFoliagePlacingTexture | CGame::EFlagsRendering::TessellateTerrain | 
-		CGame::EFlagsRendering::Use3DGizmos);
+		CGame::EFlagsRendering::Use3DGizmos | CGame::EFlagsRendering::UsePhysicallyBasedRendering);
 
 	//Game.CreateDynamicSky("Asset\\Sky.xml", 30.0f);
 	Game.CreateStaticSky(30.0f);
@@ -56,7 +56,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawBoundingSphere);
 			}
 
-			Game.BeginRendering(Colors::CornflowerBlue);
+			Game.BeginRendering(Colors::CornflowerBlue, false);
 
 			Game.Update();
 			Game.Draw();

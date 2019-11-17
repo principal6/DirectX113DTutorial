@@ -1,4 +1,5 @@
 #include "Terrain.hlsli"
+#include "BRDF.hlsli"
 
 SamplerState TerrainSampler : register(s0);
 
@@ -6,43 +7,54 @@ Texture2D Layer0DiffuseTexture : register(t0);
 Texture2D Layer0NormalTexture : register(t1);
 Texture2D Layer0OpacityTexture : register(t2);
 Texture2D Layer0SpecularIntensityTexture : register(t3);
+Texture2D Layer0RoughnessTexture : register(t4);
+Texture2D Layer0MetalnessTexture : register(t5);
 // Displacement texture slot
 
-Texture2D Layer1DiffuseTexture : register(t5);
-Texture2D Layer1NormalTexture : register(t6);
-Texture2D Layer1OpacityTexture : register(t7);
-Texture2D Layer1SpecularIntensityTexture : register(t8);
+Texture2D Layer1DiffuseTexture : register(t7);
+Texture2D Layer1NormalTexture : register(t8);
+Texture2D Layer1OpacityTexture : register(t9);
+Texture2D Layer1SpecularIntensityTexture : register(t10);
+Texture2D Layer1RoughnessTexture : register(t11);
+Texture2D Layer1MetalnessTexture : register(t12);
 // Displacement texture slot
 
-Texture2D Layer2DiffuseTexture : register(t10);
-Texture2D Layer2NormalTexture : register(t11);
-Texture2D Layer2OpacityTexture : register(t12);
-Texture2D Layer2SpecularIntensityTexture : register(t13);
+Texture2D Layer2DiffuseTexture : register(t14);
+Texture2D Layer2NormalTexture : register(t15);
+Texture2D Layer2OpacityTexture : register(t16);
+Texture2D Layer2SpecularIntensityTexture : register(t17);
+Texture2D Layer2RoughnessTexture : register(t18);
+Texture2D Layer2MetalnessTexture : register(t19);
 // Displacement texture slot
 
-Texture2D Layer3DiffuseTexture : register(t15);
-Texture2D Layer3NormalTexture : register(t16);
-Texture2D Layer3OpacityTexture : register(t17);
-Texture2D Layer3SpecularIntensityTexture : register(t18);
+Texture2D Layer3DiffuseTexture : register(t21);
+Texture2D Layer3NormalTexture : register(t22);
+Texture2D Layer3OpacityTexture : register(t23);
+Texture2D Layer3SpecularIntensityTexture : register(t24);
+Texture2D Layer3RoughnessTexture : register(t25);
+Texture2D Layer3MetalnessTexture : register(t26);
 // Displacement texture slot
 
-Texture2D Layer4DiffuseTexture : register(t20);
-Texture2D Layer4NormalTexture : register(t21);
-Texture2D Layer4OpacityTexture : register(t22);
-Texture2D Layer4SpecularIntensityTexture : register(t23);
+Texture2D Layer4DiffuseTexture : register(t28);
+Texture2D Layer4NormalTexture : register(t29);
+Texture2D Layer4OpacityTexture : register(t30);
+Texture2D Layer4SpecularIntensityTexture : register(t31);
+Texture2D Layer4RoughnessTexture : register(t32);
+Texture2D Layer4MetalnessTexture : register(t33);
 // Displacement texture slot
 
-Texture2D MaskingTexture : register(t25);
+Texture2D MaskingTexture : register(t35);
 
 cbuffer cbMaskingSpace : register(b0)
 {
 	float4x4 MaskingSpaceMatrix;
 }
 
-cbuffer cbLights : register(b1)
+cbuffer cbLight : register(b1)
 {
 	float4	DirectionalLightDirection;
-	float4	DirectionalLightColor;
+	float3	DirectionalLightColor;
+	float	Exposure;
 	float3	AmbientLightColor;
 	float	AmbientLightIntensity;
 	float4	EyePosition;
@@ -72,16 +84,25 @@ cbuffer cbMaterial : register(b4)
 	float3	MaterialDiffuseColor;
 	float	MaterialSpecularIntensity;
 	float3	MaterialSpecularColor;
-	bool	bHasDiffuseTexture;
+	float	MaterialRoughness;
 
+	float	MaterialMetalness;
+	bool	bHasDiffuseTexture;
 	bool	bHasNormalTexture;
 	bool	bHasOpacityTexture;
+
 	bool	bHasSpecularIntensityTexture;
+	bool	bHasRoughnessTexture;
+	bool	bHasMetalnessTexture;
 	bool	Reserved;
 }
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
+	float SpecularIntensity = MaterialSpecularIntensity;
+	float Roughness = MaterialRoughness;
+	float Metalness = MaterialMetalness;
+
 	float4 WorldVertexPosition = float4(Input.WorldPosition.x, 0, -Input.WorldPosition.z, 1);
 	float4 LocalMaskingPosition = mul(WorldVertexPosition, InverseTerrainWorld);
 	float4 MaskingSpacePosition = mul(LocalMaskingPosition, MaskingSpaceMatrix);
@@ -169,18 +190,68 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		BlendedDiffuse.xyz = pow(BlendedDiffuse.xyz, 2.2);
 	}
 
+
+	float3 MacrosurfaceNormal = BlendedNormal.xyz;
+	float3 BaseColor = BlendedDiffuse.xyz;
+	float4 OutputColor = float4(BaseColor, 1);
+	{
+		// Exposure tone mapping
+		BaseColor = float3(1.0, 1.0, 1.0) - exp(-BaseColor * Exposure);
+
+		float3 N = MacrosurfaceNormal;
+		float3 L = DirectionalLightDirection.xyz;
+		float3 V = normalize(EyePosition.xyz - Input.WorldPosition.xyz);
+
+		// Radiance for direct light
+		float3 Li = DirectionalLightColor;
+
+		float3 H = normalize(L + V);
+		float NdotL = max(dot(N, L), 0.0001); // NaN
+		float NdotV = max(dot(N, V), 0.0001); // NaN
+		float NdotH = max(dot(N, H), 0.0001); // NaN
+		float HdotL = max(dot(L, H), 0);
+
+		// ### PBR direct light
+		// Calculate Fresnel reflectance at incident angle 0
+		float3 F0 = lerp(KF_Dielectric, BaseColor, Metalness);
+
+		// Calculate Fresnel reflectance of macrosurface
+		float3 F_Macrosurface = Fresnel_Schlick(F0, NdotL);
+
+		// Specular light intensity
+		float Ks = dot(KMonochromatic, F_Macrosurface); // Monochromatic intensity calculation
+
+		// Diffuse light intensity
+		float Kd = 1.0 - Ks;
+
+		float3 DiffuseBRDF = DiffuseBRDF_Lambertian(BaseColor);
+		float3 SpecularBRDF = SpecularBRDF_GGX(F0, NdotL, NdotV, NdotH, HdotL, Roughness);
+
+		// ### Still non-PBR indirect light
+		float3 Ambient = CalculateClassicalAmbient(F0, AmbientLightColor, AmbientLightIntensity);
+		float Ka_NonPBR = 0.03;
+
+		OutputColor.xyz = Ambient * Ka_NonPBR + (1.0 - Ka_NonPBR) * (NdotL * Li * (Kd * DiffuseBRDF + Ks * SpecularBRDF));
+	}
+
+	/*
 	float4 OutputColor = BlendedDiffuse;
 	{
-		float4 Ambient = CalculateClassicalAmbient(BlendedDiffuse, AmbientLightColor, AmbientLightIntensity);
-		float4 Directional = CalculateClassicalDirectional(BlendedDiffuse, float4(MaterialSpecularColor, 1.0), MaterialSpecularExponent, BlendedSpecularIntensity,
-			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - Input.WorldPosition), normalize(BlendedNormal));
+		float3 N = normalize(BlendedNormal).xyz;
+		float3 L = DirectionalLightDirection.xyz;
+		float3 V = normalize(EyePosition.xyz - Input.WorldPosition.xyz);
+
+		float3 Ambient = CalculateClassicalAmbient(BlendedDiffuse.xyz, AmbientLightColor, AmbientLightIntensity);
+		float3 Directional = CalculateClassicalDirectional(BlendedDiffuse.xyz, MaterialSpecularColor, MaterialSpecularExponent, BlendedSpecularIntensity,
+			DirectionalLightColor, L, V, N);
 
 		// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
 		float Dot = dot(DirectionalLightDirection, KUpDirection);
 		Directional.xyz *= pow(Dot, 0.6f);
 
-		OutputColor = Ambient + Directional;
+		OutputColor.xyz = Ambient + Directional;
 	}
+	*/
 
 	// # Here we make sure that output RGB values are in gamma-space!
 	// # Convert linear-space RGB (sRGB) to gamma-space RGB

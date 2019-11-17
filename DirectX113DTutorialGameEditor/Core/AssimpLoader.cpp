@@ -1,4 +1,5 @@
 #include "AssimpLoader.h"
+#include "PrimitiveGenerator.h"
 
 using std::vector;
 using std::string;
@@ -16,6 +17,12 @@ void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel& Mode
 	assert(m_Scene->mRootNode);
 
 	LoadMeshesFromFile(m_Scene, Model.vMeshes);
+
+	for (auto& Mesh : Model.vMeshes)
+	{
+		CalculateTangents(Mesh);
+	}
+
 	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model.vMaterialData);
 }
 
@@ -33,6 +40,12 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 	assert(m_Scene->mRootNode);
 
 	LoadMeshesFromFile(m_Scene, Model.vMeshes);
+	
+	for (auto& Mesh : Model.vMeshes)
+	{
+		CalculateTangents(Mesh);
+	}
+
 	for (auto& Mesh : Model.vMeshes)
 	{
 		Mesh.vVerticesAnimation.resize(Mesh.vVertices.size());

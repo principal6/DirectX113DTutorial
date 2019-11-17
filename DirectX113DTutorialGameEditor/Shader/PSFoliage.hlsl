@@ -1,4 +1,5 @@
 #include "Foliage.hlsli"
+#include "BRDF.hlsli"
 
 SamplerState CurrentSampler : register(s0);
 Texture2D DiffuseTexture : register(t0);
@@ -14,10 +15,11 @@ cbuffer cbFlags : register(b0)
 	bool2 Pads;
 }
 
-cbuffer cbLights : register(b1)
+cbuffer cbLight : register(b1)
 {
 	float4	DirectionalLightDirection;
-	float4	DirectionalLightColor;
+	float3	DirectionalLightColor;
+	float	Exposure;
 	float3	AmbientLightColor;
 	float	AmbientLightIntensity;
 	float4	EyePosition;
@@ -30,11 +32,16 @@ cbuffer cbMaterial : register(b2)
 	float3	MaterialDiffuseColor;
 	float	MaterialSpecularIntensity;
 	float3	MaterialSpecularColor;
-	bool	bHasDiffuseTexture;
+	float	MaterialRoughness;
 
+	float	MaterialMetalness;
+	bool	bHasDiffuseTexture;
 	bool	bHasNormalTexture;
 	bool	bHasOpacityTexture;
+
 	bool	bHasSpecularIntensityTexture;
+	bool	bHasRoughnessTexture;
+	bool	bHasMetalnessTexture;
 	bool	Reserved;
 }
 
@@ -74,15 +81,19 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 OutputColor = Albedo;
 	if (bUseLighting == true)
 	{
-		float4 Ambient = CalculateClassicalAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
-		float4 Directional = CalculateClassicalDirectional(Albedo, Albedo, 1.0f, 0.0f,
-			DirectionalLightColor, DirectionalLightDirection, normalize(EyePosition - Input.WorldPosition), normalize(Input.WorldNormal));
+		float3 N = normalize(Input.WorldNormal).xyz;
+		float3 L = DirectionalLightDirection.xyz;
+		float3 V = normalize(EyePosition.xyz - Input.WorldPosition.xyz);
+
+		float3 Ambient = CalculateClassicalAmbient(Albedo.xyz, AmbientLightColor, AmbientLightIntensity);
+		float3 Directional = CalculateClassicalDirectional(Albedo.xyz, Albedo.xyz, 1.0f, 0.0f,
+			DirectionalLightColor, L, V, N);
 
 		// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
 		float Dot = dot(DirectionalLightDirection, KUpDirection);
 		Directional.xyz *= pow(Dot, 0.6f);
 
-		OutputColor = Ambient + Directional;
+		OutputColor.xyz = Ambient + Directional;
 	}
 
 	// # Here we make sure that output RGB values are in gamma-space!

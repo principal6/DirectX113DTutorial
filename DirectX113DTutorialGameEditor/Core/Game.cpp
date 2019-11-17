@@ -165,17 +165,8 @@ void CGame::InitializeEditorAssets()
 		CMaterialData MaterialData{ "cobblestone_large" };
 		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\cobblestone_large_diffuse.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\cobblestone_large_roughness.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\cobblestone_large_displacement.jpg");
-
-		InsertMaterialCreateTextures(MaterialData);
-	}
-
-	{
-		CMaterialData MaterialData{ "grass_path" };
-		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\grass_path_diffuse.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\grass_path_normal.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\grass_path_specular.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\grass_path_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
 	}
@@ -185,6 +176,7 @@ void CGame::InitializeEditorAssets()
 		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\burned_ground_diffuse.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\burned_ground_normal.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\burned_ground_specular.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\burned_ground_roughness.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
@@ -195,6 +187,7 @@ void CGame::InitializeEditorAssets()
 		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\brown_mud_dry_diffuse.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\brown_mud_dry_specular.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\brown_mud_dry_roughness.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
@@ -211,7 +204,7 @@ void CGame::InitializeImGui(const std::string& FontFileName, float FontSize)
 
 	ImGuiIO& igIO{ ImGui::GetIO() };
 	igIO.Fonts->AddFontDefault();
-
+	
 	m_EditorGUIFont = igIO.Fonts->AddFontFromFileTTF(FontFileName.c_str(), FontSize, nullptr, igIO.Fonts->GetGlyphRangesKorean());
 }
 
@@ -219,7 +212,8 @@ void CGame::CreateSwapChain(bool bWindowed)
 {
 	DXGI_SWAP_CHAIN_DESC SwapChainDesc{};
 	SwapChainDesc.BufferCount = 1;
-	SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // LDR
+	//SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT; // HDR
 	SwapChainDesc.BufferDesc.Width = static_cast<UINT>(m_WindowSize.x);
 	SwapChainDesc.BufferDesc.Height = static_cast<UINT>(m_WindowSize.y);
 	SwapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
@@ -251,7 +245,8 @@ void CGame::CreateViews()
 		Texture2DDesc.ArraySize = 1;
 		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 		Texture2DDesc.CPUAccessFlags = 0;
-		Texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		//Texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // LDR
+		Texture2DDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT; // HDR
 		Texture2DDesc.Height = static_cast<UINT>(m_WindowSize.y);
 		Texture2DDesc.MipLevels = 1;
 		Texture2DDesc.SampleDesc.Count = 1;
@@ -496,7 +491,7 @@ void CGame::CreateBaseShaders()
 
 	m_PSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase->Create(EShaderType::PixelShader, L"Shader\\PSBase.hlsl", "main");
-	m_PSBase->AddConstantBuffer(&m_cbPSBaseFlagsData, sizeof(SCBPSBaseFlagsData));
+	m_PSBase->AddConstantBuffer(&m_CBPSFlagsData, sizeof(SCBPSFlagsData));
 	m_PSBase->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
 	m_PSBase->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
 
@@ -533,7 +528,7 @@ void CGame::CreateBaseShaders()
 
 	m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSFoliage->Create(EShaderType::PixelShader, L"Shader\\PSFoliage.hlsl", "main");
-	m_PSFoliage->AddConstantBuffer(&m_cbPSBaseFlagsData, sizeof(SCBPSBaseFlagsData));
+	m_PSFoliage->AddConstantBuffer(&m_CBPSFlagsData, sizeof(SCBPSFlagsData));
 	m_PSFoliage->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
 	m_PSFoliage->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
 
@@ -1200,7 +1195,7 @@ void CGame::SetUniversalbUseLighiting()
 {
 	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseLighting))
 	{
-		m_cbPSBaseFlagsData.bUseLighting = TRUE;
+		m_CBPSFlagsData.bUseLighting = TRUE;
 	}
 }
 
@@ -1259,11 +1254,15 @@ void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
 	m_CBMaterialData.SpecularColor = MaterialData.SpecularColor();
 	m_CBMaterialData.SpecularExponent = MaterialData.SpecularExponent();
 	m_CBMaterialData.SpecularIntensity = MaterialData.SpecularIntensity();
+	m_CBMaterialData.Roughness = MaterialData.Roughness();
+	m_CBMaterialData.Metalness = MaterialData.Metalness();
 
 	m_CBMaterialData.bHasDiffuseTexture = MaterialData.HasTexture(STextureData::EType::DiffuseTexture);
 	m_CBMaterialData.bHasNormalTexture = MaterialData.HasTexture(STextureData::EType::NormalTexture);
 	m_CBMaterialData.bHasOpacityTexture = MaterialData.HasTexture(STextureData::EType::OpacityTexture);
 	m_CBMaterialData.bHasSpecularIntensityTexture = MaterialData.HasTexture(STextureData::EType::SpecularIntensityTexture);
+	m_CBMaterialData.bHasRoughnessTexture = MaterialData.HasTexture(STextureData::EType::RoughnessTexture);
+	m_CBMaterialData.bHasMetalnessTexture = MaterialData.HasTexture(STextureData::EType::MetalnessTexture);
 	// Displacement texture is usually not used in PS
 
 	m_PSBase->UpdateConstantBuffer(2);
@@ -1408,7 +1407,7 @@ void CGame::LoadSkyObjectData(const tinyxml2::XMLElement* const xmlSkyObject, SS
 	SkyObjectData.WidthHeightRatio = stof(xmlWidthHeightRatio->GetText());
 }
 
-void CGame::SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMVECTOR& Color)
+void CGame::SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMFLOAT3& Color)
 {
 	m_CBLightData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
 	m_CBLightData.DirectionalLightColor = Color;
@@ -1419,7 +1418,7 @@ void CGame::SetDirectionalLightDirection(const XMVECTOR& LightSourcePosition)
 	m_CBLightData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
 }
 
-void CGame::SetDirectionalLightColor(const XMVECTOR& Color)
+void CGame::SetDirectionalLightColor(const XMFLOAT3& Color)
 {
 	m_CBLightData.DirectionalLightColor = Color;
 }
@@ -1429,7 +1428,7 @@ const XMVECTOR& CGame::GetDirectionalLightDirection() const
 	return m_CBLightData.DirectionalLightDirection;
 }
 
-const XMVECTOR& CGame::GetDirectionalLightColor() const
+const XMFLOAT3& CGame::GetDirectionalLightColor() const
 {
 	return m_CBLightData.DirectionalLightColor;
 }
@@ -1448,6 +1447,16 @@ const XMFLOAT3& CGame::GetAmbientLightColor() const
 float CGame::GetAmbientLightIntensity() const
 {
 	return m_CBLightData.AmbientLightIntensity;
+}
+
+void CGame::SetExposure(float Value)
+{
+	m_CBLightData.Exposure = Value;
+}
+
+float CGame::GetExposure()
+{
+	return m_CBLightData.Exposure;
 }
 
 void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, uint32_t MaskingDetail, float UniformScaling)
@@ -2895,6 +2904,8 @@ void CGame::Draw()
 
 	m_CBLightData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
 
+	m_CBPSFlagsData.bUsePhysicallyBasedRendering = EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UsePhysicallyBasedRendering);
+
 	if (m_eMode == EMode::Edit)
 	{
 		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawWireFrame))
@@ -2981,13 +2992,13 @@ void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
 	SetUniversalbUseLighiting();
 	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoLighting))
 	{
-		m_cbPSBaseFlagsData.bUseLighting = FALSE;
+		m_CBPSFlagsData.bUseLighting = FALSE;
 	}
 
-	m_cbPSBaseFlagsData.bUseTexture = TRUE;
+	m_CBPSFlagsData.bUseTexture = TRUE;
 	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoTexture))
 	{
-		m_cbPSBaseFlagsData.bUseTexture = FALSE;
+		m_CBPSFlagsData.bUseTexture = FALSE;
 	}
 
 	assert(PtrObject3D->ComponentRender.PtrVS);
@@ -5063,10 +5074,6 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					float DirectionalLightDirection[3]{ XMVectorGetX(KDirectionalLightDirection), XMVectorGetY(KDirectionalLightDirection),
 						XMVectorGetZ(KDirectionalLightDirection) };
 
-					const XMVECTOR& KDirectionalLightColor{ GetDirectionalLightColor() };
-					float DirectionalLightColor[3]{ XMVectorGetX(KDirectionalLightColor), XMVectorGetY(KDirectionalLightColor),
-						XMVectorGetZ(KDirectionalLightColor) };
-
 					static constexpr float KLabelsWidth{ 220 };
 					static constexpr float KItemsMaxWidth{ 240 };
 					float ItemsWidth{ WindowWidth - KLabelsWidth };
@@ -5088,17 +5095,18 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8"Directional Light 색상");
 							ImGui::SameLine(ItemsOffsetX);
-							if (ImGui::DragFloat3(u8"##Directional Light 색상", DirectionalLightColor, 0.02f, 0.0f, 1.0f, "%.2f"))
+							XMFLOAT3 DirectionalLightColor{ GetDirectionalLightColor() };
+							if (ImGui::ColorEdit3(u8"##Directional Light 색상 (HDR)", &DirectionalLightColor.x,
+								ImGuiColorEditFlags_RGB | ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR))
 							{
-								SetDirectionalLightColor(XMVectorSet(DirectionalLightColor[0], DirectionalLightColor[1],
-									DirectionalLightColor[2], 1.0f));
+								SetDirectionalLightColor(DirectionalLightColor);
 							}
 
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8"Ambient Light 색상");
 							ImGui::SameLine(ItemsOffsetX);
 							XMFLOAT3 AmbientLightColor{ GetAmbientLightColor() };
-							if (ImGui::DragFloat3(u8"##Ambient Light 색상", &AmbientLightColor.x, 0.02f, 0.0f, 1.0f, "%.2f"))
+							if (ImGui::ColorEdit3(u8"##Ambient Light 색상", &AmbientLightColor.x, ImGuiColorEditFlags_RGB))
 							{
 								SetAmbientlLight(AmbientLightColor, GetAmbientLightIntensity());
 							}
@@ -5110,6 +5118,15 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							if (ImGui::DragFloat(u8"##Ambient Light 강도", &AmbientLightIntensity, 0.02f, 0.0f, +1.0f, "%.2f"))
 							{
 								SetAmbientlLight(GetAmbientLightColor(), AmbientLightIntensity);
+							}
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"노출 (HDR)");
+							ImGui::SameLine(ItemsOffsetX);
+							float Exposure{ GetExposure() };
+							if (ImGui::DragFloat(u8"##노출", &Exposure, 0.02f, 0.1f, +10.0f, "%.2f"))
+							{
+								SetExposure(Exposure);
 							}
 
 							ImGui::TreePop();
@@ -5126,6 +5143,122 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ImGui::Text(u8"%d", m_FPS);
 
 							ImGui::TreePop();
+						}
+
+						ImGui::Separator();
+						ImGui::Separator();
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"에디터 플래그");
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"와이어 프레임");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawWireFrame{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawWireFrame) };
+						if (ImGui::Checkbox(u8"##와이어 프레임", &bDrawWireFrame))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::DrawWireFrame);
+						}
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"법선 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawNormals{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals) };
+						if (ImGui::Checkbox(u8"##법선 표시", &bDrawNormals))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::DrawNormals);
+						}
+
+						/*
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"3D Gizmo 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawBoundingSphere{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos) };
+						if (ImGui::Checkbox(u8"##3D Gizmo 표시", &bDrawBoundingSphere))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::Use3DGizmos);
+						}
+						*/
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"화면 상단에 좌표축 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawMiniAxes{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawMiniAxes) };
+						if (ImGui::Checkbox(u8"##화면 상단에 좌표축 표시", &bDrawMiniAxes))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::DrawMiniAxes);
+						}
+
+						/*
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"피킹 데이터 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawPickingData{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawPickingData) };
+						if (ImGui::Checkbox(u8"##피킹 데이터 표시", &bDrawPickingData))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::DrawPickingData);
+						}
+						*/
+						
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"Bounding Sphere 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawBoundingSphere{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere) };
+						if (ImGui::Checkbox(u8"##Bounding Sphere 표시", &bDrawBoundingSphere))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::DrawBoundingSphere);
+						}
+
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"지형 높이맵 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawTerrainHeightMapTexture{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainHeightMapTexture) };
+						if (ImGui::Checkbox(u8"##지형 높이맵 표시", &bDrawTerrainHeightMapTexture))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::DrawTerrainHeightMapTexture);
+						}
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"지형 마스킹맵 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawTerrainMaskingTexture{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainMaskingTexture) };
+						if (ImGui::Checkbox(u8"##지형 마스킹맵 표시", &bDrawTerrainMaskingTexture))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::DrawTerrainMaskingTexture);
+						}
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"지형 초목맵 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawTerrainFoliagePlacingTexture{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainFoliagePlacingTexture) };
+						if (ImGui::Checkbox(u8"##지형 초목맵 표시", &bDrawTerrainFoliagePlacingTexture))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::DrawTerrainFoliagePlacingTexture);
+						}
+
+						ImGui::Separator();
+						ImGui::Separator();
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"엔진 플래그");
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"조명 적용");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bUseLighting{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UseLighting) };
+						if (ImGui::Checkbox(u8"##조명 적용", &bUseLighting))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::UseLighting);
+						}
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"물리 기반 렌더링 사용");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bUsePhysicallyBasedRendering{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UsePhysicallyBasedRendering) };
+						if (ImGui::Checkbox(u8"##물리 기반 렌더링 사용", &bUsePhysicallyBasedRendering))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::UsePhysicallyBasedRendering);
 						}
 					}
 					ImGui::PopItemWidth();
@@ -5145,6 +5278,7 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 	STextureData::EType& eSeletedTextureType, float ItemsOffsetX)
 {
 	bool Result{ false };
+	bool bUsePhysicallyBasedRendering{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UsePhysicallyBasedRendering) };
 
 	if (ImGui::TreeNodeEx(MaterialData.Name().c_str(), ImGuiTreeNodeFlags_SpanAvailWidth))
 	{
@@ -5154,8 +5288,16 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 			Result = true;
 		}
 
-		ImGui::AlignTextToFramePadding();
-		ImGui::Text(u8"Diffuse 색상");
+		if (bUsePhysicallyBasedRendering)
+		{
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Base color 색상");
+		}
+		else
+		{
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Diffuse 색상");
+		}
 		ImGui::SameLine(ItemsOffsetX);
 		XMFLOAT3 DiffuseColor{ MaterialData.DiffuseColor() };
 		if (ImGui::ColorEdit3(u8"##Diffuse 색상", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
@@ -5163,31 +5305,37 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 			MaterialData.DiffuseColor(DiffuseColor);
 		}
 
-		ImGui::AlignTextToFramePadding();
-		ImGui::Text(u8"Ambient 색상");
-		ImGui::SameLine(ItemsOffsetX);
-		XMFLOAT3 AmbientColor{ MaterialData.AmbientColor() };
-		if (ImGui::ColorEdit3(u8"##Ambient 색상", &AmbientColor.x, ImGuiColorEditFlags_RGB))
+		if (!bUsePhysicallyBasedRendering)
 		{
-			MaterialData.AmbientColor(AmbientColor);
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Ambient 색상");
+			ImGui::SameLine(ItemsOffsetX);
+			XMFLOAT3 AmbientColor{ MaterialData.AmbientColor() };
+			if (ImGui::ColorEdit3(u8"##Ambient 색상", &AmbientColor.x, ImGuiColorEditFlags_RGB))
+			{
+				MaterialData.AmbientColor(AmbientColor);
+			}
 		}
 
-		ImGui::AlignTextToFramePadding();
-		ImGui::Text(u8"Specular 색상");
-		ImGui::SameLine(ItemsOffsetX);
-		XMFLOAT3 SpecularColor{ MaterialData.SpecularColor() };
-		if (ImGui::ColorEdit3(u8"##Specular 색상", &SpecularColor.x, ImGuiColorEditFlags_RGB))
+		if (!bUsePhysicallyBasedRendering)
 		{
-			MaterialData.SpecularColor(SpecularColor);
-		}
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Specular 색상");
+			ImGui::SameLine(ItemsOffsetX);
+			XMFLOAT3 SpecularColor{ MaterialData.SpecularColor() };
+			if (ImGui::ColorEdit3(u8"##Specular 색상", &SpecularColor.x, ImGuiColorEditFlags_RGB))
+			{
+				MaterialData.SpecularColor(SpecularColor);
+			}
 
-		ImGui::AlignTextToFramePadding();
-		ImGui::Text(u8"Specular 지수");
-		ImGui::SameLine(ItemsOffsetX);
-		float SpecularExponent{ MaterialData.SpecularExponent() };
-		if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, CMaterialData::KSpecularMinExponent, CMaterialData::KSpecularMaxExponent, "%.1f"))
-		{
-			MaterialData.SpecularExponent(SpecularExponent);
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Specular 지수");
+			ImGui::SameLine(ItemsOffsetX);
+			float SpecularExponent{ MaterialData.SpecularExponent() };
+			if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, CMaterialData::KSpecularMinExponent, CMaterialData::KSpecularMaxExponent, "%.1f"))
+			{
+				MaterialData.SpecularExponent(SpecularExponent);
+			}
 		}
 
 		ImGui::AlignTextToFramePadding();
@@ -5199,6 +5347,27 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 			MaterialData.SpecularIntensity(SpecularIntensity);
 		}
 
+		if (bUsePhysicallyBasedRendering)
+		{
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Roughness");
+			ImGui::SameLine(ItemsOffsetX);
+			float Roughness{ MaterialData.Roughness() };
+			if (ImGui::DragFloat(u8"##Roughness", &Roughness, 0.01f, 0.0f, 1.0f, "%.2f"))
+			{
+				MaterialData.Roughness(Roughness);
+			}
+
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Metalness");
+			ImGui::SameLine(ItemsOffsetX);
+			float Metalness{ MaterialData.Metalness() };
+			if (ImGui::DragFloat(u8"##Metalness", &Metalness, 0.01f, 0.0f, 1.0f, "%.2f"))
+			{
+				MaterialData.Metalness(Metalness);
+			}
+		}
+
 		ImGui::Separator();
 
 		ImGui::AlignTextToFramePadding();
@@ -5206,8 +5375,16 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 
 		static const ImVec2 KTextureSmallViewSize{ 60.0f, 60.0f };
 		ImGui::PushID(0);
-		ImGui::AlignTextToFramePadding();
-		ImGui::Text(u8"Diffuse");
+		if (bUsePhysicallyBasedRendering)
+		{
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Base color");
+		}
+		else
+		{
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Diffuse");
+		}
 		ImGui::SameLine(ItemsOffsetX);
 		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::DiffuseTexture) : nullptr, KTextureSmallViewSize))
 		{
@@ -5253,7 +5430,34 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 		}
 		ImGui::PopID();
 
-		ImGui::PushID(4);
+		if (bUsePhysicallyBasedRendering)
+		{
+			ImGui::PushID(4);
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Roughness");
+			ImGui::SameLine(ItemsOffsetX);
+			if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::RoughnessTexture) : nullptr, KTextureSmallViewSize))
+			{
+				eSeletedTextureType = STextureData::EType::RoughnessTexture;
+				m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
+				Result = true;
+			}
+			ImGui::PopID();
+
+			ImGui::PushID(5);
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Metalness");
+			ImGui::SameLine(ItemsOffsetX);
+			if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::MetalnessTexture) : nullptr, KTextureSmallViewSize))
+			{
+				eSeletedTextureType = STextureData::EType::MetalnessTexture;
+				m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
+				Result = true;
+			}
+			ImGui::PopID();
+		}
+
+		ImGui::PushID(6);
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text(u8"Displacement");
 		ImGui::SameLine(ItemsOffsetX);

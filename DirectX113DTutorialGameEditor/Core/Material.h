@@ -23,17 +23,23 @@ struct alignas(4) SPixel128Float
 	float A{};
 };
 
-static constexpr int KMaxTextureCountPerMaterial{ 5 };
+static constexpr int KMaxTextureCountPerMaterial{ 7 };
 
 struct STextureData
 {
 	enum class EType
 	{
-		DiffuseTexture,
-		NormalTexture,
-		OpacityTexture,
-		SpecularIntensityTexture,
-		DisplacementTexture
+		DiffuseTexture,  // #0
+		BaseColorTexture = DiffuseTexture,
+
+		NormalTexture,  // #1
+		OpacityTexture, // #2
+		SpecularIntensityTexture, // #3
+
+		RoughnessTexture, // #4
+		MetalnessTexture, // #5
+
+		DisplacementTexture // #6
 	};
 
 	bool					bHasTexture{ false };
@@ -69,6 +75,12 @@ public:
 	void SpecularIntensity(float Value);
 	float SpecularIntensity() const;
 
+	void Roughness(float Value);
+	float Roughness() const;
+
+	void Metalness(float Value);
+	float Metalness() const;
+
 	void ClearTextureData(STextureData::EType eType);
 	STextureData& GetTextureData(STextureData::EType eType);
 	void SetTextureFileName(STextureData::EType eType, const std::string& FileName);
@@ -95,6 +107,9 @@ private:
 	XMFLOAT3		m_SpecularColor{};
 	float			m_SpecularExponent{ 1.0f }; // assimp - Shininess
 	float			m_SpecularIntensity{ 0.2f }; // assimp - Shininess strength
+
+	float			m_Roughness{}; // [0.0f, 1.0f]
+	float			m_Metalness{}; // [0.0f, 1.0f]
 
 	bool			m_bHasAnyTexture{ false };
 	STextureData	m_TextureData[KMaxTextureCountPerMaterial]{};
@@ -195,6 +210,8 @@ private:
 private:
 	CTexture					m_Textures[KMaxTextureCountPerMaterial]
 	{
+		{ m_PtrDevice, m_PtrDeviceContext },
+		{ m_PtrDevice, m_PtrDeviceContext },
 		{ m_PtrDevice, m_PtrDeviceContext },
 		{ m_PtrDevice, m_PtrDeviceContext },
 		{ m_PtrDevice, m_PtrDeviceContext },

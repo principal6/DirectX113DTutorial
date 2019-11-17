@@ -1,4 +1,5 @@
 #include "Base.hlsli"
+#include "Shared.hlsli"
 
 cbuffer cbMaterial : register(b0)
 {
@@ -7,11 +8,16 @@ cbuffer cbMaterial : register(b0)
 	float3	MaterialDiffuseColor;
 	float	MaterialSpecularIntensity;
 	float3	MaterialSpecularColor;
-	bool	bHasDiffuseTexture;
+	float	MaterialRoughness;
 
+	float	MaterialMetalness;
+	bool	bHasDiffuseTexture;
 	bool	bHasNormalTexture;
 	bool	bHasOpacityTexture;
+
 	bool	bHasSpecularIntensityTexture;
+	bool	bHasRoughnessTexture;
+	bool	bHasMetalnessTexture;
 	bool	Reserved;
 }
 
