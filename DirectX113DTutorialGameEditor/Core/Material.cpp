@@ -27,9 +27,8 @@ void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerat
 		{
 			ComPtr<ID3D11Texture2D> NonMipMappedTexture{};
 
-			// @important: ignore sRGB!!
 			CreateWICTextureFromFileEx(m_PtrDevice, m_PtrDeviceContext, wFileName.c_str(), 0i64, D3D11_USAGE_DEFAULT,
-				D3D11_BIND_SHADER_RESOURCE, 0, 0, WIC_LOADER_IGNORE_SRGB, (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
+				D3D11_BIND_SHADER_RESOURCE, 0, 0, 0, (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
 
 			if (!NonMipMappedTexture)
 			{
@@ -37,22 +36,20 @@ void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerat
 				return;
 			}
 
-			D3D11_TEXTURE2D_DESC Texture2DDesc{};
-			NonMipMappedTexture->GetDesc(&Texture2DDesc);
-			Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-			Texture2DDesc.CPUAccessFlags = 0;
-			Texture2DDesc.MipLevels = 0;
-			Texture2DDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-			Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+			NonMipMappedTexture->GetDesc(&m_Texture2DDesc);
+			m_Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+			m_Texture2DDesc.CPUAccessFlags = 0;
+			m_Texture2DDesc.MipLevels = 0;
+			m_Texture2DDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+			m_Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
 
-			assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&Texture2DDesc, nullptr, m_Texture2D.GetAddressOf())));
+			assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&m_Texture2DDesc, nullptr, m_Texture2D.GetAddressOf())));
 
-			m_PtrDeviceContext->ResolveSubresource(m_Texture2D.Get(), 0, NonMipMappedTexture.Get(), 0, Texture2DDesc.Format);
+			m_PtrDeviceContext->ResolveSubresource(m_Texture2D.Get(), 0, NonMipMappedTexture.Get(), 0, m_Texture2DDesc.Format);
 
 			m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
 
 			m_PtrDeviceContext->GenerateMips(m_ShaderResourceView.Get());
-
 		}
 		else
 		{
@@ -60,7 +57,7 @@ void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerat
 		}
 	}
 
-	UpdateTextureSize();
+	UpdateTextureInfo();
 
 	m_bIsCreated = true;
 }
@@ -71,9 +68,8 @@ void CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData, bool bSho
 	{
 		ComPtr<ID3D11Texture2D> NonMipMappedTexture{};
 
-		// @important: ignore sRGB!!
 		CreateWICTextureFromMemoryEx(m_PtrDevice, &RawData[0], RawData.size(), 0i64, D3D11_USAGE_DEFAULT,
-			D3D11_BIND_SHADER_RESOURCE, 0, 0, WIC_LOADER_IGNORE_SRGB, (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
+			D3D11_BIND_SHADER_RESOURCE, 0, 0, 0, (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
 
 		if (!NonMipMappedTexture)
 		{
@@ -103,7 +99,7 @@ void CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData, bool bSho
 			(ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
 	}
 
-	UpdateTextureSize();
+	UpdateTextureInfo();
 
 	m_bIsCreated = true;
 }
@@ -130,6 +126,62 @@ void CTexture::CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize)
 	m_bIsCreated = true;
 }
 
+void CTexture::CreateCubeMapFromFile(const std::string& FileName, bool bShouldGenerateMipMap)
+{
+	m_FileName = FileName;
+
+	size_t found{ m_FileName.find_last_of(L'.') };
+	string Ext{ m_FileName.substr(found) };
+	wstring wFileName{ m_FileName.begin(), m_FileName.end() };
+	for (auto& c : Ext)
+	{
+		c = toupper(c);
+	}
+	if (Ext == ".DDS")
+	{
+		assert(SUCCEEDED(CreateDDSTextureFromFile(m_PtrDevice, wFileName.c_str(), (ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
+	}
+	else
+	{
+		if (bShouldGenerateMipMap)
+		{
+			ComPtr<ID3D11Texture2D> NonMipMappedTexture{};
+
+			CreateWICTextureFromFileEx(m_PtrDevice, m_PtrDeviceContext, wFileName.c_str(), 0i64, D3D11_USAGE_DEFAULT,
+				D3D11_BIND_SHADER_RESOURCE, 0, 0, 0, (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
+
+			if (!NonMipMappedTexture)
+			{
+				MB_WARN(("텍스처를 찾을 수 없습니다. (" + m_FileName + ")").c_str(), "텍스처 생성 실패");
+				return;
+			}
+
+			NonMipMappedTexture->GetDesc(&m_Texture2DDesc);
+			m_Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+			m_Texture2DDesc.CPUAccessFlags = 0;
+			m_Texture2DDesc.MipLevels = 0;
+			m_Texture2DDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+			m_Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+
+			assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&m_Texture2DDesc, nullptr, m_Texture2D.GetAddressOf())));
+
+			m_PtrDeviceContext->ResolveSubresource(m_Texture2D.Get(), 0, NonMipMappedTexture.Get(), 0, m_Texture2DDesc.Format);
+
+			m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
+
+			m_PtrDeviceContext->GenerateMips(m_ShaderResourceView.Get());
+		}
+		else
+		{
+			assert(SUCCEEDED(CreateWICTextureFromFile(m_PtrDevice, wFileName.c_str(), (ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
+		}
+	}
+
+	UpdateTextureInfo();
+
+	m_bIsCreated = true;
+}
+
 void CTexture::ReleaseResources()
 {
 	m_ShaderResourceView.Reset();
@@ -145,13 +197,24 @@ void CTexture::SaveToDDSFile(const string& FileName)
 	assert(SUCCEEDED(SaveDDSTextureToFile(m_PtrDeviceContext, (ID3D11Resource*)m_Texture2D.Get(), wFileName.c_str())));
 }
 
-void CTexture::UpdateTextureSize()
+void CTexture::UpdateTextureInfo()
 {
-	D3D11_TEXTURE2D_DESC Texture2DDesc{};
-	m_Texture2D->GetDesc(&Texture2DDesc);
+	m_Texture2D->GetDesc(&m_Texture2DDesc);
 
-	m_TextureSize.x = static_cast<float>(Texture2DDesc.Width);
-	m_TextureSize.x = static_cast<float>(Texture2DDesc.Height);
+	// @important: check if sRGB
+	if (m_Texture2DDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB || 
+		m_Texture2DDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB || 
+		m_Texture2DDesc.Format == DXGI_FORMAT_B8G8R8X8_UNORM_SRGB ||
+		m_Texture2DDesc.Format == DXGI_FORMAT_BC1_UNORM_SRGB ||
+		m_Texture2DDesc.Format == DXGI_FORMAT_BC2_UNORM_SRGB ||
+		m_Texture2DDesc.Format == DXGI_FORMAT_BC3_UNORM_SRGB ||
+		m_Texture2DDesc.Format == DXGI_FORMAT_BC7_UNORM_SRGB)
+	{
+		m_bIssRGB = true;
+	}
+
+	m_TextureSize.x = static_cast<float>(m_Texture2DDesc.Width);
+	m_TextureSize.x = static_cast<float>(m_Texture2DDesc.Height);
 }
 
 void CTexture::UpdateTextureRawData(const SPixel8UInt* const PtrData)
@@ -294,6 +357,9 @@ void CMaterialTextureSet::CreateTexture(STextureData::EType eType, CMaterialData
 			m_Textures[iTexture].SetShaderType(EShaderType::DomainShader);
 			m_Textures[iTexture].SetSlot((UINT)MaterialData.Index()); // @warning
 		}
+
+		// @important
+		TextureData.bIsSRGB = m_Textures[iTexture].IssRGB();
 	}
 }
 

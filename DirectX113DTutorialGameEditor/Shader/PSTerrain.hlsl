@@ -1,6 +1,13 @@
 #include "Terrain.hlsli"
 #include "BRDF.hlsli"
 
+#define FLAG_ID_DIFFUSE 0x01
+#define FLAG_ID_NORMAL 0x02
+#define FLAG_ID_OPACITY 0x04
+#define FLAG_ID_SPECULARINTENSITY 0x08
+#define FLAG_ID_ROUGHNESS 0x10
+#define FLAG_ID_METALNESS 0x20
+
 SamplerState TerrainSampler : register(s0);
 
 Texture2D Layer0DiffuseTexture : register(t0);
@@ -87,22 +94,13 @@ cbuffer cbMaterial : register(b4)
 	float	MaterialRoughness;
 
 	float	MaterialMetalness;
-	bool	bHasDiffuseTexture;
-	bool	bHasNormalTexture;
-	bool	bHasOpacityTexture;
-
-	bool	bHasSpecularIntensityTexture;
-	bool	bHasRoughnessTexture;
-	bool	bHasMetalnessTexture;
-	bool	Reserved;
+	uint	FlagsHasTexture;
+	uint	FlagsIsTextureSRGB;
+	float	Reserved;
 }
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	float SpecularIntensity = MaterialSpecularIntensity;
-	float Roughness = MaterialRoughness;
-	float Metalness = MaterialMetalness;
-
 	float4 WorldVertexPosition = float4(Input.WorldPosition.x, 0, -Input.WorldPosition.z, 1);
 	float4 LocalMaskingPosition = mul(WorldVertexPosition, InverseTerrainWorld);
 	float4 MaskingSpacePosition = mul(LocalMaskingPosition, MaskingSpaceMatrix);
@@ -115,10 +113,20 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 DiffuseLayer2 = Layer2DiffuseTexture.Sample(TerrainSampler, KTexCoord);
 	float4 DiffuseLayer3 = Layer3DiffuseTexture.Sample(TerrainSampler, KTexCoord);
 	float4 DiffuseLayer4 = Layer4DiffuseTexture.Sample(TerrainSampler, KTexCoord);
-
 	float4 BlendedDiffuse = float4(MaterialDiffuseColor, 1);
-	if (bHasDiffuseTexture == true)
+	if (FlagsHasTexture & FLAG_ID_DIFFUSE)
 	{
+		// # Here we make sure that input RGB values are in linear-space!
+		if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
+		{
+			// # Convert gamma-space RGB to linear-space RGB (sRGB)
+			DiffuseLayer0.xyz = pow(DiffuseLayer0.xyz, 2.2);
+			DiffuseLayer1.xyz = pow(DiffuseLayer1.xyz, 2.2);
+			DiffuseLayer2.xyz = pow(DiffuseLayer2.xyz, 2.2);
+			DiffuseLayer3.xyz = pow(DiffuseLayer3.xyz, 2.2);
+			DiffuseLayer4.xyz = pow(DiffuseLayer4.xyz, 2.2);
+		}
+
 		BlendedDiffuse = DiffuseLayer0;
 		BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer1.xyz, Masking.r);
 		BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer2.xyz, Masking.g);
@@ -131,9 +139,8 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 NormalLayer2 = normalize((Layer2NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
 	float4 NormalLayer3 = normalize((Layer3NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
 	float4 NormalLayer4 = normalize((Layer4NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
-
 	float4 BlendedNormal = Input.WorldNormal;
-	if (bHasNormalTexture)
+	if (FlagsHasTexture & FLAG_ID_NORMAL)
 	{
 		const float3x3 KTextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
 		BlendedNormal = NormalLayer0;
@@ -150,15 +157,44 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float SpecularIntensityLayer2 = Layer2SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
 	float SpecularIntensityLayer3 = Layer3SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
 	float SpecularIntensityLayer4 = Layer4SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
-
 	float BlendedSpecularIntensity = MaterialSpecularIntensity;
-	if (bHasSpecularIntensityTexture)
+	if (FlagsHasTexture && FLAG_ID_SPECULARINTENSITY)
 	{
 		BlendedSpecularIntensity = SpecularIntensityLayer0;
 		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer1, Masking.r);
 		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer2, Masking.g);
 		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer3, Masking.b);
 		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer4, Masking.a);
+	}
+
+	float RoughnessLayer0 = Layer0RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float RoughnessLayer1 = Layer1RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float RoughnessLayer2 = Layer2RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float RoughnessLayer3 = Layer3RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float RoughnessLayer4 = Layer4RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float BlendedRoughness = MaterialRoughness;
+	if (FlagsHasTexture && FLAG_ID_ROUGHNESS)
+	{
+		BlendedRoughness = RoughnessLayer0;
+		BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer1, Masking.r);
+		BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer2, Masking.g);
+		BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer3, Masking.b);
+		BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer4, Masking.a);
+	}
+
+	float MetalnessLayer0 = Layer0MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float MetalnessLayer1 = Layer1MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float MetalnessLayer2 = Layer2MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float MetalnessLayer3 = Layer3MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float MetalnessLayer4 = Layer4MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float BlendedMetalness = MaterialMetalness;
+	if (FlagsHasTexture && FLAG_ID_METALNESS)
+	{
+		BlendedMetalness = MetalnessLayer0;
+		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer1, Masking.r);
+		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer2, Masking.g);
+		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer3, Masking.b);
+		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer4, Masking.a);
 	}
 	
 	// Selection highlight (for edit mode)
@@ -182,15 +218,6 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		}
 	}
 
-	// # Here we make sure that input RGB values are in linear-space!
-	// (In this project, all textures are loaded with their values in gamma-space)
-	if (bHasDiffuseTexture == true)
-	{
-		// # Convert gamma-space RGB to linear-space RGB (sRGB)
-		BlendedDiffuse.xyz = pow(BlendedDiffuse.xyz, 2.2);
-	}
-
-
 	float3 MacrosurfaceNormal = BlendedNormal.xyz;
 	float3 BaseColor = BlendedDiffuse.xyz;
 	float4 OutputColor = float4(BaseColor, 1);
@@ -213,7 +240,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 		// ### PBR direct light
 		// Calculate Fresnel reflectance at incident angle 0
-		float3 F0 = lerp(KF_Dielectric, BaseColor, Metalness);
+		float3 F0 = lerp(KF_Dielectric, BaseColor, BlendedMetalness);
 
 		// Calculate Fresnel reflectance of macrosurface
 		float3 F_Macrosurface = Fresnel_Schlick(F0, NdotL);
@@ -225,7 +252,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		float Kd = 1.0 - Ks;
 
 		float3 DiffuseBRDF = DiffuseBRDF_Lambertian(BaseColor);
-		float3 SpecularBRDF = SpecularBRDF_GGX(F0, NdotL, NdotV, NdotH, HdotL, Roughness);
+		float3 SpecularBRDF = SpecularBRDF_GGX(F0, NdotL, NdotV, NdotH, HdotL, BlendedRoughness);
 
 		// ### Still non-PBR indirect light
 		float3 Ambient = CalculateClassicalAmbient(F0, AmbientLightColor, AmbientLightIntensity);

@@ -2,10 +2,13 @@
 #include "BRDF.hlsli"
 
 SamplerState CurrentSampler : register(s0);
+
 Texture2D DiffuseTexture : register(t0);
 Texture2D NormalTexture : register(t1);
 Texture2D OpacityTexture : register(t2);
 Texture2D SpecularIntensityTexture : register(t3);
+Texture2D RoughnessTexture : register(t4);
+Texture2D MetalnessTexture : register(t5);
 // Displacement texture slot
 
 cbuffer cbTime : register(b0)
@@ -32,22 +35,21 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
 	ResultNormal = normalize(float4(mul(ResultNormal.xyz, TextureSpace), 0.0f));
 
-	//float4 Albedo = Input.Color;
-	float4 Albedo = DiffuseTexture.SampleLevel(CurrentSampler, AnimatedUV, 0);
+	//float4 DiffuseColor = Input.Color;
+	float4 DiffuseColor = DiffuseTexture.SampleLevel(CurrentSampler, AnimatedUV, 0);
 
 	// # Here we make sure that input RGB values are in linear-space!
-	// (In this project, all textures are loaded with their values in gamma-space)
 	// # Convert gamma-space RGB to linear-space RGB (sRGB)
-	Albedo.xyz = pow(Albedo.xyz, 2.2);
+	DiffuseColor.xyz = pow(DiffuseColor.xyz, 2.2);
 
-	float4 OutputColor = Albedo;
+	float4 OutputColor = DiffuseColor;
 	{
 		float3 N = normalize(ResultNormal).xyz;
 		float3 L = DirectionalLightDirection.xyz;
 		float3 V = normalize(EyePosition.xyz - Input.WorldPosition.xyz);
 
-		float3 Ambient = CalculateClassicalAmbient(Albedo.xyz, AmbientLightColor, AmbientLightIntensity);
-		float3 Directional = CalculateClassicalDirectional(Albedo.xyz, float3(1, 1, 1), 32.0, 0.1,
+		float3 Ambient = CalculateClassicalAmbient(DiffuseColor.xyz, AmbientLightColor, AmbientLightIntensity);
+		float3 Directional = CalculateClassicalDirectional(DiffuseColor.xyz, float3(1, 1, 1), 32.0, 0.1,
 			DirectionalLightColor, L, V, N);
 
 		OutputColor.xyz = Ambient + Directional;

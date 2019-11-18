@@ -646,7 +646,7 @@ static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& ColorTop, con
 			float AzimuthRatio0{ static_cast<float>(AzimuthStep) / (static_cast<float>(SegmentCount)) };
 			float AzimuthRatio1{ static_cast<float>(AzimuthStep + 1) / (static_cast<float>(SegmentCount)) };
 
-			// Side 0
+			// Side 0 && Lower cap
 			if (PolarRatio0 > 0.0f)
 			{
 				Mesh.vVertices.emplace_back(XMVectorSet(+X0 * XZLengthY0, +Y0, +Z0 * XZLengthY0, 1), Color0,
@@ -654,14 +654,14 @@ static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& ColorTop, con
 				Mesh.vVertices.emplace_back(XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1), Color0,
 					XMVectorSet(AzimuthRatio1, PolarRatio0, 0, 0));
 				Mesh.vVertices.emplace_back(XMVectorSet(+X0 * XZLengthY1, +Y1, +Z0 * XZLengthY1, 1), Color1,
-					XMVectorSet(AzimuthRatio0, PolarRatio1, 0, 0));
+					XMVectorSet((PolarRatio1 == 1.0f) ? (AzimuthRatio0 + AzimuthRatio1) * 0.5f : AzimuthRatio0, PolarRatio1, 0, 0));
 			}
 
-			// Side 1
+			// Side 1 && Upper cap
 			if (PolarRatio1 < 1.0f)
 			{
 				Mesh.vVertices.emplace_back(XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1), Color0,
-					XMVectorSet((PolarRatio0 == 0.0f) ? 0.5f : AzimuthRatio1, PolarRatio0, 0, 0));
+					XMVectorSet((PolarRatio0 == 0.0f) ? (AzimuthRatio0 + AzimuthRatio1) * 0.5f : AzimuthRatio1, PolarRatio0, 0, 0));
 				Mesh.vVertices.emplace_back(XMVectorSet(
 					((PolarRatio1 == 1.0f) ? +X0 : +X1) * XZLengthY1,
 					+Y1,

@@ -177,6 +177,7 @@ void CGame::InitializeEditorAssets()
 		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\burned_ground_normal.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\burned_ground_specular.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\burned_ground_roughness.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::MetalnessTexture, "Asset\\burned_ground_specular.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
@@ -188,6 +189,7 @@ void CGame::InitializeEditorAssets()
 		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\brown_mud_dry_specular.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\brown_mud_dry_roughness.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::MetalnessTexture, "Asset\\brown_mud_dry_specular.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
@@ -1257,13 +1259,25 @@ void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
 	m_CBMaterialData.Roughness = MaterialData.Roughness();
 	m_CBMaterialData.Metalness = MaterialData.Metalness();
 
-	m_CBMaterialData.bHasDiffuseTexture = MaterialData.HasTexture(STextureData::EType::DiffuseTexture);
-	m_CBMaterialData.bHasNormalTexture = MaterialData.HasTexture(STextureData::EType::NormalTexture);
-	m_CBMaterialData.bHasOpacityTexture = MaterialData.HasTexture(STextureData::EType::OpacityTexture);
-	m_CBMaterialData.bHasSpecularIntensityTexture = MaterialData.HasTexture(STextureData::EType::SpecularIntensityTexture);
-	m_CBMaterialData.bHasRoughnessTexture = MaterialData.HasTexture(STextureData::EType::RoughnessTexture);
-	m_CBMaterialData.bHasMetalnessTexture = MaterialData.HasTexture(STextureData::EType::MetalnessTexture);
+	uint32_t FlagsHasTexture{};
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::DiffuseTexture) ? 0x01 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::NormalTexture) ? 0x02 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::OpacityTexture) ? 0x04 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::SpecularIntensityTexture) ? 0x08 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::RoughnessTexture) ? 0x10 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::MetalnessTexture) ? 0x20 : 0;
 	// Displacement texture is usually not used in PS
+	m_CBMaterialData.FlagsHasTexture = FlagsHasTexture;
+
+	uint32_t FlagsIsTextureSRGB{};
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::DiffuseTexture) ? 0x01 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::NormalTexture) ? 0x02 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::OpacityTexture) ? 0x04 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::SpecularIntensityTexture) ? 0x08 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::RoughnessTexture) ? 0x10 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::MetalnessTexture) ? 0x20 : 0;
+	// Displacement texture is usually not used in PS
+	m_CBMaterialData.FlagsIsTextureSRGB = FlagsIsTextureSRGB;
 
 	m_PSBase->UpdateConstantBuffer(2);
 	m_PSFoliage->UpdateConstantBuffer(2);

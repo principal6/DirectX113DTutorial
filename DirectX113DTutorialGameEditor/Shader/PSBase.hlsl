@@ -1,7 +1,15 @@
 #include "Base.hlsli"
 #include "BRDF.hlsli"
 
+#define FLAG_ID_DIFFUSE 0x01
+#define FLAG_ID_NORMAL 0x02
+#define FLAG_ID_OPACITY 0x04
+#define FLAG_ID_SPECULARINTENSITY 0x08
+#define FLAG_ID_ROUGHNESS 0x10
+#define FLAG_ID_METALNESS 0x20
+
 SamplerState CurrentSampler : register(s0);
+
 Texture2D DiffuseTexture : register(t0);
 Texture2D NormalTexture : register(t1);
 Texture2D OpacityTexture : register(t2);
@@ -9,6 +17,8 @@ Texture2D SpecularIntensityTexture : register(t3);
 Texture2D RoughnessTexture : register(t4);
 Texture2D MetalnessTexture : register(t5);
 // Displacement texture slot
+
+TextureCube EnvironmentTexture : register(t6);
 
 cbuffer cbFlags : register(b0)
 {
@@ -38,14 +48,9 @@ cbuffer cbMaterial : register(b2)
 	float	MaterialRoughness;
 
 	float	MaterialMetalness;
-	bool	bHasDiffuseTexture;
-	bool	bHasNormalTexture;
-	bool	bHasOpacityTexture;
-
-	bool	bHasSpecularIntensityTexture;
-	bool	bHasRoughnessTexture;
-	bool	bHasMetalnessTexture;
-	bool	Reserved;
+	uint	FlagsHasTexture;
+	uint	FlagsIsTextureSRGB;
+	float	Reserved;
 }
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
@@ -61,20 +66,28 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	
 	if (bUseTexture == true)
 	{
-		if (bHasDiffuseTexture == true)
+		if (FlagsHasTexture & FLAG_ID_DIFFUSE)
 		{
-			AmbientColor = DiffuseColor = SpecularColor = DiffuseTexture.Sample(CurrentSampler, Input.UV.xy).xyz;
+			DiffuseColor = DiffuseTexture.Sample(CurrentSampler, Input.UV.xy).xyz;
+
+			// # Here we make sure that input RGB values are in linear-space!
+			if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
+			{
+				// # Convert gamma-space RGB to linear-space RGB (sRGB)
+				DiffuseColor = pow(DiffuseColor, 2.2);
+			}
 		}
 
-		if (bHasNormalTexture == true)
+		if (FlagsHasTexture & FLAG_ID_NORMAL)
 		{
-			WorldNormal = normalize((NormalTexture.Sample(CurrentSampler, Input.UV.xy) * 2.0f) - 1.0f);
+			WorldNormal = NormalTexture.Sample(CurrentSampler, Input.UV.xy);
+			WorldNormal = normalize((WorldNormal * 2.0f) - 1.0f);
 
 			float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
 			WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
 		}
 		
-		if (bHasOpacityTexture == true)
+		if (FlagsHasTexture && FLAG_ID_OPACITY)
 		{
 			float4 Sampled = OpacityTexture.Sample(CurrentSampler, Input.UV.xy);
 			if (Sampled.r == Sampled.g && Sampled.g == Sampled.b)
@@ -87,30 +100,25 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			}
 		}
 
-		if (bHasSpecularIntensityTexture == true)
+		if (FlagsHasTexture && FLAG_ID_SPECULARINTENSITY)
 		{
 			SpecularIntensity = SpecularIntensityTexture.Sample(CurrentSampler, Input.UV.xy).r;
 		}
 
-		if (bHasRoughnessTexture == true)
+		if (FlagsHasTexture && FLAG_ID_ROUGHNESS)
 		{
 			Roughness = RoughnessTexture.Sample(CurrentSampler, Input.UV.xy).r;
 		}
 
-		if (bHasMetalnessTexture == true)
+		if (FlagsHasTexture && FLAG_ID_METALNESS)
 		{
 			Metalness = MetalnessTexture.Sample(CurrentSampler, Input.UV.xy).r;
 		}
 	}
 
-	// # Here we make sure that input RGB values are in linear-space!
-	// (In this project, all textures are loaded with their values in gamma-space)
-	if (bHasDiffuseTexture == true)
+	if (FlagsHasTexture & FLAG_ID_DIFFUSE)
 	{
-		// # Convert gamma-space RGB to linear-space RGB (sRGB)
-		DiffuseColor = pow(DiffuseColor, 2.2);
-		AmbientColor = pow(AmbientColor, 2.2);
-		SpecularColor = pow(SpecularColor, 2.2);
+		AmbientColor = SpecularColor = DiffuseColor;
 	}
 
 	float3 MacrosurfaceNormal = WorldNormal.xyz;
@@ -177,7 +185,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	OutputColor.xyz = pow(OutputColor.xyz, 0.4545);
 
 	if (Input.bUseVertexColor != 0) OutputColor = Input.Color;
-	if (bHasOpacityTexture == true) OutputColor.a *= Opacity;
+	if (FlagsHasTexture & FLAG_ID_OPACITY) OutputColor.a *= Opacity;
 	
 	return OutputColor;
 }

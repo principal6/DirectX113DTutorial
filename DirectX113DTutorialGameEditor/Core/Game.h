@@ -123,14 +123,9 @@ public:
 		float		Roughness{};
 		
 		float		Metalness{};
-		BOOL		bHasDiffuseTexture{};
-		BOOL		bHasNormalTexture{};
-		BOOL		bHasOpacityTexture{};
-
-		BOOL		bHasSpecularIntensityTexture{};
-		BOOL		bHasRoughnessTexture{};
-		BOOL		bHasMetalnessTexture{};
-		BOOL		Reserved{};
+		uint32_t	FlagsHasTexture{};
+		uint32_t	FlagsIsTextureSRGB{};
+		float		Reserved{};
 	};
 
 	struct SCBSkyTimeData
@@ -635,14 +630,14 @@ private:
 	CTerrain::SCBTerrainData	m_CBTerrainData{};
 	CTerrain::SCBWindData		m_CBWindData{};
 
-	SCBCameraData				m_CBCameraData{};
+	SCBCameraData					m_CBCameraData{};
 	CObject3D::SCBTessFactorData	m_CBTessFactorData{};
 	CObject3D::SCBDisplacementData	m_CBDisplacementData{};
 
-	SCBLightData				m_CBLightData{};
-	SCBMaterialData				m_CBMaterialData{};
-	SCBPSFlagsData				m_CBPSFlagsData{};
-	SCBGizmoColorFactorData		m_CBGizmoColorFactorData{};
+	SCBLightData					m_CBLightData{};
+	SCBMaterialData					m_CBMaterialData{};
+	SCBPSFlagsData					m_CBPSFlagsData{};
+	SCBGizmoColorFactorData			m_CBGizmoColorFactorData{};
 
 	SCBPS2DFlagsData					m_cbPS2DFlagsData{};
 	SCBTerrainMaskingSpaceData			m_CBTerrainMaskingSpaceData{};

@@ -1011,6 +1011,9 @@ void CTerrain::DrawWater()
 	m_Object3DWater->Draw();
 
 	//m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
+
+	m_PtrDeviceContext->HSSetShader(nullptr, nullptr, 0);
+	m_PtrDeviceContext->DSSetShader(nullptr, nullptr, 0);
 }
 
 void CTerrain::DrawFoliageCluster()

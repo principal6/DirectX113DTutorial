@@ -43,6 +43,7 @@ struct STextureData
 	};
 
 	bool					bHasTexture{ false };
+	bool					bIsSRGB{ false };
 	std::string				FileName{};
 	std::vector<uint8_t>	vRawData{};
 };
@@ -93,6 +94,7 @@ public:
 	void HasAnyTexture(bool Value);
 	bool HasAnyTexture() const;
 	bool HasTexture(STextureData::EType eType) const { return m_TextureData[(int)eType].bHasTexture; }
+	bool IsTextureSRGB(STextureData::EType eType) const { return m_TextureData[(int)eType].bIsSRGB; }
 
 public:
 	void SetUniformColor(const XMFLOAT3& Color);
@@ -144,12 +146,13 @@ public:
 	void CreateTextureFromFile(const std::string& FileName, bool bShouldGenerateMipMap);
 	void CreateTextureFromMemory(const std::vector<uint8_t>& RawData, bool bShouldGenerateMipMap);
 	void CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize);
+	void CreateCubeMapFromFile(const std::string& FileName, bool bShouldGenerateMipMap);
 	void ReleaseResources();
 
 	void SaveToDDSFile(const std::string& FileName);
 
 private:
-	void UpdateTextureSize();
+	void UpdateTextureInfo();
 
 public:
 	void UpdateTextureRawData(const SPixel8UInt* const PtrData);
@@ -161,6 +164,7 @@ public:
 
 public:
 	bool IsCreated() const { return m_bIsCreated; }
+	bool IssRGB() const { return m_bIssRGB; }
 	const std::string& GetFileName() const { return m_FileName; }
 	const XMFLOAT2& GetTextureSize() const { return m_TextureSize; }
 	ID3D11Texture2D* GetTexture2DPtr() const { return (m_Texture2D) ? m_Texture2D.Get() : nullptr; }
@@ -176,10 +180,12 @@ private:
 	UINT								m_Slot{};
 	EShaderType							m_eShaderType{ EShaderType::PixelShader };
 	bool								m_bIsCreated{ false };
+	bool								m_bIssRGB{ false };
 
 private:
 	ComPtr<ID3D11Texture2D>				m_Texture2D{};
 	ComPtr<ID3D11ShaderResourceView>	m_ShaderResourceView{};
+	D3D11_TEXTURE2D_DESC				m_Texture2DDesc{};
 };
 
 class CMaterialTextureSet
