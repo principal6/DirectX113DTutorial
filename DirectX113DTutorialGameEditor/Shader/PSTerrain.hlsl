@@ -7,6 +7,7 @@
 #define FLAG_ID_SPECULARINTENSITY 0x08
 #define FLAG_ID_ROUGHNESS 0x10
 #define FLAG_ID_METALNESS 0x20
+#define FLAG_ID_AMBIENTOCCLUSION 0x40
 
 SamplerState TerrainSampler : register(s0);
 
@@ -16,48 +17,64 @@ Texture2D Layer0OpacityTexture : register(t2);
 Texture2D Layer0SpecularIntensityTexture : register(t3);
 Texture2D Layer0RoughnessTexture : register(t4);
 Texture2D Layer0MetalnessTexture : register(t5);
+Texture2D Layer0AmbientOcclusionTexture : register(t6);
 // Displacement texture slot
 
-Texture2D Layer1DiffuseTexture : register(t7);
-Texture2D Layer1NormalTexture : register(t8);
-Texture2D Layer1OpacityTexture : register(t9);
-Texture2D Layer1SpecularIntensityTexture : register(t10);
-Texture2D Layer1RoughnessTexture : register(t11);
-Texture2D Layer1MetalnessTexture : register(t12);
+Texture2D Layer1DiffuseTexture : register(t8);
+Texture2D Layer1NormalTexture : register(t9);
+Texture2D Layer1OpacityTexture : register(t10);
+Texture2D Layer1SpecularIntensityTexture : register(t11);
+Texture2D Layer1RoughnessTexture : register(t12);
+Texture2D Layer1MetalnessTexture : register(t13);
+Texture2D Layer1AmbientOcclusionTexture : register(t14);
 // Displacement texture slot
 
-Texture2D Layer2DiffuseTexture : register(t14);
-Texture2D Layer2NormalTexture : register(t15);
-Texture2D Layer2OpacityTexture : register(t16);
-Texture2D Layer2SpecularIntensityTexture : register(t17);
-Texture2D Layer2RoughnessTexture : register(t18);
-Texture2D Layer2MetalnessTexture : register(t19);
+Texture2D Layer2DiffuseTexture : register(t16);
+Texture2D Layer2NormalTexture : register(t17);
+Texture2D Layer2OpacityTexture : register(t18);
+Texture2D Layer2SpecularIntensityTexture : register(t19);
+Texture2D Layer2RoughnessTexture : register(t20);
+Texture2D Layer2MetalnessTexture : register(t21);
+Texture2D Layer2AmbientOcclusionTexture : register(t22);
 // Displacement texture slot
 
-Texture2D Layer3DiffuseTexture : register(t21);
-Texture2D Layer3NormalTexture : register(t22);
-Texture2D Layer3OpacityTexture : register(t23);
-Texture2D Layer3SpecularIntensityTexture : register(t24);
-Texture2D Layer3RoughnessTexture : register(t25);
-Texture2D Layer3MetalnessTexture : register(t26);
+Texture2D Layer3DiffuseTexture : register(t24);
+Texture2D Layer3NormalTexture : register(t25);
+Texture2D Layer3OpacityTexture : register(t26);
+Texture2D Layer3SpecularIntensityTexture : register(t27);
+Texture2D Layer3RoughnessTexture : register(t28);
+Texture2D Layer3MetalnessTexture : register(t29);
+Texture2D Layer3AmbientOcclusionTexture : register(t30);
 // Displacement texture slot
 
-Texture2D Layer4DiffuseTexture : register(t28);
-Texture2D Layer4NormalTexture : register(t29);
-Texture2D Layer4OpacityTexture : register(t30);
-Texture2D Layer4SpecularIntensityTexture : register(t31);
-Texture2D Layer4RoughnessTexture : register(t32);
-Texture2D Layer4MetalnessTexture : register(t33);
+Texture2D Layer4DiffuseTexture : register(t32);
+Texture2D Layer4NormalTexture : register(t33);
+Texture2D Layer4OpacityTexture : register(t34);
+Texture2D Layer4SpecularIntensityTexture : register(t35);
+Texture2D Layer4RoughnessTexture : register(t36);
+Texture2D Layer4MetalnessTexture : register(t37);
+Texture2D Layer4AmbientOcclusionTexture : register(t38);
 // Displacement texture slot
 
-Texture2D MaskingTexture : register(t35);
+Texture2D MaskingTexture : register(t40);
 
-cbuffer cbMaskingSpace : register(b0)
+TextureCube EnvironmentTexture : register(t50);
+TextureCube IrradianceTexture : register(t51);
+
+cbuffer cbFlags : register(b0)
+{
+	bool bUseTexture;
+	bool bUseLighting;
+	bool bUsePhysicallyBasedRendering;
+	uint EnvironmentTextureMipLevels;
+}
+
+cbuffer cbMaskingSpace : register(b1)
 {
 	float4x4 MaskingSpaceMatrix;
 }
 
-cbuffer cbLight : register(b1)
+cbuffer cbLight : register(b2)
 {
 	float4	DirectionalLightDirection;
 	float3	DirectionalLightColor;
@@ -67,7 +84,7 @@ cbuffer cbLight : register(b1)
 	float4	EyePosition;
 }
 
-cbuffer cbSelection : register(b2)
+cbuffer cbSelection : register(b3)
 {
 	bool bShowSelection;
 	float SelectionRadius;
@@ -77,14 +94,14 @@ cbuffer cbSelection : register(b2)
 	float4x4 InverseTerrainWorld;
 }
 
-cbuffer cbEditorTime : register(b3)
+cbuffer cbEditorTime : register(b4)
 {
 	float NormalizedTime;
 	float NormalizedTimeHalfSpeed;
 	float2 Pad2;
 }
 
-cbuffer cbMaterial : register(b4)
+cbuffer cbMaterial : register(b5)
 {
 	float3	MaterialAmbientColor;
 	float	MaterialSpecularExponent;
@@ -106,7 +123,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 MaskingSpacePosition = mul(LocalMaskingPosition, MaskingSpaceMatrix);
 	float4 Masking = MaskingTexture.Sample(TerrainSampler, MaskingSpacePosition.xz);
 
-	const float2 KTexCoord = Input.UV.xy;
+	const float2 KTexCoord = Input.TexCoord.xy;
 
 	float4 DiffuseLayer0 = Layer0DiffuseTexture.Sample(TerrainSampler, KTexCoord);
 	float4 DiffuseLayer1 = Layer1DiffuseTexture.Sample(TerrainSampler, KTexCoord);
@@ -158,7 +175,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float SpecularIntensityLayer3 = Layer3SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
 	float SpecularIntensityLayer4 = Layer4SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
 	float BlendedSpecularIntensity = MaterialSpecularIntensity;
-	if (FlagsHasTexture && FLAG_ID_SPECULARINTENSITY)
+	if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY)
 	{
 		BlendedSpecularIntensity = SpecularIntensityLayer0;
 		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer1, Masking.r);
@@ -173,7 +190,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float RoughnessLayer3 = Layer3RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
 	float RoughnessLayer4 = Layer4RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
 	float BlendedRoughness = MaterialRoughness;
-	if (FlagsHasTexture && FLAG_ID_ROUGHNESS)
+	if (FlagsHasTexture & FLAG_ID_ROUGHNESS)
 	{
 		BlendedRoughness = RoughnessLayer0;
 		BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer1, Masking.r);
@@ -188,13 +205,28 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float MetalnessLayer3 = Layer3MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
 	float MetalnessLayer4 = Layer4MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
 	float BlendedMetalness = MaterialMetalness;
-	if (FlagsHasTexture && FLAG_ID_METALNESS)
+	if (FlagsHasTexture & FLAG_ID_METALNESS)
 	{
 		BlendedMetalness = MetalnessLayer0;
 		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer1, Masking.r);
 		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer2, Masking.g);
 		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer3, Masking.b);
 		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer4, Masking.a);
+	}
+
+	float AmbientOcclusionLayer0 = Layer0AmbientOcclusionTexture.Sample(TerrainSampler, KTexCoord).r;
+	float AmbientOcclusionLayer1 = Layer1AmbientOcclusionTexture.Sample(TerrainSampler, KTexCoord).r;
+	float AmbientOcclusionLayer2 = Layer2AmbientOcclusionTexture.Sample(TerrainSampler, KTexCoord).r;
+	float AmbientOcclusionLayer3 = Layer3AmbientOcclusionTexture.Sample(TerrainSampler, KTexCoord).r;
+	float AmbientOcclusionLayer4 = Layer4AmbientOcclusionTexture.Sample(TerrainSampler, KTexCoord).r;
+	float BlendedAmbientOcclusion = 1.0;
+	if (FlagsHasTexture & FLAG_ID_METALNESS)
+	{
+		BlendedAmbientOcclusion = AmbientOcclusionLayer0;
+		BlendedAmbientOcclusion = lerp(BlendedAmbientOcclusion, AmbientOcclusionLayer1, Masking.r);
+		BlendedAmbientOcclusion = lerp(BlendedAmbientOcclusion, AmbientOcclusionLayer2, Masking.g);
+		BlendedAmbientOcclusion = lerp(BlendedAmbientOcclusion, AmbientOcclusionLayer3, Masking.b);
+		BlendedAmbientOcclusion = lerp(BlendedAmbientOcclusion, AmbientOcclusionLayer4, Masking.a);
 	}
 	
 	// Selection highlight (for edit mode)
@@ -219,66 +251,86 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	}
 
 	float3 MacrosurfaceNormal = BlendedNormal.xyz;
-	float3 BaseColor = BlendedDiffuse.xyz;
-	float4 OutputColor = float4(BaseColor, 1);
+	float3 Albedo = BlendedDiffuse.xyz;
+	float4 OutputColor = float4(Albedo, 1);
 	{
-		// Exposure tone mapping
-		BaseColor = float3(1.0, 1.0, 1.0) - exp(-BaseColor * Exposure);
+		// Exposure tone mapping for raw albedo
+		Albedo = float3(1.0, 1.0, 1.0) - exp(-Albedo * Exposure);
 
-		float3 N = MacrosurfaceNormal;
-		float3 L = DirectionalLightDirection.xyz;
-		float3 V = normalize(EyePosition.xyz - Input.WorldPosition.xyz);
+		float3 N = MacrosurfaceNormal; // Macrosurface normal vector
 
-		// Radiance for direct light
-		float3 Li = DirectionalLightColor;
+		// This is equivalent of L vector (light direction from a point on interface-- both for macrosurface and microsurface.)
+		float3 Wi_direct = DirectionalLightDirection.xyz;
 
-		float3 H = normalize(L + V);
-		float NdotL = max(dot(N, L), 0.0001); // NaN
-		float NdotV = max(dot(N, V), 0.0001); // NaN
-		float NdotH = max(dot(N, H), 0.0001); // NaN
-		float HdotL = max(dot(L, H), 0);
+		// This is equivalent of V vector (view direction from a point on interface-- both for macrosurface and microsurface.)
+		float3 Wo = normalize(EyePosition.xyz - Input.WorldPosition.xyz);
 
-		// ### PBR direct light
-		// Calculate Fresnel reflectance at incident angle 0
-		float3 F0 = lerp(KF_Dielectric, BaseColor, BlendedMetalness);
+		if (bUsePhysicallyBasedRendering)
+		{
+			// Calculate Fresnel reflectance at incident angle of 0 degree
+			float3 F0 = lerp(KFresnel_dielectric, Albedo, BlendedMetalness);
 
-		// Calculate Fresnel reflectance of macrosurface
-		float3 F_Macrosurface = Fresnel_Schlick(F0, NdotL);
+			// This is equivalent of M vector == Half-way direction between Wi(== L) and Wo(== V)
+			// Which is also visible microsurfaces' normal vector
+			float3 M = normalize(Wi_direct + Wo);
 
-		// Specular light intensity
-		float Ks = dot(KMonochromatic, F_Macrosurface); // Monochromatic intensity calculation
+			float NdotWi_direct = max(dot(N, Wi_direct), 0.001); // NaN
+			float MdotWi_direct = max(dot(M, Wi_direct), 0);
+			float NdotWo = max(dot(N, Wo), 0.001); // NaN
+			float NdotM = max(dot(N, M), 0);
 
-		// Diffuse light intensity
-		float Kd = 1.0 - Ks;
+			// Direct light
+			{
+				// Radiance of direct light
+				float3 Li_direct = DirectionalLightColor;
 
-		float3 DiffuseBRDF = DiffuseBRDF_Lambertian(BaseColor);
-		float3 SpecularBRDF = SpecularBRDF_GGX(F0, NdotL, NdotV, NdotH, HdotL, BlendedRoughness);
+				float3 DiffuseBRDF = DiffuseBRDF_Lambertian(Albedo);
+				float3 SpecularBRDF = SpecularBRDF_GGX(F0, NdotWi_direct, NdotWo, NdotM, MdotWi_direct, BlendedRoughness);
 
-		// ### Still non-PBR indirect light
-		float3 Ambient = CalculateClassicalAmbient(F0, AmbientLightColor, AmbientLightIntensity);
-		float Ka_NonPBR = 0.03;
+				// Calculate Fresnel reflectance of macrosurface
+				float3 F_Macrosurface_direct = Fresnel_Schlick(F0, NdotWi_direct);
 
-		OutputColor.xyz = Ambient * Ka_NonPBR + (1.0 - Ka_NonPBR) * (NdotL * Li * (Kd * DiffuseBRDF + Ks * SpecularBRDF));
+				// Specular light intensity
+				float Ks_direct = dot(KMonochromatic, F_Macrosurface_direct); // Monochromatic intensity calculation
+
+				// Diffuse light intensity
+				float Kd_direct = 1.0 - Ks_direct;
+
+				// (Outgoing) Radiance of direct light
+				// L_o = ∫(BRDF() * L_i * cosθ)dω  <= Reflectance equation <= Rendering equation
+
+				float3 Lo_direct_diff = (Kd_direct * DiffuseBRDF) * Li_direct * NdotWi_direct;
+				float3 Lo_direct_spec = (Ks_direct * SpecularBRDF) * Li_direct * NdotWi_direct;
+
+				OutputColor.xyz = Lo_direct_diff + Lo_direct_spec;
+			}
+
+			// Indirect light (only diffuse)
+			{
+				// Indirect light direction
+				float3 Wi_indirect = normalize(-Wo + (2.0 * max(dot(N, Wo), 0) * N));
+
+				// Radiance of indirect light
+				float3 Ei_indirect = IrradianceTexture.Sample(TerrainSampler, Wi_indirect).rgb;
+
+				float3 Lo_indirect_diff = Ei_indirect * Albedo;
+
+				OutputColor.xyz += Lo_indirect_diff * BlendedAmbientOcclusion;
+			}
+		}
+		else
+		{
+			float3 Ambient = CalculateClassicalAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
+			float3 Directional = CalculateClassicalDirectional(Albedo, Albedo, MaterialSpecularExponent, BlendedSpecularIntensity,
+				DirectionalLightColor, Wi_direct, Wo, N);
+
+			// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
+			float Dot = dot(DirectionalLightDirection, KUpDirection);
+			Directional.xyz *= pow(Dot, 0.6f);
+
+			OutputColor.xyz = Ambient + Directional;
+		}
 	}
-
-	/*
-	float4 OutputColor = BlendedDiffuse;
-	{
-		float3 N = normalize(BlendedNormal).xyz;
-		float3 L = DirectionalLightDirection.xyz;
-		float3 V = normalize(EyePosition.xyz - Input.WorldPosition.xyz);
-
-		float3 Ambient = CalculateClassicalAmbient(BlendedDiffuse.xyz, AmbientLightColor, AmbientLightIntensity);
-		float3 Directional = CalculateClassicalDirectional(BlendedDiffuse.xyz, MaterialSpecularColor, MaterialSpecularExponent, BlendedSpecularIntensity,
-			DirectionalLightColor, L, V, N);
-
-		// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
-		float Dot = dot(DirectionalLightDirection, KUpDirection);
-		Directional.xyz *= pow(Dot, 0.6f);
-
-		OutputColor.xyz = Ambient + Directional;
-	}
-	*/
 
 	// # Here we make sure that output RGB values are in gamma-space!
 	// # Convert linear-space RGB (sRGB) to gamma-space RGB

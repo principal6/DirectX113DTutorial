@@ -14,7 +14,7 @@ VS_OUTPUT main(VS_INPUT Input)
 	Output.Position = mul(Output.WorldPosition, ViewProjection);
 
 	Output.Color = Input.Color;
-	Output.UV = Input.UV;
+	Output.TexCoord = Input.TexCoord;
 
 	float4 ResultNormal = normalize(mul(Input.Normal, World));
 	float4 ResultBitangent = normalize(float4(cross(ResultNormal.xyz, Input.Tangent.xyz), 0));

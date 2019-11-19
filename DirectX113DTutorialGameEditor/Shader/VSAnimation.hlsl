@@ -30,9 +30,9 @@ float4x4 GetBoneMatrixFromAnimationTexture(int BoneIndex, int AnimationOffset)
 	return float4x4(Row0, Row1, Row2, Row3);
 }
 
-VS_OUTPUT main(VS_INPUT_ANIMATION input)
+VS_OUTPUT main(VS_INPUT_ANIMATION Input)
 {
-	VS_OUTPUT output;
+	VS_OUTPUT Output;
 
 	float4x4 FinalBone = KMatrixIdentity;
 	float4 ResultPosition;
@@ -48,47 +48,47 @@ VS_OUTPUT main(VS_INPUT_ANIMATION input)
 		int iTickNext = (int)AnimationTick + 1;
 		if (iTickNext > AnimationDuration) iTickNext = 0;
 
-		float4x4 CurrentTickBone = GetBoneMatrixFromAnimationTexture(input.BoneIndex.x, AnimationOffset + iTickCurrent) * input.BoneWeight.x;
-		CurrentTickBone += GetBoneMatrixFromAnimationTexture(input.BoneIndex.y, AnimationOffset + iTickCurrent) * input.BoneWeight.y;
-		CurrentTickBone += GetBoneMatrixFromAnimationTexture(input.BoneIndex.z, AnimationOffset + iTickCurrent) * input.BoneWeight.z;
-		CurrentTickBone += GetBoneMatrixFromAnimationTexture(input.BoneIndex.w, AnimationOffset + iTickCurrent) * input.BoneWeight.w;
+		float4x4 CurrentTickBone = GetBoneMatrixFromAnimationTexture(Input.BoneIndex.x, AnimationOffset + iTickCurrent) * Input.BoneWeight.x;
+		CurrentTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.y, AnimationOffset + iTickCurrent) * Input.BoneWeight.y;
+		CurrentTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.z, AnimationOffset + iTickCurrent) * Input.BoneWeight.z;
+		CurrentTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.w, AnimationOffset + iTickCurrent) * Input.BoneWeight.w;
 
-		float4x4 NextTickBone = GetBoneMatrixFromAnimationTexture(input.BoneIndex.x, AnimationOffset + iTickNext) * input.BoneWeight.x;
-		NextTickBone += GetBoneMatrixFromAnimationTexture(input.BoneIndex.y, AnimationOffset + iTickNext) * input.BoneWeight.y;
-		NextTickBone += GetBoneMatrixFromAnimationTexture(input.BoneIndex.z, AnimationOffset + iTickNext) * input.BoneWeight.z;
-		NextTickBone += GetBoneMatrixFromAnimationTexture(input.BoneIndex.w, AnimationOffset + iTickNext) * input.BoneWeight.w;
+		float4x4 NextTickBone = GetBoneMatrixFromAnimationTexture(Input.BoneIndex.x, AnimationOffset + iTickNext) * Input.BoneWeight.x;
+		NextTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.y, AnimationOffset + iTickNext) * Input.BoneWeight.y;
+		NextTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.z, AnimationOffset + iTickNext) * Input.BoneWeight.z;
+		NextTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.w, AnimationOffset + iTickNext) * Input.BoneWeight.w;
 
-		float4 CurrentTickPosition = float4(mul(input.Position, CurrentTickBone).xyz, 1);
-		float4 NextTickPosition = float4(mul(input.Position, NextTickBone).xyz, 1);
+		float4 CurrentTickPosition = float4(mul(Input.Position, CurrentTickBone).xyz, 1);
+		float4 NextTickPosition = float4(mul(Input.Position, NextTickBone).xyz, 1);
 
 		float t = AnimationTick - (float)iTickCurrent;
 		ResultPosition = lerp(CurrentTickPosition, NextTickPosition, t);
 	}
 	else
 	{
-		FinalBone = BoneMatrices[input.BoneIndex.x] * input.BoneWeight.x;
-		FinalBone += BoneMatrices[input.BoneIndex.y] * input.BoneWeight.y;
-		FinalBone += BoneMatrices[input.BoneIndex.z] * input.BoneWeight.z;
-		FinalBone += BoneMatrices[input.BoneIndex.w] * input.BoneWeight.w;
+		FinalBone = BoneMatrices[Input.BoneIndex.x] * Input.BoneWeight.x;
+		FinalBone += BoneMatrices[Input.BoneIndex.y] * Input.BoneWeight.y;
+		FinalBone += BoneMatrices[Input.BoneIndex.z] * Input.BoneWeight.z;
+		FinalBone += BoneMatrices[Input.BoneIndex.w] * Input.BoneWeight.w;
 
-		ResultPosition = float4(mul(input.Position, FinalBone).xyz, 1);
+		ResultPosition = float4(mul(Input.Position, FinalBone).xyz, 1);
 	}
 	
-	float4 ResultNormal = normalize(mul(input.Normal, FinalBone));
-	float4 ResultTangent = normalize(mul(input.Tangent, FinalBone));
+	float4 ResultNormal = normalize(mul(Input.Normal, FinalBone));
+	float4 ResultTangent = normalize(mul(Input.Tangent, FinalBone));
 
-	output.WorldPosition = mul(ResultPosition, World);
-	output.WorldPosition.w = 1.0f;
-	output.Position = mul(output.WorldPosition, ViewProjection);
+	Output.WorldPosition = mul(ResultPosition, World);
+	Output.WorldPosition.w = 1.0f;
+	Output.Position = mul(Output.WorldPosition, ViewProjection);
 	
-	output.Color = input.Color;
-	output.UV = input.UV;
+	Output.Color = Input.Color;
+	Output.TexCoord = Input.TexCoord;
 
-	output.WorldNormal = normalize(mul(ResultNormal, World));
-	output.WorldTangent = normalize(mul(ResultTangent, World));
-	output.WorldBitangent = float4(normalize(cross(output.WorldNormal.xyz, output.WorldTangent.xyz)), 0);
+	Output.WorldNormal = normalize(mul(ResultNormal, World));
+	Output.WorldTangent = normalize(mul(ResultTangent, World));
+	Output.WorldBitangent = float4(normalize(cross(Output.WorldNormal.xyz, Output.WorldTangent.xyz)), 0);
 
-	output.bUseVertexColor = 0;
+	Output.bUseVertexColor = 0;
 
-	return output;
+	return Output;
 }

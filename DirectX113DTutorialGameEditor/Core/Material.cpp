@@ -19,7 +19,8 @@ void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerat
 	}
 	if (Ext == ".DDS")
 	{
-		assert(SUCCEEDED(CreateDDSTextureFromFile(m_PtrDevice, wFileName.c_str(), (ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
+		assert(SUCCEEDED(CreateDDSTextureFromFile(m_PtrDevice, wFileName.c_str(), 
+			(ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf())));
 	}
 	else
 	{
@@ -43,17 +44,18 @@ void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerat
 			m_Texture2DDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 			m_Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
 
-			assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&m_Texture2DDesc, nullptr, m_Texture2D.GetAddressOf())));
+			assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&m_Texture2DDesc, nullptr, m_Texture2D.ReleaseAndGetAddressOf())));
 
 			m_PtrDeviceContext->ResolveSubresource(m_Texture2D.Get(), 0, NonMipMappedTexture.Get(), 0, m_Texture2DDesc.Format);
 
-			m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
+			m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.ReleaseAndGetAddressOf());
 
 			m_PtrDeviceContext->GenerateMips(m_ShaderResourceView.Get());
 		}
 		else
 		{
-			assert(SUCCEEDED(CreateWICTextureFromFile(m_PtrDevice, wFileName.c_str(), (ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
+			assert(SUCCEEDED(CreateWICTextureFromFile(m_PtrDevice, wFileName.c_str(), 
+				(ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf())));
 		}
 	}
 
@@ -85,18 +87,18 @@ void CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData, bool bSho
 		Texture2DDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
 
-		assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&Texture2DDesc, nullptr, m_Texture2D.GetAddressOf())));
+		assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&Texture2DDesc, nullptr, m_Texture2D.ReleaseAndGetAddressOf())));
 
 		m_PtrDeviceContext->ResolveSubresource(m_Texture2D.Get(), 0, NonMipMappedTexture.Get(), 0, Texture2DDesc.Format);
-
-		m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
+		
+		m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.ReleaseAndGetAddressOf());
 
 		m_PtrDeviceContext->GenerateMips(m_ShaderResourceView.Get());
 	}
 	else
 	{
 		assert(SUCCEEDED(CreateWICTextureFromMemory(m_PtrDevice, &RawData[0], RawData.size(),
-			(ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
+			(ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf())));
 	}
 
 	UpdateTextureInfo();
@@ -126,7 +128,7 @@ void CTexture::CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize)
 	m_bIsCreated = true;
 }
 
-void CTexture::CreateCubeMapFromFile(const std::string& FileName, bool bShouldGenerateMipMap)
+void CTexture::CreateCubeMapFromFile(const std::string& FileName)
 {
 	m_FileName = FileName;
 
@@ -137,44 +139,13 @@ void CTexture::CreateCubeMapFromFile(const std::string& FileName, bool bShouldGe
 	{
 		c = toupper(c);
 	}
-	if (Ext == ".DDS")
+	assert(Ext == ".DDS");
 	{
-		assert(SUCCEEDED(CreateDDSTextureFromFile(m_PtrDevice, wFileName.c_str(), (ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
-	}
-	else
-	{
-		if (bShouldGenerateMipMap)
-		{
-			ComPtr<ID3D11Texture2D> NonMipMappedTexture{};
+		CreateDDSTextureFromFileEx(m_PtrDevice, m_PtrDeviceContext, wFileName.c_str(), 0i64, D3D11_USAGE_DEFAULT,
+			D3D11_BIND_SHADER_RESOURCE, 0, D3D11_RESOURCE_MISC_TEXTURECUBE, false,
+			(ID3D11Resource**)m_Texture2D.GetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf());
 
-			CreateWICTextureFromFileEx(m_PtrDevice, m_PtrDeviceContext, wFileName.c_str(), 0i64, D3D11_USAGE_DEFAULT,
-				D3D11_BIND_SHADER_RESOURCE, 0, 0, 0, (ID3D11Resource**)NonMipMappedTexture.GetAddressOf(), nullptr);
-
-			if (!NonMipMappedTexture)
-			{
-				MB_WARN(("텍스처를 찾을 수 없습니다. (" + m_FileName + ")").c_str(), "텍스처 생성 실패");
-				return;
-			}
-
-			NonMipMappedTexture->GetDesc(&m_Texture2DDesc);
-			m_Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-			m_Texture2DDesc.CPUAccessFlags = 0;
-			m_Texture2DDesc.MipLevels = 0;
-			m_Texture2DDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-			m_Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
-
-			assert(SUCCEEDED(m_PtrDevice->CreateTexture2D(&m_Texture2DDesc, nullptr, m_Texture2D.GetAddressOf())));
-
-			m_PtrDeviceContext->ResolveSubresource(m_Texture2D.Get(), 0, NonMipMappedTexture.Get(), 0, m_Texture2DDesc.Format);
-
-			m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
-
-			m_PtrDeviceContext->GenerateMips(m_ShaderResourceView.Get());
-		}
-		else
-		{
-			assert(SUCCEEDED(CreateWICTextureFromFile(m_PtrDevice, wFileName.c_str(), (ID3D11Resource**)m_Texture2D.GetAddressOf(), &m_ShaderResourceView)));
-		}
+		assert(m_Texture2D);
 	}
 
 	UpdateTextureInfo();

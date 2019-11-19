@@ -6,7 +6,7 @@
 #include "Object2D.h"
 #include <unordered_map>
 
-static constexpr uint32_t KDefaultPrimitiveDetail{ 16 };
+static constexpr uint32_t KDefaultPrimitiveDetail{ 32 };
 static constexpr uint32_t KMinPrimitiveDetail{ 3 };
 static constexpr uint32_t KMaxPrimitiveDetail{ 64 };
 
@@ -30,6 +30,7 @@ static SMesh GenerateCone(float RadiusFactor = 0.0f, float Radius = 1.0f, float 
 static SMesh GenerateCylinder(float Radius = 1.0f, float Height = 1.0f, uint32_t SideCount = 16, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& ColorTop, const XMVECTOR& ColorBottom);
 static SMesh GenerateSphere(uint32_t SegmentCount = 16, const XMVECTOR& Color = KColorWhite);
+static SMesh GenerateCubemapSphere(uint32_t SegmentCount);
 static SMesh GenerateTorus(float InnerRadius = 0.2f, uint32_t SideCount = 16, uint32_t SegmentCount = 24, const XMVECTOR& Color = KColorWhite);
 static void TranslateMesh(SMesh& Mesh, const XMVECTOR& Translation);
 static void RotateMesh(SMesh& Mesh, float Pitch, float Yaw, float Roll);
@@ -649,26 +650,37 @@ static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& ColorTop, con
 			// Side 0 && Lower cap
 			if (PolarRatio0 > 0.0f)
 			{
-				Mesh.vVertices.emplace_back(XMVectorSet(+X0 * XZLengthY0, +Y0, +Z0 * XZLengthY0, 1), Color0,
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(+X0 * XZLengthY0, +Y0, +Z0 * XZLengthY0, 1),
+					Color0,
 					XMVectorSet(AzimuthRatio0, PolarRatio0, 0, 0));
-				Mesh.vVertices.emplace_back(XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1), Color0,
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1),
+					Color0,
 					XMVectorSet(AzimuthRatio1, PolarRatio0, 0, 0));
-				Mesh.vVertices.emplace_back(XMVectorSet(+X0 * XZLengthY1, +Y1, +Z0 * XZLengthY1, 1), Color1,
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(+X0 * XZLengthY1, +Y1, +Z0 * XZLengthY1, 1),
+					Color1,
 					XMVectorSet((PolarRatio1 == 1.0f) ? (AzimuthRatio0 + AzimuthRatio1) * 0.5f : AzimuthRatio0, PolarRatio1, 0, 0));
 			}
 
 			// Side 1 && Upper cap
 			if (PolarRatio1 < 1.0f)
 			{
-				Mesh.vVertices.emplace_back(XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1), Color0,
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1),
+					Color0,
 					XMVectorSet((PolarRatio0 == 0.0f) ? (AzimuthRatio0 + AzimuthRatio1) * 0.5f : AzimuthRatio1, PolarRatio0, 0, 0));
-				Mesh.vVertices.emplace_back(XMVectorSet(
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(
 					((PolarRatio1 == 1.0f) ? +X0 : +X1) * XZLengthY1,
 					+Y1,
 					((PolarRatio1 == 1.0f) ? +Z0 : +Z1) * XZLengthY1, 1),
 					Color1,
 					XMVectorSet(AzimuthRatio1, PolarRatio1, 0, 0));
-				Mesh.vVertices.emplace_back(XMVectorSet(+X0 * XZLengthY1, +Y1, +Z0 * XZLengthY1, 1), Color1,
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(+X0 * XZLengthY1, +Y1, +Z0 * XZLengthY1, 1),
+					Color1,
 					XMVectorSet(AzimuthRatio0, PolarRatio1, 0, 0));
 			}
 		}
@@ -709,6 +721,113 @@ static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& ColorTop, con
 static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& Color)
 {
 	return GenerateSphere(SegmentCount, Color, Color);
+}
+
+static SMesh GenerateCubemapSphere(uint32_t SegmentCount)
+{
+	using std::max;
+
+	SegmentCount = max(SegmentCount, (uint32_t)4);
+	if (SegmentCount % 2) ++SegmentCount;
+	const float KThetaUnit{ XM_2PI / SegmentCount };
+	const float KPhiUnit{ XM_2PI / SegmentCount };
+
+	SMesh Mesh{};
+	for (uint32_t PolarStep = 0; PolarStep < SegmentCount / 2; ++PolarStep) // phi
+	{
+		float Phi0{ KPhiUnit * PolarStep };
+		float Phi1{ KPhiUnit * (PolarStep + 1) };
+
+		float Y0{ cosf(Phi0) };
+		float Y1{ cosf(Phi1) };
+
+		float XZLengthY0{ sinf(Phi0) };
+		float XZLengthY1{ sinf(Phi1) };
+
+		float PolarRatio0{ static_cast<float>(PolarStep) / (static_cast<float>(SegmentCount) / 2.0f) };
+		float PolarRatio1{ static_cast<float>(PolarStep + 1) / (static_cast<float>(SegmentCount) / 2.0f) };
+		for (uint32_t AzimuthStep = 0; AzimuthStep < SegmentCount; ++AzimuthStep) // theta
+		{
+			float Theta0{ KThetaUnit * AzimuthStep };
+			float Theta1{ KThetaUnit * (AzimuthStep + 1) };
+
+			float X0{ cosf(Theta0) };
+			float X1{ cosf(Theta1) };
+
+			float Z0{ sinf(Theta0) };
+			float Z1{ sinf(Theta1) };
+
+			float AzimuthRatio0{ static_cast<float>(AzimuthStep) / (static_cast<float>(SegmentCount)) };
+			float AzimuthRatio1{ static_cast<float>(AzimuthStep + 1) / (static_cast<float>(SegmentCount)) };
+
+			// Side 0 && Lower cap
+			if (PolarRatio0 > 0.0f)
+			{
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(+X0 * XZLengthY0, +Y0, +Z0 * XZLengthY0, 1), 
+					KColorWhite);
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1),
+					KColorWhite);
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(+X0 * XZLengthY1, +Y1, +Z0 * XZLengthY1, 1),
+					KColorWhite);
+			}
+
+			// Side 1 && Upper cap
+			if (PolarRatio1 < 1.0f)
+			{
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(+X1 * XZLengthY0, +Y0, +Z1 * XZLengthY0, 1),
+					KColorWhite);
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(
+					((PolarRatio1 == 1.0f) ? +X0 : +X1) * XZLengthY1,
+					+Y1,
+					((PolarRatio1 == 1.0f) ? +Z0 : +Z1) * XZLengthY1, 1),
+					KColorWhite);
+				Mesh.vVertices.emplace_back(
+					XMVectorSet(+X0 * XZLengthY1, +Y1, +Z0 * XZLengthY1, 1),
+					KColorWhite);
+			}
+		}
+	}
+
+	for (uint32_t iSide = 0; iSide < SegmentCount; ++iSide)
+	{
+		// Upper cap
+		Mesh.vTriangles.emplace_back(iSide * 3 + 0, iSide * 3 + 1, iSide * 3 + 2);
+	}
+
+	const uint32_t KSideOffset{ SegmentCount * 3 };
+	for (uint32_t iSide = 0; iSide < ((SegmentCount / 2) - 2) * SegmentCount; ++iSide)
+	{
+		// Side 0
+		Mesh.vTriangles.emplace_back(KSideOffset + iSide * 6 + 0, KSideOffset + iSide * 6 + 1, KSideOffset + iSide * 6 + 2);
+
+		// Side 1
+		Mesh.vTriangles.emplace_back(KSideOffset + iSide * 6 + 3, KSideOffset + iSide * 6 + 4, KSideOffset + iSide * 6 + 5);
+	}
+
+	const uint32_t KLowerCapOffset{ SegmentCount * 3 + (((SegmentCount / 2) - 2) * SegmentCount) * 6 };
+	for (uint32_t iSide = 0; iSide < SegmentCount; ++iSide)
+	{
+		// Lower cap
+		Mesh.vTriangles.emplace_back(KLowerCapOffset + iSide * 3 + 0, KLowerCapOffset + iSide * 3 + 1, KLowerCapOffset + iSide * 3 + 2);
+	}
+
+	for (SVertex3D& Vertex : Mesh.vVertices)
+	{
+		Vertex.TexCoord = XMVectorSetW(XMVector3Normalize(Vertex.Position), 0.0f);
+	}
+
+	CalculateNormals(Mesh);
+	AverageNormals(Mesh);
+
+	CalculateTangents(Mesh);
+	AverageTangents(Mesh);
+
+	return Mesh;
 }
 
 static SMesh GenerateTorus(float InnerRadius, uint32_t SideCount, uint32_t SegmentCount, const XMVECTOR& Color)

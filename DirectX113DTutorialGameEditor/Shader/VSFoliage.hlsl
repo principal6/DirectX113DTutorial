@@ -54,7 +54,7 @@ VS_OUTPUT main(VS_INPUT Input)
 
 	Output.WorldNormal = normalize(mul(Input.Normal, KInstanceWorld));
 
-	if (Input.UV.y < 0.2f) // Upper vertices
+	if (Input.TexCoord.y < 0.2f) // Upper vertices
 	{
 		float Distance = distance(InstancePosition.xz, WindPosition.xz);
 		if (Distance <= WindRadius)
@@ -71,7 +71,7 @@ VS_OUTPUT main(VS_INPUT Input)
 
 	Output.WorldPosition = InstancePosition;
 	Output.Position = mul(InstancePosition, ViewProjection);
-	Output.UV = Input.UV;
+	Output.TexCoord = Input.TexCoord;
 	//Output.WorldNormal = normalize(mul(Input.Normal, KInstanceWorld));
 
 	return Output;

@@ -4,7 +4,7 @@ struct VS_INPUT
 {
 	float4 Position		: POSITION;
 	float4 Color		: COLOR;
-	float3 UV			: TEXCOORD;
+	float3 TexCoord		: TEXCOORD;
 	float4 Normal		: NORMAL;
 	float4 Tangent		: TANGENT;
 
@@ -19,7 +19,7 @@ struct VS_OUTPUT
 {
 	float4	Position		: SV_POSITION;
 	float4	WorldPosition	: POSITION;
-	float3	UV				: TEXCOORD;
+	float3	TexCoord		: TEXCOORD;
 	float4	WorldNormal		: NORMAL;
 };
 

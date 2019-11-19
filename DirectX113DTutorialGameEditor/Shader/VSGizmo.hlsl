@@ -15,7 +15,7 @@ VS_OUTPUT main(VS_INPUT input)
 	output.Position.z *= 0.01f;
 
 	output.Color = input.Color;
-	output.UV = input.UV;
+	output.TexCoord = input.TexCoord;
 
 	output.WorldNormal = normalize(mul(input.Normal, World));
 	output.WorldTangent = normalize(mul(input.Tangent, World));

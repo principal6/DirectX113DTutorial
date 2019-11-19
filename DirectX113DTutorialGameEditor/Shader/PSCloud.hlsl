@@ -13,7 +13,7 @@ Texture2D NoiseTexture : register(t1);
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
 	float2 TimeCoord = float2(0.0f, SkyTime);
-	float2 SampleCoord = Input.UV.xy + TimeCoord;
+	float2 SampleCoord = Input.TexCoord.xy + TimeCoord;
 	float4 OutputColor = CloudTexture.Sample(CurrentSampler, SampleCoord);
 
 	// # Here we make sure that output RGB values are in gamma-space!

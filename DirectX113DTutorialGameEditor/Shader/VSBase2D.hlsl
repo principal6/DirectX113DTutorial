@@ -15,7 +15,7 @@ VS_OUTPUT main(VS_INPUT input)
 	output.Position.w = 1.0f;
 
 	output.Color = input.Color;
-	output.UV = input.UV;
+	output.TexCoord = input.TexCoord;
 
 	return output;
 }

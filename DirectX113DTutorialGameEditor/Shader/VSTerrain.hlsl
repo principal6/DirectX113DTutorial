@@ -34,7 +34,7 @@ VS_OUTPUT main(VS_INPUT Input)
 	Output.Position = mul(Output.WorldPosition, ViewProjection);
 
 	Output.Color = Input.Color;
-	Output.UV = Input.UV;
+	Output.TexCoord = Input.TexCoord;
 
 	float HeightXMinus = GetHeightFromHeightMap(ResultPosition.xz + float2(-1, 0));
 	float HeightXPlus = GetHeightFromHeightMap(ResultPosition.xz + float2(+1, 0));

@@ -15,7 +15,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 	if (UseTexture == true)
 	{
-		OutputColor = CurrentTexture2D.Sample(CurrentSampler, Input.UV);
+		OutputColor = CurrentTexture2D.Sample(CurrentSampler, Input.TexCoord);
 	}
 
 	return OutputColor;

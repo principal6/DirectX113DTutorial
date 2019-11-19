@@ -62,6 +62,7 @@ public:
 		PSCamera,
 		PSScreenQuad,
 		PSEdgeDetector,
+		PSSky,
 
 		PSBase2D,
 		PSMasking2D,
@@ -100,7 +101,7 @@ public:
 		BOOL		bUseTexture{};
 		BOOL		bUseLighting{};
 		BOOL		bUsePhysicallyBasedRendering{};
-		BOOL		Reserved{};
+		uint32_t	EnvironmentTextureMipLevels{};
 	};
 
 	struct SCBLightData
@@ -491,7 +492,7 @@ public:
 
 private:
 	void UpdateObject3D(CObject3D* const PtrObject3D);
-	void DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstances = false);
+	void DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstances = false, bool bIgnoreOwnTexture = false);
 	void DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D);
 
 	void DrawObject3DLines();
@@ -574,6 +575,8 @@ private:
 	static constexpr float K3DGizmoCameraDistanceThreshold{ 0.03125f };
 	static constexpr float K3DGizmoDistanceFactorExponent{ 0.75f };
 	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
+	static constexpr int KEnvironmentTextureSlot{ 50 };
+	static constexpr int KIrradianceTextureSlot{ 51 };
 
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
@@ -616,6 +619,7 @@ private:
 	std::unique_ptr<CShader>	m_PSCamera{};
 	std::unique_ptr<CShader>	m_PSScreenQuad{};
 	std::unique_ptr<CShader>	m_PSEdgeDetector{};
+	std::unique_ptr<CShader>	m_PSSky{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
@@ -671,12 +675,16 @@ private:
 	std::unique_ptr<CObject3D>				m_Object3DSun{};
 	std::unique_ptr<CObject3D>				m_Object3DMoon{};
 	std::unique_ptr<CObject3D>				m_Object3DCloud{};
+	std::unique_ptr<CTexture>				m_EnvironmentTexture{};
+	std::unique_ptr<CTexture>				m_IrradianceTexture{};
 
 	std::map<std::string, size_t>	m_mapMaterialNameToIndex{};
 	std::map<std::string, size_t>	m_mapCameraNameToIndex{};
 	std::map<std::string, size_t>	m_mapObject3DNameToIndex{};
 	std::map<std::string, size_t>	m_mapObject3DLineNameToIndex{};
 	std::map<std::string, size_t>	m_mapObject2DNameToIndex{};
+
+	size_t							m_PrimitiveCreationCounter{};
 
 private:
 	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationPitch{};

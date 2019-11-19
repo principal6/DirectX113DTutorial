@@ -7,6 +7,7 @@
 #define FLAG_ID_SPECULARINTENSITY 0x08
 #define FLAG_ID_ROUGHNESS 0x10
 #define FLAG_ID_METALNESS 0x20
+#define FLAG_ID_AMBIENTOCCLUSION 0x40
 
 SamplerState CurrentSampler : register(s0);
 
@@ -16,13 +17,15 @@ Texture2D OpacityTexture : register(t2);
 // Specular intensity texture slot
 Texture2D RoughnessTexture : register(t4);
 // Metalness texture slot
+// Ambient occlusion texture slot
 // Displacement texture slot
 
 cbuffer cbFlags : register(b0)
 {
 	bool bUseTexture;
 	bool bUseLighting;
-	bool2 Pads;
+	bool bUsePhysicallyBasedRendering;
+	uint EnvironmentTextureMipLevels;
 }
 
 cbuffer cbLight : register(b1)
@@ -59,7 +62,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	{
 		if (FlagsHasTexture & FLAG_ID_DIFFUSE)
 		{
-			DiffuseColor = DiffuseTexture.Sample(CurrentSampler, Input.UV.xy);
+			DiffuseColor = DiffuseTexture.Sample(CurrentSampler, Input.TexCoord.xy);
 
 			// # Here we make sure that input RGB values are in linear-space!
 			if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
@@ -69,9 +72,9 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			}
 		}
 
-		if (FlagsHasTexture && FLAG_ID_OPACITY)
+		if (FlagsHasTexture & FLAG_ID_OPACITY)
 		{
-			float4 Sampled = OpacityTexture.Sample(CurrentSampler, Input.UV.xy);
+			float4 Sampled = OpacityTexture.Sample(CurrentSampler, Input.TexCoord.xy);
 			if (Sampled.r == Sampled.g && Sampled.g == Sampled.b)
 			{
 				Opacity = Sampled.r;

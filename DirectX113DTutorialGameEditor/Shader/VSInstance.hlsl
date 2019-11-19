@@ -16,7 +16,7 @@ VS_OUTPUT main(VS_INPUT input)
 	output.Position = mul(output.WorldPosition, ViewProjection);
 
 	output.Color = input.Color;
-	output.UV = input.UV;
+	output.TexCoord = input.TexCoord;
 
 	output.WorldNormal = normalize(mul(input.Normal, World));
 	output.WorldTangent = normalize(mul(input.Tangent, World));

@@ -20,7 +20,7 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 {
 	DS_OUTPUT Output;
 
-	Output.UV = Patch[0].UV * Domain.x + Patch[1].UV * Domain.y + Patch[2].UV * Domain.z;
+	Output.TexCoord = Patch[0].TexCoord * Domain.x + Patch[1].TexCoord * Domain.y + Patch[2].TexCoord * Domain.z;
 
 	Output.WorldNormal = Patch[0].WorldNormal * Domain.x + Patch[1].WorldNormal * Domain.y + Patch[2].WorldNormal * Domain.z;
 	Output.WorldNormal = normalize(Output.WorldNormal);
@@ -39,7 +39,7 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 
 	if (UseDisplacement)
 	{
-		float Displacement = DisplacementTexture.SampleLevel(CurrentSampler, Output.UV.xy, 0).r;
+		float Displacement = DisplacementTexture.SampleLevel(CurrentSampler, Output.TexCoord.xy, 0).r;
 		Bezier = Bezier + Output.WorldNormal * (Displacement * DisplacementFactor);
 	}
 

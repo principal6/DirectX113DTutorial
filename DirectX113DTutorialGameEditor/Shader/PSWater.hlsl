@@ -9,6 +9,7 @@ Texture2D OpacityTexture : register(t2);
 Texture2D SpecularIntensityTexture : register(t3);
 Texture2D RoughnessTexture : register(t4);
 Texture2D MetalnessTexture : register(t5);
+Texture2D AmbientOcclusionTexture : register(t6);
 // Displacement texture slot
 
 cbuffer cbTime : register(b0)
@@ -29,14 +30,14 @@ cbuffer cbLight : register(b1)
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	float2 AnimatedUV = Input.UV.xy - float2(0, Time); // UV animation
+	float2 AnimatedTexCoord = Input.TexCoord.xy - float2(0, Time); // TexCoord animation
 	
-	float4 ResultNormal = normalize((NormalTexture.SampleLevel(CurrentSampler, AnimatedUV, 0) * 2.0f) - 1.0f);
+	float4 ResultNormal = normalize((NormalTexture.SampleLevel(CurrentSampler, AnimatedTexCoord, 0) * 2.0f) - 1.0f);
 	float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
 	ResultNormal = normalize(float4(mul(ResultNormal.xyz, TextureSpace), 0.0f));
 
 	//float4 DiffuseColor = Input.Color;
-	float4 DiffuseColor = DiffuseTexture.SampleLevel(CurrentSampler, AnimatedUV, 0);
+	float4 DiffuseColor = DiffuseTexture.SampleLevel(CurrentSampler, AnimatedTexCoord, 0);
 
 	// # Here we make sure that input RGB values are in linear-space!
 	// # Convert gamma-space RGB to linear-space RGB (sRGB)

@@ -166,6 +166,7 @@ void CGame::InitializeEditorAssets()
 		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\cobblestone_large_diffuse.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\cobblestone_large_roughness.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::AmbientOcclusionTexture, "Asset\\cobblestone_large_occlusion.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\cobblestone_large_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
@@ -178,6 +179,7 @@ void CGame::InitializeEditorAssets()
 		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\burned_ground_specular.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\burned_ground_roughness.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::MetalnessTexture, "Asset\\burned_ground_specular.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::AmbientOcclusionTexture, "Asset\\burned_ground_occlusion.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
@@ -190,6 +192,7 @@ void CGame::InitializeEditorAssets()
 		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\brown_mud_dry_specular.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\brown_mud_dry_roughness.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::MetalnessTexture, "Asset\\brown_mud_dry_specular.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::AmbientOcclusionTexture, "Asset\\brown_mud_dry_occlusion.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
@@ -247,8 +250,8 @@ void CGame::CreateViews()
 		Texture2DDesc.ArraySize = 1;
 		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 		Texture2DDesc.CPUAccessFlags = 0;
-		//Texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // LDR
-		Texture2DDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT; // HDR
+		Texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // LDR
+		//Texture2DDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT; // HDR
 		Texture2DDesc.Height = static_cast<UINT>(m_WindowSize.y);
 		Texture2DDesc.MipLevels = 1;
 		Texture2DDesc.SampleDesc.Count = 1;
@@ -517,6 +520,7 @@ void CGame::CreateBaseShaders()
 
 	m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSTerrain->Create(EShaderType::PixelShader, L"Shader\\PSTerrain.hlsl", "main");
+	m_PSTerrain->AddConstantBuffer(&m_CBPSFlagsData, sizeof(SCBPSFlagsData));
 	m_PSTerrain->AddConstantBuffer(&m_CBTerrainMaskingSpaceData, sizeof(SCBTerrainMaskingSpaceData));
 	m_PSTerrain->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
 	m_PSTerrain->AddConstantBuffer(&m_CBTerrainSelectionData, sizeof(CTerrain::SCBTerrainSelectionData));
@@ -550,6 +554,9 @@ void CGame::CreateBaseShaders()
 	m_PSEdgeDetector = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSEdgeDetector->Create(EShaderType::PixelShader, L"Shader\\PSEdgeDetector.hlsl", "main");
 	m_PSEdgeDetector->AddConstantBuffer(&m_CBScreenData, sizeof(SCBScreenData));
+
+	m_PSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSSky->Create(EShaderType::PixelShader, L"Shader\\PSSky.hlsl", "main");
 
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
@@ -1266,6 +1273,7 @@ void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
 	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::SpecularIntensityTexture) ? 0x08 : 0;
 	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::RoughnessTexture) ? 0x10 : 0;
 	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::MetalnessTexture) ? 0x20 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::AmbientOcclusionTexture) ? 0x40 : 0;
 	// Displacement texture is usually not used in PS
 	m_CBMaterialData.FlagsHasTexture = FlagsHasTexture;
 
@@ -1276,13 +1284,14 @@ void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
 	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::SpecularIntensityTexture) ? 0x08 : 0;
 	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::RoughnessTexture) ? 0x10 : 0;
 	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::MetalnessTexture) ? 0x20 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::AmbientOcclusionTexture) ? 0x40 : 0;
 	// Displacement texture is usually not used in PS
 	m_CBMaterialData.FlagsIsTextureSRGB = FlagsIsTextureSRGB;
 
 	m_PSBase->UpdateConstantBuffer(2);
 	m_PSFoliage->UpdateConstantBuffer(2);
 	m_PSCamera->UpdateConstantBuffer(0);
-	m_PSTerrain->UpdateConstantBuffer(4);
+	m_PSTerrain->UpdateConstantBuffer(5);
 }
 
 void CGame::UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix)
@@ -1393,11 +1402,26 @@ void CGame::CreateStaticSky(float ScalingFactor)
 {
 	m_SkyScalingFactor = ScalingFactor;
 
+	CMaterialData Material{};
+	
+	m_EnvironmentTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
+	// @important: use already mipmapped cubemap texture
+	m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\noon_grass_environment.dds");
+	//m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\autumn_forest_environment.dds");
+	m_EnvironmentTexture->SetSlot(KEnvironmentTextureSlot);
+
+	m_IrradianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
+	// @important: use already mipmapped cubemap texture
+	m_IrradianceTexture->CreateCubeMapFromFile("Asset\\noon_grass_irradiance.dds");
+	//m_IrradianceTexture->CreateCubeMapFromFile("Asset\\autumn_forest_irradiance.dds");
+	m_IrradianceTexture->SetSlot(KIrradianceTextureSlot);
+
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
+	//m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
+	m_Object3DSkySphere->Create(GenerateCubemapSphere(KSkySphereSegmentCount));
 	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
 	m_Object3DSkySphere->ComponentRender.PtrVS = m_VSSky.get();
-	m_Object3DSkySphere->ComponentRender.PtrPS = m_PSVertexColor.get();
+	m_Object3DSkySphere->ComponentRender.PtrPS = m_PSSky.get();
 	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
 	m_Object3DSkySphere->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
 
@@ -1713,6 +1737,12 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSScreenQuad:
 		Result = m_PSScreenQuad.get();
+		break;
+	case EBaseShader::PSEdgeDetector:
+		Result = m_PSEdgeDetector.get();
+		break;
+	case EBaseShader::PSSky:
+		Result = m_PSSky.get();
 		break;
 	case EBaseShader::PSBase2D:
 		Result = m_PSBase2D.get();
@@ -2740,6 +2770,9 @@ void CGame::BeginRendering(const FLOAT* ClearColor, bool bUseDeferredRendering)
 	XMVECTOR FocusPosition{ m_PtrCurrentCamera->GetFocusPosition() };
 	XMVECTOR UpDirection{ m_PtrCurrentCamera->GetUpDirection() };
 	m_MatrixView = XMMatrixLookAtLH(EyePosition, FocusPosition, UpDirection);
+
+	if (m_EnvironmentTexture) m_EnvironmentTexture->Use();
+	if (m_IrradianceTexture) m_IrradianceTexture->Use();
 }
 
 void CGame::Update()
@@ -2881,6 +2914,7 @@ void CGame::Update()
 		if (m_CapturedMouseState.x != PrevMouseX || m_CapturedMouseState.y != PrevMouseY)
 		{
 			if (m_CapturedMouseState.middleButton)
+			//if (m_CapturedMouseState.rightButton)
 			{
 				m_PtrCurrentCamera->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, m_DeltaTimeF);
 			}
@@ -2918,6 +2952,7 @@ void CGame::Draw()
 
 	m_CBLightData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
 
+	m_CBPSFlagsData.EnvironmentTextureMipLevels = (m_EnvironmentTexture) ? m_EnvironmentTexture->GetMipLevels() : 0;
 	m_CBPSFlagsData.bUsePhysicallyBasedRendering = EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UsePhysicallyBasedRendering);
 
 	if (m_eMode == EMode::Edit)
@@ -3030,7 +3065,7 @@ void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
 	PS->UpdateAllConstantBuffers();
 }
 
-void CGame::DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstances)
+void CGame::DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstances, bool bIgnoreOwnTexture)
 {
 	if (!PtrObject3D) return;
 
@@ -3054,7 +3089,7 @@ void CGame::DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstanc
 		SetUniversalRSState();
 	}
 
-	PtrObject3D->Draw(false, bIgnoreInstances);
+	PtrObject3D->Draw(bIgnoreOwnTexture, bIgnoreInstances);
 
 	if (PtrObject3D->ShouldTessellate())
 	{
@@ -3249,12 +3284,15 @@ void CGame::DrawSky(float DeltaTime)
 	}
 	else
 	{
+		if (m_EnvironmentTexture) m_EnvironmentTexture->Use();
+		if (m_IrradianceTexture) m_IrradianceTexture->Use();
+
 		// SkySphere
 		{
 			m_Object3DSkySphere->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition();
 
 			UpdateObject3D(m_Object3DSkySphere.get());
-			DrawObject3D(m_Object3DSkySphere.get());
+			DrawObject3D(m_Object3DSkySphere.get(), true, true);
 		}
 	}
 }
@@ -3882,6 +3920,11 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 		
 		if (ImGui::Button(u8"결정") || m_CapturedKeyboardState.Enter)
 		{
+			if (iSelectedOption == 0 && strlen(NewObejctName) == 0)
+			{
+				strcpy_s(NewObejctName, ("primitive" + to_string(m_PrimitiveCreationCounter)).c_str());
+			}
+
 			if (iSelectedOption == 1 && ModelFileNameWithPath[0] == 0)
 			{
 				MB_WARN("모델을 불러오세요.", "오류");
@@ -3954,6 +3997,8 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 						
 						WidthScalar3D = 1.0f;
 						HeightScalar3D = 1.0f;
+
+						++m_PrimitiveCreationCounter;
 					}
 				}
 				else if (iSelectedOption == 1)
@@ -4026,8 +4071,9 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 				{
 					m_EditorGUIBools.bShowPopupObjectAdder = false;
 					memset(NewObejctName, 0, KAssetNameMaxLength);
+
+					ImGui::CloseCurrentPopup();
 				}
-				ImGui::CloseCurrentPopup();
 			}
 		}
 
@@ -5081,6 +5127,23 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					ImGui::PopItemWidth();
 				}
 
+				if (ImGui::BeginTabItem(u8"IBL"))
+				{
+					if (m_EnvironmentTexture)
+					{
+						ImTextureID TextureID{ m_EnvironmentTexture->GetShaderResourceViewPtr() };
+
+						//ImGui::Image(TextureID, ImVec2(512, 512));
+
+						if (ImGui::Button(u8"Irradiance map 생성하기"))
+						{
+
+						}
+					}
+
+					ImGui::EndTabItem();
+				}
+
 				// 기타 탭
 				if (ImGui::BeginTabItem(u8"기타"))
 				{
@@ -5469,9 +5532,21 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 				Result = true;
 			}
 			ImGui::PopID();
+
+			ImGui::PushID(6);
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Ambient Occlusion");
+			ImGui::SameLine(ItemsOffsetX);
+			if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::AmbientOcclusionTexture) : nullptr, KTextureSmallViewSize))
+			{
+				eSeletedTextureType = STextureData::EType::AmbientOcclusionTexture;
+				m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
+				Result = true;
+			}
+			ImGui::PopID();
 		}
 
-		ImGui::PushID(6);
+		ImGui::PushID(7);
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text(u8"Displacement");
 		ImGui::SameLine(ItemsOffsetX);

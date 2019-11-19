@@ -23,7 +23,7 @@ struct alignas(4) SPixel128Float
 	float A{};
 };
 
-static constexpr int KMaxTextureCountPerMaterial{ 7 };
+static constexpr int KMaxTextureCountPerMaterial{ 8 };
 
 struct STextureData
 {
@@ -39,7 +39,9 @@ struct STextureData
 		RoughnessTexture, // #4
 		MetalnessTexture, // #5
 
-		DisplacementTexture // #6
+		AmbientOcclusionTexture, // #6
+
+		DisplacementTexture // #7
 	};
 
 	bool					bHasTexture{ false };
@@ -146,7 +148,10 @@ public:
 	void CreateTextureFromFile(const std::string& FileName, bool bShouldGenerateMipMap);
 	void CreateTextureFromMemory(const std::vector<uint8_t>& RawData, bool bShouldGenerateMipMap);
 	void CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize);
-	void CreateCubeMapFromFile(const std::string& FileName, bool bShouldGenerateMipMap);
+	
+	// No mipmap auto generation.
+	void CreateCubeMapFromFile(const std::string& FileName);
+
 	void ReleaseResources();
 
 	void SaveToDDSFile(const std::string& FileName);
@@ -169,6 +174,7 @@ public:
 	const XMFLOAT2& GetTextureSize() const { return m_TextureSize; }
 	ID3D11Texture2D* GetTexture2DPtr() const { return (m_Texture2D) ? m_Texture2D.Get() : nullptr; }
 	ID3D11ShaderResourceView* GetShaderResourceViewPtr() { return (m_ShaderResourceView) ? m_ShaderResourceView.Get() : nullptr; }
+	uint32_t GetMipLevels() const { return m_Texture2DDesc.MipLevels; }
 
 private:
 	ID3D11Device* const					m_PtrDevice{};
@@ -216,6 +222,7 @@ private:
 private:
 	CTexture					m_Textures[KMaxTextureCountPerMaterial]
 	{
+		{ m_PtrDevice, m_PtrDeviceContext },
 		{ m_PtrDevice, m_PtrDeviceContext },
 		{ m_PtrDevice, m_PtrDeviceContext },
 		{ m_PtrDevice, m_PtrDeviceContext },
