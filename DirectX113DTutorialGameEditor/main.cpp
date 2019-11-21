@@ -2,7 +2,6 @@
 
 // @TODO
 // complete IBL implementation
-// separate CConstantBuffer
 // pre-cal vp, wvp matrices
 // save models with PBR material + save editor camera state into the scene
 
