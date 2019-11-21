@@ -1,8 +1,9 @@
 #include "Core/Game.h"
 
 // @TODO
-// Irradiance map
-// Ambient occlusion map
+// complete IBL implementation
+// separate CConstantBuffer
+// pre-cal vp, wvp matrices
 
 IMGUI_IMPL_API LRESULT  ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_ LPARAM lParam);
@@ -60,7 +61,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawBoundingSphere);
 			}
 
-			Game.BeginRendering(Colors::CornflowerBlue);
+			Game.BeginRendering(Colors::CornflowerBlue, false);
 
 			Game.Update();
 			Game.Draw();

@@ -1286,6 +1286,9 @@ void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
 	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::MetalnessTexture) ? 0x20 : 0;
 	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::AmbientOcclusionTexture) ? 0x40 : 0;
 	// Displacement texture is usually not used in PS
+	if (m_EnvironmentTexture) FlagsIsTextureSRGB += m_EnvironmentTexture->IssRGB() ? 0x4000 : 0;
+	if (m_IrradianceTexture) FlagsIsTextureSRGB += m_IrradianceTexture->IssRGB() ? 0x8000 : 0;
+
 	m_CBMaterialData.FlagsIsTextureSRGB = FlagsIsTextureSRGB;
 
 	m_PSBase->UpdateConstantBuffer(2);
@@ -1406,14 +1409,16 @@ void CGame::CreateStaticSky(float ScalingFactor)
 	
 	m_EnvironmentTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
 	// @important: use already mipmapped cubemap texture
-	m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\noon_grass_environment.dds");
-	//m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\autumn_forest_environment.dds");
+	//m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\noon_grass_environment.dds");
+	m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\autumn_forest_environment.dds");
+	//m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\uffizi_environment.dds");
 	m_EnvironmentTexture->SetSlot(KEnvironmentTextureSlot);
 
 	m_IrradianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
 	// @important: use already mipmapped cubemap texture
-	m_IrradianceTexture->CreateCubeMapFromFile("Asset\\noon_grass_irradiance.dds");
-	//m_IrradianceTexture->CreateCubeMapFromFile("Asset\\autumn_forest_irradiance.dds");
+	//m_IrradianceTexture->CreateCubeMapFromFile("Asset\\noon_grass_irradiance.dds");
+	m_IrradianceTexture->CreateCubeMapFromFile("Asset\\autumn_forest_irradiance.dds");
+	//m_IrradianceTexture->CreateCubeMapFromFile("Asset\\uffizi_irradiance.dds");
 	m_IrradianceTexture->SetSlot(KIrradianceTextureSlot);
 
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);

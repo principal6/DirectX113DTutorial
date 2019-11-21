@@ -9,6 +9,9 @@
 #define FLAG_ID_METALNESS 0x20
 #define FLAG_ID_AMBIENTOCCLUSION 0x40
 
+#define FLAG_ID_ENVIRONMENT 0x4000
+#define FLAG_ID_IRRADIANCE 0x8000
+
 SamplerState CurrentSampler : register(s0);
 
 Texture2D DiffuseTexture : register(t0);
@@ -190,23 +193,31 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			if (EnvironmentTextureMipLevels > 0)
 			{
 				// Indirect light direction
-				float3 Wi_indirect = normalize(-Wo + (2.0 * max(dot(N, Wo), 0) * N));
+				float3 Wi_indirect = normalize(-Wo + (2.0 * dot(N, Wo) * N)); // @important: do not clap dot product...!!!!
+				float NdotWi_indirect = max(dot(N, Wi_indirect), 0.001); // NaN
 
-				float NdotWi_indirect = dot(N, Wi_indirect);
-				float MdotWi_indirect = dot(M, Wi_indirect);
+				float3 M = normalize(Wi_indirect + Wo);
+				float MdotWi_indirect = max(dot(M, Wi_indirect), 0);
+
+				// Irradiance of the surface point
+				float3 Ei_indirect = IrradianceTexture.SampleBias(CurrentSampler, N, Roughness * EnvironmentTextureMipLevels).rgb;
+				if (!(FlagsIsTextureSRGB & FLAG_ID_IRRADIANCE)) Ei_indirect = pow(Ei_indirect, 2.2);
 
 				// Radiance of indirect light
-				float3 Ei_indirect = IrradianceTexture.Sample(CurrentSampler, Wi_indirect).rgb;
 				float3 Li_indirect = EnvironmentTexture.SampleBias(CurrentSampler, Wi_indirect, Roughness * EnvironmentTextureMipLevels).rgb;
+				if (!(FlagsIsTextureSRGB & FLAG_ID_ENVIRONMENT)) Li_indirect = pow(Li_indirect, 2.2);
 
+				// Calculate Fresnel reflectance of macrosurface
 				float3 F_Macrosurface_indirect = Fresnel_Schlick(F0, NdotWi_indirect);
-				float Ks_indirect = dot(KMonochromatic, F_Macrosurface_indirect); // Monochromatic intensity calculation
+				float Ks_indirect = Metalness;
 				float Kd_indirect = 1.0 - Ks_indirect;
 
-				float3 Lo_indirect_diff = Ei_indirect * Albedo;
-				float3 Lo_indirect_spec = Li_indirect * Albedo; // @important PSEUDO-specular
+				float3 SpecularBRDF_indirect = SpecularBRDF_GGX(F0, NdotWi_indirect, NdotWo, NdotM, MdotWi_indirect, Roughness);
 
-				OutputColor.xyz += (Kd_indirect * Lo_indirect_diff + Ks_indirect * Lo_indirect_spec) * AmbientOcclusion;
+				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo;
+				float3 Lo_indirect_spec = Ks_indirect * Li_indirect * Albedo; // @important: PSEUDO-specular
+
+				OutputColor.xyz += (Lo_indirect_diff + Lo_indirect_spec) * AmbientOcclusion;
 			}
 		}
 		else
