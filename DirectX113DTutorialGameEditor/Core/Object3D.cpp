@@ -240,7 +240,7 @@ void CObject3D::SaveBakedAnimationTexture(const string& FileName)
 {
 	if (!m_BakedAnimationTexture) return;
 
-	m_BakedAnimationTexture->SaveToDDSFile(FileName);
+	m_BakedAnimationTexture->SaveDDSFile(FileName);
 }
 
 void CObject3D::LoadBakedAnimationTexture(const string& FileName)

@@ -17,7 +17,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	{
 		for (int x = 0; x < 3; ++x)
 		{
-			float2 OffsetTexCoord = Input.TexCoord + float2(x - 1, y - 1) * InverseScreenSize;
+			float2 OffsetTexCoord = Input.TexCoord.xy + float2(x - 1, y - 1) * InverseScreenSize;
 			float4 Sampled = DeferredTexture.Sample(PointSampler, OffsetTexCoord).rgba;
 			
 			float SobelFactor = Sampled.a;

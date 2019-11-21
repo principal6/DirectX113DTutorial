@@ -64,6 +64,7 @@ public:
 		PSScreenQuad,
 		PSEdgeDetector,
 		PSSky,
+		PSIrradianceGenerator,
 
 		PSBase2D,
 		PSMasking2D,
@@ -119,7 +120,7 @@ public:
 		float		SpecularIntensity{ 0 };
 		XMFLOAT3	SpecularColor{};
 		float		Roughness{};
-		
+
 		float		Metalness{};
 		uint32_t	FlagsHasTexture{};
 		uint32_t	FlagsIsTextureSRGB{};
@@ -171,6 +172,12 @@ public:
 	{
 		XMFLOAT2	InverseScreenSize{};
 		float		Pads[2]{};
+	};
+
+	struct SCBCubemap
+	{
+		uint32_t	FaceID{};
+		float		Pads[3]{};
 	};
 
 	enum class EFlagsRendering
@@ -225,7 +232,7 @@ public:
 		EditObject,
 		EditTerrain
 	};
-	
+
 	struct SSkyData
 	{
 		struct SSkyObjectData
@@ -259,7 +266,7 @@ public:
 		SObject3DPickingCandiate(CObject3D* _PtrObject3D, XMVECTOR _T) : PtrObject3D{ _PtrObject3D }, T{ _T } {}
 		SObject3DPickingCandiate(CObject3D* _PtrObject3D, int _InstanceID, XMVECTOR _T) : PtrObject3D{ _PtrObject3D }, InstanceID{ _InstanceID }, T{ _T } {}
 
-		CObject3D*	PtrObject3D{};
+		CObject3D* PtrObject3D{};
 		int			InstanceID{ -1 };
 		XMVECTOR	T{};
 		bool		bHasFailedPickingTest{ false };
@@ -267,9 +274,16 @@ public:
 
 	struct SScreenQuadVertex
 	{
-		SScreenQuadVertex(const XMFLOAT4& _Position, const XMFLOAT2& _TexCoord) : Position{ _Position }, TexCoord{ _TexCoord } {}
+		SScreenQuadVertex(const XMFLOAT4& _Position, const XMFLOAT3& _TexCoord) : Position{ _Position }, TexCoord{ _TexCoord } {}
 		XMFLOAT4 Position;
-		XMFLOAT2 TexCoord;
+		XMFLOAT3 TexCoord;
+	};
+
+	struct SCubemapVertex
+	{
+		SCubemapVertex(const XMFLOAT4& _Position, const XMFLOAT3& _TexCoord) : Position{ _Position }, TexCoord{ _TexCoord } {}
+		XMFLOAT4 Position;
+		XMFLOAT3 TexCoord;
 	};
 
 public:
@@ -302,6 +316,7 @@ private:
 	void CreateBoundingSphere();
 	void Create3DGizmos();
 	void CreateScreenQuadVertexBuffer();
+	void CreateCubemapVertexBuffer();
 
 public:
 	void LoadScene(const std::string& FileName);
@@ -318,7 +333,7 @@ public:
 	E3DGizmoMode Get3DGizmoMode() const { return m_e3DGizmoMode; }
 	CommonStates* GetCommonStates() const { return m_CommonStates.get(); }
 
-// Shader-related settings
+	// Shader-related settings
 public:
 	void UpdateCBMaterialData(const CMaterialData& MaterialData);
 
@@ -364,8 +379,8 @@ public:
 	void SaveTerrain(const std::string& TerrainFileName);
 	CTerrain* GetTerrain() const { return m_Terrain.get(); }
 
-// Object pool
-public:	
+	// Object pool
+public:
 	bool InsertCamera(const std::string& Name);
 	void DeleteCamera(const std::string& Name);
 	void ClearCameras();
@@ -526,13 +541,16 @@ private:
 
 	// return true if any interaction is required
 	bool DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& MaterialData, CMaterialTextureSet* const TextureSet,
-		STextureData::EType& eSeletedTextureType ,float ItemsOffsetX);
+		STextureData::EType& eSeletedTextureType, float ItemsOffsetX);
 	void DrawEditorGUIPopupMaterialNameChanger(CMaterialData*& capturedMaterialData, bool bIsEditorMaterial);
 	void DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const capturedMaterialData, CMaterialTextureSet* const capturedMaterialTextureSet,
 		STextureData::EType eSelectedTextureType);
 	void DrawEditorGUIWindowSceneEditor();
 
-	void DrawCubemapRepresentation(CTexture* const CubemapTexture, ID3D11RenderTargetView* const RenderTargetView);
+	void DrawCubemapRepresentation(ID3D11ShaderResourceView* const ShaderResourceView, ID3D11RenderTargetView* const RenderTargetView);
+
+private:
+	void GenerateIrradianceMap();
 
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
@@ -625,6 +643,7 @@ private:
 	std::unique_ptr<CShader>	m_PSScreenQuad{};
 	std::unique_ptr<CShader>	m_PSEdgeDetector{};
 	std::unique_ptr<CShader>	m_PSSky{};
+	std::unique_ptr<CShader>	m_PSIrradianceGenerator{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
@@ -653,6 +672,7 @@ private:
 	std::unique_ptr<CConstantBuffer> m_CBEditorTime{};
 	std::unique_ptr<CConstantBuffer> m_CBCameraSelection{};
 	std::unique_ptr<CConstantBuffer> m_CBScreen{};
+	std::unique_ptr<CConstantBuffer> m_CBCubemap{};
 
 	SCBSpaceWVPData				m_CBSpaceWVPData{};
 	SCBSpaceVPData				m_CBSpaceVPData{};
@@ -678,6 +698,7 @@ private:
 	SCBEditorTimeData					m_CBEditorTimeData{};
 	SCBCameraSelectionData				m_CBCameraSelectionData{};
 	SCBScreenData						m_CBScreenData{};
+	SCBCubemap							m_CBCubemapData{};
 
 private:
 	std::vector<std::unique_ptr<CShader>>				m_vShaders{};
@@ -686,7 +707,7 @@ private:
 	std::vector<std::unique_ptr<CObject2D>>				m_vObject2Ds{};
 	std::vector<CMaterialData>							m_vMaterialData{};
 	std::vector<std::unique_ptr<CMaterialTextureSet>>	m_vMaterialTextureSets{};
-	
+
 	std::unique_ptr<CObject3DLine>				m_Object3DLinePickingRay{};
 	std::unique_ptr<CObject3D>					m_Object3DPickedTriangle{};
 
@@ -702,8 +723,6 @@ private:
 	std::unique_ptr<CObject3D>				m_Object3DSun{};
 	std::unique_ptr<CObject3D>				m_Object3DMoon{};
 	std::unique_ptr<CObject3D>				m_Object3DCloud{};
-	std::unique_ptr<CTexture>				m_EnvironmentTexture{};
-	std::unique_ptr<CTexture>				m_IrradianceTexture{};
 
 	std::map<std::string, size_t>	m_mapMaterialNameToIndex{};
 	std::map<std::string, size_t>	m_mapCameraNameToIndex{};
@@ -751,8 +770,8 @@ private:
 
 	XMMATRIX								m_MatrixView{};
 	std::vector<std::unique_ptr<CCamera>>	m_vCameras{};
-	CCamera*								m_PtrCurrentCamera{};
-	CCamera*								m_PtrSelectedCamera{};
+	CCamera* m_PtrCurrentCamera{};
+	CCamera* m_PtrSelectedCamera{};
 	float									m_CameraMovementFactor{ 10.0f };
 	std::unique_ptr<CObject3D>				m_Object3D_CameraRepresentation{};
 
@@ -760,9 +779,9 @@ private:
 	XMVECTOR	m_PickingRayWorldSpaceOrigin{};
 	XMVECTOR	m_PickingRayWorldSpaceDirection{};
 	std::vector<SObject3DPickingCandiate>	m_vObject3DPickingCandidates{};
-	CObject3D*	m_PtrPickedObject3D{};
-	CObject3D*	m_PtrSelectedObject3D{};
-	CObject2D*	m_PtrSelectedObject2D{};
+	CObject3D* m_PtrPickedObject3D{};
+	CObject3D* m_PtrSelectedObject3D{};
+	CObject2D* m_PtrSelectedObject2D{};
 	int			m_PickedInstanceID{ -1 };
 	int			m_SelectedInstanceID{ -1 };
 	XMVECTOR	m_PickedTriangleV0{};
@@ -775,7 +794,7 @@ private:
 	std::unique_ptr<CTerrain>	m_Terrain{};
 
 private:
-	ImFont*						m_EditorGUIFont{};
+	ImFont* m_EditorGUIFont{};
 	SEditorGUIBools				m_EditorGUIBools{};
 	std::unique_ptr<CObject2D>	m_CubemapRepresentation{};
 
@@ -795,16 +814,21 @@ private:
 private:
 	std::vector<SScreenQuadVertex>		m_vScreenQuadVertices
 	{
-		{ XMFLOAT4(-1, +1, 0, 1), XMFLOAT2(0, 0) },
-		{ XMFLOAT4(+1, +1, 0, 1), XMFLOAT2(1, 0) },
-		{ XMFLOAT4(-1, -1, 0, 1), XMFLOAT2(0, 1) },
-		{ XMFLOAT4(+1, +1, 0, 1), XMFLOAT2(1, 0) },
-		{ XMFLOAT4(+1, -1, 0, 1), XMFLOAT2(1, 1) },
-		{ XMFLOAT4(-1, -1, 0, 1), XMFLOAT2(0, 1) },
+		{ XMFLOAT4(-1, +1, 0, 1), XMFLOAT3(0, 0, 0) },
+		{ XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(1, 0, 0) },
+		{ XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(0, 1, 0) },
+		{ XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(1, 0, 0) },
+		{ XMFLOAT4(+1, -1, 0, 1), XMFLOAT3(1, 1, 0) },
+		{ XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(0, 1, 0) },
 	};
 	ComPtr<ID3D11Buffer>				m_ScreenQuadVertexBuffer{};
 	UINT								m_ScreenQuadVertexBufferStride{ sizeof(SScreenQuadVertex) };
 	UINT								m_ScreenQuadVertexBufferOffset{};
+
+	std::vector<SCubemapVertex>			m_vCubemapVertices{};
+	ComPtr<ID3D11Buffer>				m_CubemapVertexBuffer{};
+	UINT								m_CubemapVertexBufferStride{ sizeof(SCubemapVertex) };
+	UINT								m_CubemapVertexBufferOffset{};
 
 private:
 	ComPtr<IDXGISwapChain>				m_SwapChain{};
@@ -817,6 +841,9 @@ private:
 	ComPtr<ID3D11ShaderResourceView>	m_ScreenQuadSRV{};
 	ComPtr<ID3D11Texture2D>				m_ScreenQuadTexture{};
 
+	std::unique_ptr<CTexture>			m_EnvironmentTexture{};
+	std::unique_ptr<CTexture>			m_IrradianceTexture{};
+
 	ComPtr<ID3D11RenderTargetView>		m_Environment2DRTV{};
 	ComPtr<ID3D11ShaderResourceView>	m_Environment2DSRV{};
 	ComPtr<ID3D11Texture2D>				m_Environment2DTexture{};
@@ -824,6 +851,11 @@ private:
 	ComPtr<ID3D11RenderTargetView>		m_Irradiance2DRTV{};
 	ComPtr<ID3D11ShaderResourceView>	m_Irradiance2DSRV{};
 	ComPtr<ID3D11Texture2D>				m_Irradiance2DTexture{};
+
+	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedIrradianceMapRTV{};
+	ComPtr<ID3D11ShaderResourceView>			m_GeneratedIrradianceMapSRV{};
+	ComPtr<ID3D11Texture2D>						m_GeneratedIrradianceMapTexture{};
+	D3D11_TEXTURE2D_DESC						m_GeneratedIrradianceMapTextureDesc{};
 	
 	ComPtr<ID3D11DepthStencilView>		m_DepthStencilView{};
 	ComPtr<ID3D11Texture2D>				m_DepthStencilBuffer{};

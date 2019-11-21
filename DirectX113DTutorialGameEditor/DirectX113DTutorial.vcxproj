@@ -239,6 +239,7 @@
     <ClInclude Include="Core\SharedHeader.h" />
     <ClInclude Include="Core\Terrain.h" />
     <ClInclude Include="Core\Material.h" />
+    <ClInclude Include="DirectXTex\DirectXTex.h" />
     <ClInclude Include="DirectXTK\Audio.h" />
     <ClInclude Include="DirectXTK\CommonStates.h" />
     <ClInclude Include="DirectXTK\DDSTextureLoader.h" />
@@ -272,6 +273,7 @@
   </ItemGroup>
   <ItemGroup>
     <Library Include="Assimp\assimp-vc142-mtd.lib" />
+    <Library Include="DirectXTex\DirectXTex.lib" />
     <Library Include="DirectXTK\DirectXTK.lib" />
   </ItemGroup>
   <ItemGroup>
@@ -285,6 +287,7 @@
     <None Include="Assimp\SmoothingGroups.inl" />
     <None Include="Assimp\vector2.inl" />
     <None Include="Assimp\vector3.inl" />
+    <None Include="DirectXTex\DirectXTex.inl" />
     <None Include="DirectXTK\SimpleMath.inl" />
     <None Include="Shader\Base.hlsli" />
     <None Include="Shader\Base2D.hlsli" />
@@ -406,6 +409,14 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shader\PSIrradianceGenerator.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="Shader\PSScreenQuad.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>

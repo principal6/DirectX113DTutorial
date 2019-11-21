@@ -19,6 +19,9 @@
     <Filter Include="ImGui">
       <UniqueIdentifier>{255b61e1-9548-4bef-88e8-04c84308370a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DirectXTex">
+      <UniqueIdentifier>{63521b96-aa1f-438e-b769-134dd7ee43a0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\Shader.cpp">
@@ -447,6 +450,9 @@
     <ClInclude Include="Core\ConstantBuffer.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="DirectXTex\DirectXTex.h">
+      <Filter>DirectXTex</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Library Include="DirectXTK\DirectXTK.lib">
@@ -454,6 +460,9 @@
     </Library>
     <Library Include="Assimp\assimp-vc142-mtd.lib">
       <Filter>Assimp</Filter>
+    </Library>
+    <Library Include="DirectXTex\DirectXTex.lib">
+      <Filter>DirectXTex</Filter>
     </Library>
   </ItemGroup>
   <ItemGroup>
@@ -516,6 +525,9 @@
     </None>
     <None Include="Shader\Shared.hlsli">
       <Filter>Shader</Filter>
+    </None>
+    <None Include="DirectXTex\DirectXTex.inl">
+      <Filter>DirectXTex</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -628,6 +640,9 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\PSCubemap2D.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PSIrradianceGenerator.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

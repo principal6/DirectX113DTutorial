@@ -12,9 +12,11 @@
 #include <map>
 #include <unordered_map>
 #include "../DirectXTK/DirectXTK.h"
+#include "../DirectXTex/DirectXTex.h"
 
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "DirectXTK.lib")
+#pragma comment(lib, "DirectXTex.lib")
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;

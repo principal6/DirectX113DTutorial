@@ -117,13 +117,14 @@ void CTexture::CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize)
 	Texture2DDesc.Format = (DXGI_FORMAT)Format;
 	Texture2DDesc.Height = static_cast<UINT>(m_TextureSize.y);
 	Texture2DDesc.MipLevels = 1;
+	Texture2DDesc.MiscFlags = 0;
 	Texture2DDesc.SampleDesc.Count = 1;
 	Texture2DDesc.SampleDesc.Quality = 0;
 	Texture2DDesc.Usage = D3D11_USAGE_DYNAMIC;
 	Texture2DDesc.Width = static_cast<UINT>(m_TextureSize.x);
 
-	m_PtrDevice->CreateTexture2D(&Texture2DDesc, nullptr, m_Texture2D.GetAddressOf());
-	m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.GetAddressOf());
+	m_PtrDevice->CreateTexture2D(&Texture2DDesc, nullptr, m_Texture2D.ReleaseAndGetAddressOf());
+	m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.ReleaseAndGetAddressOf());
 
 	m_bIsCreated = true;
 }
@@ -141,9 +142,9 @@ void CTexture::CreateCubeMapFromFile(const std::string& FileName)
 	}
 	assert(Ext == ".DDS");
 	{
-		CreateDDSTextureFromFileEx(m_PtrDevice, m_PtrDeviceContext, wFileName.c_str(), 0i64, D3D11_USAGE_DEFAULT,
-			D3D11_BIND_SHADER_RESOURCE, 0, D3D11_RESOURCE_MISC_TEXTURECUBE, false,
-			(ID3D11Resource**)m_Texture2D.GetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf());
+		CreateDDSTextureFromFileEx(m_PtrDevice, wFileName.c_str(), 0i64, 
+			D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, D3D11_RESOURCE_MISC_TEXTURECUBE, 
+			false, (ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf());
 
 		assert(m_Texture2D);
 	}
@@ -153,6 +154,17 @@ void CTexture::CreateCubeMapFromFile(const std::string& FileName)
 	m_bIsCreated = true;
 }
 
+void CTexture::CopyTexture(ID3D11Texture2D* const Texture)
+{
+	D3D11_TEXTURE2D_DESC Texture2DDesc{};
+	Texture->GetDesc(&Texture2DDesc);
+
+	m_PtrDevice->CreateTexture2D(&Texture2DDesc, nullptr, m_Texture2D.ReleaseAndGetAddressOf());
+	m_PtrDeviceContext->CopyResource(m_Texture2D.Get(), Texture);
+
+	m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.ReleaseAndGetAddressOf());
+}
+
 void CTexture::ReleaseResources()
 {
 	m_ShaderResourceView.Reset();
@@ -160,12 +172,17 @@ void CTexture::ReleaseResources()
 	m_bIsCreated = false;
 }
 
-void CTexture::SaveToDDSFile(const string& FileName)
+void CTexture::SaveDDSFile(const string& FileName)
 {
 	wstring wFileName{ FileName.begin(), FileName.end() };
-	D3D11_TEXTURE2D_DESC Desc{};
-	m_Texture2D->GetDesc(&Desc);
-	assert(SUCCEEDED(SaveDDSTextureToFile(m_PtrDeviceContext, (ID3D11Resource*)m_Texture2D.Get(), wFileName.c_str())));
+
+	D3D11_TEXTURE2D_DESC Texture2DDesc{};
+	m_Texture2D->GetDesc(&Texture2DDesc);
+
+	DirectX::ScratchImage _ScratchImage{};
+	CaptureTexture(m_PtrDevice, m_PtrDeviceContext, m_Texture2D.Get(), _ScratchImage);
+
+	assert(SUCCEEDED(SaveToDDSFile(_ScratchImage.GetImages(), _ScratchImage.GetImageCount(), _ScratchImage.GetMetadata(), DDS_FLAGS_NONE, wFileName.c_str())));
 }
 
 void CTexture::UpdateTextureInfo()

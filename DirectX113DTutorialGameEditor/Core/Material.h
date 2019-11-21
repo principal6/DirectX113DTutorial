@@ -132,6 +132,7 @@ public:
 	{
 		Pixel8Int = DXGI_FORMAT_R8_UNORM,
 		Pixel32Int = DXGI_FORMAT_R8G8B8A8_UNORM,
+		Pixel64Float = DXGI_FORMAT_R16G16B16A16_FLOAT,
 		Pixel128Float = DXGI_FORMAT_R32G32B32A32_FLOAT
 	};
 
@@ -152,9 +153,11 @@ public:
 	// No mipmap auto generation.
 	void CreateCubeMapFromFile(const std::string& FileName);
 
+	void CopyTexture(ID3D11Texture2D* const Texture);
+
 	void ReleaseResources();
 
-	void SaveToDDSFile(const std::string& FileName);
+	void SaveDDSFile(const std::string& FileName);
 
 private:
 	void UpdateTextureInfo();
