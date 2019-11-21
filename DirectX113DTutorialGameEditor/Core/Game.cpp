@@ -139,6 +139,12 @@ void CGame::InitializeEditorAssets()
 {
 	CreateEditorCamera();
 
+	if (!m_CubemapRepresentation)
+	{
+		m_CubemapRepresentation = make_unique<CObject2D>("ENV", m_Device.Get(), m_DeviceContext.Get());
+		m_CubemapRepresentation->Create(Generate2DCubemapRepresentation(XMFLOAT2(KCubemapRepresentationSize, KCubemapRepresentationSize)));
+	}
+
 	if (!m_Object3D_CameraRepresentation)
 	{
 		m_Object3D_CameraRepresentation = make_unique<CObject3D>("CameraRepresentation", m_Device.Get(), m_DeviceContext.Get(), this);
@@ -273,6 +279,64 @@ void CGame::CreateViews()
 		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
 		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 		m_Device->CreateRenderTargetView(m_ScreenQuadTexture.Get(), &ScreenQuadRTVDesc, m_ScreenQuadRTV.ReleaseAndGetAddressOf());
+	}
+
+	// Create RTV and SRV for environment map representation
+	{
+		D3D11_TEXTURE2D_DESC Texture2DDesc{};
+		Texture2DDesc.ArraySize = 1;
+		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		Texture2DDesc.CPUAccessFlags = 0;
+		Texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		Texture2DDesc.Height = static_cast<UINT>(KCubemapRepresentationSize * 3);
+		Texture2DDesc.MipLevels = 1;
+		Texture2DDesc.SampleDesc.Count = 1;
+		Texture2DDesc.SampleDesc.Quality = 0;
+		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+		Texture2DDesc.Width = static_cast<UINT>(KCubemapRepresentationSize * 4);
+		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_Environment2DTexture.ReleaseAndGetAddressOf());
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC ScreenQuadSRVDesc{};
+		ScreenQuadSRVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		ScreenQuadSRVDesc.Texture2D.MipLevels = 1;
+		ScreenQuadSRVDesc.Texture2D.MostDetailedMip = 0;
+		ScreenQuadSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		m_Device->CreateShaderResourceView(m_Environment2DTexture.Get(), &ScreenQuadSRVDesc, m_Environment2DSRV.ReleaseAndGetAddressOf());
+
+		D3D11_RENDER_TARGET_VIEW_DESC ScreenQuadRTVDesc{};
+		ScreenQuadRTVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
+		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		m_Device->CreateRenderTargetView(m_Environment2DTexture.Get(), &ScreenQuadRTVDesc, m_Environment2DRTV.ReleaseAndGetAddressOf());
+	}
+
+	// Create RTV and SRV for irradiance map representation
+	{
+		D3D11_TEXTURE2D_DESC Texture2DDesc{};
+		Texture2DDesc.ArraySize = 1;
+		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		Texture2DDesc.CPUAccessFlags = 0;
+		Texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		Texture2DDesc.Height = static_cast<UINT>(KCubemapRepresentationSize * 3);
+		Texture2DDesc.MipLevels = 1;
+		Texture2DDesc.SampleDesc.Count = 1;
+		Texture2DDesc.SampleDesc.Quality = 0;
+		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+		Texture2DDesc.Width = static_cast<UINT>(KCubemapRepresentationSize * 4);
+		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_Irradiance2DTexture.ReleaseAndGetAddressOf());
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC ScreenQuadSRVDesc{};
+		ScreenQuadSRVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		ScreenQuadSRVDesc.Texture2D.MipLevels = 1;
+		ScreenQuadSRVDesc.Texture2D.MostDetailedMip = 0;
+		ScreenQuadSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		m_Device->CreateShaderResourceView(m_Irradiance2DTexture.Get(), &ScreenQuadSRVDesc, m_Irradiance2DSRV.ReleaseAndGetAddressOf());
+
+		D3D11_RENDER_TARGET_VIEW_DESC ScreenQuadRTVDesc{};
+		ScreenQuadRTVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
+		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		m_Device->CreateRenderTargetView(m_Irradiance2DTexture.Get(), &ScreenQuadRTVDesc, m_Irradiance2DRTV.ReleaseAndGetAddressOf());
 	}
 
 	// Create depth-stencil view
@@ -617,6 +681,9 @@ void CGame::CreateBaseShaders()
 
 	m_PSHeightMap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSHeightMap2D->Create(EShaderType::PixelShader, L"Shader\\PSHeightMap2D.hlsl", "main");
+	
+	m_PSCubemap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSCubemap2D->Create(EShaderType::PixelShader, L"Shader\\PSCubemap2D.hlsl", "main");
 }
 
 void CGame::CreateMiniAxes()
@@ -1212,6 +1279,7 @@ void CGame::SetProjectionMatrices(float FOV, float NearZ, float FarZ)
 
 	m_MatrixProjection = XMMatrixPerspectiveFovLH(FOV, m_WindowSize.x / m_WindowSize.y, m_NearZ, m_FarZ);
 	m_MatrixProjection2D = XMMatrixOrthographicLH(m_WindowSize.x, m_WindowSize.y, 0.0f, 1.0f);
+	m_MatrixProjection2DCubemap = XMMatrixOrthographicLH(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3, 0.0f, 1.0f);
 }
 
 void CGame::SetRenderingFlags(EFlagsRendering Flags)
@@ -1823,6 +1891,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSHeightMap2D:
 		Result = m_PSHeightMap2D.get();
+		break;
+	case EBaseShader::PSCubemap2D:
+		Result = m_PSCubemap2D.get();
 		break;
 	default:
 		assert(Result);
@@ -5215,18 +5286,53 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					ImGui::PopItemWidth();
 				}
 
+				// IBL 탭
 				if (ImGui::BeginTabItem(u8"IBL"))
 				{
+					static constexpr float KLabelsWidth{ 220 };
+					static constexpr float KItemsMaxWidth{ 240 };
+					float ItemsWidth{ WindowWidth - KLabelsWidth };
+					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
+					float ItemsOffsetX{ WindowWidth - ItemsWidth - 20 };
+
+					if (ImGui::Button(u8"Environment map 불러오기"))
+					{
+						static CFileDialog FileDialog{ GetWorkingDirectory() };
+						if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0", "Environment map 불러오기"))
+						{
+							m_EnvironmentTexture->CreateCubeMapFromFile(FileDialog.GetFileName());
+						}
+					}
+
 					if (m_EnvironmentTexture)
 					{
-						ImTextureID TextureID{ m_EnvironmentTexture->GetShaderResourceViewPtr() };
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"현재 Environment map: ");
 
-						//ImGui::Image(TextureID, ImVec2(512, 512));
+						ImGui::SameLine(ItemsOffsetX);
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(m_EnvironmentTexture->GetFileName().c_str());
 
-						if (ImGui::Button(u8"Irradiance map 생성하기"))
-						{
+						DrawCubemapRepresentation(m_EnvironmentTexture.get(), m_Environment2DRTV.Get());
+						ImGui::Image(m_Environment2DSRV.Get(), ImVec2(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3));
+					}
 
-						}
+					if (ImGui::Button(u8"Irradiance map 생성하기"))
+					{
+
+					}
+
+					if (m_IrradianceTexture)
+					{
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"현재 Irradiance map: ");
+
+						ImGui::SameLine(ItemsOffsetX);
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(m_IrradianceTexture->GetFileName().c_str());
+
+						DrawCubemapRepresentation(m_IrradianceTexture.get(), m_Irradiance2DRTV.Get());
+						ImGui::Image(m_Irradiance2DSRV.Get(), ImVec2(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3));
 					}
 
 					ImGui::EndTabItem();
@@ -5983,6 +6089,38 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 		}
 		ImGui::End();
 	}
+}
+
+void CGame::DrawCubemapRepresentation(CTexture* const CubemapTexture, ID3D11RenderTargetView* const RenderTargetView)
+{
+	ID3D11SamplerState* LinearClamp{ m_CommonStates->LinearClamp() };
+	m_DeviceContext->PSSetSamplers(0, 1, &LinearClamp);
+
+	D3D11_VIEWPORT Viewport{};
+	Viewport.Width = KCubemapRepresentationSize * 4;
+	Viewport.Height = KCubemapRepresentationSize * 3;
+	Viewport.TopLeftX = 0.0f;
+	Viewport.TopLeftY = 0.0f;
+	Viewport.MinDepth = 0.0f;
+	Viewport.MaxDepth = 1.0f;
+	m_DeviceContext->RSSetViewports(1, &Viewport);
+
+	m_DeviceContext->OMSetRenderTargets(1, &RenderTargetView, nullptr);
+	m_DeviceContext->ClearRenderTargetView(RenderTargetView, Colors::Transparent);
+
+	// @important
+	m_CBSpace2DData.World = XMMatrixTranspose(KMatrixIdentity);
+	m_CBSpace2DData.Projection = XMMatrixTranspose(KMatrixIdentity);
+	m_CBSpace2D->Update();
+
+	m_VSBase2D->Use();
+	m_PSCubemap2D->Use();
+
+	CubemapTexture->Use(0);
+	m_CubemapRepresentation->Draw(true);
+
+	m_DeviceContext->OMSetRenderTargets(1, (m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
+		m_DepthStencilView.Get());
 }
 
 void CGame::EndRendering()

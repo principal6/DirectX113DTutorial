@@ -41,6 +41,7 @@ static SMesh MergeStaticMeshes(const SMesh& MeshA, const SMesh& MeshB);
 static std::vector<SVertex3DLine> Generate3DLineCircleYZ(const XMVECTOR& Color = KColorWhite, uint32_t SegmentCount = 32);
 static std::vector<SVertex3DLine> Generate3DGrid(int GuidelineCount = 10, float Interval = 1.0f);
 static CObject2D::SModel2D Generate2DRectangle(const XMFLOAT2& RectangleSize);
+static CObject2D::SModel2D Generate2DCubemapRepresentation(const XMFLOAT2& RectangleSize);
 
 static bool operator==(const XMVECTOR& A, const XMVECTOR& B)
 {
@@ -1044,6 +1045,94 @@ static CObject2D::SModel2D Generate2DRectangle(const XMFLOAT2& RectangleSize)
 
 	Result.vTriangles.emplace_back(STriangle(0, 1, 2));
 	Result.vTriangles.emplace_back(STriangle(1, 3, 2));
+
+	return Result;
+}
+
+inline CObject2D::SModel2D Generate2DCubemapRepresentation(const XMFLOAT2& RectangleSize)
+{
+	const float KHalfWidth{ RectangleSize.x / 2 };
+	const float KHalfHeight{ RectangleSize.y / 2 };
+
+	CObject2D::SModel2D Result{};
+
+	// y +
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-0.5f, +1.00f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, +1.0f, -1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet( 0.0f, +1.00f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, +1.0f, -1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-0.5f, +0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, +1.0f, +1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet( 0.0f, +0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, +1.0f, +1.0f, 0)));
+
+	// x -
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-1.0f, +0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, +1.0f, -1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-0.5f, +0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, +1.0f, +1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-1.0f, -0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, -1.0f, -1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-0.5f, -0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, -1.0f, +1.0f, 0)));
+
+	// z +
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-0.5f, +0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, +1.0f, +1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet( 0.0f, +0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, +1.0f, +1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-0.5f, -0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, -1.0f, +1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet( 0.0f, -0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, -1.0f, +1.0f, 0)));
+
+	// x +
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet( 0.0f, +0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, +1.0f, +1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(+0.5f, +0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, +1.0f, -1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet( 0.0f, -0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, -1.0f, +1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(+0.5f, -0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, -1.0f, -1.0f, 0)));
+
+	// z -
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(+0.5f, +0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, +1.0f, -1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(+1.0f, +0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, +1.0f, -1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(+0.5f, -0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, -1.0f, -1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(+1.0f, -0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, -1.0f, -1.0f, 0)));
+
+	// y -
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-0.5f, -0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, -1.0f, +1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet( 0.0f, -0.33f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, -1.0f, +1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet(-0.5f, -1.00f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(-1.0f, -1.0f, -1.0f, 0)));
+	Result.vVertices.emplace_back(CObject2D::SVertex(XMVectorSet( 0.0f, -1.00f, 0, 1),
+		XMVectorSet(1, 1, 1, 1), XMVectorSet(+1.0f, -1.0f, -1.0f, 0)));
+
+	Result.vTriangles.emplace_back(STriangle(0, 1, 2));
+	Result.vTriangles.emplace_back(STriangle(1, 3, 2));
+
+	Result.vTriangles.emplace_back(STriangle(4, 5, 6));
+	Result.vTriangles.emplace_back(STriangle(5, 7, 6));
+
+	Result.vTriangles.emplace_back(STriangle(8, 9, 10));
+	Result.vTriangles.emplace_back(STriangle(9, 11, 10));
+
+	Result.vTriangles.emplace_back(STriangle(12, 13, 14));
+	Result.vTriangles.emplace_back(STriangle(13, 15, 14));
+
+	Result.vTriangles.emplace_back(STriangle(16, 17, 18));
+	Result.vTriangles.emplace_back(STriangle(17, 19, 18));
+
+	Result.vTriangles.emplace_back(STriangle(20, 21, 22));
+	Result.vTriangles.emplace_back(STriangle(21, 23, 22));
 
 	return Result;
 }

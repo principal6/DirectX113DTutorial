@@ -5,7 +5,7 @@ Texture2D HeightMapTexture : register(t0);
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	float4 Height = HeightMapTexture.Sample(CurrentSampler, Input.TexCoord, 0);
+	float4 Height = HeightMapTexture.Sample(CurrentSampler, Input.TexCoord.xy, 0);
 
 	float4 OutputColor = Input.Color;
 	OutputColor.rgb = Height.r;

@@ -67,7 +67,8 @@ public:
 
 		PSBase2D,
 		PSMasking2D,
-		PSHeightMap2D
+		PSHeightMap2D,
+		PSCubemap2D
 	};
 
 	struct SCBSpaceWVPData
@@ -531,6 +532,8 @@ private:
 		STextureData::EType eSelectedTextureType);
 	void DrawEditorGUIWindowSceneEditor();
 
+	void DrawCubemapRepresentation(CTexture* const CubemapTexture, ID3D11RenderTargetView* const RenderTargetView);
+
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
 	static constexpr float KTranslationMaxLimit{ +1000.0f };
@@ -578,6 +581,7 @@ private:
 	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
 	static constexpr int KEnvironmentTextureSlot{ 50 };
 	static constexpr int KIrradianceTextureSlot{ 51 };
+	static constexpr float KCubemapRepresentationSize{ 75.0f };
 
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
@@ -625,6 +629,7 @@ private:
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
 	std::unique_ptr<CShader>	m_PSHeightMap2D{};
+	std::unique_ptr<CShader>	m_PSCubemap2D{};
 
 private:
 	std::unique_ptr<CConstantBuffer> m_CBSpaceWVP{};
@@ -740,6 +745,7 @@ private:
 private:
 	XMMATRIX		m_MatrixProjection{};
 	XMMATRIX		m_MatrixProjection2D{};
+	XMMATRIX		m_MatrixProjection2DCubemap{};
 	float			m_NearZ{};
 	float			m_FarZ{};
 
@@ -769,8 +775,9 @@ private:
 	std::unique_ptr<CTerrain>	m_Terrain{};
 
 private:
-	ImFont*			m_EditorGUIFont{};
-	SEditorGUIBools	m_EditorGUIBools{};
+	ImFont*						m_EditorGUIFont{};
+	SEditorGUIBools				m_EditorGUIBools{};
+	std::unique_ptr<CObject2D>	m_CubemapRepresentation{};
 
 private:
 	std::chrono::steady_clock	m_Clock{};
@@ -805,9 +812,18 @@ private:
 	ComPtr<ID3D11DeviceContext>			m_DeviceContext{};
 
 	ComPtr<ID3D11RenderTargetView>		m_DeviceRTV{};
+
 	ComPtr<ID3D11RenderTargetView>		m_ScreenQuadRTV{};
 	ComPtr<ID3D11ShaderResourceView>	m_ScreenQuadSRV{};
 	ComPtr<ID3D11Texture2D>				m_ScreenQuadTexture{};
+
+	ComPtr<ID3D11RenderTargetView>		m_Environment2DRTV{};
+	ComPtr<ID3D11ShaderResourceView>	m_Environment2DSRV{};
+	ComPtr<ID3D11Texture2D>				m_Environment2DTexture{};
+
+	ComPtr<ID3D11RenderTargetView>		m_Irradiance2DRTV{};
+	ComPtr<ID3D11ShaderResourceView>	m_Irradiance2DSRV{};
+	ComPtr<ID3D11Texture2D>				m_Irradiance2DTexture{};
 	
 	ComPtr<ID3D11DepthStencilView>		m_DepthStencilView{};
 	ComPtr<ID3D11Texture2D>				m_DepthStencilBuffer{};

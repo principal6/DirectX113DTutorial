@@ -6,16 +6,16 @@ cbuffer cbSpace : register(b0)
 	float4x4 Projection;
 }
 
-VS_OUTPUT main(VS_INPUT input)
+VS_OUTPUT main(VS_INPUT Input)
 {
-	VS_OUTPUT output;
+	VS_OUTPUT Output;
 
-	output.Position = mul(input.Position, World);
-	output.Position = mul(output.Position, Projection);
-	output.Position.w = 1.0f;
+	Output.Position = mul(Input.Position, World);
+	Output.Position = mul(Output.Position, Projection);
+	Output.Position.w = 1.0;
+	
+	Output.Color = Input.Color;
+	Output.TexCoord = Input.TexCoord;
 
-	output.Color = input.Color;
-	output.TexCoord = input.TexCoord;
-
-	return output;
+	return Output;
 }

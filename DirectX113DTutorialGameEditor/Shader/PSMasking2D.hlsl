@@ -5,7 +5,7 @@ Texture2D MaskingTexture : register(t0);
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	float4 Masking = MaskingTexture.Sample(CurrentSampler, Input.TexCoord, 0);
+	float4 Masking = MaskingTexture.Sample(CurrentSampler, Input.TexCoord.xy, 0);
 	
 	float4 OutputColor = Input.Color;
 	OutputColor.rgb = Masking.rgb;

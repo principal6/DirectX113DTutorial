@@ -155,9 +155,9 @@ void CObject2D::UpdateVertexBuffer()
 	}
 }
 
-void CObject2D::Draw() const
+void CObject2D::Draw(bool bIgnoreOwnTexture) const
 {
-	if (m_Texture) m_Texture->Use();
+	if (m_Texture && !bIgnoreOwnTexture) m_Texture->Use();
 
 	m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_VertexBuffer.GetAddressOf(), &m_VertexBufferStride, &m_VertexBufferOffset);
 	m_PtrDeviceContext->IASetIndexBuffer(m_IndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
