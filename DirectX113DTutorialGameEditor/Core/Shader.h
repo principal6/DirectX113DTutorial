@@ -5,34 +5,21 @@
 
 #pragma comment(lib, "d3dcompiler.lib")
 
+class CConstantBuffer;
+
 class CShader final
 {
-	class CConstantBuffer
+	struct SAttachedConstantBuffer
 	{
-	public:
-		CConstantBuffer(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
-			m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
+		SAttachedConstantBuffer() {}
+		SAttachedConstantBuffer(CConstantBuffer* const _PtrConstantBuffer, uint32_t _AttachedSlot) :
+			PtrConstantBuffer{ _PtrConstantBuffer }, AttachedSlot{ _AttachedSlot } 
 		{
-			assert(m_PtrDevice);
-			assert(m_PtrDeviceContext);
+			assert(PtrConstantBuffer);
 		}
-		~CConstantBuffer() {}
 
-	public:
-		void Create(EShaderType ShaderType, const void* const PtrData, size_t DataByteWidth);
-		void Update();
-		void Use(UINT Slot) const;
-
-	private:
-		ID3D11Device* const			m_PtrDevice{};
-		ID3D11DeviceContext* const	m_PtrDeviceContext{};
-
-	private:
-		ComPtr<ID3D11Buffer>		m_ConstantBuffer{};
-
-		EShaderType					m_eShaderType{};
-		size_t						m_DataByteWidth{};
-		const void*					m_PtrData{};
+		CConstantBuffer*	PtrConstantBuffer{};
+		uint32_t			AttachedSlot{};
 	};
 
 public:
@@ -47,29 +34,27 @@ public:
 	void Create(EShaderType Type, const std::wstring& FileName, const std::string& EntryPoint,
 		const D3D11_INPUT_ELEMENT_DESC* InputElementDescs = nullptr, UINT NumElements = 0);
 
-	void AddConstantBuffer(const void* const PtrData, size_t DataByteWidth);
-	void UpdateConstantBuffer(size_t ConstantBufferIndex);
-	void UpdateAllConstantBuffers();
+	void AttachConstantBuffer(CConstantBuffer* const ConstantBuffer, int32_t Slot = -1);
 
 	void Use();
 
 private:
-	ID3D11Device* const					m_PtrDevice{};
-	ID3D11DeviceContext* const			m_PtrDeviceContext{};
+	ID3D11Device* const						m_PtrDevice{};
+	ID3D11DeviceContext* const				m_PtrDeviceContext{};
 
 private:
-	ComPtr<ID3DBlob>					m_Blob{};
+	ComPtr<ID3DBlob>						m_Blob{};
 
-	ComPtr<ID3D11VertexShader>			m_VertexShader{};
-	ComPtr<ID3D11HullShader>			m_HullShader{};
-	ComPtr<ID3D11DomainShader>			m_DomainShader{};
-	ComPtr<ID3D11GeometryShader>		m_GeometryShader{};
-	ComPtr<ID3D11PixelShader>			m_PixelShader{};
+	ComPtr<ID3D11VertexShader>				m_VertexShader{};
+	ComPtr<ID3D11HullShader>				m_HullShader{};
+	ComPtr<ID3D11DomainShader>				m_DomainShader{};
+	ComPtr<ID3D11GeometryShader>			m_GeometryShader{};
+	ComPtr<ID3D11PixelShader>				m_PixelShader{};
 
-	ComPtr<ID3D11InputLayout>			m_InputLayout{};
+	ComPtr<ID3D11InputLayout>				m_InputLayout{};
 
-	EShaderType							m_ShaderType{};
+	EShaderType								m_ShaderType{};
 
 private:
-	std::vector<std::unique_ptr<CConstantBuffer>>	m_vConstantBuffers{};
+	std::vector<SAttachedConstantBuffer>	m_vAttachedConstantBuffers{};
 };

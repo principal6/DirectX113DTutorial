@@ -8,6 +8,7 @@
 #include "Math.h"
 #include "Camera.h"
 #include "Shader.h"
+#include "ConstantBuffer.h"
 #include "Material.h"
 #include "Object3D.h"
 #include "Object3DLine.h"
@@ -89,11 +90,6 @@ public:
 	struct SCBAnimationBonesData
 	{
 		XMMATRIX	BoneMatrices[KMaxBoneMatrixCount]{};
-	};
-
-	struct SCBCameraData
-	{
-		XMVECTOR	EyePosition{};
 	};
 
 	struct SCBPSFlagsData
@@ -297,6 +293,7 @@ private:
 	void CreateDepthStencilStates();
 	void CreateBlendStates();
 	void CreateInputDevices();
+	void CreateConstantBuffers();
 	void CreateBaseShaders();
 	void CreateMiniAxes();
 	void CreatePickingRay();
@@ -320,8 +317,11 @@ public:
 	E3DGizmoMode Get3DGizmoMode() const { return m_e3DGizmoMode; }
 	CommonStates* GetCommonStates() const { return m_CommonStates.get(); }
 
-	// Shader-related settings
+// Shader-related settings
 public:
+	void UpdateCBMaterialData(const CMaterialData& MaterialData);
+
+private:
 	void UpdateCBSpace(const XMMATRIX& World = KMatrixIdentity);
 	void UpdateCBAnimationBoneMatrices(const XMMATRIX* const BoneMatrices);
 	void UpdateCBAnimationData(const CObject3D::SCBAnimationData& Data);
@@ -331,8 +331,9 @@ public:
 	void UpdateCBTessFactorData(const CObject3D::SCBTessFactorData& Data);
 	void UpdateCBDisplacementData(const CObject3D::SCBDisplacementData& Data);
 
-	void UpdateCBMaterialData(const CMaterialData& MaterialData);
 	void UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix);
+
+	// This function also updates terrain's world matrix by calling UpdateCBSpace() from inside.
 	void UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection);
 
 public:
@@ -626,6 +627,28 @@ private:
 	std::unique_ptr<CShader>	m_PSHeightMap2D{};
 
 private:
+	std::unique_ptr<CConstantBuffer> m_CBSpaceWVP{};
+	std::unique_ptr<CConstantBuffer> m_CBSpaceVP{};
+	std::unique_ptr<CConstantBuffer> m_CBSpace2D{};
+	std::unique_ptr<CConstantBuffer> m_CBAnimationBones{};
+	std::unique_ptr<CConstantBuffer> m_CBAnimation{};
+	std::unique_ptr<CConstantBuffer> m_CBTerrain{};
+	std::unique_ptr<CConstantBuffer> m_CBWind{};
+	std::unique_ptr<CConstantBuffer> m_CBTessFactor{};
+	std::unique_ptr<CConstantBuffer> m_CBDisplacement{};
+	std::unique_ptr<CConstantBuffer> m_CBLight{};
+	std::unique_ptr<CConstantBuffer> m_CBMaterial{};
+	std::unique_ptr<CConstantBuffer> m_CBPSFlags{}; // ...
+	std::unique_ptr<CConstantBuffer> m_CBGizmoColorFactor{};
+	std::unique_ptr<CConstantBuffer> m_CBPS2DFlags{}; // ...
+	std::unique_ptr<CConstantBuffer> m_CBTerrainMaskingSpace{};
+	std::unique_ptr<CConstantBuffer> m_CBTerrainSelection{};
+	std::unique_ptr<CConstantBuffer> m_CBSkyTime{};
+	std::unique_ptr<CConstantBuffer> m_CBWaterTime{};
+	std::unique_ptr<CConstantBuffer> m_CBEditorTime{};
+	std::unique_ptr<CConstantBuffer> m_CBCameraSelection{};
+	std::unique_ptr<CConstantBuffer> m_CBScreen{};
+
 	SCBSpaceWVPData				m_CBSpaceWVPData{};
 	SCBSpaceVPData				m_CBSpaceVPData{};
 	SCBSpace2DData				m_CBSpace2DData{};
@@ -634,7 +657,6 @@ private:
 	CTerrain::SCBTerrainData	m_CBTerrainData{};
 	CTerrain::SCBWindData		m_CBWindData{};
 
-	SCBCameraData					m_CBCameraData{};
 	CObject3D::SCBTessFactorData	m_CBTessFactorData{};
 	CObject3D::SCBDisplacementData	m_CBDisplacementData{};
 
@@ -643,7 +665,7 @@ private:
 	SCBPSFlagsData					m_CBPSFlagsData{};
 	SCBGizmoColorFactorData			m_CBGizmoColorFactorData{};
 
-	SCBPS2DFlagsData					m_cbPS2DFlagsData{};
+	SCBPS2DFlagsData					m_CBPS2DFlagsData{};
 	SCBTerrainMaskingSpaceData			m_CBTerrainMaskingSpaceData{};
 	CTerrain::SCBTerrainSelectionData	m_CBTerrainSelectionData{};
 	SCBSkyTimeData						m_CBSkyTimeData{};

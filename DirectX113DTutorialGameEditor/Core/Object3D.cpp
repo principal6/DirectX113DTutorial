@@ -142,6 +142,16 @@ const string& CObject3D::GetAnimationName(int ID) const
 	return m_Model.vAnimations[ID].Name;
 }
 
+const CObject3D::SCBAnimationData& CObject3D::GetAnimationData() const
+{
+	return m_CBAnimationData;
+}
+
+const DirectX::XMMATRIX* CObject3D::GetAnimationBoneMatrices() const
+{
+	return m_AnimatedBoneMatrices;
+}
+
 bool CObject3D::HasBakedAnimationTexture() const
 {
 	return (m_BakedAnimationTexture) ? true : false;
@@ -772,14 +782,10 @@ void CObject3D::Animate(float DeltaTime)
 		m_CBAnimationData.bUseGPUSkinning = TRUE;
 		m_CBAnimationData.AnimationID = m_CurrentAnimationID;
 		m_CBAnimationData.AnimationTick = m_CurrentAnimationTick;
-
-		m_PtrGame->UpdateCBAnimationData(m_CBAnimationData);
 	}
 	else
 	{
 		CalculateAnimatedBoneMatrices(m_Model.vAnimations[m_CurrentAnimationID], m_CurrentAnimationTick, m_Model.vNodes[0], XMMatrixIdentity());
-
-		m_PtrGame->UpdateCBAnimationBoneMatrices(m_AnimatedBoneMatrices);
 	}
 }
 
@@ -793,7 +799,7 @@ void CObject3D::SetTessFactorData(const CObject3D::SCBTessFactorData& Data)
 	m_CBTessFactorData = Data;
 }
 
-CObject3D::SCBTessFactorData& CObject3D::GetTessFactorData()
+const CObject3D::SCBTessFactorData& CObject3D::GetTessFactorData() const
 {
 	return m_CBTessFactorData;
 }
@@ -803,7 +809,7 @@ void CObject3D::SetDisplacementData(const CObject3D::SCBDisplacementData& Data)
 	m_CBDisplacementData = Data;
 }
 
-CObject3D::SCBDisplacementData& CObject3D::GetDisplacementData()
+const CObject3D::SCBDisplacementData& CObject3D::GetDisplacementData() const
 {
 	return m_CBDisplacementData;
 }
@@ -901,10 +907,6 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentA
 void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 {
 	if (HasBakedAnimationTexture()) m_BakedAnimationTexture->Use();
-
-	// per model
-	m_PtrGame->UpdateCBTessFactorData(m_CBTessFactorData);
-	m_PtrGame->UpdateCBDisplacementData(m_CBDisplacementData);
 
 	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
 	{

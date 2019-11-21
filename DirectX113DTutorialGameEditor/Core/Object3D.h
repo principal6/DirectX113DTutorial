@@ -143,6 +143,8 @@ public:
 	int GetAnimationCount() const;
 	void SetAnimationName(int ID, const std::string& Name);
 	const std::string& GetAnimationName(int ID) const;
+	const SCBAnimationData& GetAnimationData() const;
+	const DirectX::XMMATRIX* GetAnimationBoneMatrices() const;
 	
 	bool HasBakedAnimationTexture() const;
 	bool CanBakeAnimationTexture() const;
@@ -182,10 +184,10 @@ public:
 	void ShouldTessellate(bool Value);
 
 	void SetTessFactorData(const CObject3D::SCBTessFactorData& Data);
-	CObject3D::SCBTessFactorData& GetTessFactorData();
+	const CObject3D::SCBTessFactorData& GetTessFactorData() const;
 
 	void SetDisplacementData(const CObject3D::SCBDisplacementData& Data);
-	CObject3D::SCBDisplacementData& GetDisplacementData();
+	const CObject3D::SCBDisplacementData& GetDisplacementData() const;
 
 public:
 	bool IsCreated() const { return m_bIsCreated; }

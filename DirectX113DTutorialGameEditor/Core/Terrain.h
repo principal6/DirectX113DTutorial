@@ -104,6 +104,7 @@ public:
 public:
 	void SetWindVelocity(const XMFLOAT3& Velocity);
 	void SetWindVelocity(const XMVECTOR& Velocity);
+	const SCBWindData& GetWindData() const;
 	const XMVECTOR& GetWindVelocity() const;
 	void SetWindRadius(float Radius);
 	float GetWindRadius() const;
@@ -158,8 +159,13 @@ public:
 	float GetWaterHeight() const;
 	void SetTerrainTessFactor(float Value);
 	float GetTerrainTessFactor() const;
+	const CObject3D::SCBTessFactorData& GetTerrainTessFactorData() const;
+	const CObject3D::SCBDisplacementData& GetTerrainDisplacementData() const;
 	void SetWaterTessFactor(float Value);
 	float GetWaterTessFactor() const;
+	const CObject3D::SCBTessFactorData& GetWaterTessFactorData() const;
+	const CObject3D::SCBDisplacementData& GetWaterDisplacementData() const;
+
 
 	XMFLOAT2 GetSize() const;
 	int GetMaterialCount() const;
@@ -175,17 +181,23 @@ public:
 	float GetTerrainHeightAt(float X, float Z);
 	float GetTerrainHeightAt(int iX, int iZ);
 
+	const SCBTerrainData& GetTerrainData() const;
+	const DirectX::XMMATRIX& GetMaskingSpaceData() const;
+	const SCBTerrainSelectionData& GetSelectionData();
+	const DirectX::XMMATRIX& GetWaterWorldMatrix() const;
+	const DirectX::XMMATRIX& GetWindRepresentationWorldMatrix() const;
+
 public:
 	void UpdateWind(float DeltaTime);
 
-	void Draw(bool bDrawNormals, bool bShouldTessellate);
+	void DrawTerrain(bool bDrawNormals);
+	void DrawWater();
+	void DrawFoliageCluster();
+	void DrawWindRepresentation();
+
 	void DrawHeightMapTexture();
 	void DrawMaskingTexture();
 	void DrawFoliagePlacingTexture();
-
-private:
-	void DrawWater();
-	void DrawFoliageCluster();
 
 public:
 	static constexpr int KMaterialMaxCount{ 5 }; // It includes 1 main texture + 4 layer textures

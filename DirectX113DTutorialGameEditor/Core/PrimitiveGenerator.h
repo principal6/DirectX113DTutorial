@@ -25,7 +25,7 @@ static SMesh GenerateSquareYZPlane(const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateTerrainBase(const XMFLOAT2& Size, int TexCoordSubdivisionFactor = 1, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateCircleXZPlane(uint32_t SideCount = 16, const XMVECTOR& Color = KColorWhite);
 static SMesh GeneratePyramid(const XMVECTOR& Color = KColorWhite);
-static SMesh GenerateCube(const XMVECTOR& Color = KColorWhite);
+static SMesh GenerateCube(const XMVECTOR& Color = KColorWhite, bool bAverageNormals = false);
 static SMesh GenerateCone(float RadiusFactor = 0.0f, float Radius = 1.0f, float Height = 1.0f, uint32_t SideCount = 16, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateCylinder(float Radius = 1.0f, float Height = 1.0f, uint32_t SideCount = 16, const XMVECTOR& Color = KColorWhite);
 static SMesh GenerateSphere(uint32_t SegmentCount, const XMVECTOR& ColorTop, const XMVECTOR& ColorBottom);
@@ -463,7 +463,7 @@ static SMesh GeneratePyramid(const XMVECTOR& Color)
 	return Mesh;
 }
 
-static SMesh GenerateCube(const XMVECTOR& Color)
+static SMesh GenerateCube(const XMVECTOR& Color, bool bAverageNormals)
 {
 	constexpr float KHalfLengthX{ 0.5f };
 	constexpr float KHalfLengthY{ 0.5f };
@@ -511,10 +511,10 @@ static SMesh GenerateCube(const XMVECTOR& Color)
 	Mesh.vTriangles = GenerateContinuousQuads(6);
 	
 	CalculateNormals(Mesh);
-	AverageNormals(Mesh);
+	if (bAverageNormals) AverageNormals(Mesh);
 
 	CalculateTangents(Mesh);
-	AverageTangents(Mesh);
+	if (bAverageNormals) AverageTangents(Mesh);
 
 	return Mesh;
 }

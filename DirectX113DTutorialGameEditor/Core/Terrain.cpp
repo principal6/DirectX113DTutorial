@@ -23,7 +23,6 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterialData& Material
 	m_CBTerrainData.TerrainSizeX = m_TerrainFileData.SizeX;
 	m_CBTerrainData.TerrainSizeZ = m_TerrainFileData.SizeZ;
 	m_CBTerrainData.TerrainHeightRange = m_TerrainFileData.HeightRange;
-	m_PtrGame->UpdateCBTerrainData(m_CBTerrainData);
 
 	vector<CMaterialData> vMaterialData{};
 	vMaterialData.emplace_back(MaterialData);
@@ -52,7 +51,6 @@ void CTerrain::Load(const string& FileName)
 	m_CBTerrainData.TerrainSizeX = m_TerrainFileData.SizeX;
 	m_CBTerrainData.TerrainSizeZ = m_TerrainFileData.SizeZ;
 	m_CBTerrainData.TerrainHeightRange = m_TerrainFileData.HeightRange;
-	m_PtrGame->UpdateCBTerrainData(m_CBTerrainData);
 
 	CreateTerrainObject3D(m_TerrainFileData.vTerrainMaterialData);
 
@@ -131,13 +129,16 @@ void CTerrain::SetWindVelocity(const XMFLOAT3& Velocity)
 {
 	XMVECTOR xmvVelocity{ XMLoadFloat3(&Velocity) };
 	m_CBWindData.Velocity = xmvVelocity;
-	m_PtrGame->UpdateCBWindData(m_CBWindData);
 }
 
 void CTerrain::SetWindVelocity(const XMVECTOR& Velocity)
 {
 	m_CBWindData.Velocity = Velocity;
-	m_PtrGame->UpdateCBWindData(m_CBWindData);
+}
+
+const CTerrain::SCBWindData& CTerrain::GetWindData() const
+{
+	return m_CBWindData;
 }
 
 const XMVECTOR& CTerrain::GetWindVelocity() const
@@ -215,7 +216,6 @@ void CTerrain::CreateMaskingTexture(bool bShouldClear)
 	XMMATRIX Translation{ XMMatrixTranslation(m_TerrainFileData.SizeX / 2.0f, 0, m_TerrainFileData.SizeZ / 2.0f) };
 	XMMATRIX Scaling{ XMMatrixScaling(1 / m_TerrainFileData.SizeX, 1.0f, 1 / m_TerrainFileData.SizeZ) };
 	m_MatrixMaskingSpace = Translation * Scaling;
-	m_PtrGame->UpdateCBTerrainMaskingSpace(m_MatrixMaskingSpace);
 }
 
 void CTerrain::CreateWater()
@@ -714,6 +714,16 @@ float CTerrain::GetTerrainTessFactor() const
 	return m_TerrainFileData.TerrainTessellationFactor;
 }
 
+const CObject3D::SCBTessFactorData& CTerrain::GetTerrainTessFactorData() const
+{
+	return m_Object3DTerrain->GetTessFactorData();
+}
+
+const CObject3D::SCBDisplacementData& CTerrain::GetTerrainDisplacementData() const
+{
+	return m_Object3DTerrain->GetDisplacementData();
+}
+
 void CTerrain::SetWaterTessFactor(float Value)
 {
 	m_TerrainFileData.WaterTessellationFactor = Value;
@@ -723,6 +733,16 @@ void CTerrain::SetWaterTessFactor(float Value)
 float CTerrain::GetWaterTessFactor() const
 {
 	return m_TerrainFileData.WaterTessellationFactor;
+}
+
+const CObject3D::SCBTessFactorData& CTerrain::GetWaterTessFactorData() const
+{
+	return m_Object3DWater->GetTessFactorData();
+}
+
+const CObject3D::SCBDisplacementData& CTerrain::GetWaterDisplacementData() const
+{
+	return m_Object3DWater->GetDisplacementData();
 }
 
 XMFLOAT2 CTerrain::GetSize() const
@@ -832,6 +852,34 @@ float CTerrain::GetTerrainHeightAt(int iX, int iZ)
 	return 0.0f;
 }
 
+const CTerrain::SCBTerrainData& CTerrain::GetTerrainData() const
+{
+	return m_CBTerrainData;
+}
+
+const DirectX::XMMATRIX& CTerrain::GetMaskingSpaceData() const
+{
+	return m_MatrixMaskingSpace;
+}
+
+const CTerrain::SCBTerrainSelectionData& CTerrain::GetSelectionData()
+{
+	m_CBTerrainSelectionData.TerrainWorld = m_Object3DTerrain->ComponentTransform.MatrixWorld;
+	m_CBTerrainSelectionData.InverseTerrainWorld = XMMatrixInverse(nullptr, m_CBTerrainSelectionData.TerrainWorld);
+
+	return m_CBTerrainSelectionData;
+}
+
+const DirectX::XMMATRIX& CTerrain::GetWaterWorldMatrix() const
+{
+	return m_Object3DWater->ComponentTransform.MatrixWorld;
+}
+
+const DirectX::XMMATRIX& CTerrain::GetWindRepresentationWorldMatrix() const
+{
+	return m_Object3DWindRepresentation->ComponentTransform.MatrixWorld;
+}
+
 void CTerrain::UpdateWind(float DeltaTime)
 {
 	XMVECTOR xmvPosition{ XMLoadFloat3(&m_CBWindData.Position) };
@@ -857,39 +905,17 @@ void CTerrain::UpdateWind(float DeltaTime)
 		m_CBWindData.Position.z = -HalfTerrainSizeZ - m_CBWindData.Radius;
 	}
 	m_CBWindData.Position.y = GetTerrainHeightAt(m_CBWindData.Position.x, m_CBWindData.Position.z);
-
-	m_PtrGame->UpdateCBWindData(m_CBWindData);
 }
 
-void CTerrain::Draw(bool bDrawNormals, bool bShouldTessellate)
+void CTerrain::DrawTerrain(bool bDrawNormals)
 {
 	if (!m_Object3DTerrain) return;
 
-	m_CBTerrainSelectionData.TerrainWorld = m_Object3DTerrain->ComponentTransform.MatrixWorld;
-	m_CBTerrainSelectionData.InverseTerrainWorld = XMMatrixInverse(nullptr, m_CBTerrainSelectionData.TerrainWorld);
-	m_PtrGame->UpdateCBTerrainSelection(m_CBTerrainSelectionData);
-	m_PtrGame->UpdateCBSpace(m_CBTerrainSelectionData.TerrainWorld);
-
 	CShader* const VS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::VSTerrain) };
 	CShader* const PS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::PSTerrain) };
-
+	
 	VS->Use();
-	VS->UpdateAllConstantBuffers();
-
-	if (bShouldTessellate)
-	{
-		CShader* const HS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::HSTerrain) };
-		CShader* const DS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::DSTerrain) };
-		
-		HS->UpdateAllConstantBuffers();
-		HS->Use();
-		
-		DS->UpdateAllConstantBuffers();
-		DS->Use();
-	}
-
 	PS->Use();
-	PS->UpdateAllConstantBuffers();
 
 	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
 	m_HeightMapTexture->Use();
@@ -897,9 +923,7 @@ void CTerrain::Draw(bool bDrawNormals, bool bShouldTessellate)
 
 	if (bDrawNormals)
 	{
-		m_PtrGame->UpdateCBSpace();
 		m_PtrGame->GetBaseShader(CGame::EBaseShader::GSNormal)->Use();
-		m_PtrGame->GetBaseShader(CGame::EBaseShader::GSNormal)->UpdateAllConstantBuffers();
 	}
 
 	m_Object3DTerrain->Draw();
@@ -908,82 +932,6 @@ void CTerrain::Draw(bool bDrawNormals, bool bShouldTessellate)
 	{
 		m_PtrDeviceContext->GSSetShader(nullptr, nullptr, 0);
 	}
-
-	if (bShouldTessellate)
-	{
-		m_PtrDeviceContext->HSSetShader(nullptr, nullptr, 0);
-		m_PtrDeviceContext->DSSetShader(nullptr, nullptr, 0);
-	}
-
-	if (ShouldDrawWater())
-	{
-		DrawWater();
-	}
-
-	if (HasFoliageCluster())
-	{
-		DrawFoliageCluster();
-	}
-}
-
-void CTerrain::DrawHeightMapTexture()
-{
-	if (!m_Object2DTextureRepresentation) return;
-
-	m_HeightMapTexture->SetShaderType(EShaderType::PixelShader);
-	m_HeightMapTexture->Use();
-
-	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
-	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
-
-	m_PtrGame->UpdateCBSpace();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSHeightMap2D)->Use();
-
-	m_Object2DTextureRepresentation->Draw();
-
-	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
-}
-
-void CTerrain::DrawMaskingTexture()
-{
-	if (!m_Object2DTextureRepresentation) return;
-
-	m_MaskingTexture->Use(0);
-
-	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
-	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
-
-	m_PtrGame->UpdateCBSpace();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSMasking2D)->Use();
-	
-	m_Object2DTextureRepresentation->Draw();
-
-	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
-}
-
-void CTerrain::DrawFoliagePlacingTexture()
-{
-	if (!m_FoliagePlacingTexture) return;
-	if (!m_Object2DTextureRepresentation) return;
-
-	m_FoliagePlacingTexture->SetShaderType(EShaderType::PixelShader);
-	m_FoliagePlacingTexture->Use();
-
-	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
-	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
-
-	m_PtrGame->UpdateCBSpace();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->UpdateAllConstantBuffers();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSHeightMap2D)->Use();
-
-	m_Object2DTextureRepresentation->Draw();
-
-	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }
 
 void CTerrain::DrawWater()
@@ -994,16 +942,10 @@ void CTerrain::DrawWater()
 
 	//m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
 
-	m_PtrGame->UpdateCBSpace(m_Object3DWater->ComponentTransform.MatrixWorld);
-
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->Use();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->UpdateAllConstantBuffers();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::HSWater)->Use();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::HSWater)->UpdateAllConstantBuffers();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::DSWater)->Use();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::DSWater)->UpdateAllConstantBuffers();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSWater)->Use();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSWater)->UpdateAllConstantBuffers();
 
 	m_WaterDiffuseTexture->Use();
 	m_WaterNormalTexture->Use();
@@ -1024,15 +966,11 @@ void CTerrain::DrawFoliageCluster()
 	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullNone());
 	m_PtrDeviceContext->OMSetBlendState(m_PtrGame->GetBlendStateAlphaToCoverage(), nullptr, 0xFFFFFFFF);
 
-	m_PtrGame->UpdateCBSpace();
 	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
 	m_HeightMapTexture->Use();
 	
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSFoliage)->Use();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSFoliage)->UpdateAllConstantBuffers();
-
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSFoliage)->Use();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSFoliage)->UpdateAllConstantBuffers();
 
 	m_PtrDeviceContext->HSSetShader(nullptr, nullptr, 0);
 	m_PtrDeviceContext->DSSetShader(nullptr, nullptr, 0);
@@ -1043,9 +981,12 @@ void CTerrain::DrawFoliageCluster()
 	}
 
 	m_PtrGame->SetUniversalRSState();
+}
 
+void CTerrain::DrawWindRepresentation()
+{
 	// Wind sphere represenatation
-	if (m_Object3DWindRepresentation && false)
+	if (m_Object3DWindRepresentation)
 	{
 		m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->Wireframe());
 
@@ -1053,15 +994,65 @@ void CTerrain::DrawFoliageCluster()
 		m_Object3DWindRepresentation->ComponentTransform.Scaling = XMVectorSet(m_CBWindData.Radius, m_CBWindData.Radius, m_CBWindData.Radius, 0);
 		m_Object3DWindRepresentation->UpdateWorldMatrix();
 
-		m_PtrGame->UpdateCBSpace(m_Object3DWindRepresentation->ComponentTransform.MatrixWorld);
-
 		m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->Use();
-		m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->UpdateAllConstantBuffers();
-
 		m_PtrGame->GetBaseShader(CGame::EBaseShader::PSVertexColor)->Use();
 
 		m_Object3DWindRepresentation->Draw();
 
 		m_PtrGame->SetUniversalRSState();
 	}
+}
+
+void CTerrain::DrawHeightMapTexture()
+{
+	if (!m_Object2DTextureRepresentation) return;
+
+	m_HeightMapTexture->SetShaderType(EShaderType::PixelShader);
+	m_HeightMapTexture->Use();
+
+	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
+
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSHeightMap2D)->Use();
+
+	m_Object2DTextureRepresentation->Draw();
+
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
+}
+
+void CTerrain::DrawMaskingTexture()
+{
+	if (!m_Object2DTextureRepresentation) return;
+
+	m_MaskingTexture->Use(0);
+
+	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
+
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSMasking2D)->Use();
+
+	m_Object2DTextureRepresentation->Draw();
+
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
+}
+
+void CTerrain::DrawFoliagePlacingTexture()
+{
+	if (!m_FoliagePlacingTexture) return;
+	if (!m_Object2DTextureRepresentation) return;
+
+	m_FoliagePlacingTexture->SetShaderType(EShaderType::PixelShader);
+	m_FoliagePlacingTexture->Use();
+
+	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullCounterClockwise());
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthNone(), 0);
+
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
+	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSHeightMap2D)->Use();
+
+	m_Object2DTextureRepresentation->Draw();
+
+	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }

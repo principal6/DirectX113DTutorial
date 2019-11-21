@@ -127,6 +127,7 @@
   <ItemGroup>
     <ClCompile Include="Core\AssimpLoader.cpp" />
     <ClCompile Include="Core\Camera.cpp" />
+    <ClCompile Include="Core\ConstantBuffer.cpp" />
     <ClCompile Include="Core\FileDialog.cpp" />
     <ClCompile Include="Core\BinaryFile.cpp" />
     <ClCompile Include="Core\Game.cpp" />
@@ -223,6 +224,7 @@
     <ClInclude Include="Assimp\ZipArchiveIOSystem.h" />
     <ClInclude Include="Core\AssimpLoader.h" />
     <ClInclude Include="Core\Camera.h" />
+    <ClInclude Include="Core\ConstantBuffer.h" />
     <ClInclude Include="Core\FileDialog.h" />
     <ClInclude Include="Core\BinaryFile.h" />
     <ClInclude Include="Core\Game.h" />

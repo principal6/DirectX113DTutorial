@@ -193,26 +193,26 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			if (EnvironmentTextureMipLevels > 0)
 			{
 				// Indirect light direction
-				float3 Wi_indirect = normalize(-Wo + (2.0 * dot(N, Wo) * N)); // @important: do not clap dot product...!!!!
+				float3 Wi_indirect = normalize(-Wo + (2.0 * dot(N, Wo) * N)); // @important: do not clamp dot product...!!!!
 				float NdotWi_indirect = max(dot(N, Wi_indirect), 0.001); // NaN
 
 				float3 M = normalize(Wi_indirect + Wo);
 				float MdotWi_indirect = max(dot(M, Wi_indirect), 0);
 
-				// Irradiance of the surface point
+				// Diffuse: Irradiance of the surface point
 				float3 Ei_indirect = IrradianceTexture.SampleBias(CurrentSampler, N, Roughness * EnvironmentTextureMipLevels).rgb;
 				if (!(FlagsIsTextureSRGB & FLAG_ID_IRRADIANCE)) Ei_indirect = pow(Ei_indirect, 2.2);
 
-				// Radiance of indirect light
+				// Specular: Radiance of indirect light
 				float3 Li_indirect = EnvironmentTexture.SampleBias(CurrentSampler, Wi_indirect, Roughness * EnvironmentTextureMipLevels).rgb;
 				if (!(FlagsIsTextureSRGB & FLAG_ID_ENVIRONMENT)) Li_indirect = pow(Li_indirect, 2.2);
 
 				// Calculate Fresnel reflectance of macrosurface
-				float3 F_Macrosurface_indirect = Fresnel_Schlick(F0, NdotWi_indirect);
+				//float3 F_Macrosurface_indirect = Fresnel_Schlick(F0, NdotWi_indirect);
 				float Ks_indirect = Metalness;
 				float Kd_indirect = 1.0 - Ks_indirect;
 
-				float3 SpecularBRDF_indirect = SpecularBRDF_GGX(F0, NdotWi_indirect, NdotWo, NdotM, MdotWi_indirect, Roughness);
+				//float3 SpecularBRDF_indirect = SpecularBRDF_GGX(F0, NdotWi_indirect, NdotWo, NdotM, MdotWi_indirect, Roughness);
 
 				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo;
 				float3 Lo_indirect_spec = Ks_indirect * Li_indirect * Albedo; // @important: PSEUDO-specular

@@ -1,9 +1,14 @@
 #include "Terrain.hlsli"
 
-cbuffer cbCamera : register(b0)
+cbuffer cbLight : register(b0)
 {
-	float4 EyePosition;
-};
+	float4	DirectionalLightDirection;
+	float3	DirectionalLightColor;
+	float	Exposure;
+	float3	AmbientLightColor;
+	float	AmbientLightIntensity;
+	float4	EyePosition;
+}
 
 cbuffer cbTessFactor : register(b1)
 {

@@ -118,6 +118,7 @@ void CGame::InitializeDirectX(bool bWindowed)
 
 	CreateInputDevices();
 
+	CreateConstantBuffers();
 	CreateBaseShaders();
 
 	CreateMiniAxes();
@@ -396,52 +397,99 @@ void CGame::CreateInputDevices()
 	m_Mouse->SetMode(Mouse::Mode::MODE_ABSOLUTE);
 }
 
+void CGame::CreateConstantBuffers()
+{
+	m_CBSpaceWVP			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBSpaceWVPData, sizeof(m_CBSpaceWVPData));
+	m_CBSpaceVP				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBSpaceVPData, sizeof(m_CBSpaceVPData));
+	m_CBSpace2D				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBSpace2DData, sizeof(m_CBSpace2DData));
+	m_CBAnimationBones		= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBAnimationBonesData, sizeof(m_CBAnimationBonesData));
+	m_CBAnimation			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBAnimationData, sizeof(m_CBAnimationData));
+	m_CBTerrain				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBTerrainData, sizeof(m_CBTerrainData));
+	m_CBWind				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBWindData, sizeof(m_CBWindData));
+	m_CBTessFactor			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBTessFactorData, sizeof(m_CBTessFactorData));
+	m_CBDisplacement		= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBDisplacementData, sizeof(m_CBDisplacementData));
+	m_CBLight				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBLightData, sizeof(m_CBLightData));
+	m_CBMaterial			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBMaterialData, sizeof(m_CBMaterialData));
+	m_CBPSFlags				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBPSFlagsData, sizeof(m_CBPSFlagsData));
+	m_CBGizmoColorFactor	= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBGizmoColorFactorData, sizeof(m_CBGizmoColorFactorData));
+	m_CBPS2DFlags			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBPS2DFlagsData, sizeof(m_CBPS2DFlagsData));
+	m_CBTerrainMaskingSpace	= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBTerrainMaskingSpaceData, sizeof(m_CBTerrainMaskingSpaceData));
+	m_CBTerrainSelection	= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBTerrainSelectionData, sizeof(m_CBTerrainSelectionData));
+	m_CBSkyTime				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBSkyTimeData, sizeof(m_CBSkyTimeData));
+	m_CBWaterTime			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBWaterTimeData, sizeof(m_CBWaterTimeData));
+	m_CBEditorTime			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBEditorTimeData, sizeof(m_CBEditorTimeData));
+	m_CBCameraSelection		= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBCameraSelectionData, sizeof(m_CBCameraSelectionData));
+	m_CBScreen				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBScreenData, sizeof(m_CBScreenData));
+
+	m_CBSpaceWVP->Create();
+	m_CBSpaceVP->Create();
+	m_CBSpace2D->Create();
+	m_CBAnimationBones->Create();
+	m_CBAnimation->Create();
+	m_CBTerrain->Create();
+	m_CBWind->Create();
+	m_CBTessFactor->Create();
+	m_CBDisplacement->Create();
+	m_CBLight->Create();
+	m_CBMaterial->Create();
+	m_CBPSFlags->Create();
+	m_CBGizmoColorFactor->Create();
+	m_CBPS2DFlags->Create();
+	m_CBTerrainMaskingSpace->Create();
+	m_CBTerrainSelection->Create();
+	m_CBSkyTime->Create();
+	m_CBWaterTime->Create();
+	m_CBEditorTime->Create();
+	m_CBCameraSelection->Create();
+	m_CBScreen->Create();
+}
+
 void CGame::CreateBaseShaders()
 {
 	m_VSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSBase->Create(EShaderType::VertexShader, L"Shader\\VSBase.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSBase->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
+	m_VSBase->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSInstance = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSInstance->Create(EShaderType::VertexShader, L"Shader\\VSInstance.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSInstance->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
+	m_VSInstance->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSAnimation = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSAnimation->Create(EShaderType::VertexShader, L"Shader\\VSAnimation.hlsl", "main", 
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSAnimation->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
-	m_VSAnimation->AddConstantBuffer(&m_CBAnimationBonesData, sizeof(SCBAnimationBonesData));
-	m_VSAnimation->AddConstantBuffer(&m_CBAnimationData, sizeof(CObject3D::SCBAnimationData));
+	m_VSAnimation->AttachConstantBuffer(m_CBSpaceWVP.get());
+	m_VSAnimation->AttachConstantBuffer(m_CBAnimationBones.get());
+	m_VSAnimation->AttachConstantBuffer(m_CBAnimation.get());
 
 	m_VSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSSky->Create(EShaderType::VertexShader, L"Shader\\VSSky.hlsl", "main", 
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSSky->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
+	m_VSSky->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSLine->Create(EShaderType::VertexShader, L"Shader\\VSLine.hlsl", "main", 
 		CObject3DLine::KInputElementDescs, ARRAYSIZE(CObject3DLine::KInputElementDescs));
-	m_VSLine->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
+	m_VSLine->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSGizmo->Create(EShaderType::VertexShader, L"Shader\\VSGizmo.hlsl", "main", 
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSGizmo->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
+	m_VSGizmo->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSTerrain->Create(EShaderType::VertexShader, L"Shader\\VSTerrain.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSTerrain->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
-	m_VSTerrain->AddConstantBuffer(&m_CBTerrainData, sizeof(CTerrain::SCBTerrainData));
+	m_VSTerrain->AttachConstantBuffer(m_CBSpaceWVP.get());
+	m_VSTerrain->AttachConstantBuffer(m_CBTerrain.get());
 
 	m_VSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSFoliage->Create(EShaderType::VertexShader, L"Shader\\VSFoliage.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-	m_VSFoliage->AddConstantBuffer(&m_CBSpaceWVPData, sizeof(SCBSpaceWVPData));
-	m_VSFoliage->AddConstantBuffer(&m_CBTerrainData, sizeof(CTerrain::SCBTerrainData));
-	m_VSFoliage->AddConstantBuffer(&m_CBWindData, sizeof(CTerrain::SCBWindData));
+	m_VSFoliage->AttachConstantBuffer(m_CBSpaceWVP.get());
+	m_VSFoliage->AttachConstantBuffer(m_CBTerrain.get());
+	m_VSFoliage->AttachConstantBuffer(m_CBWind.get());
 
 	m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSParticle->Create(EShaderType::VertexShader, L"Shader\\VSParticle.hlsl", "main",
@@ -455,112 +503,114 @@ void CGame::CreateBaseShaders()
 	m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_VSBase2D->Create(EShaderType::VertexShader, L"Shader\\VSBase2D.hlsl", "main",
 		CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
-	m_VSBase2D->AddConstantBuffer(&m_CBSpace2DData, sizeof(SCBSpace2DData));
+	m_VSBase2D->AttachConstantBuffer(m_CBSpace2D.get());
 
 	m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSTerrain->Create(EShaderType::HullShader, L"Shader\\HSTerrain.hlsl", "main");
-	m_HSTerrain->AddConstantBuffer(&m_CBCameraData, sizeof(SCBCameraData));
-	m_HSTerrain->AddConstantBuffer(&m_CBTessFactorData, sizeof(CObject3D::SCBTessFactorData));
+	m_HSTerrain->AttachConstantBuffer(m_CBLight.get());
+	m_HSTerrain->AttachConstantBuffer(m_CBTessFactor.get());
 
 	m_HSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSWater->Create(EShaderType::HullShader, L"Shader\\HSWater.hlsl", "main");
-	m_HSWater->AddConstantBuffer(&m_CBCameraData, sizeof(SCBCameraData));
-	m_HSWater->AddConstantBuffer(&m_CBTessFactorData, sizeof(CObject3D::SCBTessFactorData));
+	m_HSWater->AttachConstantBuffer(m_CBLight.get());
+	m_HSWater->AttachConstantBuffer(m_CBTessFactor.get());
 
 	m_HSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSStatic->Create(EShaderType::HullShader, L"Shader\\HSStatic.hlsl", "main");
-	m_HSStatic->AddConstantBuffer(&m_CBTessFactorData, sizeof(CObject3D::SCBTessFactorData));
+	m_HSStatic->AttachConstantBuffer(m_CBTessFactor.get());
 
 	m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSTerrain->Create(EShaderType::DomainShader, L"Shader\\DSTerrain.hlsl", "main");
-	m_DSTerrain->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
-	m_DSTerrain->AddConstantBuffer(&m_CBDisplacementData, sizeof(CObject3D::SCBDisplacementData));
+	m_DSTerrain->AttachConstantBuffer(m_CBSpaceVP.get());
+	m_DSTerrain->AttachConstantBuffer(m_CBDisplacement.get());
 
 	m_DSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSWater->Create(EShaderType::DomainShader, L"Shader\\DSWater.hlsl", "main");
-	m_DSWater->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
-	m_DSWater->AddConstantBuffer(&m_CBWaterTimeData, sizeof(SCBWaterTimeData));
+	m_DSWater->AttachConstantBuffer(m_CBSpaceVP.get());
+	m_DSWater->AttachConstantBuffer(m_CBWaterTime.get());
 
 	m_DSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSStatic->Create(EShaderType::DomainShader, L"Shader\\DSStatic.hlsl", "main");
-	m_DSStatic->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
-	m_DSStatic->AddConstantBuffer(&m_CBDisplacementData, sizeof(CObject3D::SCBDisplacementData));
+	m_DSStatic->AttachConstantBuffer(m_CBSpaceVP.get());
+	m_DSStatic->AttachConstantBuffer(m_CBDisplacement.get());
 
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSNormal->Create(EShaderType::GeometryShader, L"Shader\\GSNormal.hlsl", "main");
-	m_GSNormal->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
+	m_GSNormal->AttachConstantBuffer(m_CBSpaceVP.get());
 
 	m_GSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSParticle->Create(EShaderType::GeometryShader, L"Shader\\GSParticle.hlsl", "main");
-	m_GSParticle->AddConstantBuffer(&m_CBSpaceVPData, sizeof(SCBSpaceVPData));
+	m_GSParticle->AttachConstantBuffer(m_CBSpaceVP.get());
 
 	m_PSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase->Create(EShaderType::PixelShader, L"Shader\\PSBase.hlsl", "main");
-	m_PSBase->AddConstantBuffer(&m_CBPSFlagsData, sizeof(SCBPSFlagsData));
-	m_PSBase->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
-	m_PSBase->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
+	m_PSBase->AttachConstantBuffer(m_CBPSFlags.get());
+	m_PSBase->AttachConstantBuffer(m_CBLight.get());
+	m_PSBase->AttachConstantBuffer(m_CBMaterial.get());
 
 	m_PSVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSVertexColor->Create(EShaderType::PixelShader, L"Shader\\PSVertexColor.hlsl", "main");
 
 	m_PSDynamicSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSDynamicSky->Create(EShaderType::PixelShader, L"Shader\\PSDynamicSky.hlsl", "main");
-	m_PSDynamicSky->AddConstantBuffer(&m_CBSkyTimeData, sizeof(SCBSkyTimeData));
+	m_PSDynamicSky->AttachConstantBuffer(m_CBSkyTime.get());
 
 	m_PSCloud = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSCloud->Create(EShaderType::PixelShader, L"Shader\\PSCloud.hlsl", "main");
-	m_PSCloud->AddConstantBuffer(&m_CBSkyTimeData, sizeof(SCBSkyTimeData));
+	m_PSCloud->AttachConstantBuffer(m_CBSkyTime.get());
 
 	m_PSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSLine->Create(EShaderType::PixelShader, L"Shader\\PSLine.hlsl", "main");
 
 	m_PSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSGizmo->Create(EShaderType::PixelShader, L"Shader\\PSGizmo.hlsl", "main");
-	m_PSGizmo->AddConstantBuffer(&m_CBGizmoColorFactorData, sizeof(SCBGizmoColorFactorData));
+	m_PSGizmo->AttachConstantBuffer(m_CBGizmoColorFactor.get());
 
 	m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSTerrain->Create(EShaderType::PixelShader, L"Shader\\PSTerrain.hlsl", "main");
-	m_PSTerrain->AddConstantBuffer(&m_CBPSFlagsData, sizeof(SCBPSFlagsData));
-	m_PSTerrain->AddConstantBuffer(&m_CBTerrainMaskingSpaceData, sizeof(SCBTerrainMaskingSpaceData));
-	m_PSTerrain->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
-	m_PSTerrain->AddConstantBuffer(&m_CBTerrainSelectionData, sizeof(CTerrain::SCBTerrainSelectionData));
-	m_PSTerrain->AddConstantBuffer(&m_CBEditorTimeData, sizeof(SCBEditorTimeData));
-	m_PSTerrain->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
+	m_PSTerrain->AttachConstantBuffer(m_CBPSFlags.get());
+	m_PSTerrain->AttachConstantBuffer(m_CBTerrainMaskingSpace.get());
+	m_PSTerrain->AttachConstantBuffer(m_CBLight.get());
+	m_PSTerrain->AttachConstantBuffer(m_CBTerrainSelection.get());
+	m_PSTerrain->AttachConstantBuffer(m_CBEditorTime.get());
+	m_PSTerrain->AttachConstantBuffer(m_CBMaterial.get());
 
 	m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSWater->Create(EShaderType::PixelShader, L"Shader\\PSWater.hlsl", "main");
-	m_PSWater->AddConstantBuffer(&m_CBWaterTimeData, sizeof(SCBWaterTimeData));
-	m_PSWater->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
+	m_PSWater->AttachConstantBuffer(m_CBWaterTime.get());
+	m_PSWater->AttachConstantBuffer(m_CBLight.get());
 
 	m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSFoliage->Create(EShaderType::PixelShader, L"Shader\\PSFoliage.hlsl", "main");
-	m_PSFoliage->AddConstantBuffer(&m_CBPSFlagsData, sizeof(SCBPSFlagsData));
-	m_PSFoliage->AddConstantBuffer(&m_CBLightData, sizeof(SCBLightData));
-	m_PSFoliage->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
+	m_PSFoliage->AttachConstantBuffer(m_CBPSFlags.get());
+	m_PSFoliage->AttachConstantBuffer(m_CBLight.get());
+	m_PSFoliage->AttachConstantBuffer(m_CBMaterial.get());
 
 	m_PSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSParticle->Create(EShaderType::PixelShader, L"Shader\\PSParticle.hlsl", "main");
 
 	m_PSCamera = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSCamera->Create(EShaderType::PixelShader, L"Shader\\PSCamera.hlsl", "main");
-	m_PSCamera->AddConstantBuffer(&m_CBMaterialData, sizeof(SCBMaterialData));
-	m_PSCamera->AddConstantBuffer(&m_CBEditorTimeData, sizeof(SCBEditorTimeData));
-	m_PSCamera->AddConstantBuffer(&m_CBCameraSelectionData, sizeof(SCBCameraSelectionData));
+	m_PSCamera->AttachConstantBuffer(m_CBMaterial.get());
+	m_PSCamera->AttachConstantBuffer(m_CBEditorTime.get());
+	m_PSCamera->AttachConstantBuffer(m_CBCameraSelection.get());
 
 	m_PSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSScreenQuad->Create(EShaderType::PixelShader, L"Shader\\PSScreenQuad.hlsl", "main");
 
 	m_CBScreenData.InverseScreenSize = XMFLOAT2(1.0f / m_WindowSize.x, 1.0f / m_WindowSize.y);
+	m_CBScreen->Update();
+
 	m_PSEdgeDetector = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSEdgeDetector->Create(EShaderType::PixelShader, L"Shader\\PSEdgeDetector.hlsl", "main");
-	m_PSEdgeDetector->AddConstantBuffer(&m_CBScreenData, sizeof(SCBScreenData));
+	m_PSEdgeDetector->AttachConstantBuffer(m_CBScreen.get());
 
 	m_PSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSSky->Create(EShaderType::PixelShader, L"Shader\\PSSky.hlsl", "main");
 
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
-	m_PSBase2D->AddConstantBuffer(&m_cbPS2DFlagsData, sizeof(SCBPS2DFlagsData));
+	m_PSBase2D->AttachConstantBuffer(m_CBPS2DFlags.get());
 
 	m_PSMasking2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSMasking2D->Create(EShaderType::PixelShader, L"Shader\\PSMasking2D.hlsl", "main");
@@ -1211,49 +1261,50 @@ void CGame::SetUniversalbUseLighiting()
 void CGame::UpdateCBSpace(const XMMATRIX& World)
 {
 	m_CBSpaceWVPData.World = m_CBSpace2DData.World = XMMatrixTranspose(World);
-
 	m_CBSpaceWVPData.ViewProjection = GetTransposedViewProjectionMatrix();
+	m_CBSpaceWVP->Update();
+
 	m_CBSpaceVPData.ViewProjection = GetTransposedViewProjectionMatrix();
+	m_CBSpaceVP->Update();
 
 	m_CBSpace2DData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
+	m_CBSpace2D->Update();
 }
 
 void CGame::UpdateCBAnimationBoneMatrices(const XMMATRIX* const BoneMatrices)
 {
 	memcpy(m_CBAnimationBonesData.BoneMatrices, BoneMatrices, sizeof(SCBAnimationBonesData));
+	m_CBAnimationBones->Update();
 }
 
 void CGame::UpdateCBAnimationData(const CObject3D::SCBAnimationData& Data)
 {
 	m_CBAnimationData = Data;
+	m_CBAnimation->Update();
 }
 
 void CGame::UpdateCBTerrainData(const CTerrain::SCBTerrainData& Data)
 {
 	m_CBTerrainData = Data;
+	m_CBTerrain->Update();
 }
 
 void CGame::UpdateCBWindData(const CTerrain::SCBWindData& Data)
 {
 	m_CBWindData = Data;
+	m_CBWind->Update();
 }
 
 void CGame::UpdateCBTessFactorData(const CObject3D::SCBTessFactorData& Data)
 {
 	m_CBTessFactorData = Data;
-
-	m_HSTerrain->UpdateAllConstantBuffers();
-	m_HSWater->UpdateAllConstantBuffers();
-	m_HSStatic->UpdateAllConstantBuffers();
+	m_CBTessFactor->Update();
 }
 
 void CGame::UpdateCBDisplacementData(const CObject3D::SCBDisplacementData& Data)
 {
 	m_CBDisplacementData = Data;
-
-	m_DSTerrain->UpdateAllConstantBuffers();
-	m_DSWater->UpdateAllConstantBuffers();
-	m_DSStatic->UpdateAllConstantBuffers();
+	m_CBDisplacement->Update();
 }
 
 void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
@@ -1290,21 +1341,21 @@ void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
 	if (m_IrradianceTexture) FlagsIsTextureSRGB += m_IrradianceTexture->IssRGB() ? 0x8000 : 0;
 
 	m_CBMaterialData.FlagsIsTextureSRGB = FlagsIsTextureSRGB;
-
-	m_PSBase->UpdateConstantBuffer(2);
-	m_PSFoliage->UpdateConstantBuffer(2);
-	m_PSCamera->UpdateConstantBuffer(0);
-	m_PSTerrain->UpdateConstantBuffer(5);
+	m_CBMaterial->Update();
 }
 
 void CGame::UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix)
 {
 	m_CBTerrainMaskingSpaceData.Matrix = XMMatrixTranspose(Matrix);
+	m_CBTerrainMaskingSpace->Update();
 }
 
 void CGame::UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection)
 {
 	m_CBTerrainSelectionData = Selection;
+	m_CBTerrainSelection->Update();
+
+	UpdateCBSpace(m_CBTerrainSelectionData.TerrainWorld);
 }
 
 void CGame::CreateDynamicSky(const string& SkyDataFileName, float ScalingFactor)
@@ -1411,6 +1462,7 @@ void CGame::CreateStaticSky(float ScalingFactor)
 	// @important: use already mipmapped cubemap texture
 	//m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\noon_grass_environment.dds");
 	m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\autumn_forest_environment.dds");
+	//m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\test_environment.dds");
 	//m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\uffizi_environment.dds");
 	m_EnvironmentTexture->SetSlot(KEnvironmentTextureSlot);
 
@@ -1418,6 +1470,7 @@ void CGame::CreateStaticSky(float ScalingFactor)
 	// @important: use already mipmapped cubemap texture
 	//m_IrradianceTexture->CreateCubeMapFromFile("Asset\\noon_grass_irradiance.dds");
 	m_IrradianceTexture->CreateCubeMapFromFile("Asset\\autumn_forest_irradiance.dds");
+	//m_IrradianceTexture->CreateCubeMapFromFile("Asset\\test_irradiance.dds");
 	//m_IrradianceTexture->CreateCubeMapFromFile("Asset\\uffizi_irradiance.dds");
 	m_IrradianceTexture->SetSlot(KIrradianceTextureSlot);
 
@@ -1454,16 +1507,22 @@ void CGame::SetDirectionalLight(const XMVECTOR& LightSourcePosition, const XMFLO
 {
 	m_CBLightData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
 	m_CBLightData.DirectionalLightColor = Color;
+
+	m_CBLight->Update();
 }
 
 void CGame::SetDirectionalLightDirection(const XMVECTOR& LightSourcePosition)
 {
 	m_CBLightData.DirectionalLightDirection = XMVector3Normalize(LightSourcePosition);
+
+	m_CBLight->Update();
 }
 
 void CGame::SetDirectionalLightColor(const XMFLOAT3& Color)
 {
 	m_CBLightData.DirectionalLightColor = Color;
+
+	m_CBLight->Update();
 }
 
 const XMVECTOR& CGame::GetDirectionalLightDirection() const
@@ -1480,6 +1539,8 @@ void CGame::SetAmbientlLight(const XMFLOAT3& Color, float Intensity)
 {
 	m_CBLightData.AmbientLightColor = Color;
 	m_CBLightData.AmbientLightIntensity = Intensity;
+
+	m_CBLight->Update();
 }
 
 const XMFLOAT3& CGame::GetAmbientLightColor() const
@@ -1495,6 +1556,8 @@ float CGame::GetAmbientLightIntensity() const
 void CGame::SetExposure(float Value)
 {
 	m_CBLightData.Exposure = Value;
+
+	m_CBLight->Update();
 }
 
 float CGame::GetExposure()
@@ -1508,6 +1571,8 @@ void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, uint32_t MaskingDetail, f
 
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Create(TerrainSize, *GetMaterial("brown_mud_dry"), MaskingDetail, UniformScaling);
+	UpdateCBTerrainData(m_Terrain->GetTerrainData());
+	UpdateCBTerrainMaskingSpace(m_Terrain->GetMaskingSpaceData());
 	
 	ID3D11ShaderResourceView* NullSRVs[20]{};
 	m_DeviceContext->DSSetShaderResources(0, 1, NullSRVs);
@@ -1520,6 +1585,7 @@ void CGame::LoadTerrain(const string& TerrainFileName)
 
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Load(TerrainFileName);
+	UpdateCBTerrainData(m_Terrain->GetTerrainData());
 	
 	int MaterialCount{ m_Terrain->GetMaterialCount() };
 	for (int iMaterial = 0; iMaterial < MaterialCount; ++iMaterial)
@@ -2929,12 +2995,6 @@ void CGame::Update()
 		}
 	}
 
-	// Animate Object3Ds
-	for (auto& Object3D : m_vObject3Ds)
-	{
-		if (Object3D) Object3D->Animate(m_DeltaTimeF);
-	}
-
 	m_TimePrev = m_TimeNow;
 	++m_FrameCount;
 }
@@ -2947,15 +3007,18 @@ void CGame::Draw()
 	m_CBEditorTimeData.NormalizedTimeHalfSpeed += m_DeltaTimeF * 0.5f;
 	if (m_CBEditorTimeData.NormalizedTime > 1.0f) m_CBEditorTimeData.NormalizedTime = 0.0f;
 	if (m_CBEditorTimeData.NormalizedTimeHalfSpeed > 1.0f) m_CBEditorTimeData.NormalizedTimeHalfSpeed = 0.0f;
+	m_CBEditorTime->Update();
 
 	m_CBWaterTimeData.Time += m_DeltaTimeF * 0.1f;
 	if (m_CBWaterTimeData.Time > 1.0f) m_CBWaterTimeData.Time = 0.0f;
+	m_CBWaterTime->Update();
 
 	m_CBTerrainData.Time = m_CBEditorTimeData.NormalizedTime;
 
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 
 	m_CBLightData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
+	m_CBLight->Update();
 
 	m_CBPSFlagsData.EnvironmentTextureMipLevels = (m_EnvironmentTexture) ? m_EnvironmentTexture->GetMipLevels() : 0;
 	m_CBPSFlagsData.bUsePhysicallyBasedRendering = EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UsePhysicallyBasedRendering);
@@ -2999,15 +3062,30 @@ void CGame::Draw()
 	{
 		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals))
 		{
+			UpdateCBSpace();
 			m_GSNormal->Use();
-			m_GSNormal->UpdateAllConstantBuffers();
 		}
 	}
 
+	// Opaque Object3Ds
 	for (auto& Object3D : m_vObject3Ds)
 	{
 		if (Object3D->ComponentRender.bIsTransparent) continue;
 
+		if (Object3D->IsRiggedModel())
+		{
+			if (Object3D->HasBakedAnimationTexture())
+			{
+				UpdateCBAnimationData(Object3D->GetAnimationData());
+			}
+			else
+			{
+				UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
+			}
+
+			Object3D->Animate(m_DeltaTimeF);
+		}
+		
 		UpdateObject3D(Object3D.get());
 		DrawObject3D(Object3D.get());
 
@@ -3022,6 +3100,7 @@ void CGame::Draw()
 	{
 		if (!Object3D->ComponentRender.bIsTransparent) continue;
 
+		Object3D->Animate(m_DeltaTimeF);
 		UpdateObject3D(Object3D.get());
 		DrawObject3D(Object3D.get());
 
@@ -3044,16 +3123,10 @@ void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
 	UpdateCBSpace(PtrObject3D->ComponentTransform.MatrixWorld);
 
 	SetUniversalbUseLighiting();
-	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoLighting))
-	{
-		m_CBPSFlagsData.bUseLighting = FALSE;
-	}
 
-	m_CBPSFlagsData.bUseTexture = TRUE;
-	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoTexture))
-	{
-		m_CBPSFlagsData.bUseTexture = FALSE;
-	}
+	m_CBPSFlagsData.bUseLighting = EFLAG_HAS_NO(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoLighting);
+	m_CBPSFlagsData.bUseTexture = EFLAG_HAS_NO(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoTexture);
+	m_CBPSFlags->Update();
 
 	assert(PtrObject3D->ComponentRender.PtrVS);
 	assert(PtrObject3D->ComponentRender.PtrPS);
@@ -3065,9 +3138,7 @@ void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
 	}
 
 	VS->Use();
-	VS->UpdateAllConstantBuffers();
 	PS->Use();
-	PS->UpdateAllConstantBuffers();
 }
 
 void CGame::DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstances, bool bIgnoreOwnTexture)
@@ -3076,10 +3147,8 @@ void CGame::DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstanc
 
 	if (PtrObject3D->ShouldTessellate())
 	{
-		m_CBCameraData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
-
-		m_HSStatic->UpdateAllConstantBuffers();
-		m_DSStatic->UpdateAllConstantBuffers();
+		UpdateCBTessFactorData(PtrObject3D->GetTessFactorData());
+		UpdateCBDisplacementData(PtrObject3D->GetDisplacementData());
 
 		m_HSStatic->Use();
 		m_DSStatic->Use();
@@ -3112,7 +3181,6 @@ void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
 	XMMATRIX Scaling{ XMMatrixScaling(PtrObject3D->ComponentPhysics.BoundingSphere.Radius,
 		PtrObject3D->ComponentPhysics.BoundingSphere.Radius, PtrObject3D->ComponentPhysics.BoundingSphere.Radius) };
 	UpdateCBSpace(Scaling * Translation);
-	m_VSBase->UpdateConstantBuffer(0);
 
 	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
 
@@ -3136,7 +3204,7 @@ void CGame::DrawObject3DLines()
 
 			m_CBSpaceWVPData.World = XMMatrixTranspose(Object3DLine->ComponentTransform.MatrixWorld);
 			m_CBSpaceWVPData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-			m_VSLine->UpdateConstantBuffer(0);
+			m_CBSpaceWVP->Update();
 
 			Object3DLine->Draw();
 		}
@@ -3156,18 +3224,9 @@ void CGame::DrawObject2Ds()
 		if (!Object2D->IsVisible()) continue;
 
 		UpdateCBSpace(Object2D->GetWorldMatrix());
-		m_VSBase2D->UpdateConstantBuffer(0);
-
-		if (Object2D->HasTexture())
-		{
-			m_cbPS2DFlagsData.bUseTexture = TRUE;
-			m_PSBase2D->UpdateConstantBuffer(0);
-		}
-		else
-		{
-			m_cbPS2DFlagsData.bUseTexture = FALSE;
-			m_PSBase2D->UpdateConstantBuffer(0);
-		}
+		
+		m_CBPS2DFlagsData.bUseTexture = (Object2D->HasTexture()) ? TRUE : FALSE;
+		m_CBPS2DFlags->Update();
 
 		Object2D->Draw();
 	}
@@ -3204,7 +3263,7 @@ void CGame::DrawPickingRay()
 	m_VSLine->Use();
 	m_CBSpaceWVPData.World = XMMatrixTranspose(KMatrixIdentity);
 	m_CBSpaceWVPData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-	m_VSLine->UpdateConstantBuffer(0);
+	m_CBSpaceWVP->Update();
 
 	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
 	
@@ -3218,7 +3277,7 @@ void CGame::DrawPickedTriangle()
 	m_VSBase->Use();
 	m_CBSpaceWVPData.World = XMMatrixTranspose(KMatrixIdentity);
 	m_CBSpaceWVPData.ViewProjection = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-	m_VSBase->UpdateConstantBuffer(0);
+	m_CBSpaceWVP->Update();
 
 	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
 	
@@ -3300,6 +3359,8 @@ void CGame::DrawSky(float DeltaTime)
 			DrawObject3D(m_Object3DSkySphere.get(), true, true);
 		}
 	}
+
+	m_CBSkyTime->Update();
 }
 
 void CGame::DrawTerrain(float DeltaTime)
@@ -3309,34 +3370,74 @@ void CGame::DrawTerrain(float DeltaTime)
 	SetUniversalRSState();
 	SetUniversalbUseLighiting();
 	
-	m_CBCameraData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
 	m_CBSpaceVPData.ViewProjection = GetTransposedViewProjectionMatrix();
 
 	m_Terrain->UpdateWind(DeltaTime);
+	UpdateCBWindData(m_Terrain->GetWindData());
 
-	m_Terrain->Draw
-	(
-		EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals) && (m_eMode == EMode::Edit),
-		EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain)
-	);
+	UpdateCBTerrainSelection(m_Terrain->GetSelectionData());
+
+	m_Terrain->ShouldTessellate(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::TessellateTerrain));
+
+	if (m_Terrain->ShouldTessellate())
+	{
+		m_HSTerrain->Use();
+		m_DSTerrain->Use();
+
+		UpdateCBTessFactorData(m_Terrain->GetTerrainTessFactorData());
+		UpdateCBDisplacementData(m_Terrain->GetTerrainDisplacementData());
+	}
+	
+	m_Terrain->DrawTerrain(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals) && (m_eMode == EMode::Edit));
+
+	if (m_Terrain->ShouldTessellate())
+	{
+		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
+		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
+	}
+
+	if (m_Terrain->ShouldDrawWater())
+	{
+		UpdateCBSpace(m_Terrain->GetWaterWorldMatrix());
+
+		UpdateCBTessFactorData(m_Terrain->GetWaterTessFactorData());
+		UpdateCBDisplacementData(m_Terrain->GetWaterDisplacementData());
+
+		m_Terrain->DrawWater();
+	}
+
+	if (m_Terrain->HasFoliageCluster())
+	{
+		UpdateCBSpace();
+		m_Terrain->DrawFoliageCluster();
+	}
+
+	if (false)
+	{
+		UpdateCBSpace(m_Terrain->GetWindRepresentationWorldMatrix());
+		m_Terrain->DrawWindRepresentation();
+	}
 
 	if (m_eMode == EMode::Edit)
 	{
 		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainHeightMapTexture))
 		{
 			m_DeviceContext->RSSetViewports(1, &m_vViewports[2]);
+			UpdateCBSpace();
 			m_Terrain->DrawHeightMapTexture();
 		}
 
 		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainMaskingTexture))
 		{
 			m_DeviceContext->RSSetViewports(1, &m_vViewports[3]);
+			UpdateCBSpace();
 			m_Terrain->DrawMaskingTexture();
 		}
 
 		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainFoliagePlacingTexture))
 		{
 			m_DeviceContext->RSSetViewports(1, &m_vViewports[4]);
+			UpdateCBSpace();
 			m_Terrain->DrawFoliagePlacingTexture();
 		}
 
@@ -3469,18 +3570,10 @@ void CGame::Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight)
 	Gizmo->ComponentTransform.Scaling = XMVectorSet(Scalar, Scalar, Scalar, 0.0f);
 	Gizmo->UpdateWorldMatrix();
 	UpdateCBSpace(Gizmo->ComponentTransform.MatrixWorld);
-	VS->UpdateConstantBuffer(0);
 	VS->Use();
 
-	if (bShouldHighlight)
-	{
-		m_CBGizmoColorFactorData.ColorFactor = XMVectorSet(2.0f, 2.0f, 2.0f, 0.95f);
-	}
-	else
-	{
-		m_CBGizmoColorFactorData.ColorFactor = XMVectorSet(0.75f, 0.75f, 0.75f, 0.75f);
-	}
-	PS->UpdateConstantBuffer(0);
+	m_CBGizmoColorFactorData.ColorFactor = (bShouldHighlight) ? XMVectorSet(2.0f, 2.0f, 2.0f, 0.95f) : XMVectorSet(0.75f, 0.75f, 0.75f, 0.75f);
+	m_CBGizmoColorFactor->Update();
 	PS->Use();
 
 	Gizmo->Draw();
@@ -3508,22 +3601,13 @@ void CGame::DrawCameraRepresentations()
 
 		if (IsAnyCameraSelected())
 		{
-			if (Camera.get() == GetSelectedCamera())
-			{
-				m_CBCameraSelectionData.bIsSelected = TRUE;
-			}
-			else
-			{
-				m_CBCameraSelectionData.bIsSelected = FALSE;
-			}
+			m_CBCameraSelectionData.bIsSelected = (Camera.get() == GetSelectedCamera()) ? TRUE : FALSE;
 		}
 		else
 		{
 			m_CBCameraSelectionData.bIsSelected = FALSE;
 		}
-
-		VS->UpdateAllConstantBuffers();
-		PS->UpdateAllConstantBuffers();
+		m_CBCameraSelection->Update();
 
 		m_Object3D_CameraRepresentation->Draw();
 	}
@@ -4326,14 +4410,13 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								Object3D->ShouldTessellate(bShouldTessellate);
 							}
 
-							CObject3D::SCBTessFactorData& TessFactorData{ Object3D->GetTessFactorData() };
-							float EdgeTessFactor{ TessFactorData.EdgeTessFactor };
+							CObject3D::SCBTessFactorData TessFactorData{ Object3D->GetTessFactorData() };
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8"테셀레이션 변 계수");
 							ImGui::SameLine(ItemsOffsetX);
-							if (ImGui::SliderFloat(u8"##테셀레이션 변 계수", &EdgeTessFactor, 0.0f, 64.0f, "%.2f"))
+							if (ImGui::SliderFloat(u8"##테셀레이션 변 계수", &TessFactorData.EdgeTessFactor, 0.0f, 64.0f, "%.2f"))
 							{
-								TessFactorData.EdgeTessFactor = EdgeTessFactor;
+								Object3D->SetTessFactorData(TessFactorData);
 							}
 
 							float InsideTessFactor{ TessFactorData.InsideTessFactor };
@@ -4345,14 +4428,13 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								TessFactorData.InsideTessFactor = InsideTessFactor;
 							}
 
-							CObject3D::SCBDisplacementData& DisplacementData{ Object3D->GetDisplacementData() };
-							float DisplacementFactor{ DisplacementData.DisplacementFactor };
+							CObject3D::SCBDisplacementData DisplacementData{ Object3D->GetDisplacementData() };
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8"변위 계수");
 							ImGui::SameLine(ItemsOffsetX);
-							if (ImGui::SliderFloat(u8"##변위 계수", &DisplacementFactor, 0.0f, 1.0f, "%.2f"))
+							if (ImGui::SliderFloat(u8"##변위 계수", &DisplacementData.DisplacementFactor, 0.0f, 1.0f, "%.2f"))
 							{
-								DisplacementData.DisplacementFactor = DisplacementFactor;
+								Object3D->SetDisplacementData(DisplacementData);
 							}
 
 							// Material data
@@ -4859,6 +4941,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										CTerrain::KMinWindVelocityElement, CTerrain::KMaxWindVelocityElement, "%.2f"))
 									{
 										Terrain->SetWindVelocity(WindVelocity);
+										UpdateCBWindData(Terrain->GetWindData());
 									}
 
 									ImGui::AlignTextToFramePadding();
@@ -5929,7 +6012,6 @@ void CGame::EndRendering()
 
 					UpdateCBSpace(InstanceGPUData.WorldMatrix);
 					m_VSBase->Use();
-					m_VSBase->UpdateAllConstantBuffers();
 
 					DrawObject3D(Object3D, true);
 				}
@@ -5977,7 +6059,6 @@ void CGame::DrawScreenQuadToSceen(CShader* const PixelShader, bool bShouldClearD
 	//m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	m_VSScreenQuad->Use();
-	PixelShader->UpdateAllConstantBuffers();
 	PixelShader->Use();
 
 	ID3D11SamplerState* const PointSampler{ m_CommonStates->PointWrap() };
