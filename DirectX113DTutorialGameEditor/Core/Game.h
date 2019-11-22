@@ -65,6 +65,7 @@ public:
 		PSEdgeDetector,
 		PSSky,
 		PSIrradianceGenerator,
+		PSFromHDR,
 
 		PSBase2D,
 		PSMasking2D,
@@ -550,6 +551,7 @@ private:
 	void DrawCubemapRepresentation(ID3D11ShaderResourceView* const ShaderResourceView, ID3D11RenderTargetView* const RenderTargetView);
 
 private:
+	void GenerateCubemapFromHDR();
 	void GenerateIrradianceMap();
 
 public:
@@ -644,6 +646,7 @@ private:
 	std::unique_ptr<CShader>	m_PSEdgeDetector{};
 	std::unique_ptr<CShader>	m_PSSky{};
 	std::unique_ptr<CShader>	m_PSIrradianceGenerator{};
+	std::unique_ptr<CShader>	m_PSFromHDR{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
@@ -856,6 +859,11 @@ private:
 	ComPtr<ID3D11ShaderResourceView>			m_GeneratedIrradianceMapSRV{};
 	ComPtr<ID3D11Texture2D>						m_GeneratedIrradianceMapTexture{};
 	D3D11_TEXTURE2D_DESC						m_GeneratedIrradianceMapTextureDesc{};
+
+	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedEnvironmentMapRTV{};
+	ComPtr<ID3D11ShaderResourceView>			m_GeneratedEnvironmentMapSRV{};
+	ComPtr<ID3D11Texture2D>						m_GeneratedEnvironmentMapTexture{};
+	D3D11_TEXTURE2D_DESC						m_GeneratedEnvironmentMapTextureDesc{};
 	
 	ComPtr<ID3D11DepthStencilView>		m_DepthStencilView{};
 	ComPtr<ID3D11Texture2D>				m_DepthStencilBuffer{};

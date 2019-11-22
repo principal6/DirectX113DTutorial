@@ -23,7 +23,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float3 Right = normalize(cross(Normal, FaceUp));
 	float3 Up = normalize(cross(Normal, Right));
 
-	float3 Irradiance = float3(0, 0, 0);
+	float4 Irradiance = float4(0, 0, 0, 0);
 	uint SampleCount = 0;
 	for (float Theta = 0.0; Theta < KPIDIV2; Theta += 0.1)
 	{
@@ -31,12 +31,11 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		{
 			float3 SphericalDirection = float3(sin(Theta) * cos(Phi), cos(Theta), sin(Theta) * sin(Phi));
 			float3 CubeSpaceDirection = SphericalDirection.x * Right + SphericalDirection.y * Normal + SphericalDirection.z * Up;
-			Irradiance += CubemapTexture.SampleLevel(CubemapSampler, CubeSpaceDirection, 2).rgb * cos(Theta) * sin(Theta);
 
+			Irradiance += CubemapTexture.SampleLevel(CubemapSampler, CubeSpaceDirection, 2) * cos(Theta) * sin(Theta);
 			++SampleCount;
 		}
 	}
 
-	Irradiance = KPI * Irradiance / (float)SampleCount;
-	return float4(Irradiance, 1);
+	return Irradiance * KPI / (float)SampleCount;
 }

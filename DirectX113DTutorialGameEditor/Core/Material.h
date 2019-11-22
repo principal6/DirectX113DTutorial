@@ -173,6 +173,7 @@ public:
 public:
 	bool IsCreated() const { return m_bIsCreated; }
 	bool IssRGB() const { return m_bIssRGB; }
+	bool IsHDR() const { return m_bIsHDR; }
 	const std::string& GetFileName() const { return m_FileName; }
 	const XMFLOAT2& GetTextureSize() const { return m_TextureSize; }
 	ID3D11Texture2D* GetTexture2DPtr() const { return (m_Texture2D) ? m_Texture2D.Get() : nullptr; }
@@ -190,6 +191,7 @@ private:
 	EShaderType							m_eShaderType{ EShaderType::PixelShader };
 	bool								m_bIsCreated{ false };
 	bool								m_bIssRGB{ false };
+	bool								m_bIsHDR{ false };
 
 private:
 	ComPtr<ID3D11Texture2D>				m_Texture2D{};

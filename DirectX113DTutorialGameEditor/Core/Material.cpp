@@ -140,13 +140,26 @@ void CTexture::CreateCubeMapFromFile(const std::string& FileName)
 	{
 		c = toupper(c);
 	}
-	assert(Ext == ".DDS");
+	if (Ext == ".DDS")
 	{
-		CreateDDSTextureFromFileEx(m_PtrDevice, wFileName.c_str(), 0i64, 
+		assert(SUCCEEDED(CreateDDSTextureFromFileEx(m_PtrDevice, wFileName.c_str(), 0i64,
 			D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, D3D11_RESOURCE_MISC_TEXTURECUBE, 
-			false, (ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf());
+			false, (ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf())));
+	}
+	else if (Ext == ".HDR")
+	{
+		ScratchImage _ScratchImage{};
+		LoadFromHDRFile(wFileName.c_str(), nullptr, _ScratchImage);
+		assert(SUCCEEDED(CreateTexture(m_PtrDevice, _ScratchImage.GetImages(), _ScratchImage.GetImageCount(), _ScratchImage.GetMetadata(),
+			(ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf())));
 
-		assert(m_Texture2D);
+		m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.ReleaseAndGetAddressOf());
+
+		m_bIsHDR = true;
+	}
+	else
+	{
+		assert(true);
 	}
 
 	UpdateTextureInfo();
@@ -163,6 +176,8 @@ void CTexture::CopyTexture(ID3D11Texture2D* const Texture)
 	m_PtrDeviceContext->CopyResource(m_Texture2D.Get(), Texture);
 
 	m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.ReleaseAndGetAddressOf());
+
+	UpdateTextureInfo();
 }
 
 void CTexture::ReleaseResources()

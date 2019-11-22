@@ -645,6 +645,9 @@
     <FxCompile Include="Shader\PSIrradianceGenerator.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="Shader\PSFromHDR.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="ImGui\imgui.natvis">
