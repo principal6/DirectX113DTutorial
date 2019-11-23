@@ -485,7 +485,6 @@ void CGame::CreateConstantBuffers()
 	m_CBEditorTime			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBEditorTimeData, sizeof(m_CBEditorTimeData));
 	m_CBCameraSelection		= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBCameraSelectionData, sizeof(m_CBCameraSelectionData));
 	m_CBScreen				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBScreenData, sizeof(m_CBScreenData));
-	m_CBCubemap				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBCubemapData, sizeof(m_CBCubemapData));
 
 	m_CBSpaceWVP->Create();
 	m_CBSpaceVP->Create();
@@ -508,7 +507,6 @@ void CGame::CreateConstantBuffers()
 	m_CBEditorTime->Create();
 	m_CBCameraSelection->Create();
 	m_CBScreen->Create();
-	m_CBCubemap->Create();
 }
 
 void CGame::CreateBaseShaders()
@@ -677,7 +675,6 @@ void CGame::CreateBaseShaders()
 
 	m_PSIrradianceGenerator = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSIrradianceGenerator->Create(EShaderType::PixelShader, L"Shader\\PSIrradianceGenerator.hlsl", "main");
-	m_PSIrradianceGenerator->AttachConstantBuffer(m_CBCubemap.get());
 
 	m_PSFromHDR = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSFromHDR->Create(EShaderType::PixelShader, L"Shader\\PSFromHDR.hlsl", "main");
@@ -5376,82 +5373,104 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
 					float ItemsOffsetX{ WindowWidth - ItemsWidth - 20 };
 
-					if (ImGui::Button(u8"Environment map 불러오기"))
+					if (ImGui::TreeNodeEx(u8"Environment map"))
 					{
-						static CFileDialog FileDialog{ GetWorkingDirectory() };
-						if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0HDR 파일\0*.hdr\0", "Environment map 불러오기"))
-						{
-							m_EnvironmentTexture->CreateCubeMapFromFile(FileDialog.GetFileName());
-
-							if (m_EnvironmentTexture->IsHDR())
-							{
-								GenerateCubemapFromHDR();
-							}
-						}
-					}
-
-					if (m_EnvironmentTexture)
-					{
-						ImGui::AlignTextToFramePadding();
-						ImGui::Text(u8"현재 Environment map: ");
-
-						ImGui::SameLine(ItemsOffsetX);
-						ImGui::AlignTextToFramePadding();
-						ImGui::Text(m_EnvironmentTexture->GetFileName().c_str());
-
-						DrawCubemapRepresentation(m_EnvironmentTexture->GetShaderResourceViewPtr(), m_Environment2DRTV.Get());
-						ImGui::Image(m_Environment2DSRV.Get(), ImVec2(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3));
-
-						if (ImGui::Button(u8"Environment map 내보내기"))
+						if (ImGui::Button(u8"불러오기"))
 						{
 							static CFileDialog FileDialog{ GetWorkingDirectory() };
-							if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.DDS\0", "Environment map 내보내기", ".DDS"))
+							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0HDR 파일\0*.hdr\0", "Environment map 불러오기"))
 							{
-								m_EnvironmentTexture->SaveDDSFile(FileDialog.GetRelativeFileName());
+								m_EnvironmentTexture->CreateCubeMapFromFile(FileDialog.GetFileName());
+
+								if (m_EnvironmentTexture->IsHDR())
+								{
+									GenerateCubemapFromHDR();
+								}
 							}
 						}
 
-						if (ImGui::Button(u8"Irradiance map 생성하기"))
+						if (m_EnvironmentTexture)
 						{
-							GenerateIrradianceMap();
-						}
-					}
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"현재 Environment map: ");
 
-					if (ImGui::Button(u8"Irradiance map 불러오기"))
-					{
-						static CFileDialog FileDialog{ GetWorkingDirectory() };
-						if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0HDR 파일\0*.hdr\0", "Irradiance map 불러오기"))
-						{
-							m_IrradianceTexture->CreateCubeMapFromFile(FileDialog.GetFileName());
+							ImGui::SameLine(ItemsOffsetX);
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(m_EnvironmentTexture->GetFileName().c_str());
 
-							if (m_IrradianceTexture->IsHDR())
+							if (ImGui::Button(u8"내보내기"))
 							{
-								GenerateCubemapFromHDR();
+								static CFileDialog FileDialog{ GetWorkingDirectory() };
+								if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.DDS\0", "Environment map 내보내기", ".DDS"))
+								{
+									m_EnvironmentTexture->SaveDDSFile(FileDialog.GetRelativeFileName());
+								}
 							}
+
+							DrawCubemapRepresentation(m_EnvironmentTexture->GetShaderResourceViewPtr(), m_Environment2DRTV.Get());
+							ImGui::Image(m_Environment2DSRV.Get(), ImVec2(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3));
 						}
+
+						ImGui::TreePop();
 					}
-
-					if (m_IrradianceTexture)
+					
+					if (ImGui::TreeNodeEx(u8"Irradiance map"))
 					{
-						ImGui::AlignTextToFramePadding();
-						ImGui::Text(u8"현재 Irradiance map: ");
-
-						ImGui::SameLine(ItemsOffsetX);
-						ImGui::AlignTextToFramePadding();
-						ImGui::Text(m_IrradianceTexture->GetFileName().c_str());
-
-						if (ImGui::Button(u8"Irradiance map 내보내기"))
+						if (ImGui::Button(u8"불러오기"))
 						{
 							static CFileDialog FileDialog{ GetWorkingDirectory() };
-							if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.DDS\0", "Irradiance map 내보내기", ".DDS"))
+							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0HDR 파일\0*.hdr\0", "Irradiance map 불러오기"))
 							{
-								m_IrradianceTexture->SaveDDSFile(FileDialog.GetRelativeFileName());
+								m_IrradianceTexture->CreateCubeMapFromFile(FileDialog.GetFileName());
+
+								if (m_IrradianceTexture->IsHDR())
+								{
+									GenerateCubemapFromHDR();
+								}
 							}
 						}
 
-						DrawCubemapRepresentation(m_IrradianceTexture->GetShaderResourceViewPtr(), m_Irradiance2DRTV.Get());
+						if (m_EnvironmentTexture)
+						{
+							ImGui::SameLine();
 
-						ImGui::Image(m_Irradiance2DSRV.Get(), ImVec2(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3));
+							if (ImGui::Button(u8"Environment map에서 생성하기"))
+							{
+								GenerateIrradianceMap();
+							}
+						}
+
+						if (m_IrradianceTexture)
+						{
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"현재 Irradiance map: ");
+
+							ImGui::SameLine(ItemsOffsetX);
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(m_IrradianceTexture->GetFileName().c_str());
+
+							if (ImGui::Button(u8"내보내기"))
+							{
+								static CFileDialog FileDialog{ GetWorkingDirectory() };
+								if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.DDS\0", "Irradiance map 내보내기", ".DDS"))
+								{
+									m_IrradianceTexture->SaveDDSFile(FileDialog.GetRelativeFileName());
+								}
+							}
+
+							DrawCubemapRepresentation(m_IrradianceTexture->GetShaderResourceViewPtr(), m_Irradiance2DRTV.Get());
+
+							ImGui::Image(m_Irradiance2DSRV.Get(), ImVec2(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3));
+						}
+
+						ImGui::TreePop();
+					}
+
+					ImGui::Separator();
+
+					if (ImGui::Button(u8"GGX specular BRDF map 생성하기"))
+					{
+
 					}
 
 					ImGui::EndTabItem();
@@ -6386,9 +6405,6 @@ void CGame::GenerateIrradianceMap()
 
 		for (int iCubeFace = 0; iCubeFace < 6; ++iCubeFace)
 		{
-			m_CBCubemapData.FaceID = (uint32_t)iCubeFace;
-			m_CBCubemap->Update();
-
 			m_DeviceContext->OMSetRenderTargets(1, m_vGeneratedIrradianceMapRTV[iCubeFace].GetAddressOf(), nullptr);
 			m_DeviceContext->Draw(6, iCubeFace * 6);
 		}

@@ -214,7 +214,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 				//float3 SpecularBRDF_indirect = SpecularBRDF_GGX(F0, NdotWi_indirect, NdotWo, NdotM, MdotWi_indirect, Roughness);
 
-				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo;
+				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo / KPI;
 				float3 Lo_indirect_spec = Ks_indirect * Li_indirect * Albedo; // @important: PSEUDO-specular
 
 				OutputColor.xyz += (Lo_indirect_diff + Lo_indirect_spec) * AmbientOcclusion;

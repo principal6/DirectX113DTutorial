@@ -675,7 +675,6 @@ private:
 	std::unique_ptr<CConstantBuffer> m_CBEditorTime{};
 	std::unique_ptr<CConstantBuffer> m_CBCameraSelection{};
 	std::unique_ptr<CConstantBuffer> m_CBScreen{};
-	std::unique_ptr<CConstantBuffer> m_CBCubemap{};
 
 	SCBSpaceWVPData				m_CBSpaceWVPData{};
 	SCBSpaceVPData				m_CBSpaceVPData{};
@@ -701,7 +700,6 @@ private:
 	SCBEditorTimeData					m_CBEditorTimeData{};
 	SCBCameraSelectionData				m_CBCameraSelectionData{};
 	SCBScreenData						m_CBScreenData{};
-	SCBCubemap							m_CBCubemapData{};
 
 private:
 	std::vector<std::unique_ptr<CShader>>				m_vShaders{};
