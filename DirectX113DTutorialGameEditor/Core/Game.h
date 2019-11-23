@@ -66,6 +66,7 @@ public:
 		PSSky,
 		PSIrradianceGenerator,
 		PSFromHDR,
+		PSRadiancePrefiltering,
 
 		PSBase2D,
 		PSMasking2D,
@@ -175,10 +176,10 @@ public:
 		float		Pads[2]{};
 	};
 
-	struct SCBCubemap
+	struct SCBRadiancePrefiltering
 	{
-		uint32_t	FaceID{};
-		float		Pads[3]{};
+		float	Roughness{};
+		float	Pads[3]{};
 	};
 
 	enum class EFlagsRendering
@@ -553,6 +554,7 @@ private:
 private:
 	void GenerateCubemapFromHDR();
 	void GenerateIrradianceMap();
+	void GeneratePrefilteredRadianceMap();
 
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
@@ -599,9 +601,10 @@ private:
 	static constexpr float K3DGizmoCameraDistanceThreshold{ 0.03125f };
 	static constexpr float K3DGizmoDistanceFactorExponent{ 0.75f };
 	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
+	static constexpr float KCubemapRepresentationSize{ 75.0f };
 	static constexpr int KEnvironmentTextureSlot{ 50 };
 	static constexpr int KIrradianceTextureSlot{ 51 };
-	static constexpr float KCubemapRepresentationSize{ 75.0f };
+	static constexpr int KPrefilteredRadianceTextureSlot{ 52 };
 
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
@@ -647,6 +650,7 @@ private:
 	std::unique_ptr<CShader>	m_PSSky{};
 	std::unique_ptr<CShader>	m_PSIrradianceGenerator{};
 	std::unique_ptr<CShader>	m_PSFromHDR{};
+	std::unique_ptr<CShader>	m_PSRadiancePrefiltering{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
@@ -675,6 +679,7 @@ private:
 	std::unique_ptr<CConstantBuffer> m_CBEditorTime{};
 	std::unique_ptr<CConstantBuffer> m_CBCameraSelection{};
 	std::unique_ptr<CConstantBuffer> m_CBScreen{};
+	std::unique_ptr<CConstantBuffer> m_CBRadiancePrefiltering{};
 
 	SCBSpaceWVPData				m_CBSpaceWVPData{};
 	SCBSpaceVPData				m_CBSpaceVPData{};
@@ -700,6 +705,7 @@ private:
 	SCBEditorTimeData					m_CBEditorTimeData{};
 	SCBCameraSelectionData				m_CBCameraSelectionData{};
 	SCBScreenData						m_CBScreenData{};
+	SCBRadiancePrefiltering				m_CBRadiancePrefilteringData{};
 
 private:
 	std::vector<std::unique_ptr<CShader>>				m_vShaders{};
@@ -844,6 +850,7 @@ private:
 
 	std::unique_ptr<CTexture>			m_EnvironmentTexture{};
 	std::unique_ptr<CTexture>			m_IrradianceTexture{};
+	std::unique_ptr<CTexture>			m_PrefilteredRadianceTexture{};
 
 	ComPtr<ID3D11RenderTargetView>		m_Environment2DRTV{};
 	ComPtr<ID3D11ShaderResourceView>	m_Environment2DSRV{};
@@ -852,6 +859,10 @@ private:
 	ComPtr<ID3D11RenderTargetView>		m_Irradiance2DRTV{};
 	ComPtr<ID3D11ShaderResourceView>	m_Irradiance2DSRV{};
 	ComPtr<ID3D11Texture2D>				m_Irradiance2DTexture{};
+
+	ComPtr<ID3D11RenderTargetView>		m_PrefilteredRadiance2DRTV{};
+	ComPtr<ID3D11ShaderResourceView>	m_PrefilteredRadiance2DSRV{};
+	ComPtr<ID3D11Texture2D>				m_PrefilteredRadiance2DTexture{};
 
 	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedIrradianceMapRTV{};
 	ComPtr<ID3D11ShaderResourceView>			m_GeneratedIrradianceMapSRV{};
@@ -862,6 +873,11 @@ private:
 	ComPtr<ID3D11ShaderResourceView>			m_GeneratedEnvironmentMapSRV{};
 	ComPtr<ID3D11Texture2D>						m_GeneratedEnvironmentMapTexture{};
 	D3D11_TEXTURE2D_DESC						m_GeneratedEnvironmentMapTextureDesc{};
+
+	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vPrefilteredRadianceMapRTV{};
+	ComPtr<ID3D11ShaderResourceView>			m_PrefilteredRadianceMapSRV{};
+	ComPtr<ID3D11Texture2D>						m_PrefilteredRadianceMapTexture{};
+	D3D11_TEXTURE2D_DESC						m_PrefilteredRadianceMapTextureDesc{};
 	
 	ComPtr<ID3D11DepthStencilView>		m_DepthStencilView{};
 	ComPtr<ID3D11Texture2D>				m_DepthStencilBuffer{};

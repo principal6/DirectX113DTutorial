@@ -340,6 +340,35 @@ void CGame::CreateViews()
 		m_Device->CreateRenderTargetView(m_Irradiance2DTexture.Get(), &ScreenQuadRTVDesc, m_Irradiance2DRTV.ReleaseAndGetAddressOf());
 	}
 
+	// Create RTV and SRV for prefiltered radiance map representation
+	{
+		D3D11_TEXTURE2D_DESC Texture2DDesc{};
+		Texture2DDesc.ArraySize = 1;
+		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		Texture2DDesc.CPUAccessFlags = 0;
+		Texture2DDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
+		Texture2DDesc.Height = static_cast<UINT>(KCubemapRepresentationSize * 3);
+		Texture2DDesc.MipLevels = 1;
+		Texture2DDesc.SampleDesc.Count = 1;
+		Texture2DDesc.SampleDesc.Quality = 0;
+		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+		Texture2DDesc.Width = static_cast<UINT>(KCubemapRepresentationSize * 4);
+		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_PrefilteredRadiance2DTexture.ReleaseAndGetAddressOf());
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC ScreenQuadSRVDesc{};
+		ScreenQuadSRVDesc.Format = Texture2DDesc.Format;
+		ScreenQuadSRVDesc.Texture2D.MipLevels = 1;
+		ScreenQuadSRVDesc.Texture2D.MostDetailedMip = 0;
+		ScreenQuadSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		m_Device->CreateShaderResourceView(m_PrefilteredRadiance2DTexture.Get(), &ScreenQuadSRVDesc, m_PrefilteredRadiance2DSRV.ReleaseAndGetAddressOf());
+
+		D3D11_RENDER_TARGET_VIEW_DESC ScreenQuadRTVDesc{};
+		ScreenQuadRTVDesc.Format = Texture2DDesc.Format;
+		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
+		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		m_Device->CreateRenderTargetView(m_PrefilteredRadiance2DTexture.Get(), &ScreenQuadRTVDesc, m_PrefilteredRadiance2DRTV.ReleaseAndGetAddressOf());
+	}
+
 	// Create depth-stencil view
 	D3D11_TEXTURE2D_DESC DepthStencilBufferDesc{};
 	DepthStencilBufferDesc.ArraySize = 1;
@@ -464,27 +493,50 @@ void CGame::CreateInputDevices()
 
 void CGame::CreateConstantBuffers()
 {
-	m_CBSpaceWVP			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBSpaceWVPData, sizeof(m_CBSpaceWVPData));
-	m_CBSpaceVP				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBSpaceVPData, sizeof(m_CBSpaceVPData));
-	m_CBSpace2D				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBSpace2DData, sizeof(m_CBSpace2DData));
-	m_CBAnimationBones		= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBAnimationBonesData, sizeof(m_CBAnimationBonesData));
-	m_CBAnimation			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBAnimationData, sizeof(m_CBAnimationData));
-	m_CBTerrain				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBTerrainData, sizeof(m_CBTerrainData));
-	m_CBWind				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBWindData, sizeof(m_CBWindData));
-	m_CBTessFactor			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBTessFactorData, sizeof(m_CBTessFactorData));
-	m_CBDisplacement		= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBDisplacementData, sizeof(m_CBDisplacementData));
-	m_CBLight				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBLightData, sizeof(m_CBLightData));
-	m_CBMaterial			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBMaterialData, sizeof(m_CBMaterialData));
-	m_CBPSFlags				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBPSFlagsData, sizeof(m_CBPSFlagsData));
-	m_CBGizmoColorFactor	= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBGizmoColorFactorData, sizeof(m_CBGizmoColorFactorData));
-	m_CBPS2DFlags			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBPS2DFlagsData, sizeof(m_CBPS2DFlagsData));
-	m_CBTerrainMaskingSpace	= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBTerrainMaskingSpaceData, sizeof(m_CBTerrainMaskingSpaceData));
-	m_CBTerrainSelection	= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBTerrainSelectionData, sizeof(m_CBTerrainSelectionData));
-	m_CBSkyTime				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBSkyTimeData, sizeof(m_CBSkyTimeData));
-	m_CBWaterTime			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBWaterTimeData, sizeof(m_CBWaterTimeData));
-	m_CBEditorTime			= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBEditorTimeData, sizeof(m_CBEditorTimeData));
-	m_CBCameraSelection		= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBCameraSelectionData, sizeof(m_CBCameraSelectionData));
-	m_CBScreen				= make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(), &m_CBScreenData, sizeof(m_CBScreenData));
+	m_CBSpaceWVP = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBSpaceWVPData, sizeof(m_CBSpaceWVPData));
+	m_CBSpaceVP = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBSpaceVPData, sizeof(m_CBSpaceVPData));
+	m_CBSpace2D = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBSpace2DData, sizeof(m_CBSpace2DData));
+	m_CBAnimationBones = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBAnimationBonesData, sizeof(m_CBAnimationBonesData));
+	m_CBAnimation = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBAnimationData, sizeof(m_CBAnimationData));
+	m_CBTerrain = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBTerrainData, sizeof(m_CBTerrainData));
+	m_CBWind = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBWindData, sizeof(m_CBWindData));
+	m_CBTessFactor = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBTessFactorData, sizeof(m_CBTessFactorData));
+	m_CBDisplacement = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBDisplacementData, sizeof(m_CBDisplacementData));
+	m_CBLight = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBLightData, sizeof(m_CBLightData));
+	m_CBMaterial = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBMaterialData, sizeof(m_CBMaterialData));
+	m_CBPSFlags = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBPSFlagsData, sizeof(m_CBPSFlagsData));
+	m_CBGizmoColorFactor = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBGizmoColorFactorData, sizeof(m_CBGizmoColorFactorData));
+	m_CBPS2DFlags = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBPS2DFlagsData, sizeof(m_CBPS2DFlagsData));
+	m_CBTerrainMaskingSpace = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBTerrainMaskingSpaceData, sizeof(m_CBTerrainMaskingSpaceData));
+	m_CBTerrainSelection = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBTerrainSelectionData, sizeof(m_CBTerrainSelectionData));
+	m_CBSkyTime = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBSkyTimeData, sizeof(m_CBSkyTimeData));
+	m_CBWaterTime = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBWaterTimeData, sizeof(m_CBWaterTimeData));
+	m_CBEditorTime = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBEditorTimeData, sizeof(m_CBEditorTimeData));
+	m_CBCameraSelection = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBCameraSelectionData, sizeof(m_CBCameraSelectionData));
+	m_CBScreen = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBScreenData, sizeof(m_CBScreenData));
+	m_CBRadiancePrefiltering = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBRadiancePrefilteringData, sizeof(m_CBRadiancePrefilteringData));
 
 	m_CBSpaceWVP->Create();
 	m_CBSpaceVP->Create();
@@ -507,6 +559,7 @@ void CGame::CreateConstantBuffers()
 	m_CBEditorTime->Create();
 	m_CBCameraSelection->Create();
 	m_CBScreen->Create();
+	m_CBRadiancePrefiltering->Create();
 }
 
 void CGame::CreateBaseShaders()
@@ -678,6 +731,10 @@ void CGame::CreateBaseShaders()
 
 	m_PSFromHDR = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSFromHDR->Create(EShaderType::PixelShader, L"Shader\\PSFromHDR.hlsl", "main");
+
+	m_PSRadiancePrefiltering = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSRadiancePrefiltering->Create(EShaderType::PixelShader, L"Shader\\PSRadiancePrefiltering.hlsl", "main");
+	m_PSRadiancePrefiltering->AttachConstantBuffer(m_CBRadiancePrefiltering.get());
 
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
@@ -1960,6 +2017,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSFromHDR:
 		Result = m_PSFromHDR.get();
+		break;
+	case EBaseShader::PSRadiancePrefiltering:
+		Result = m_PSRadiancePrefiltering.get();
 		break;
 	case EBaseShader::PSBase2D:
 		Result = m_PSBase2D.get();
@@ -5468,9 +5528,24 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 					ImGui::Separator();
 
-					if (ImGui::Button(u8"GGX specular BRDF map 持失馬奄"))
+					if (ImGui::TreeNodeEx(u8"Prefiltered radiance map"))
 					{
+						if (m_EnvironmentTexture)
+						{
+							if (ImGui::Button(u8"Prefiltered radiance map 持失馬奄"))
+							{
+								GeneratePrefilteredRadianceMap();
+							}
+						}
 
+						if (m_PrefilteredRadianceTexture)
+						{
+							DrawCubemapRepresentation(m_PrefilteredRadianceTexture->GetShaderResourceViewPtr(), m_PrefilteredRadiance2DRTV.Get());
+
+							ImGui::Image(m_PrefilteredRadiance2DSRV.Get(), ImVec2(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3));
+						}
+
+						ImGui::TreePop();
 					}
 
 					ImGui::EndTabItem();
@@ -6267,7 +6342,6 @@ void CGame::GenerateCubemapFromHDR()
 	// @important
 	m_GeneratedEnvironmentMapTextureDesc.Width /= 4;
 	m_GeneratedEnvironmentMapTextureDesc.Height /= 2;
-
 	m_GeneratedEnvironmentMapTextureDesc.ArraySize = 6;
 	m_GeneratedEnvironmentMapTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	m_GeneratedEnvironmentMapTextureDesc.CPUAccessFlags = 0;
@@ -6347,7 +6421,6 @@ void CGame::GenerateIrradianceMap()
 	// @important
 	m_GeneratedIrradianceMapTextureDesc.Width /= 4;
 	m_GeneratedIrradianceMapTextureDesc.Height /= 4;
-
 	m_GeneratedIrradianceMapTextureDesc.ArraySize = 6;
 	m_GeneratedIrradianceMapTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	m_GeneratedIrradianceMapTextureDesc.CPUAccessFlags = 0;
@@ -6418,6 +6491,95 @@ void CGame::GenerateIrradianceMap()
 	m_IrradianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
 	m_IrradianceTexture->CopyTexture(m_GeneratedIrradianceMapTexture.Get());
 	m_IrradianceTexture->SetSlot(KIrradianceTextureSlot);
+}
+
+void CGame::GeneratePrefilteredRadianceMap()
+{
+	m_EnvironmentTexture->GetTexture2DPtr()->GetDesc(&m_PrefilteredRadianceMapTextureDesc);
+
+	const uint32_t KMipLevelBias{ 2 }; // @important: Maybe becuase of my poor hardware...???
+	const uint32_t BiasedMipMax{ m_PrefilteredRadianceMapTextureDesc.MipLevels - KMipLevelBias };
+
+	// @important
+	m_PrefilteredRadianceMapTextureDesc.Width /= (uint32_t)pow(2.0f, (float)KMipLevelBias);
+	m_PrefilteredRadianceMapTextureDesc.Height /= (uint32_t)pow(2.0f, (float)KMipLevelBias);
+	m_PrefilteredRadianceMapTextureDesc.ArraySize = 6;
+	m_PrefilteredRadianceMapTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	m_PrefilteredRadianceMapTextureDesc.CPUAccessFlags = 0;
+	m_PrefilteredRadianceMapTextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	//m_PrefilteredRadianceMapTextureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
+	m_PrefilteredRadianceMapTextureDesc.MipLevels = BiasedMipMax;
+	m_PrefilteredRadianceMapTextureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
+	m_PrefilteredRadianceMapTextureDesc.SampleDesc.Count = 1;
+	m_PrefilteredRadianceMapTextureDesc.SampleDesc.Quality = 0;
+	m_PrefilteredRadianceMapTextureDesc.Usage = D3D11_USAGE_DEFAULT;
+	m_Device->CreateTexture2D(&m_PrefilteredRadianceMapTextureDesc, nullptr, m_PrefilteredRadianceMapTexture.ReleaseAndGetAddressOf());
+
+	m_Device->CreateShaderResourceView(m_PrefilteredRadianceMapTexture.Get(), nullptr, m_PrefilteredRadianceMapSRV.ReleaseAndGetAddressOf());
+
+	// Draw!
+	{
+		ID3D11SamplerState* LinearWrap{ m_CommonStates->LinearWrap() };
+		m_DeviceContext->PSSetSamplers(0, 1, &LinearWrap);
+
+		m_EnvironmentTexture->Use(0);
+
+		m_VSScreenQuad->Use();
+		m_PSRadiancePrefiltering->Use();
+
+		m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		m_DeviceContext->IASetVertexBuffers(0, 1, m_CubemapVertexBuffer.GetAddressOf(), &m_CubemapVertexBufferStride, &m_CubemapVertexBufferOffset);
+
+		{
+			m_vPrefilteredRadianceMapRTV.resize(6);
+
+			D3D11_RENDER_TARGET_VIEW_DESC RTVDesc{};
+			RTVDesc.Format = m_PrefilteredRadianceMapTextureDesc.Format;
+			RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+			RTVDesc.Texture2DArray.ArraySize = 1;
+
+			for (uint32_t iMipLevel = 0; iMipLevel < BiasedMipMax; ++iMipLevel)
+			{
+				float Roughness{ (float)iMipLevel / (float)(BiasedMipMax - 1) };
+				m_CBRadiancePrefilteringData.Roughness = Roughness;
+				m_CBRadiancePrefiltering->Update();
+
+				D3D11_VIEWPORT Viewport{};
+				Viewport.Width = static_cast<FLOAT>(m_PrefilteredRadianceMapTextureDesc.Width / (uint32_t)pow(2.0f, (float)iMipLevel));
+				Viewport.Height = static_cast<FLOAT>(m_PrefilteredRadianceMapTextureDesc.Height / (uint32_t)pow(2.0f, (float)iMipLevel));
+				Viewport.TopLeftX = 0.0f;
+				Viewport.TopLeftY = 0.0f;
+				Viewport.MinDepth = 0.0f;
+				Viewport.MaxDepth = 1.0f;
+				m_DeviceContext->RSSetViewports(1, &Viewport);
+
+				for (int iCubeFace = 0; iCubeFace < 6; ++iCubeFace)
+				{
+					RTVDesc.Texture2DArray.MipSlice = iMipLevel;
+					RTVDesc.Texture2DArray.FirstArraySlice = iCubeFace;
+					m_Device->CreateRenderTargetView(m_PrefilteredRadianceMapTexture.Get(), &RTVDesc, m_vPrefilteredRadianceMapRTV[iCubeFace].ReleaseAndGetAddressOf());
+				}
+
+				for (auto& RTV : m_vPrefilteredRadianceMapRTV)
+				{
+					if (RTV) m_DeviceContext->ClearRenderTargetView(RTV.Get(), Colors::Blue);
+				}
+
+				for (int iCubeFace = 0; iCubeFace < 6; ++iCubeFace)
+				{
+					m_DeviceContext->OMSetRenderTargets(1, m_vPrefilteredRadianceMapRTV[iCubeFace].GetAddressOf(), nullptr);
+					m_DeviceContext->Draw(6, iCubeFace * 6);
+				}
+			}
+		}
+		
+		m_DeviceContext->OMSetRenderTargets(1, (m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
+			m_DepthStencilView.Get());
+	}
+
+	m_PrefilteredRadianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
+	m_PrefilteredRadianceTexture->CopyTexture(m_PrefilteredRadianceMapTexture.Get());
+	m_PrefilteredRadianceTexture->SetSlot(KPrefilteredRadianceTextureSlot);
 }
 
 void CGame::EndRendering()
