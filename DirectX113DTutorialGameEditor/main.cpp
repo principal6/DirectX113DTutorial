@@ -1,9 +1,10 @@
 #include "Core/Game.h"
 
 // @TODO
-// fix IBL issues
+// fix IBL issues + refactor all the codes
 // pre-cal vp, wvp matrices
 // save models with PBR material + save editor camera state into the scene
+// implement shadow mapping
 
 IMGUI_IMPL_API LRESULT  ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT Msg, _In_ WPARAM wParam, _In_ LPARAM lParam);
