@@ -19,8 +19,14 @@ void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerat
 	}
 	if (Ext == ".DDS")
 	{
-		assert(SUCCEEDED(CreateDDSTextureFromFile(m_PtrDevice, wFileName.c_str(), 
-			(ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf())));
+		CreateDDSTextureFromFile(m_PtrDevice, wFileName.c_str(), 
+			(ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf());
+
+		if (!m_Texture2D)
+		{
+			MB_WARN(("텍스처를 찾을 수 없습니다. (" + m_FileName + ")").c_str(), "텍스처 생성 실패");
+			return;
+		}
 	}
 	else
 	{
@@ -142,16 +148,29 @@ void CTexture::CreateCubeMapFromFile(const std::string& FileName)
 	}
 	if (Ext == ".DDS")
 	{
-		assert(SUCCEEDED(CreateDDSTextureFromFileEx(m_PtrDevice, wFileName.c_str(), 0i64,
+		CreateDDSTextureFromFileEx(m_PtrDevice, wFileName.c_str(), 0i64,
 			D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, D3D11_RESOURCE_MISC_TEXTURECUBE, 
-			false, (ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf())));
+			false, (ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf(), m_ShaderResourceView.ReleaseAndGetAddressOf());
+
+		if (!m_Texture2D)
+		{
+			MB_WARN(("텍스처를 찾을 수 없습니다. (" + m_FileName + ")").c_str(), "텍스처 생성 실패");
+			return;
+		}
 	}
 	else if (Ext == ".HDR")
 	{
 		ScratchImage _ScratchImage{};
 		LoadFromHDRFile(wFileName.c_str(), nullptr, _ScratchImage);
-		assert(SUCCEEDED(CreateTexture(m_PtrDevice, _ScratchImage.GetImages(), _ScratchImage.GetImageCount(), _ScratchImage.GetMetadata(),
-			(ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf())));
+
+		CreateTexture(m_PtrDevice, _ScratchImage.GetImages(), _ScratchImage.GetImageCount(), _ScratchImage.GetMetadata(),
+			(ID3D11Resource**)m_Texture2D.ReleaseAndGetAddressOf());
+
+		if (!m_Texture2D)
+		{
+			MB_WARN(("텍스처를 찾을 수 없습니다. (" + m_FileName + ")").c_str(), "텍스처 생성 실패");
+			return;
+		}
 
 		m_PtrDevice->CreateShaderResourceView(m_Texture2D.Get(), nullptr, m_ShaderResourceView.ReleaseAndGetAddressOf());
 
@@ -187,7 +206,7 @@ void CTexture::ReleaseResources()
 	m_bIsCreated = false;
 }
 
-void CTexture::SaveDDSFile(const string& FileName)
+void CTexture::SaveDDSFile(const string& FileName, bool bIsLookUpTexture)
 {
 	wstring wFileName{ FileName.begin(), FileName.end() };
 
@@ -197,7 +216,14 @@ void CTexture::SaveDDSFile(const string& FileName)
 	DirectX::ScratchImage _ScratchImage{};
 	CaptureTexture(m_PtrDevice, m_PtrDeviceContext, m_Texture2D.Get(), _ScratchImage);
 
-	assert(SUCCEEDED(SaveToDDSFile(_ScratchImage.GetImages(), _ScratchImage.GetImageCount(), _ScratchImage.GetMetadata(), DDS_FLAGS_NONE, wFileName.c_str())));
+	if (bIsLookUpTexture)
+	{
+		assert(SUCCEEDED(SaveToDDSFile(*_ScratchImage.GetImage(0, 0, 0), DDS_FLAGS_NONE, wFileName.c_str())));
+	}
+	else
+	{
+		assert(SUCCEEDED(SaveToDDSFile(_ScratchImage.GetImages(), _ScratchImage.GetImageCount(), _ScratchImage.GetMetadata(), DDS_FLAGS_NONE, wFileName.c_str())));
+	}
 }
 
 void CTexture::UpdateTextureInfo()

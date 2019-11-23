@@ -647,6 +647,9 @@ void CGame::CreateBaseShaders()
 	m_PSRadiancePrefiltering->Create(EShaderType::PixelShader, L"Shader\\PSRadiancePrefiltering.hlsl", "main");
 	m_PSRadiancePrefiltering->AttachConstantBuffer(m_CBRadiancePrefiltering.get());
 
+	m_PSBRDFIntegrator = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSBRDFIntegrator->Create(EShaderType::PixelShader, L"Shader\\PSBRDFIntegrator.hlsl", "main");
+
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
 	m_PSBase2D->AttachConstantBuffer(m_CBPS2DFlags.get());
@@ -1569,17 +1572,23 @@ void CGame::CreateStaticSky(float ScalingFactor)
 	// @important: use already mipmapped cubemap texture
 	//m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\noon_grass_environment.dds");
 	m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\autumn_forest_environment.dds");
-	//m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\test_environment.dds");
-	//m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\uffizi_environment.dds");
 	m_EnvironmentTexture->SetSlot(KEnvironmentTextureSlot);
 
 	m_IrradianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
 	// @important: use already mipmapped cubemap texture
 	//m_IrradianceTexture->CreateCubeMapFromFile("Asset\\noon_grass_irradiance.dds");
 	m_IrradianceTexture->CreateCubeMapFromFile("Asset\\autumn_forest_irradiance.dds");
-	//m_IrradianceTexture->CreateCubeMapFromFile("Asset\\test_irradiance.dds");
-	//m_IrradianceTexture->CreateCubeMapFromFile("Asset\\uffizi_irradiance.dds");
 	m_IrradianceTexture->SetSlot(KIrradianceTextureSlot);
+
+	m_PrefilteredRadianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
+	// @important: use already mipmapped cubemap texture
+	m_PrefilteredRadianceTexture->CreateCubeMapFromFile("Asset\\autumn_forest_prefiltered_radiance.dds");
+	m_PrefilteredRadianceTexture->SetSlot(KPrefilteredRadianceTextureSlot);
+
+	m_IntegratedBRDFTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
+	// @important: use already mipmapped cubemap texture
+	m_IntegratedBRDFTexture->CreateTextureFromFile("Asset\\autumn_forest_integrated_brdf.dds", false);
+	m_IntegratedBRDFTexture->SetSlot(KIntegratedBRDFTextureSlot);
 
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
 	//m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
@@ -1930,6 +1939,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSRadiancePrefiltering:
 		Result = m_PSRadiancePrefiltering.get();
+		break;
+	case EBaseShader::PSBRDFIntegrator:
+		Result = m_PSBRDFIntegrator.get();
 		break;
 	case EBaseShader::PSBase2D:
 		Result = m_PSBase2D.get();
@@ -5362,11 +5374,11 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						if (m_EnvironmentTexture)
 						{
 							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"현재 Environment map: ");
+							ImGui::Text(u8"현재 Environment map");
 
 							ImGui::SameLine(ItemsOffsetX);
 							ImGui::AlignTextToFramePadding();
-							ImGui::Text(m_EnvironmentTexture->GetFileName().c_str());
+							ImGui::Text(u8" : %s", m_EnvironmentTexture->GetFileName().c_str());
 
 							if (ImGui::Button(u8"내보내기"))
 							{
@@ -5397,14 +5409,9 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						if (ImGui::Button(u8"불러오기"))
 						{
 							static CFileDialog FileDialog{ GetWorkingDirectory() };
-							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0HDR 파일\0*.hdr\0", "Irradiance map 불러오기"))
+							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0", "Irradiance map 불러오기"))
 							{
 								m_IrradianceTexture->CreateCubeMapFromFile(FileDialog.GetFileName());
-
-								if (m_IrradianceTexture->IsHDR())
-								{
-									GenerateCubemapFromHDR();
-								}
 							}
 						}
 
@@ -5421,16 +5428,16 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						if (m_IrradianceTexture)
 						{
 							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"현재 Irradiance map: ");
+							ImGui::Text(u8"현재 Irradiance map");
 
 							ImGui::SameLine(ItemsOffsetX);
 							ImGui::AlignTextToFramePadding();
-							ImGui::Text(m_IrradianceTexture->GetFileName().c_str());
+							ImGui::Text(u8" : %s", m_IrradianceTexture->GetFileName().c_str());
 
 							if (ImGui::Button(u8"내보내기"))
 							{
 								static CFileDialog FileDialog{ GetWorkingDirectory() };
-								if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.DDS\0", "Irradiance map 내보내기", ".DDS"))
+								if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.dds\0", "Irradiance map 내보내기", ".dds"))
 								{
 									m_IrradianceTexture->SaveDDSFile(FileDialog.GetRelativeFileName());
 								}
@@ -5455,8 +5462,19 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 					if (ImGui::TreeNodeEx(u8"Prefiltered radiance map"))
 					{
+						if (ImGui::Button(u8"불러오기"))
+						{
+							static CFileDialog FileDialog{ GetWorkingDirectory() };
+							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0", "Prefiltered radiance map 불러오기"))
+							{
+								m_PrefilteredRadianceTexture->CreateCubeMapFromFile(FileDialog.GetFileName());
+							}
+						}
+
 						if (m_EnvironmentTexture)
 						{
+							ImGui::SameLine();
+
 							if (ImGui::Button(u8"Prefiltered radiance map 생성하기"))
 							{
 								GeneratePrefilteredRadianceMap();
@@ -5465,6 +5483,21 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 						if (m_PrefilteredRadianceTexture)
 						{
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"현재 Prefiltered radiance map");
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8" : %s", m_PrefilteredRadianceTexture->GetFileName().c_str());
+
+							if (ImGui::Button(u8"내보내기"))
+							{
+								static CFileDialog FileDialog{ GetWorkingDirectory() };
+								if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.DDS\0", "Prefiltered radiance map 내보내기", ".DDS"))
+								{
+									m_PrefilteredRadianceTexture->SaveDDSFile(FileDialog.GetRelativeFileName());
+								}
+							}
+
 							// @important
 							m_CBSpace2DData.World = XMMatrixTranspose(KMatrixIdentity);
 							m_CBSpace2DData.Projection = XMMatrixTranspose(KMatrixIdentity);
@@ -5475,6 +5508,47 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								m_DepthStencilView.Get());
 
 							ImGui::Image(m_PrefilteredRadianceRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
+						}
+
+						ImGui::TreePop();
+					}
+
+					if (ImGui::TreeNodeEx(u8"Integrated BRDF map"))
+					{
+						if (ImGui::Button(u8"불러오기"))
+						{
+							static CFileDialog FileDialog{ GetWorkingDirectory() };
+							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0", "Integrated BRDF map 불러오기"))
+							{
+								m_IntegratedBRDFTexture->CreateTextureFromFile(FileDialog.GetFileName(), false);
+							}
+						}
+
+						ImGui::SameLine();
+
+						if (ImGui::Button(u8"Integrated BRDF map 생성하기"))
+						{
+							GenerateIntegratedBRDFMap();
+						}
+
+						if (m_IntegratedBRDFTexture)
+						{
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"현재 Integrated BRDF map");
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8" : %s", m_IntegratedBRDFTexture->GetFileName().c_str());
+
+							if (ImGui::Button(u8"내보내기"))
+							{
+								static CFileDialog FileDialog{ GetWorkingDirectory() };
+								if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.DDS\0", "Integrated BRDF map 내보내기", ".DDS"))
+								{
+									m_IntegratedBRDFTexture->SaveDDSFile(FileDialog.GetRelativeFileName(), true);
+								}
+							}
+
+							ImGui::Image(m_IntegratedBRDFTexture->GetShaderResourceViewPtr(), ImVec2(256, 256));
 						}
 
 						ImGui::TreePop();
@@ -6480,6 +6554,62 @@ void CGame::GeneratePrefilteredRadianceMap()
 	m_PrefilteredRadianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
 	m_PrefilteredRadianceTexture->CopyTexture(m_PrefilteredRadianceMapTexture.Get());
 	m_PrefilteredRadianceTexture->SetSlot(KPrefilteredRadianceTextureSlot);
+}
+
+void CGame::GenerateIntegratedBRDFMap()
+{
+	// @important
+	m_IntegratedBRDFTextureDesc.Width = 512;
+	m_IntegratedBRDFTextureDesc.Height = 512;
+	m_IntegratedBRDFTextureDesc.ArraySize = 1;
+	m_IntegratedBRDFTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	m_IntegratedBRDFTextureDesc.CPUAccessFlags = 0;
+	m_IntegratedBRDFTextureDesc.Format = DXGI_FORMAT_R16G16_UNORM;
+	m_IntegratedBRDFTextureDesc.MipLevels = 0;
+	m_IntegratedBRDFTextureDesc.MiscFlags = 0;
+	m_IntegratedBRDFTextureDesc.SampleDesc.Count = 1;
+	m_IntegratedBRDFTextureDesc.SampleDesc.Quality = 0;
+	m_IntegratedBRDFTextureDesc.Usage = D3D11_USAGE_DEFAULT;
+	m_Device->CreateTexture2D(&m_IntegratedBRDFTextureDesc, nullptr, m_IntegratedBRDFTextureRaw.ReleaseAndGetAddressOf());
+
+	m_Device->CreateShaderResourceView(m_IntegratedBRDFTextureRaw.Get(), nullptr, m_IntegratedBRDFSRV.ReleaseAndGetAddressOf());
+	
+	{
+		// @importnat: clamp!
+		ID3D11SamplerState* LinearClamp{ m_CommonStates->LinearClamp() };
+		m_DeviceContext->PSSetSamplers(0, 1, &LinearClamp);
+
+		m_VSScreenQuad->Use();
+		m_PSBRDFIntegrator->Use();
+
+		D3D11_VIEWPORT Viewport{};
+		Viewport.Width = static_cast<FLOAT>(m_IntegratedBRDFTextureDesc.Width);
+		Viewport.Height = static_cast<FLOAT>(m_IntegratedBRDFTextureDesc.Height);
+		Viewport.TopLeftX = 0.0f;
+		Viewport.TopLeftY = 0.0f;
+		Viewport.MinDepth = 0.0f;
+		Viewport.MaxDepth = 1.0f;
+		m_DeviceContext->RSSetViewports(1, &Viewport);
+
+		m_Device->CreateRenderTargetView(m_IntegratedBRDFTextureRaw.Get(), nullptr, m_IntegratedBRDFRTV.ReleaseAndGetAddressOf());
+		m_DeviceContext->ClearRenderTargetView(m_IntegratedBRDFRTV.Get(), Colors::Blue);
+
+		m_DeviceContext->OMSetRenderTargets(1, m_IntegratedBRDFRTV.GetAddressOf(), nullptr);
+
+		// Draw!
+		{
+			m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			m_DeviceContext->IASetVertexBuffers(0, 1, m_ScreenQuadVertexBuffer.GetAddressOf(), &m_ScreenQuadVertexBufferStride, &m_ScreenQuadVertexBufferOffset);
+			m_DeviceContext->Draw(6, 0);
+		}
+
+		m_DeviceContext->OMSetRenderTargets(1, (m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
+			m_DepthStencilView.Get());
+	}
+
+	m_IntegratedBRDFTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
+	m_IntegratedBRDFTexture->CopyTexture(m_IntegratedBRDFTextureRaw.Get());
+	m_IntegratedBRDFTexture->SetSlot(KIntegratedBRDFTextureSlot);
 }
 
 void CGame::EndRendering()

@@ -68,6 +68,7 @@ public:
 		PSIrradianceGenerator,
 		PSFromHDR,
 		PSRadiancePrefiltering,
+		PSBRDFIntegrator,
 
 		PSBase2D,
 		PSMasking2D,
@@ -554,6 +555,7 @@ private:
 	void GenerateCubemapFromHDR();
 	void GenerateIrradianceMap();
 	void GeneratePrefilteredRadianceMap();
+	void GenerateIntegratedBRDFMap();
 
 public:
 	static constexpr float KTranslationMinLimit{ -1000.0f };
@@ -603,6 +605,7 @@ private:
 	static constexpr int KEnvironmentTextureSlot{ 50 };
 	static constexpr int KIrradianceTextureSlot{ 51 };
 	static constexpr int KPrefilteredRadianceTextureSlot{ 52 };
+	static constexpr int KIntegratedBRDFTextureSlot{ 53 };
 
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
@@ -649,6 +652,7 @@ private:
 	std::unique_ptr<CShader>	m_PSIrradianceGenerator{};
 	std::unique_ptr<CShader>	m_PSFromHDR{};
 	std::unique_ptr<CShader>	m_PSRadiancePrefiltering{};
+	std::unique_ptr<CShader>	m_PSBRDFIntegrator{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
@@ -847,6 +851,7 @@ private:
 	std::unique_ptr<CTexture>			m_EnvironmentTexture{};
 	std::unique_ptr<CTexture>			m_IrradianceTexture{};
 	std::unique_ptr<CTexture>			m_PrefilteredRadianceTexture{};
+	std::unique_ptr<CTexture>			m_IntegratedBRDFTexture{};
 
 	std::unique_ptr<CCubemapRep>		m_EnvironmentRep{};
 	std::unique_ptr<CCubemapRep>		m_IrradianceRep{};
@@ -866,6 +871,11 @@ private:
 	ComPtr<ID3D11ShaderResourceView>			m_PrefilteredRadianceMapSRV{};
 	ComPtr<ID3D11Texture2D>						m_PrefilteredRadianceMapTexture{};
 	D3D11_TEXTURE2D_DESC						m_PrefilteredRadianceMapTextureDesc{};
+
+	ComPtr<ID3D11RenderTargetView>				m_IntegratedBRDFRTV{};
+	ComPtr<ID3D11ShaderResourceView>			m_IntegratedBRDFSRV{};
+	ComPtr<ID3D11Texture2D>						m_IntegratedBRDFTextureRaw{};
+	D3D11_TEXTURE2D_DESC						m_IntegratedBRDFTextureDesc{};
 	
 	ComPtr<ID3D11DepthStencilView>		m_DepthStencilView{};
 	ComPtr<ID3D11Texture2D>				m_DepthStencilBuffer{};

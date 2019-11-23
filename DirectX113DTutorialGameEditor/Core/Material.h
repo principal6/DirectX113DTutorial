@@ -157,7 +157,7 @@ public:
 
 	void ReleaseResources();
 
-	void SaveDDSFile(const std::string& FileName);
+	void SaveDDSFile(const std::string& FileName, bool bIsLookUpTexture = false);
 
 private:
 	void UpdateTextureInfo();

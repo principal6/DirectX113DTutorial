@@ -657,6 +657,9 @@
     <FxCompile Include="Shader\PSRadiancePrefiltering.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="Shader\PSBRDFIntegrator.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="ImGui\imgui.natvis">
