@@ -1,7 +1,7 @@
 #include "Core/Game.h"
 
 // @TODO
-// complete IBL implementation
+// fix IBL issues
 // pre-cal vp, wvp matrices
 // save models with PBR material + save editor camera state into the scene
 

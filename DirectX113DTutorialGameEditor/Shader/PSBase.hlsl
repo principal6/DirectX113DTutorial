@@ -25,6 +25,8 @@ Texture2D AmbientOcclusionTexture : register(t6);
 
 TextureCube EnvironmentTexture : register(t50);
 TextureCube IrradianceTexture : register(t51);
+TextureCube PrefilteredRadianceTexture : register(t52);
+Texture2D IntegratedBRDFTexture : register(t53);
 
 cbuffer cbFlags : register(b0)
 {
@@ -32,6 +34,9 @@ cbuffer cbFlags : register(b0)
 	bool bUseLighting;
 	bool bUsePhysicallyBasedRendering;
 	uint EnvironmentTextureMipLevels;
+
+	uint PrefilteredRadianceTextureMipLevels;
+	float3 Pads;
 }
 
 cbuffer cbLight : register(b1)
@@ -194,28 +199,28 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			{
 				// Indirect light direction
 				float3 Wi_indirect = normalize(-Wo + (2.0 * dot(N, Wo) * N)); // @important: do not clamp dot product...!!!!
-				float NdotWi_indirect = max(dot(N, Wi_indirect), 0.001); // NaN
+				float NdotWi_indirect = dot(N, Wi_indirect);
 
 				float3 M = normalize(Wi_indirect + Wo);
 				float MdotWi_indirect = max(dot(M, Wi_indirect), 0);
 
 				// Diffuse: Irradiance of the surface point
-				float3 Ei_indirect = IrradianceTexture.SampleBias(CurrentSampler, N, Roughness * EnvironmentTextureMipLevels).rgb;
+				float3 Ei_indirect = IrradianceTexture.SampleBias(CurrentSampler, N, Roughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
 				if (!(FlagsIsTextureSRGB & FLAG_ID_IRRADIANCE)) Ei_indirect = pow(Ei_indirect, 2.2);
 
-				// Specular: Radiance of indirect light
-				float3 Li_indirect = EnvironmentTexture.SampleBias(CurrentSampler, Wi_indirect, Roughness * EnvironmentTextureMipLevels).rgb;
-				if (!(FlagsIsTextureSRGB & FLAG_ID_ENVIRONMENT)) Li_indirect = pow(Li_indirect, 2.2);
-
 				// Calculate Fresnel reflectance of macrosurface
-				//float3 F_Macrosurface_indirect = Fresnel_Schlick(F0, NdotWi_indirect);
-				float Ks_indirect = Metalness;
+				float3 F_Macrosurface_indirect = Fresnel_Schlick(F0, NdotWi_indirect);
+
+				// Specular light intensity
+				float Ks_indirect = dot(KMonochromatic, F_Macrosurface_indirect); // Monochromatic intensity calculation
 				float Kd_indirect = 1.0 - Ks_indirect;
 
-				//float3 SpecularBRDF_indirect = SpecularBRDF_GGX(F0, NdotWi_indirect, NdotWo, NdotM, MdotWi_indirect, Roughness);
-
 				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo / KPI;
-				float3 Lo_indirect_spec = Ks_indirect * Li_indirect * Albedo; // @important: PSEUDO-specular
+
+				float3 PrefilteredRadiance = PrefilteredRadianceTexture.SampleBias(CurrentSampler, Wi_indirect,
+					Roughness * (float)(PrefilteredRadianceTextureMipLevels - 1)).rgb;
+				float2 IntegratedBRDF = IntegratedBRDFTexture.Sample(CurrentSampler, float2(dot(N, Wo), 1 - Roughness)).rg;
+				float3 Lo_indirect_spec = Ks_indirect * PrefilteredRadiance * (Albedo * IntegratedBRDF.x + IntegratedBRDF.y);
 
 				OutputColor.xyz += (Lo_indirect_diff + Lo_indirect_spec) * AmbientOcclusion;
 			}

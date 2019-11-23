@@ -104,6 +104,9 @@ public:
 		BOOL		bUseLighting{};
 		BOOL		bUsePhysicallyBasedRendering{};
 		uint32_t	EnvironmentTextureMipLevels{};
+
+		uint32_t	PrefilteredRadianceTextureMipLevels{};
+		float		Pads[3]{};
 	};
 
 	struct SCBLightData

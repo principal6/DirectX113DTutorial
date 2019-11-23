@@ -9,6 +9,9 @@
 #define FLAG_ID_METALNESS 0x20
 #define FLAG_ID_AMBIENTOCCLUSION 0x40
 
+#define FLAG_ID_ENVIRONMENT 0x4000
+#define FLAG_ID_IRRADIANCE 0x8000
+
 SamplerState TerrainSampler : register(s0);
 
 Texture2D Layer0DiffuseTexture : register(t0);
@@ -60,6 +63,8 @@ Texture2D MaskingTexture : register(t40);
 
 TextureCube EnvironmentTexture : register(t50);
 TextureCube IrradianceTexture : register(t51);
+TextureCube PrefilteredRadianceTexture : register(t52);
+Texture2D IntegratedBRDFTexture : register(t53);
 
 cbuffer cbFlags : register(b0)
 {
@@ -67,6 +72,9 @@ cbuffer cbFlags : register(b0)
 	bool bUseLighting;
 	bool bUsePhysicallyBasedRendering;
 	uint EnvironmentTextureMipLevels;
+
+	uint PrefilteredRadianceTextureMipLevels;
+	float3 Pads;
 }
 
 cbuffer cbMaskingSpace : register(b1)
@@ -308,14 +316,31 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			// Indirect light (only diffuse)
 			{
 				// Indirect light direction
-				float3 Wi_indirect = normalize(-Wo + (2.0 * max(dot(N, Wo), 0) * N));
+				float3 Wi_indirect = normalize(-Wo + (2.0 * dot(N, Wo) * N)); // @important: do not clamp dot product...!!!!
+				float NdotWi_indirect = dot(N, Wi_indirect);
 
-				// Radiance of indirect light
-				float3 Ei_indirect = IrradianceTexture.Sample(TerrainSampler, Wi_indirect).rgb;
+				float3 M = normalize(Wi_indirect + Wo);
+				float MdotWi_indirect = max(dot(M, Wi_indirect), 0);
 
-				float3 Lo_indirect_diff = Ei_indirect * Albedo;
+				// Diffuse: Irradiance of the surface point
+				float3 Ei_indirect = IrradianceTexture.SampleBias(TerrainSampler, N, BlendedRoughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
+				if (!(FlagsIsTextureSRGB & FLAG_ID_IRRADIANCE)) Ei_indirect = pow(Ei_indirect, 2.2);
 
-				OutputColor.xyz += Lo_indirect_diff * BlendedAmbientOcclusion;
+				// Calculate Fresnel reflectance of macrosurface
+				float3 F_Macrosurface_indirect = Fresnel_Schlick(F0, NdotWi_indirect);
+
+				// Specular light intensity
+				float Ks_indirect = dot(KMonochromatic, F_Macrosurface_indirect); // Monochromatic intensity calculation
+				float Kd_indirect = 1.0 - Ks_indirect;
+
+				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo / KPI;
+
+				float3 PrefilteredRadiance = PrefilteredRadianceTexture.SampleBias(TerrainSampler, Wi_indirect,
+					BlendedRoughness * (float)(PrefilteredRadianceTextureMipLevels - 1)).rgb;
+				float2 IntegratedBRDF = IntegratedBRDFTexture.Sample(TerrainSampler, float2(dot(N, Wo), 1 - BlendedRoughness)).rg;
+				float3 Lo_indirect_spec = Ks_indirect * PrefilteredRadiance * (Albedo * IntegratedBRDF.x + IntegratedBRDF.y);
+
+				OutputColor.xyz += (Lo_indirect_diff + Lo_indirect_spec) * BlendedAmbientOcclusion;
 			}
 		}
 		else

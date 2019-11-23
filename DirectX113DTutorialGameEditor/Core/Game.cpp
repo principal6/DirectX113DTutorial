@@ -2975,6 +2975,8 @@ void CGame::BeginRendering(const FLOAT* ClearColor, bool bUseDeferredRendering)
 
 	if (m_EnvironmentTexture) m_EnvironmentTexture->Use();
 	if (m_IrradianceTexture) m_IrradianceTexture->Use();
+	if (m_PrefilteredRadianceTexture) m_PrefilteredRadianceTexture->Use();
+	if (m_IntegratedBRDFTexture) m_IntegratedBRDFTexture->Use();
 }
 
 void CGame::Update()
@@ -3152,6 +3154,7 @@ void CGame::Draw()
 	m_CBLight->Update();
 
 	m_CBPSFlagsData.EnvironmentTextureMipLevels = (m_EnvironmentTexture) ? m_EnvironmentTexture->GetMipLevels() : 0;
+	m_CBPSFlagsData.PrefilteredRadianceTextureMipLevels = (m_PrefilteredRadianceTexture) ? m_PrefilteredRadianceTexture->GetMipLevels() : 0;
 	m_CBPSFlagsData.bUsePhysicallyBasedRendering = EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UsePhysicallyBasedRendering);
 
 	if (m_eMode == EMode::Edit)
@@ -3479,9 +3482,6 @@ void CGame::DrawSky(float DeltaTime)
 	}
 	else
 	{
-		if (m_EnvironmentTexture) m_EnvironmentTexture->Use();
-		if (m_IrradianceTexture) m_IrradianceTexture->Use();
-
 		// SkySphere
 		{
 			m_Object3DSkySphere->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition();
