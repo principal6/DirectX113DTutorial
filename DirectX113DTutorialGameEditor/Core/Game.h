@@ -16,6 +16,7 @@
 #include "ParticlePool.h"
 #include "PrimitiveGenerator.h"
 #include "Terrain.h"
+#include "CubemapRep.h"
 
 #include "TinyXml2/tinyxml2.h"
 #include "ImGui/imgui.h"
@@ -549,8 +550,6 @@ private:
 		STextureData::EType eSelectedTextureType);
 	void DrawEditorGUIWindowSceneEditor();
 
-	void DrawCubemapRepresentation(ID3D11ShaderResourceView* const ShaderResourceView, ID3D11RenderTargetView* const RenderTargetView);
-
 private:
 	void GenerateCubemapFromHDR();
 	void GenerateIrradianceMap();
@@ -601,7 +600,6 @@ private:
 	static constexpr float K3DGizmoCameraDistanceThreshold{ 0.03125f };
 	static constexpr float K3DGizmoDistanceFactorExponent{ 0.75f };
 	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
-	static constexpr float KCubemapRepresentationSize{ 75.0f };
 	static constexpr int KEnvironmentTextureSlot{ 50 };
 	static constexpr int KIrradianceTextureSlot{ 51 };
 	static constexpr int KPrefilteredRadianceTextureSlot{ 52 };
@@ -771,7 +769,6 @@ private:
 private:
 	XMMATRIX		m_MatrixProjection{};
 	XMMATRIX		m_MatrixProjection2D{};
-	XMMATRIX		m_MatrixProjection2DCubemap{};
 	float			m_NearZ{};
 	float			m_FarZ{};
 
@@ -803,7 +800,6 @@ private:
 private:
 	ImFont* m_EditorGUIFont{};
 	SEditorGUIBools				m_EditorGUIBools{};
-	std::unique_ptr<CObject2D>	m_CubemapRepresentation{};
 
 private:
 	std::chrono::steady_clock	m_Clock{};
@@ -852,17 +848,9 @@ private:
 	std::unique_ptr<CTexture>			m_IrradianceTexture{};
 	std::unique_ptr<CTexture>			m_PrefilteredRadianceTexture{};
 
-	ComPtr<ID3D11RenderTargetView>		m_Environment2DRTV{};
-	ComPtr<ID3D11ShaderResourceView>	m_Environment2DSRV{};
-	ComPtr<ID3D11Texture2D>				m_Environment2DTexture{};
-
-	ComPtr<ID3D11RenderTargetView>		m_Irradiance2DRTV{};
-	ComPtr<ID3D11ShaderResourceView>	m_Irradiance2DSRV{};
-	ComPtr<ID3D11Texture2D>				m_Irradiance2DTexture{};
-
-	ComPtr<ID3D11RenderTargetView>		m_PrefilteredRadiance2DRTV{};
-	ComPtr<ID3D11ShaderResourceView>	m_PrefilteredRadiance2DSRV{};
-	ComPtr<ID3D11Texture2D>				m_PrefilteredRadiance2DTexture{};
+	std::unique_ptr<CCubemapRep>		m_EnvironmentRep{};
+	std::unique_ptr<CCubemapRep>		m_IrradianceRep{};
+	std::unique_ptr<CCubemapRep>		m_PrefilteredRadianceRep{};
 
 	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedIrradianceMapRTV{};
 	ComPtr<ID3D11ShaderResourceView>			m_GeneratedIrradianceMapSRV{};

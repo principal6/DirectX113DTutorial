@@ -88,6 +88,9 @@
     <ClCompile Include="Core\ConstantBuffer.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Core\CubemapRep.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTK\Audio.h">
@@ -452,6 +455,9 @@
     </ClInclude>
     <ClInclude Include="DirectXTex\DirectXTex.h">
       <Filter>DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\CubemapRep.h">
+      <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

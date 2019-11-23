@@ -140,12 +140,10 @@ void CGame::InitializeEditorAssets()
 {
 	CreateEditorCamera();
 
-	if (!m_CubemapRepresentation)
-	{
-		m_CubemapRepresentation = make_unique<CObject2D>("ENV", m_Device.Get(), m_DeviceContext.Get());
-		m_CubemapRepresentation->Create(Generate2DCubemapRepresentation(XMFLOAT2(KCubemapRepresentationSize, KCubemapRepresentationSize)));
-	}
-
+	if (!m_EnvironmentRep) m_EnvironmentRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get(), this);
+	if (!m_IrradianceRep) m_IrradianceRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get(), this);
+	if (!m_PrefilteredRadianceRep) m_PrefilteredRadianceRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get(), this);
+	
 	if (!m_Object3D_CameraRepresentation)
 	{
 		m_Object3D_CameraRepresentation = make_unique<CObject3D>("CameraRepresentation", m_Device.Get(), m_DeviceContext.Get(), this);
@@ -280,93 +278,6 @@ void CGame::CreateViews()
 		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
 		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 		m_Device->CreateRenderTargetView(m_ScreenQuadTexture.Get(), &ScreenQuadRTVDesc, m_ScreenQuadRTV.ReleaseAndGetAddressOf());
-	}
-
-	// Create RTV and SRV for environment map representation
-	{
-		D3D11_TEXTURE2D_DESC Texture2DDesc{};
-		Texture2DDesc.ArraySize = 1;
-		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-		Texture2DDesc.CPUAccessFlags = 0;
-		Texture2DDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
-		Texture2DDesc.Height = static_cast<UINT>(KCubemapRepresentationSize * 3);
-		Texture2DDesc.MipLevels = 1;
-		Texture2DDesc.SampleDesc.Count = 1;
-		Texture2DDesc.SampleDesc.Quality = 0;
-		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
-		Texture2DDesc.Width = static_cast<UINT>(KCubemapRepresentationSize * 4);
-		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_Environment2DTexture.ReleaseAndGetAddressOf());
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC ScreenQuadSRVDesc{};
-		ScreenQuadSRVDesc.Format = Texture2DDesc.Format;
-		ScreenQuadSRVDesc.Texture2D.MipLevels = 1;
-		ScreenQuadSRVDesc.Texture2D.MostDetailedMip = 0;
-		ScreenQuadSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		m_Device->CreateShaderResourceView(m_Environment2DTexture.Get(), &ScreenQuadSRVDesc, m_Environment2DSRV.ReleaseAndGetAddressOf());
-
-		D3D11_RENDER_TARGET_VIEW_DESC ScreenQuadRTVDesc{};
-		ScreenQuadRTVDesc.Format = Texture2DDesc.Format;
-		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
-		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		m_Device->CreateRenderTargetView(m_Environment2DTexture.Get(), &ScreenQuadRTVDesc, m_Environment2DRTV.ReleaseAndGetAddressOf());
-	}
-
-	// Create RTV and SRV for irradiance map representation
-	{
-		D3D11_TEXTURE2D_DESC Texture2DDesc{};
-		Texture2DDesc.ArraySize = 1;
-		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-		Texture2DDesc.CPUAccessFlags = 0;
-		Texture2DDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
-		Texture2DDesc.Height = static_cast<UINT>(KCubemapRepresentationSize * 3);
-		Texture2DDesc.MipLevels = 1;
-		Texture2DDesc.SampleDesc.Count = 1;
-		Texture2DDesc.SampleDesc.Quality = 0;
-		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
-		Texture2DDesc.Width = static_cast<UINT>(KCubemapRepresentationSize * 4);
-		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_Irradiance2DTexture.ReleaseAndGetAddressOf());
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC ScreenQuadSRVDesc{};
-		ScreenQuadSRVDesc.Format = Texture2DDesc.Format;
-		ScreenQuadSRVDesc.Texture2D.MipLevels = 1;
-		ScreenQuadSRVDesc.Texture2D.MostDetailedMip = 0;
-		ScreenQuadSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		m_Device->CreateShaderResourceView(m_Irradiance2DTexture.Get(), &ScreenQuadSRVDesc, m_Irradiance2DSRV.ReleaseAndGetAddressOf());
-
-		D3D11_RENDER_TARGET_VIEW_DESC ScreenQuadRTVDesc{};
-		ScreenQuadRTVDesc.Format = Texture2DDesc.Format;
-		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
-		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		m_Device->CreateRenderTargetView(m_Irradiance2DTexture.Get(), &ScreenQuadRTVDesc, m_Irradiance2DRTV.ReleaseAndGetAddressOf());
-	}
-
-	// Create RTV and SRV for prefiltered radiance map representation
-	{
-		D3D11_TEXTURE2D_DESC Texture2DDesc{};
-		Texture2DDesc.ArraySize = 1;
-		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-		Texture2DDesc.CPUAccessFlags = 0;
-		Texture2DDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
-		Texture2DDesc.Height = static_cast<UINT>(KCubemapRepresentationSize * 3);
-		Texture2DDesc.MipLevels = 1;
-		Texture2DDesc.SampleDesc.Count = 1;
-		Texture2DDesc.SampleDesc.Quality = 0;
-		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
-		Texture2DDesc.Width = static_cast<UINT>(KCubemapRepresentationSize * 4);
-		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_PrefilteredRadiance2DTexture.ReleaseAndGetAddressOf());
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC ScreenQuadSRVDesc{};
-		ScreenQuadSRVDesc.Format = Texture2DDesc.Format;
-		ScreenQuadSRVDesc.Texture2D.MipLevels = 1;
-		ScreenQuadSRVDesc.Texture2D.MostDetailedMip = 0;
-		ScreenQuadSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		m_Device->CreateShaderResourceView(m_PrefilteredRadiance2DTexture.Get(), &ScreenQuadSRVDesc, m_PrefilteredRadiance2DSRV.ReleaseAndGetAddressOf());
-
-		D3D11_RENDER_TARGET_VIEW_DESC ScreenQuadRTVDesc{};
-		ScreenQuadRTVDesc.Format = Texture2DDesc.Format;
-		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
-		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		m_Device->CreateRenderTargetView(m_PrefilteredRadiance2DTexture.Get(), &ScreenQuadRTVDesc, m_PrefilteredRadiance2DRTV.ReleaseAndGetAddressOf());
 	}
 
 	// Create depth-stencil view
@@ -1408,7 +1319,6 @@ void CGame::SetProjectionMatrices(float FOV, float NearZ, float FarZ)
 
 	m_MatrixProjection = XMMatrixPerspectiveFovLH(FOV, m_WindowSize.x / m_WindowSize.y, m_NearZ, m_FarZ);
 	m_MatrixProjection2D = XMMatrixOrthographicLH(m_WindowSize.x, m_WindowSize.y, 0.0f, 1.0f);
-	m_MatrixProjection2DCubemap = XMMatrixOrthographicLH(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3, 0.0f, 1.0f);
 }
 
 void CGame::SetRenderingFlags(EFlagsRendering Flags)
@@ -5467,8 +5377,16 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								}
 							}
 
-							DrawCubemapRepresentation(m_EnvironmentTexture->GetShaderResourceViewPtr(), m_Environment2DRTV.Get());
-							ImGui::Image(m_Environment2DSRV.Get(), ImVec2(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3));
+							// @important
+							m_CBSpace2DData.World = XMMatrixTranspose(KMatrixIdentity);
+							m_CBSpace2DData.Projection = XMMatrixTranspose(KMatrixIdentity);
+							m_CBSpace2D->Update();
+
+							m_EnvironmentRep->UnfoldCubemap(m_EnvironmentTexture->GetShaderResourceViewPtr(),
+								(m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
+								m_DepthStencilView.Get());
+
+							ImGui::Image(m_EnvironmentRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
 						}
 
 						ImGui::TreePop();
@@ -5518,9 +5436,16 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								}
 							}
 
-							DrawCubemapRepresentation(m_IrradianceTexture->GetShaderResourceViewPtr(), m_Irradiance2DRTV.Get());
+							// @important
+							m_CBSpace2DData.World = XMMatrixTranspose(KMatrixIdentity);
+							m_CBSpace2DData.Projection = XMMatrixTranspose(KMatrixIdentity);
+							m_CBSpace2D->Update();
 
-							ImGui::Image(m_Irradiance2DSRV.Get(), ImVec2(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3));
+							m_IrradianceRep->UnfoldCubemap(m_IrradianceTexture->GetShaderResourceViewPtr(),
+								(m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
+								m_DepthStencilView.Get());
+
+							ImGui::Image(m_IrradianceRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
 						}
 
 						ImGui::TreePop();
@@ -5540,9 +5465,16 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 						if (m_PrefilteredRadianceTexture)
 						{
-							DrawCubemapRepresentation(m_PrefilteredRadianceTexture->GetShaderResourceViewPtr(), m_PrefilteredRadiance2DRTV.Get());
+							// @important
+							m_CBSpace2DData.World = XMMatrixTranspose(KMatrixIdentity);
+							m_CBSpace2DData.Projection = XMMatrixTranspose(KMatrixIdentity);
+							m_CBSpace2D->Update();
 
-							ImGui::Image(m_PrefilteredRadiance2DSRV.Get(), ImVec2(KCubemapRepresentationSize * 4, KCubemapRepresentationSize * 3));
+							m_PrefilteredRadianceRep->UnfoldCubemap(m_PrefilteredRadianceTexture->GetShaderResourceViewPtr(),
+								(m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
+								m_DepthStencilView.Get());
+
+							ImGui::Image(m_PrefilteredRadianceRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
 						}
 
 						ImGui::TreePop();
@@ -6301,38 +6233,6 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 		}
 		ImGui::End();
 	}
-}
-
-void CGame::DrawCubemapRepresentation(ID3D11ShaderResourceView* const ShaderResourceView, ID3D11RenderTargetView* const RenderTargetView)
-{
-	ID3D11SamplerState* LinearClamp{ m_CommonStates->LinearClamp() };
-	m_DeviceContext->PSSetSamplers(0, 1, &LinearClamp);
-
-	D3D11_VIEWPORT Viewport{};
-	Viewport.Width = KCubemapRepresentationSize * 4;
-	Viewport.Height = KCubemapRepresentationSize * 3;
-	Viewport.TopLeftX = 0.0f;
-	Viewport.TopLeftY = 0.0f;
-	Viewport.MinDepth = 0.0f;
-	Viewport.MaxDepth = 1.0f;
-	m_DeviceContext->RSSetViewports(1, &Viewport);
-
-	m_DeviceContext->OMSetRenderTargets(1, &RenderTargetView, nullptr);
-	m_DeviceContext->ClearRenderTargetView(RenderTargetView, Colors::Transparent);
-
-	// @important
-	m_CBSpace2DData.World = XMMatrixTranspose(KMatrixIdentity);
-	m_CBSpace2DData.Projection = XMMatrixTranspose(KMatrixIdentity);
-	m_CBSpace2D->Update();
-
-	m_VSBase2D->Use();
-	m_PSCubemap2D->Use();
-
-	m_DeviceContext->PSSetShaderResources(0, 1, &ShaderResourceView);
-	m_CubemapRepresentation->Draw(true);
-
-	m_DeviceContext->OMSetRenderTargets(1, (m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
-		m_DepthStencilView.Get());
 }
 
 void CGame::GenerateCubemapFromHDR()
