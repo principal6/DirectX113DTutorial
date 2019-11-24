@@ -23,21 +23,21 @@ void CCubemapRep::UnfoldCubemap(ID3D11ShaderResourceView* const CubemapSRV,
 
 	if (!m_SRV)
 	{
-		D3D11_SHADER_RESOURCE_VIEW_DESC ScreenQuadSRVDesc{};
-		ScreenQuadSRVDesc.Format = m_TextureDesc.Format;
-		ScreenQuadSRVDesc.Texture2D.MipLevels = 1;
-		ScreenQuadSRVDesc.Texture2D.MostDetailedMip = 0;
-		ScreenQuadSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		m_PtrDevice->CreateShaderResourceView(m_Texture.Get(), &ScreenQuadSRVDesc, m_SRV.ReleaseAndGetAddressOf());
+		D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
+		SRVDesc.Format = m_TextureDesc.Format;
+		SRVDesc.Texture2D.MipLevels = 1;
+		SRVDesc.Texture2D.MostDetailedMip = 0;
+		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		m_PtrDevice->CreateShaderResourceView(m_Texture.Get(), &SRVDesc, m_SRV.ReleaseAndGetAddressOf());
 	}
 
 	if (!m_RTV)
 	{
-		D3D11_RENDER_TARGET_VIEW_DESC ScreenQuadRTVDesc{};
-		ScreenQuadRTVDesc.Format = m_TextureDesc.Format;
-		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
-		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		m_PtrDevice->CreateRenderTargetView(m_Texture.Get(), &ScreenQuadRTVDesc, m_RTV.ReleaseAndGetAddressOf());
+		D3D11_RENDER_TARGET_VIEW_DESC RTVDesc{};
+		RTVDesc.Format = m_TextureDesc.Format;
+		RTVDesc.Texture2D.MipSlice = 0;
+		RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		m_PtrDevice->CreateRenderTargetView(m_Texture.Get(), &RTVDesc, m_RTV.ReleaseAndGetAddressOf());
 	}
 
 	if (!m_CubemapRepresentation)

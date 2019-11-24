@@ -3,6 +3,7 @@
 using std::vector;
 using std::unique_ptr;
 using std::make_unique;
+using std::string;
 
 SModel CModelPorter::ImportStaticModel(const std::string& FileName)
 {
@@ -331,6 +332,9 @@ void CModelPorter::ReadStaticModelFile(SModel& Model)
 
 			// # 16B (XMVECTOR) Normal
 			Vertex.Normal = m_BinaryFile.ReadXMVECTOR();
+
+			// 16B (XMVECTOR) Tangent
+			Vertex.Tangent = m_BinaryFile.ReadXMVECTOR();
 		}
 
 		// # ### TRIANGLE ###
@@ -355,54 +359,80 @@ void CModelPorter::ReadStaticModelFile(SModel& Model)
 
 void CModelPorter::ReadModelMaterials(std::vector<CMaterialData>& vMaterialData)
 {
+	uint16_t StringLength{};
+
 	for (CMaterialData& MaterialData : vMaterialData)
 	{
 		// # 1B (uint8_t) Material index
 		m_BinaryFile.ReadUInt8();
 
-		// # 512B (string) Material name
-		MaterialData.Name(m_BinaryFile.ReadString(512));
+		// # @NameStructure@ Material name
+		StringLength = m_BinaryFile.ReadUInt16();
+		MaterialData.Name(m_BinaryFile.ReadString((int32_t)StringLength));
 
 		// # 1B (bool) bHasTexture ( automatically set by SetTextureFileName() )
 		m_BinaryFile.ReadBool();
 
-		// # 12B (XMFLOAT3) Ambient color
-		MaterialData.AmbientColor(m_BinaryFile.ReadXMFLOAT3());
-
-		// # 12B (XMFLOAT3) Diffuse color
+		// # 12B (XMFLOAT3) Diffuse color (Classical) == Base color (PBR)
 		MaterialData.DiffuseColor(m_BinaryFile.ReadXMFLOAT3());
 
-		// # 12B (XMFLOAT3) Specular color
+		// # 12B (XMFLOAT3) Ambient color (Classical only)
+		MaterialData.AmbientColor(m_BinaryFile.ReadXMFLOAT3());
+
+		// # 12B (XMFLOAT3) Specular color (Classical only)
 		MaterialData.SpecularColor(m_BinaryFile.ReadXMFLOAT3());
 
-		// # 4B (float) Specular exponent
+		// # 4B (float) Specular exponent (Classical only)
 		MaterialData.SpecularExponent(m_BinaryFile.ReadFloat());
 
 		// # 4B (float) Specular intensity
 		MaterialData.SpecularIntensity(m_BinaryFile.ReadFloat());
 
+		// # 4B (float) Roughness (PBR only)
+		MaterialData.Roughness(m_BinaryFile.ReadFloat());
+
+		// # 4B (float) Metalness (PBR only)
+		MaterialData.Metalness(m_BinaryFile.ReadFloat());
+
 		// # 1B (bool) bShouldGenerateAutoMipMap
 		MaterialData.ShouldGenerateMipMap(m_BinaryFile.ReadBool());
 
-		// # 512B (string, File name) Diffuse texture file name
-		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, m_BinaryFile.ReadString(512));
+		// # @NameStructure@ Diffuse texture file name (Classical) // BaseColor texture file name (PBR)
+		StringLength = m_BinaryFile.ReadUInt16();
+		if (StringLength) MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, m_BinaryFile.ReadString((int32_t)StringLength));
 
-		// # 512B (string, File name) Normal texture file name
-		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, m_BinaryFile.ReadString(512));
+		// # @NameStructure@ Normal texture file name
+		StringLength = m_BinaryFile.ReadUInt16();
+		if (StringLength) MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, m_BinaryFile.ReadString((int32_t)StringLength));
 
-		// # 512B (string, File name) Displacement texture file name
-		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, m_BinaryFile.ReadString(512));
+		// # @NameStructure@ Opacity texture file name
+		StringLength = m_BinaryFile.ReadUInt16();
+		if (StringLength) MaterialData.SetTextureFileName(STextureData::EType::OpacityTexture, m_BinaryFile.ReadString((int32_t)StringLength));
 
-		// # 512B (string, File name) Opacity texture file name
-		MaterialData.SetTextureFileName(STextureData::EType::OpacityTexture, m_BinaryFile.ReadString(512));
+		// # @NameStructure@ Specular intensity texture file name
+		StringLength = m_BinaryFile.ReadUInt16();
+		if (StringLength) MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, m_BinaryFile.ReadString((int32_t)StringLength));
+
+		// # @NameStructure@ Roughness texture file name (PBR only)
+		StringLength = m_BinaryFile.ReadUInt16();
+		if (StringLength) MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, m_BinaryFile.ReadString((int32_t)StringLength));
+
+		// # @NameStructure@ Metalness texture file name (PBR only)
+		StringLength = m_BinaryFile.ReadUInt16();
+		if (StringLength) MaterialData.SetTextureFileName(STextureData::EType::MetalnessTexture, m_BinaryFile.ReadString((int32_t)StringLength));
+
+		// # @NameStructure@ Ambient occlusion texture file name (PBR only)
+		StringLength = m_BinaryFile.ReadUInt16();
+		if (StringLength) MaterialData.SetTextureFileName(STextureData::EType::AmbientOcclusionTexture, m_BinaryFile.ReadString((int32_t)StringLength));
+
+		// # @NameStructure@ Displacement texture file name
+		StringLength = m_BinaryFile.ReadUInt16();
+		if (StringLength) MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, m_BinaryFile.ReadString((int32_t)StringLength));
 	}
 }
 
 void CModelPorter::WriteStaticModelFile(const SModel& Model)
 {
-	// 1B (uint8_t) Material count
-	m_BinaryFile.WriteUInt8((uint8_t)Model.vMaterialData.size());
-
 	WriteModelMaterials(Model.vMaterialData);
 
 	// 1B (uint8_t) Mesh count
@@ -439,6 +469,9 @@ void CModelPorter::WriteStaticModelFile(const SModel& Model)
 
 			// 16B (XMVECTOR) Normal
 			m_BinaryFile.WriteXMVECTOR(Vertex.Normal);
+
+			// 16B (XMVECTOR) Tangent
+			m_BinaryFile.WriteXMVECTOR(Vertex.Tangent);
 		}
 
 		// 4B (uint32_t) Triangle count
@@ -464,48 +497,98 @@ void CModelPorter::WriteStaticModelFile(const SModel& Model)
 
 void CModelPorter::WriteModelMaterials(const std::vector<CMaterialData>& vMaterialData)
 {
+	uint16_t StringLength{};
+	string String{};
 	uint8_t iMaterial{};
+
+	// 1B (uint8_t) Material count
+	m_BinaryFile.WriteUInt8((uint8_t)vMaterialData.size());
 
 	for (const CMaterialData& MaterialData : vMaterialData)
 	{
-		// 1B (uint8_t) Material index
+		// # 1B (uint8_t) Material index
 		m_BinaryFile.WriteUInt8(iMaterial);
 
-		// 512B (string) Material name
-		m_BinaryFile.WriteString(MaterialData.Name(), 512);
+		// # @NameStructure@ Material name
+		String = MaterialData.Name();
+		StringLength = (uint16_t)String.size();
+		m_BinaryFile.WriteUInt16(StringLength);
+		m_BinaryFile.WriteString(String, StringLength);
 		
-		// 1B (bool) bHasTexture
+		// # 1B (bool) bHasTexture
 		m_BinaryFile.WriteBool(MaterialData.HasAnyTexture());
 
-		// 12B (XMFLOAT3) Ambient color
-		m_BinaryFile.WriteXMFLOAT3(MaterialData.AmbientColor());
-
-		// 12B (XMFLOAT3) Diffuse color
+		// # 12B (XMFLOAT3) Diffuse color (Classical) == Base color (PBR)
 		m_BinaryFile.WriteXMFLOAT3(MaterialData.DiffuseColor());
 
-		// 12B (XMFLOAT3) Specular color
+		// # 12B (XMFLOAT3) Ambient color (Classical only)
+		m_BinaryFile.WriteXMFLOAT3(MaterialData.AmbientColor());
+
+		// # 12B (XMFLOAT3) Specular color (Classical only)
 		m_BinaryFile.WriteXMFLOAT3(MaterialData.SpecularColor());
 
-		// 4B (float) Specular exponent
+		// # 4B (float) Specular exponent (Classical)
 		m_BinaryFile.WriteFloat(MaterialData.SpecularExponent());
 
-		// 4B (float) Specular intensity
+		// # 4B (float) Specular intensity
 		m_BinaryFile.WriteFloat(MaterialData.SpecularIntensity());
 
-		// 1B (bool) bShouldGenerateAutoMipMap
+		// # 4B (float) Roughness (PBR only)
+		m_BinaryFile.WriteFloat(MaterialData.Roughness());
+
+		// # 4B (float) Metalness (PBR only)
+		m_BinaryFile.WriteFloat(MaterialData.Metalness());
+
+		// # 1B (bool) bShouldGenerateAutoMipMap
 		m_BinaryFile.WriteBool(MaterialData.ShouldGenerateMipMap());
 
-		// 512B (string, File name) Diffuse texture file name
-		m_BinaryFile.WriteString(MaterialData.GetTextureFileName(STextureData::EType::DiffuseTexture), 512);
+		// # @NameStructure@ Diffuse texture file name (Classical) // BaseColor texture file name (PBR)
+		String = MaterialData.GetTextureFileName(STextureData::EType::DiffuseTexture);
+		StringLength = (uint16_t)String.size();
+		m_BinaryFile.WriteUInt16(StringLength);
+		m_BinaryFile.WriteString(String, StringLength);
 		
-		// 512B (string, File name) Normal texture file name
-		m_BinaryFile.WriteString(MaterialData.GetTextureFileName(STextureData::EType::NormalTexture), 512);
+		// # @NameStructure@ Normal texture file name
+		String = MaterialData.GetTextureFileName(STextureData::EType::NormalTexture);
+		StringLength = (uint16_t)String.size();
+		m_BinaryFile.WriteUInt16(StringLength);
+		m_BinaryFile.WriteString(String, StringLength);
 
-		// 512B (string, File name) Displacement texture file name
-		m_BinaryFile.WriteString(MaterialData.GetTextureFileName(STextureData::EType::DisplacementTexture), 512);
+		// # @NameStructure@ Opacity texture file name
+		String = MaterialData.GetTextureFileName(STextureData::EType::OpacityTexture);
+		StringLength = (uint16_t)String.size();
+		m_BinaryFile.WriteUInt16(StringLength);
+		m_BinaryFile.WriteString(String, StringLength);
 
-		// 512B (string, File name) Opacity texture file name
-		m_BinaryFile.WriteString(MaterialData.GetTextureFileName(STextureData::EType::OpacityTexture), 512);
+		// # @NameStructure@ Specular intensity texture file name
+		String = MaterialData.GetTextureFileName(STextureData::EType::SpecularIntensityTexture);
+		StringLength = (uint16_t)String.size();
+		m_BinaryFile.WriteUInt16(StringLength);
+		m_BinaryFile.WriteString(String, StringLength);
+
+		// # @NameStructure@ Roughness texture file name (PBR only)
+		String = MaterialData.GetTextureFileName(STextureData::EType::RoughnessTexture);
+		StringLength = (uint16_t)String.size();
+		m_BinaryFile.WriteUInt16(StringLength);
+		m_BinaryFile.WriteString(String, StringLength);
+
+		// # @NameStructure@ Metalness texture file name (PBR only)
+		String = MaterialData.GetTextureFileName(STextureData::EType::MetalnessTexture);
+		StringLength = (uint16_t)String.size();
+		m_BinaryFile.WriteUInt16(StringLength);
+		m_BinaryFile.WriteString(String, StringLength);
+
+		// # @NameStructure@ Ambient occlusion texture file name (PBR only)
+		String = MaterialData.GetTextureFileName(STextureData::EType::AmbientOcclusionTexture);
+		StringLength = (uint16_t)String.size();
+		m_BinaryFile.WriteUInt16(StringLength);
+		m_BinaryFile.WriteString(String, StringLength);
+
+		// # @NameStructure@ Displacement texture file name
+		String = MaterialData.GetTextureFileName(STextureData::EType::DisplacementTexture);
+		StringLength = (uint16_t)String.size();
+		m_BinaryFile.WriteUInt16(StringLength);
+		m_BinaryFile.WriteString(String, StringLength);
 
 		++iMaterial;
 	}

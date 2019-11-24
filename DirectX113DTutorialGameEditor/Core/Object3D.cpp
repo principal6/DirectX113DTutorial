@@ -1,5 +1,6 @@
 #include "Object3D.h"
 #include "Game.h"
+#include "ModelPorter.h"
 
 using std::max;
 using std::min;
@@ -50,33 +51,51 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 {
 	m_ModelFileName = FileName;
 
-	ULONGLONG StartTimePoint{ GetTickCount64() };
-	if (bIsModelRigged)
+	size_t found{ m_ModelFileName.find_last_of(L'.') };
+	string Ext{ m_ModelFileName.substr(found) };
+	for (auto& c : Ext)
 	{
-		m_AssimpLoader.LoadAnimatedModelFromFile(FileName, &m_Model, m_PtrDevice, m_PtrDeviceContext);
+		c = toupper(c);
+	}
 
-		ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSAnimation);
+	if (Ext == ".SMOD")
+	{
+		// SMOD file
+		CModelPorter ModelPorter{};
+		Create(ModelPorter.ImportStaticModel(m_ModelFileName));
+		return;
 	}
 	else
 	{
-		m_AssimpLoader.LoadStaticModelFromFile(FileName, &m_Model, m_PtrDevice, m_PtrDeviceContext);
-	}
-	OutputDebugString(("- Model [" + FileName + "] loaded. [" + to_string(GetTickCount64() - StartTimePoint) + "] elapsed.\n").c_str());
-
-	CreateMeshBuffers();
-	CreateMaterialTextures();
-
-	for (const CMaterialData& Material : m_Model.vMaterialData)
-	{
-		// @important
-		if (Material.HasTexture(STextureData::EType::OpacityTexture))
+		// non-SMOD file
+		ULONGLONG StartTimePoint{ GetTickCount64() };
+		if (bIsModelRigged)
 		{
-			ComponentRender.bIsTransparent = true;
-			break;
-		}
-	}
+			m_AssimpLoader.LoadAnimatedModelFromFile(FileName, &m_Model, m_PtrDevice, m_PtrDeviceContext);
 
-	m_bIsCreated = true;
+			ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSAnimation);
+		}
+		else
+		{
+			m_AssimpLoader.LoadStaticModelFromFile(FileName, &m_Model, m_PtrDevice, m_PtrDeviceContext);
+		}
+		OutputDebugString(("- Model [" + FileName + "] loaded. [" + to_string(GetTickCount64() - StartTimePoint) + "] elapsed.\n").c_str());
+
+		CreateMeshBuffers();
+		CreateMaterialTextures();
+
+		for (const CMaterialData& Material : m_Model.vMaterialData)
+		{
+			// @important
+			if (Material.HasTexture(STextureData::EType::OpacityTexture))
+			{
+				ComponentRender.bIsTransparent = true;
+				break;
+			}
+		}
+
+		m_bIsCreated = true;
+	}
 }
 
 bool CObject3D::HasAnimations()

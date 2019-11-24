@@ -1,7 +1,6 @@
 #include "Core/Game.h"
 
 // @TODO
-// save models with PBR material (ModelPorter) 
 // update scene loading/saving (save editor camera state into the scene)
 // pre-cal vp, wvp matrices
 // implement shadow mapping

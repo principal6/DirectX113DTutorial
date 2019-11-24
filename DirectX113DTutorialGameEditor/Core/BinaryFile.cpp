@@ -120,6 +120,8 @@ void CBinaryFile::WriteString(const string& Value)
 void CBinaryFile::WriteString(const string& Value, int32_t Length)
 {
 	if (!m_OFStream.is_open()) return;
+	if (Length <= 0) return;
+
 	string Resized{ Value };
 	Resized.resize(Length);
 	m_OFStream.write(Resized.c_str(), Length);
@@ -250,7 +252,8 @@ XMVECTOR CBinaryFile::ReadXMVECTOR()
 
 string CBinaryFile::ReadString(int32_t Length)
 {
-	char* DString{ new char[Length]{} };
+	// @important: allocation size is (@Length + 1) in order to properly read non-zero-terminated string
+	char* DString{ new char[Length + 1]{} };
 
 	m_IFStream.read(DString, Length);
 

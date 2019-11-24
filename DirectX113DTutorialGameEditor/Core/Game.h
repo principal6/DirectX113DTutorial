@@ -17,6 +17,7 @@
 #include "PrimitiveGenerator.h"
 #include "Terrain.h"
 #include "CubemapRep.h"
+#include "ModelPorter.h"
 
 #include "TinyXml2/tinyxml2.h"
 #include "ImGui/imgui.h"
@@ -839,6 +840,9 @@ private:
 	ComPtr<ID3D11Buffer>				m_CubemapVertexBuffer{};
 	UINT								m_CubemapVertexBufferStride{ sizeof(SCubemapVertex) };
 	UINT								m_CubemapVertexBufferOffset{};
+
+private:
+	CModelPorter						m_ModelPorter{};
 
 private:
 	ComPtr<IDXGISwapChain>				m_SwapChain{};

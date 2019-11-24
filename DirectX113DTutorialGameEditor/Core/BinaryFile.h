@@ -28,6 +28,8 @@ public:
 	void WriteXMFLOAT4(const XMFLOAT4& Value);
 	void WriteXMVECTOR(const XMVECTOR& Value);
 	void WriteString(const std::string& Value);
+
+	// if (@Length <= 0), this function doesn't write anything to the file.
 	void WriteString(const std::string& Value, int32_t Length);
 
 public:

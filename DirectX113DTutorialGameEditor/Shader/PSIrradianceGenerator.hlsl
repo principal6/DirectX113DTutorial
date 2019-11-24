@@ -22,19 +22,24 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float3 CubeSpaceX = normalize(cross(UpVector, Normal));
 	float3 CubeSpaceZ = cross(CubeSpaceX, Normal);
 
-	float4 Irradiance = float4(0, 0, 0, 0);
+	float4 Irradiance = float4(0, 0, 0, 1);
 	uint SampleCount = 0;
-	for (float Theta = 0.0; Theta < KPIDIV2; Theta += 0.1)
+	for (float Theta = 0.0; Theta < KPIDIV2; Theta += 0.0078125)
 	{
-		for (float Phi = 0.0; Phi < K2PI; Phi += 0.025)
+		for (float Phi = 0.0; Phi < K2PI; Phi += 0.015625)
 		{
 			float3 TangentSpaceDirection = float3(sin(Theta) * cos(Phi), cos(Theta), sin(Theta) * sin(Phi));
 			float3 CubeSpaceDirection = TangentSpaceDirection.x * CubeSpaceX + TangentSpaceDirection.y * Normal + TangentSpaceDirection.z * CubeSpaceZ;
 
-			Irradiance += CubemapTexture.SampleLevel(CubemapSampler, CubeSpaceDirection, 2) * cos(Theta) * sin(Theta);
+			Irradiance += CubemapTexture.SampleLevel(CubemapSampler, CubeSpaceDirection, 3) * cos(Theta) * sin(Theta);
 			++SampleCount;
 		}
 	}
 
-	return Irradiance * KPI / (float)SampleCount;
+	Irradiance = Irradiance * KPI / (float)SampleCount;
+
+	// Exposure tone mapping for raw albedo
+	Irradiance.rgb = float3(1.0, 1.0, 1.0) - exp(-Irradiance.rgb * 0.6);
+
+	return Irradiance;
 }

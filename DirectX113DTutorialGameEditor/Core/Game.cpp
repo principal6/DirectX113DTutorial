@@ -4313,7 +4313,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 		if (bShowDialogLoad3DModel)
 		{
 			static CFileDialog FileDialog{ GetWorkingDirectory() };
-			if (FileDialog.OpenFileDialog("FBX 파일\0*.fbx\0모든 파일\0*.*\0", "모델 불러오기"))
+			if (FileDialog.OpenFileDialog("FBX 파일\0*.fbx\0SMOD 파일\0*.smod\0모든 파일\0*.*\0", "모델 불러오기"))
 			{
 				strcpy_s(ModelFileNameWithPath, FileDialog.GetRelativeFileName().c_str());
 				strcpy_s(ModelFileNameWithoutPath, FileDialog.GetFileNameWithoutPath().c_str());
@@ -6107,7 +6107,19 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				m_EditorGUIBools.bShowPopupObjectAdder = true;
 			}
 
-			ImGui::SameLine();
+			// 오브젝트 저장
+			if (ImGui::Button(u8"오브젝트 저장"))
+			{
+				static CFileDialog FileDialog{ GetWorkingDirectory() };
+				if (IsAnyObject3DSelected())
+				{
+					if (FileDialog.SaveFileDialog("smod 파일(*.smod)\0*.smod\0", "3D 오브젝트 저장하기", ".smod"))
+					{
+						CObject3D* const Object3D{ GetSelectedObject3D() };
+						m_ModelPorter.ExportStaticModel(Object3D->GetModel(), FileDialog.GetFileName());
+					}
+				}
+			}
 
 			// 오브젝트 제거
 			if (ImGui::Button(u8"오브젝트 제거"))
@@ -6315,8 +6327,8 @@ void CGame::GenerateCubemapFromHDR()
 	m_GeneratedEnvironmentMapTextureDesc.ArraySize = 6;
 	m_GeneratedEnvironmentMapTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	m_GeneratedEnvironmentMapTextureDesc.CPUAccessFlags = 0;
-	m_GeneratedEnvironmentMapTextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	//m_GeneratedEnvironmentMapTextureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
+	//m_GeneratedEnvironmentMapTextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	m_GeneratedEnvironmentMapTextureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
 	m_GeneratedEnvironmentMapTextureDesc.MipLevels = 0;
 	m_GeneratedEnvironmentMapTextureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
 	m_GeneratedEnvironmentMapTextureDesc.SampleDesc.Count = 1;
@@ -6386,16 +6398,17 @@ void CGame::GenerateCubemapFromHDR()
 
 void CGame::GenerateIrradianceMap()
 {
+	const uint32_t MinificationDenominator{ 8 };
 	m_EnvironmentTexture->GetTexture2DPtr()->GetDesc(&m_GeneratedIrradianceMapTextureDesc);
 
 	// @important
-	m_GeneratedIrradianceMapTextureDesc.Width /= 4;
-	m_GeneratedIrradianceMapTextureDesc.Height /= 4;
+	m_GeneratedIrradianceMapTextureDesc.Width /= MinificationDenominator;
+	m_GeneratedIrradianceMapTextureDesc.Height /= MinificationDenominator;
 	m_GeneratedIrradianceMapTextureDesc.ArraySize = 6;
 	m_GeneratedIrradianceMapTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	m_GeneratedIrradianceMapTextureDesc.CPUAccessFlags = 0;
-	m_GeneratedIrradianceMapTextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	//m_GeneratedIrradianceMapTextureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
+	//m_GeneratedIrradianceMapTextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	m_GeneratedIrradianceMapTextureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
 	m_GeneratedIrradianceMapTextureDesc.MipLevels = 0;
 	m_GeneratedIrradianceMapTextureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
 	m_GeneratedIrradianceMapTextureDesc.SampleDesc.Count = 1;

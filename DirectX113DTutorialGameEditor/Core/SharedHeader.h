@@ -41,7 +41,7 @@ struct SVertex3D
 	XMVECTOR TexCoord{};
 	XMVECTOR Normal{};
 	XMVECTOR Tangent{};
-	XMVECTOR Bitangent{};
+	// Bitangent is calculated dynamically using Normal and Tangent
 };
 
 struct STriangle
