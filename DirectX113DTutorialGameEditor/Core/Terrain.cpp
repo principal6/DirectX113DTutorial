@@ -976,6 +976,8 @@ void CTerrain::DrawFoliageCluster()
 	if (m_vFoliages.empty()) return;
 	if (m_vFoliages[0]->GetInstanceCount() == 0) return;
 
+	m_PtrGame->SetUniversalbUseLighiting();
+
 	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullNone());
 	m_PtrDeviceContext->OMSetBlendState(m_PtrGame->GetBlendStateAlphaToCoverage(), nullptr, 0xFFFFFFFF);
 

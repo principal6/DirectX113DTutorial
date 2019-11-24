@@ -213,7 +213,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 				float Ks_indirect = dot(KMonochromatic, F_Macrosurface_indirect); // Monochromatic intensity calculation
 				float Kd_indirect = 1.0 - Ks_indirect;
 
-				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo;
+				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo / KPI;
 
 				//					1   N
 				// L_prefiltered = ---  ¥Ò  Li cos¥è

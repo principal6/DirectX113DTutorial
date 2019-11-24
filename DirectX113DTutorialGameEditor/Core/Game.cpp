@@ -201,7 +201,7 @@ void CGame::InitializeEditorAssets()
 
 	{
 		CMaterialData MaterialData{ "cobblestone_large" };
-		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\cobblestone_large_diffuse.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\cobblestone_large_base_color.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\cobblestone_large_roughness.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::AmbientOcclusionTexture, "Asset\\cobblestone_large_occlusion.jpg");
@@ -212,7 +212,7 @@ void CGame::InitializeEditorAssets()
 
 	{
 		CMaterialData MaterialData{ "burned_ground" };
-		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\burned_ground_diffuse.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\burned_ground_base_color.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\burned_ground_normal.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\burned_ground_specular.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\burned_ground_roughness.jpg");
@@ -225,7 +225,7 @@ void CGame::InitializeEditorAssets()
 
 	{
 		CMaterialData MaterialData{ "brown_mud_dry" };
-		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\brown_mud_dry_diffuse.jpg");
+		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\brown_mud_dry_base_color.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\brown_mud_dry_specular.jpg");
 		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\brown_mud_dry_roughness.jpg");
@@ -1402,6 +1402,7 @@ void CGame::SetUniversalbUseLighiting()
 	{
 		m_CBPSFlagsData.bUseLighting = TRUE;
 	}
+	m_CBPSFlags->Update();
 }
 
 void CGame::UpdateCBSpace(const XMMATRIX& World)
@@ -3170,6 +3171,7 @@ void CGame::Draw()
 	m_CBPSFlagsData.EnvironmentTextureMipLevels = (m_EnvironmentTexture) ? m_EnvironmentTexture->GetMipLevels() : 0;
 	m_CBPSFlagsData.PrefilteredRadianceTextureMipLevels = (m_PrefilteredRadianceTexture) ? m_PrefilteredRadianceTexture->GetMipLevels() : 0;
 	m_CBPSFlagsData.bUsePhysicallyBasedRendering = EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UsePhysicallyBasedRendering);
+	m_CBPSFlags->Update();
 
 	if (m_eMode == EMode::Edit)
 	{

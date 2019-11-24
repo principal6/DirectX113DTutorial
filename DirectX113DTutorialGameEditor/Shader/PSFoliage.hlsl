@@ -26,6 +26,9 @@ cbuffer cbFlags : register(b0)
 	bool bUseLighting;
 	bool bUsePhysicallyBasedRendering;
 	uint EnvironmentTextureMipLevels;
+
+	uint PrefilteredRadianceTextureMipLevels;
+	float3 Pads;
 }
 
 cbuffer cbLight : register(b1)
@@ -101,7 +104,8 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		float Dot = dot(DirectionalLightDirection, KUpDirection);
 		Directional.xyz *= pow(Dot, 0.6f);
 
-		OutputColor.xyz = Ambient + Directional;
+		//OutputColor.xyz = Ambient + Directional;
+		OutputColor.xyz = Directional;
 	}
 
 	// # Here we make sure that output RGB values are in gamma-space!
