@@ -12,7 +12,8 @@
 #define FLAG_ID_ENVIRONMENT 0x4000
 #define FLAG_ID_IRRADIANCE 0x8000
 
-SamplerState TerrainSampler : register(s0);
+SamplerState LinearWrapSampler : register(s0);
+SamplerState LinearClampSampler : register(s1);
 
 Texture2D Layer0DiffuseTexture : register(t0);
 Texture2D Layer0NormalTexture : register(t1);
@@ -129,15 +130,15 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 WorldVertexPosition = float4(Input.WorldPosition.x, 0, -Input.WorldPosition.z, 1);
 	float4 LocalMaskingPosition = mul(WorldVertexPosition, InverseTerrainWorld);
 	float4 MaskingSpacePosition = mul(LocalMaskingPosition, MaskingSpaceMatrix);
-	float4 Masking = MaskingTexture.Sample(TerrainSampler, MaskingSpacePosition.xz);
+	float4 Masking = MaskingTexture.Sample(LinearWrapSampler, MaskingSpacePosition.xz);
 
 	const float2 KTexCoord = Input.TexCoord.xy;
 
-	float4 DiffuseLayer0 = Layer0DiffuseTexture.Sample(TerrainSampler, KTexCoord);
-	float4 DiffuseLayer1 = Layer1DiffuseTexture.Sample(TerrainSampler, KTexCoord);
-	float4 DiffuseLayer2 = Layer2DiffuseTexture.Sample(TerrainSampler, KTexCoord);
-	float4 DiffuseLayer3 = Layer3DiffuseTexture.Sample(TerrainSampler, KTexCoord);
-	float4 DiffuseLayer4 = Layer4DiffuseTexture.Sample(TerrainSampler, KTexCoord);
+	float4 DiffuseLayer0 = Layer0DiffuseTexture.Sample(LinearWrapSampler, KTexCoord);
+	float4 DiffuseLayer1 = Layer1DiffuseTexture.Sample(LinearWrapSampler, KTexCoord);
+	float4 DiffuseLayer2 = Layer2DiffuseTexture.Sample(LinearWrapSampler, KTexCoord);
+	float4 DiffuseLayer3 = Layer3DiffuseTexture.Sample(LinearWrapSampler, KTexCoord);
+	float4 DiffuseLayer4 = Layer4DiffuseTexture.Sample(LinearWrapSampler, KTexCoord);
 	float4 BlendedDiffuse = float4(MaterialDiffuseColor, 1);
 	if (FlagsHasTexture & FLAG_ID_DIFFUSE)
 	{
@@ -159,11 +160,11 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer4.xyz, Masking.a);
 	}
 	
-	float4 NormalLayer0 = normalize((Layer0NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer1 = normalize((Layer1NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer2 = normalize((Layer2NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer3 = normalize((Layer3NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer4 = normalize((Layer4NormalTexture.Sample(TerrainSampler, KTexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer0 = normalize((Layer0NormalTexture.Sample(LinearWrapSampler, KTexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer1 = normalize((Layer1NormalTexture.Sample(LinearWrapSampler, KTexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer2 = normalize((Layer2NormalTexture.Sample(LinearWrapSampler, KTexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer3 = normalize((Layer3NormalTexture.Sample(LinearWrapSampler, KTexCoord) * 2.0f) - 1.0f);
+	float4 NormalLayer4 = normalize((Layer4NormalTexture.Sample(LinearWrapSampler, KTexCoord) * 2.0f) - 1.0f);
 	float4 BlendedNormal = Input.WorldNormal;
 	if (FlagsHasTexture & FLAG_ID_NORMAL)
 	{
@@ -177,11 +178,11 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		BlendedNormal = normalize(float4(mul(BlendedNormal.xyz, KTextureSpace), 0.0f));
 	}
 
-	float SpecularIntensityLayer0 = Layer0SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
-	float SpecularIntensityLayer1 = Layer1SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
-	float SpecularIntensityLayer2 = Layer2SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
-	float SpecularIntensityLayer3 = Layer3SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
-	float SpecularIntensityLayer4 = Layer4SpecularIntensityTexture.Sample(TerrainSampler, KTexCoord).r;
+	float SpecularIntensityLayer0 = Layer0SpecularIntensityTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float SpecularIntensityLayer1 = Layer1SpecularIntensityTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float SpecularIntensityLayer2 = Layer2SpecularIntensityTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float SpecularIntensityLayer3 = Layer3SpecularIntensityTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float SpecularIntensityLayer4 = Layer4SpecularIntensityTexture.Sample(LinearWrapSampler, KTexCoord).r;
 	float BlendedSpecularIntensity = MaterialSpecularIntensity;
 	if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY)
 	{
@@ -192,11 +193,11 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer4, Masking.a);
 	}
 
-	float RoughnessLayer0 = Layer0RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
-	float RoughnessLayer1 = Layer1RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
-	float RoughnessLayer2 = Layer2RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
-	float RoughnessLayer3 = Layer3RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
-	float RoughnessLayer4 = Layer4RoughnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float RoughnessLayer0 = Layer0RoughnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float RoughnessLayer1 = Layer1RoughnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float RoughnessLayer2 = Layer2RoughnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float RoughnessLayer3 = Layer3RoughnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float RoughnessLayer4 = Layer4RoughnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
 	float BlendedRoughness = MaterialRoughness;
 	if (FlagsHasTexture & FLAG_ID_ROUGHNESS)
 	{
@@ -207,11 +208,11 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer4, Masking.a);
 	}
 
-	float MetalnessLayer0 = Layer0MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
-	float MetalnessLayer1 = Layer1MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
-	float MetalnessLayer2 = Layer2MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
-	float MetalnessLayer3 = Layer3MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
-	float MetalnessLayer4 = Layer4MetalnessTexture.Sample(TerrainSampler, KTexCoord).r;
+	float MetalnessLayer0 = Layer0MetalnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float MetalnessLayer1 = Layer1MetalnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float MetalnessLayer2 = Layer2MetalnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float MetalnessLayer3 = Layer3MetalnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float MetalnessLayer4 = Layer4MetalnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
 	float BlendedMetalness = MaterialMetalness;
 	if (FlagsHasTexture & FLAG_ID_METALNESS)
 	{
@@ -222,11 +223,11 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer4, Masking.a);
 	}
 
-	float AmbientOcclusionLayer0 = Layer0AmbientOcclusionTexture.Sample(TerrainSampler, KTexCoord).r;
-	float AmbientOcclusionLayer1 = Layer1AmbientOcclusionTexture.Sample(TerrainSampler, KTexCoord).r;
-	float AmbientOcclusionLayer2 = Layer2AmbientOcclusionTexture.Sample(TerrainSampler, KTexCoord).r;
-	float AmbientOcclusionLayer3 = Layer3AmbientOcclusionTexture.Sample(TerrainSampler, KTexCoord).r;
-	float AmbientOcclusionLayer4 = Layer4AmbientOcclusionTexture.Sample(TerrainSampler, KTexCoord).r;
+	float AmbientOcclusionLayer0 = Layer0AmbientOcclusionTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float AmbientOcclusionLayer1 = Layer1AmbientOcclusionTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float AmbientOcclusionLayer2 = Layer2AmbientOcclusionTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float AmbientOcclusionLayer3 = Layer3AmbientOcclusionTexture.Sample(LinearWrapSampler, KTexCoord).r;
+	float AmbientOcclusionLayer4 = Layer4AmbientOcclusionTexture.Sample(LinearWrapSampler, KTexCoord).r;
 	float BlendedAmbientOcclusion = 1.0;
 	if (FlagsHasTexture & FLAG_ID_METALNESS)
 	{
@@ -323,7 +324,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 				float MdotWi_indirect = max(dot(M, Wi_indirect), 0);
 
 				// Diffuse: Irradiance of the surface point
-				float3 Ei_indirect = IrradianceTexture.SampleBias(TerrainSampler, N, BlendedRoughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
+				float3 Ei_indirect = IrradianceTexture.SampleBias(LinearWrapSampler, N, BlendedRoughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
 				if (!(FlagsIsTextureSRGB & FLAG_ID_IRRADIANCE)) Ei_indirect = pow(Ei_indirect, 2.2);
 
 				// Calculate Fresnel reflectance of macrosurface
@@ -333,11 +334,15 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 				float Ks_indirect = dot(KMonochromatic, F_Macrosurface_indirect); // Monochromatic intensity calculation
 				float Kd_indirect = 1.0 - Ks_indirect;
 
-				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo / KPI;
+				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo;
 
-				float3 PrefilteredRadiance = PrefilteredRadianceTexture.SampleBias(TerrainSampler, Wi_indirect,
+				// @important: use SampleLevel, not SampleBias (we must not depend on distance but on roughness when selecting mip level)
+				float3 PrefilteredRadiance = PrefilteredRadianceTexture.SampleLevel(LinearWrapSampler, Wi_indirect,
 					BlendedRoughness * (float)(PrefilteredRadianceTextureMipLevels - 1)).rgb;
-				float2 IntegratedBRDF = IntegratedBRDFTexture.Sample(TerrainSampler, float2(dot(N, Wo), 1 - BlendedRoughness)).rg;
+
+				// @important: use linear clamp sampler in order to avoid sampling at border issues!!
+				float2 IntegratedBRDF = IntegratedBRDFTexture.SampleLevel(LinearClampSampler, float2(saturate(dot(N, Wo)), 1 - BlendedRoughness), 0).rg;
+
 				float3 Lo_indirect_spec = Ks_indirect * PrefilteredRadiance * (Albedo * IntegratedBRDF.x + IntegratedBRDF.y);
 
 				OutputColor.xyz += (Lo_indirect_diff + Lo_indirect_spec) * BlendedAmbientOcclusion;

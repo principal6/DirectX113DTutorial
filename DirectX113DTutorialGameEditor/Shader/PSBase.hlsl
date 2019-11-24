@@ -12,7 +12,8 @@
 #define FLAG_ID_ENVIRONMENT 0x4000
 #define FLAG_ID_IRRADIANCE 0x8000
 
-SamplerState CurrentSampler : register(s0);
+SamplerState LinearWrapSampler : register(s0);
+SamplerState LinearClampSampler : register(s1);
 
 Texture2D DiffuseTexture : register(t0);
 Texture2D NormalTexture : register(t1);
@@ -80,7 +81,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	{
 		if (FlagsHasTexture & FLAG_ID_DIFFUSE)
 		{
-			DiffuseColor = DiffuseTexture.Sample(CurrentSampler, Input.TexCoord.xy).xyz;
+			DiffuseColor = DiffuseTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).xyz;
 
 			// # Here we make sure that input RGB values are in linear-space!
 			if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
@@ -92,7 +93,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 		if (FlagsHasTexture & FLAG_ID_NORMAL)
 		{
-			WorldNormal = NormalTexture.Sample(CurrentSampler, Input.TexCoord.xy);
+			WorldNormal = NormalTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
 			WorldNormal = normalize((WorldNormal * 2.0f) - 1.0f);
 
 			float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
@@ -101,7 +102,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		
 		if (FlagsHasTexture & FLAG_ID_OPACITY)
 		{
-			float4 Sampled = OpacityTexture.Sample(CurrentSampler, Input.TexCoord.xy);
+			float4 Sampled = OpacityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
 			if (Sampled.r == Sampled.g && Sampled.g == Sampled.b)
 			{
 				Opacity = Sampled.r;
@@ -114,22 +115,22 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 		if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY)
 		{
-			SpecularIntensity = SpecularIntensityTexture.Sample(CurrentSampler, Input.TexCoord.xy).r;
+			SpecularIntensity = SpecularIntensityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 		}
 
 		if (FlagsHasTexture & FLAG_ID_ROUGHNESS)
 		{
-			Roughness = RoughnessTexture.Sample(CurrentSampler, Input.TexCoord.xy).r;
+			Roughness = RoughnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 		}
 
 		if (FlagsHasTexture & FLAG_ID_METALNESS)
 		{
-			Metalness = MetalnessTexture.Sample(CurrentSampler, Input.TexCoord.xy).r;
+			Metalness = MetalnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 		}
 
 		if (FlagsHasTexture & FLAG_ID_AMBIENTOCCLUSION)
 		{
-			AmbientOcclusion = AmbientOcclusionTexture.Sample(CurrentSampler, Input.TexCoord.xy).r;
+			AmbientOcclusion = AmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 		}
 	}
 
@@ -201,11 +202,8 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 				float3 Wi_indirect = normalize(-Wo + (2.0 * dot(N, Wo) * N)); // @important: do not clamp dot product...!!!!
 				float NdotWi_indirect = dot(N, Wi_indirect);
 
-				float3 M = normalize(Wi_indirect + Wo);
-				float MdotWi_indirect = max(dot(M, Wi_indirect), 0);
-
 				// Diffuse: Irradiance of the surface point
-				float3 Ei_indirect = IrradianceTexture.SampleBias(CurrentSampler, N, Roughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
+				float3 Ei_indirect = IrradianceTexture.SampleBias(LinearWrapSampler, N, Roughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
 				if (!(FlagsIsTextureSRGB & FLAG_ID_IRRADIANCE)) Ei_indirect = pow(Ei_indirect, 2.2);
 
 				// Calculate Fresnel reflectance of macrosurface
@@ -215,11 +213,18 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 				float Ks_indirect = dot(KMonochromatic, F_Macrosurface_indirect); // Monochromatic intensity calculation
 				float Kd_indirect = 1.0 - Ks_indirect;
 
-				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo / KPI;
+				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo;
 
-				float3 PrefilteredRadiance = PrefilteredRadianceTexture.SampleBias(CurrentSampler, Wi_indirect,
+				//					1   N
+				// L_prefiltered = ---  ¥Ò  Li cos¥è
+				//					N  k=1
+				// @important: use SampleLevel, not SampleBias (we must not depend on distance but on roughness when selecting mip level)
+				float3 PrefilteredRadiance = PrefilteredRadianceTexture.SampleLevel(LinearWrapSampler, Wi_indirect,
 					Roughness * (float)(PrefilteredRadianceTextureMipLevels - 1)).rgb;
-				float2 IntegratedBRDF = IntegratedBRDFTexture.Sample(CurrentSampler, float2(dot(N, Wo), 1 - Roughness)).rg;
+
+				// @important: use linear clamp sampler in order to avoid sampling at border issues!!
+				float2 IntegratedBRDF = IntegratedBRDFTexture.SampleLevel(LinearClampSampler, float2(saturate(dot(N, Wo)), 1 - Roughness), 0).rg;
+
 				float3 Lo_indirect_spec = Ks_indirect * PrefilteredRadiance * (Albedo * IntegratedBRDF.x + IntegratedBRDF.y);
 
 				OutputColor.xyz += (Lo_indirect_diff + Lo_indirect_spec) * AmbientOcclusion;

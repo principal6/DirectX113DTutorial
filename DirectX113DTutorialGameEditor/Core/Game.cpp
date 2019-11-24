@@ -2960,9 +2960,11 @@ void CGame::BeginRendering(const FLOAT* ClearColor, bool bUseDeferredRendering)
 		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 	}
 
-	ID3D11SamplerState* SamplerState{ m_CommonStates->LinearWrap() };
-	m_DeviceContext->PSSetSamplers(0, 1, &SamplerState);
-	m_DeviceContext->DSSetSamplers(0, 1, &SamplerState); // @important: in order to use displacement mapping
+	ID3D11SamplerState* LinearWrapSampler{ m_CommonStates->LinearWrap() };
+	ID3D11SamplerState* LinearClampSampler{ m_CommonStates->LinearClamp() };
+	m_DeviceContext->PSSetSamplers(0, 1, &LinearWrapSampler);
+	m_DeviceContext->PSSetSamplers(1, 1, &LinearClampSampler);
+	m_DeviceContext->DSSetSamplers(0, 1, &LinearWrapSampler); // @important: in order to use displacement mapping
 
 	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
 
@@ -6514,7 +6516,8 @@ void CGame::GeneratePrefilteredRadianceMap()
 
 			for (uint32_t iMipLevel = 0; iMipLevel < BiasedMipMax; ++iMipLevel)
 			{
-				float Roughness{ (float)iMipLevel / (float)(BiasedMipMax - 1) };
+				// @important
+				float Roughness{ (float)(iMipLevel) / (float)(BiasedMipMax - 1) };
 				m_CBRadiancePrefilteringData.Roughness = Roughness;
 				m_CBRadiancePrefiltering->Update();
 

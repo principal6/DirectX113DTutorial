@@ -13,7 +13,7 @@ float2 main(VS_OUTPUT Input) : SV_TARGET
 	float Alpha = max(Roughness * Roughness, 0.001);
 
 	float3 Wo;
-	Wo.x = sqrt(1.0f - WnDotWo * WnDotWo); // sin: sin^2x = 1 - cos^2x
+	Wo.x = sqrt(1.0f - WnDotWo * WnDotWo); // sin (sin^2x = 1 - cos^2x)
 	Wo.y = WnDotWo; // cos
 	Wo.z = 0;
 	float A = 0;

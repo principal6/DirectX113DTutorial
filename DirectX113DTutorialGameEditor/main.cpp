@@ -1,7 +1,8 @@
 #include "Core/Game.h"
 
 // @TODO
-// fix IBL issues + refactor all the codes
+// refactor all the codes
+// update scene loading/saving
 // pre-cal vp, wvp matrices
 // save models with PBR material + save editor camera state into the scene
 // implement shadow mapping
