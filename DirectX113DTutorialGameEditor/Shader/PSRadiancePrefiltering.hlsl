@@ -6,7 +6,8 @@ TextureCube CubemapTexture : register(t0);
 cbuffer cbRadiancePrefiltering : register(b0)
 {
 	float Roughness;
-	float3 Pads;
+	float RangeFactor;
+	float2 Pads;
 };
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
@@ -31,5 +32,11 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			TotalWeight += WnDotWi;
 		}
 	}
-	return float4(PrefilteredRadiance / TotalWeight, 1);
+
+	PrefilteredRadiance = PrefilteredRadiance / TotalWeight;
+
+	// HDR range adjustment
+	PrefilteredRadiance *= RangeFactor;
+
+	return float4(PrefilteredRadiance, 1);
 }

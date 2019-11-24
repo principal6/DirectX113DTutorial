@@ -78,7 +78,7 @@ float2 Hammersley(uint Seed, uint SampleCount, uint Order, float Base)
 			((Seed & 0x1 << ((Order / 2 + (ShiftStep + 1) / 2) - 1)) >> ShiftStep) |
 			((Seed & 0x1 << (Order / 2 - (ShiftStep + 1) / 2)) << ShiftStep);
 
-		if (ShiftStep == 1) break;
+		if (ShiftStep <= 1) break;
 
 		ShiftStep -= 2;
 	}

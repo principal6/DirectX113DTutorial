@@ -185,7 +185,14 @@ public:
 	struct SCBRadiancePrefiltering
 	{
 		float	Roughness{};
-		float	Pads[3]{};
+		float	RangeFactor{};
+		float	Pads[2]{};
+	};
+
+	struct SCBIrradianceGenerator
+	{
+		float RangeFactor{};
+		float Pads[3]{};
 	};
 
 	enum class EFlagsRendering
@@ -556,9 +563,9 @@ private:
 	void DrawEditorGUIWindowSceneEditor();
 
 private:
-	void GenerateCubemapFromHDR();
-	void GenerateIrradianceMap();
-	void GeneratePrefilteredRadianceMap();
+	void GenerateCubemapFromHDRi();
+	void GenerateIrradianceMap(float RangeFactor);
+	void GeneratePrefilteredRadianceMap(float RangeFactor);
 	void GenerateIntegratedBRDFMap();
 
 public:
@@ -686,6 +693,7 @@ private:
 	std::unique_ptr<CConstantBuffer> m_CBCameraSelection{};
 	std::unique_ptr<CConstantBuffer> m_CBScreen{};
 	std::unique_ptr<CConstantBuffer> m_CBRadiancePrefiltering{};
+	std::unique_ptr<CConstantBuffer> m_CBIrradianceGenerator{};
 
 	SCBSpaceWVPData				m_CBSpaceWVPData{};
 	SCBSpaceVPData				m_CBSpaceVPData{};
@@ -712,6 +720,7 @@ private:
 	SCBCameraSelectionData				m_CBCameraSelectionData{};
 	SCBScreenData						m_CBScreenData{};
 	SCBRadiancePrefiltering				m_CBRadiancePrefilteringData{};
+	SCBIrradianceGenerator				m_CBIrradianceGeneratorData{};
 
 private:
 	std::vector<std::unique_ptr<CShader>>				m_vShaders{};

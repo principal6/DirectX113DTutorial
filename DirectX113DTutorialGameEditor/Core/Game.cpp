@@ -140,6 +140,38 @@ void CGame::InitializeEditorAssets()
 {
 	CreateEditorCamera();
 
+	if (!m_EnvironmentTexture)
+	{
+		// @important: use already mipmapped cubemap texture
+		m_EnvironmentTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
+		m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\uffizi_environment.dds");
+		m_EnvironmentTexture->SetSlot(KEnvironmentTextureSlot);
+	}
+	
+	if (!m_IrradianceTexture)
+	{
+		// @important: use already mipmapped cubemap texture
+		m_IrradianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
+		m_IrradianceTexture->CreateCubeMapFromFile("Asset\\uffizi_irradiance.dds");
+		m_IrradianceTexture->SetSlot(KIrradianceTextureSlot);
+	}
+
+	if (!m_PrefilteredRadianceTexture)
+	{
+		// @important: use already mipmapped cubemap texture
+		m_PrefilteredRadianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
+		m_PrefilteredRadianceTexture->CreateCubeMapFromFile("Asset\\uffizi_prefiltered_radiance.dds");
+		m_PrefilteredRadianceTexture->SetSlot(KPrefilteredRadianceTextureSlot);
+	}
+
+	if (!m_IntegratedBRDFTexture)
+	{
+		// @important: this is not cubemap nor mipmapped!
+		m_IntegratedBRDFTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
+		m_IntegratedBRDFTexture->CreateTextureFromFile("Asset\\integrated_brdf.dds", false);
+		m_IntegratedBRDFTexture->SetSlot(KIntegratedBRDFTextureSlot);
+	}
+
 	if (!m_EnvironmentRep) m_EnvironmentRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get(), this);
 	if (!m_IrradianceRep) m_IrradianceRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get(), this);
 	if (!m_PrefilteredRadianceRep) m_PrefilteredRadianceRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get(), this);
@@ -448,6 +480,8 @@ void CGame::CreateConstantBuffers()
 		&m_CBScreenData, sizeof(m_CBScreenData));
 	m_CBRadiancePrefiltering = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBRadiancePrefilteringData, sizeof(m_CBRadiancePrefilteringData));
+	m_CBIrradianceGenerator = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBIrradianceGeneratorData, sizeof(m_CBIrradianceGeneratorData));
 
 	m_CBSpaceWVP->Create();
 	m_CBSpaceVP->Create();
@@ -471,6 +505,7 @@ void CGame::CreateConstantBuffers()
 	m_CBCameraSelection->Create();
 	m_CBScreen->Create();
 	m_CBRadiancePrefiltering->Create();
+	m_CBIrradianceGenerator->Create();
 }
 
 void CGame::CreateBaseShaders()
@@ -639,6 +674,7 @@ void CGame::CreateBaseShaders()
 
 	m_PSIrradianceGenerator = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSIrradianceGenerator->Create(EShaderType::PixelShader, L"Shader\\PSIrradianceGenerator.hlsl", "main");
+	m_PSIrradianceGenerator->AttachConstantBuffer(m_CBIrradianceGenerator.get());
 
 	m_PSFromHDR = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSFromHDR->Create(EShaderType::PixelShader, L"Shader\\PSFromHDR.hlsl", "main");
@@ -1565,30 +1601,6 @@ void CGame::CreateDynamicSky(const string& SkyDataFileName, float ScalingFactor)
 void CGame::CreateStaticSky(float ScalingFactor)
 {
 	m_SkyScalingFactor = ScalingFactor;
-
-	CMaterialData Material{};
-	
-	m_EnvironmentTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
-	// @important: use already mipmapped cubemap texture
-	//m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\noon_grass_environment.dds");
-	m_EnvironmentTexture->CreateCubeMapFromFile("Asset\\autumn_forest_environment.dds");
-	m_EnvironmentTexture->SetSlot(KEnvironmentTextureSlot);
-
-	m_IrradianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
-	// @important: use already mipmapped cubemap texture
-	//m_IrradianceTexture->CreateCubeMapFromFile("Asset\\noon_grass_irradiance.dds");
-	m_IrradianceTexture->CreateCubeMapFromFile("Asset\\autumn_forest_irradiance.dds");
-	m_IrradianceTexture->SetSlot(KIrradianceTextureSlot);
-
-	m_PrefilteredRadianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
-	// @important: use already mipmapped cubemap texture
-	m_PrefilteredRadianceTexture->CreateCubeMapFromFile("Asset\\autumn_forest_prefiltered_radiance.dds");
-	m_PrefilteredRadianceTexture->SetSlot(KPrefilteredRadianceTextureSlot);
-
-	m_IntegratedBRDFTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
-	// @important: use already mipmapped cubemap texture
-	m_IntegratedBRDFTexture->CreateTextureFromFile("Asset\\autumn_forest_integrated_brdf.dds", false);
-	m_IntegratedBRDFTexture->SetSlot(KIntegratedBRDFTextureSlot);
 
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
 	//m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
@@ -5368,7 +5380,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 								if (m_EnvironmentTexture->IsHDR())
 								{
-									GenerateCubemapFromHDR();
+									GenerateCubemapFromHDRi();
 								}
 							}
 						}
@@ -5419,11 +5431,19 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 						if (m_EnvironmentTexture)
 						{
+							static float RangeFactor{ 1.0f };
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"RangeFactor: ");
+							ImGui::SameLine();
+							ImGui::SetNextItemWidth(60);
+							ImGui::DragFloat(u8"##RangeFactor", &RangeFactor, 0.01f, 0.0f, 1.0f, "%.2f");
+
 							ImGui::SameLine();
 
 							if (ImGui::Button(u8"Environment map에서 생성하기"))
 							{
-								GenerateIrradianceMap();
+								GenerateIrradianceMap(RangeFactor);
 							}
 						}
 
@@ -5475,11 +5495,17 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 						if (m_EnvironmentTexture)
 						{
+							static float RangeFactor{ 1.0f };
+
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"RangeFactor: ");
 							ImGui::SameLine();
+							ImGui::SetNextItemWidth(60);
+							ImGui::DragFloat(u8"##RangeFactor", &RangeFactor, 0.01f, 0.1f, 1.0f, "%.2f");
 
 							if (ImGui::Button(u8"Prefiltered radiance map 생성하기"))
 							{
-								GeneratePrefilteredRadianceMap();
+								GeneratePrefilteredRadianceMap(RangeFactor);
 							}
 						}
 
@@ -6317,17 +6343,16 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 	}
 }
 
-void CGame::GenerateCubemapFromHDR()
+void CGame::GenerateCubemapFromHDRi()
 {
 	m_EnvironmentTexture->GetTexture2DPtr()->GetDesc(&m_GeneratedEnvironmentMapTextureDesc);
 
 	// @important
-	m_GeneratedEnvironmentMapTextureDesc.Width /= 4;
-	m_GeneratedEnvironmentMapTextureDesc.Height /= 2;
+	m_GeneratedEnvironmentMapTextureDesc.Width /= 4; // @important: HDRi -> Cubemap
+	m_GeneratedEnvironmentMapTextureDesc.Height /= 2; // @important: HDRi -> Cubemap
 	m_GeneratedEnvironmentMapTextureDesc.ArraySize = 6;
 	m_GeneratedEnvironmentMapTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	m_GeneratedEnvironmentMapTextureDesc.CPUAccessFlags = 0;
-	//m_GeneratedEnvironmentMapTextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	m_GeneratedEnvironmentMapTextureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
 	m_GeneratedEnvironmentMapTextureDesc.MipLevels = 0;
 	m_GeneratedEnvironmentMapTextureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
@@ -6396,18 +6421,18 @@ void CGame::GenerateCubemapFromHDR()
 	m_EnvironmentTexture->SetSlot(KEnvironmentTextureSlot);
 }
 
-void CGame::GenerateIrradianceMap()
+void CGame::GenerateIrradianceMap(float RangeFactor)
 {
-	const uint32_t MinificationDenominator{ 8 };
+	const uint32_t KMipLevelBias{ 3 }; // @important: Maybe becuase of my poor hardware...???
+
 	m_EnvironmentTexture->GetTexture2DPtr()->GetDesc(&m_GeneratedIrradianceMapTextureDesc);
 
 	// @important
-	m_GeneratedIrradianceMapTextureDesc.Width /= MinificationDenominator;
-	m_GeneratedIrradianceMapTextureDesc.Height /= MinificationDenominator;
+	m_GeneratedIrradianceMapTextureDesc.Width /= (uint32_t)pow(2.0f, (float)KMipLevelBias);
+	m_GeneratedIrradianceMapTextureDesc.Height /= (uint32_t)pow(2.0f, (float)KMipLevelBias);
 	m_GeneratedIrradianceMapTextureDesc.ArraySize = 6;
 	m_GeneratedIrradianceMapTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	m_GeneratedIrradianceMapTextureDesc.CPUAccessFlags = 0;
-	//m_GeneratedIrradianceMapTextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	m_GeneratedIrradianceMapTextureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
 	m_GeneratedIrradianceMapTextureDesc.MipLevels = 0;
 	m_GeneratedIrradianceMapTextureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
@@ -6451,6 +6476,10 @@ void CGame::GenerateIrradianceMap()
 		m_VSScreenQuad->Use();
 		m_PSIrradianceGenerator->Use();
 
+		// @important
+		m_CBIrradianceGeneratorData.RangeFactor = RangeFactor;
+		m_CBIrradianceGenerator->Update();
+
 		m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		m_DeviceContext->IASetVertexBuffers(0, 1, m_CubemapVertexBuffer.GetAddressOf(), &m_CubemapVertexBufferStride, &m_CubemapVertexBufferOffset);
 
@@ -6476,7 +6505,7 @@ void CGame::GenerateIrradianceMap()
 	m_IrradianceTexture->SetSlot(KIrradianceTextureSlot);
 }
 
-void CGame::GeneratePrefilteredRadianceMap()
+void CGame::GeneratePrefilteredRadianceMap(float RangeFactor)
 {
 	m_EnvironmentTexture->GetTexture2DPtr()->GetDesc(&m_PrefilteredRadianceMapTextureDesc);
 
@@ -6489,8 +6518,7 @@ void CGame::GeneratePrefilteredRadianceMap()
 	m_PrefilteredRadianceMapTextureDesc.ArraySize = 6;
 	m_PrefilteredRadianceMapTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	m_PrefilteredRadianceMapTextureDesc.CPUAccessFlags = 0;
-	m_PrefilteredRadianceMapTextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	//m_PrefilteredRadianceMapTextureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
+	m_PrefilteredRadianceMapTextureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // @important: HDR
 	m_PrefilteredRadianceMapTextureDesc.MipLevels = BiasedMipMax;
 	m_PrefilteredRadianceMapTextureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
 	m_PrefilteredRadianceMapTextureDesc.SampleDesc.Count = 1;
@@ -6526,6 +6554,7 @@ void CGame::GeneratePrefilteredRadianceMap()
 				// @important
 				float Roughness{ (float)(iMipLevel) / (float)(BiasedMipMax - 1) };
 				m_CBRadiancePrefilteringData.Roughness = Roughness;
+				m_CBRadiancePrefilteringData.RangeFactor = RangeFactor;
 				m_CBRadiancePrefiltering->Update();
 
 				D3D11_VIEWPORT Viewport{};

@@ -208,6 +208,8 @@ void CTexture::ReleaseResources()
 
 void CTexture::SaveDDSFile(const string& FileName, bool bIsLookUpTexture)
 {
+	m_FileName = FileName;
+
 	wstring wFileName{ FileName.begin(), FileName.end() };
 
 	D3D11_TEXTURE2D_DESC Texture2DDesc{};

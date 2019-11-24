@@ -3,6 +3,12 @@
 SamplerState CubemapSampler : register(s0);
 TextureCube CubemapTexture : register(t0);
 
+cbuffer cbIrradianceGenerator : register(b0)
+{
+	float RangeFactor;
+	float3 Pads;
+};
+
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
 	// @important: this function is based on DirectX axis.
@@ -37,9 +43,9 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	}
 
 	Irradiance = Irradiance * KPI / (float)SampleCount;
-
-	// Exposure tone mapping for raw albedo
-	Irradiance.rgb = float3(1.0, 1.0, 1.0) - exp(-Irradiance.rgb * 0.6);
+	
+	// HDR range adjustment
+	Irradiance.rgb *= RangeFactor;
 
 	return Irradiance;
 }
