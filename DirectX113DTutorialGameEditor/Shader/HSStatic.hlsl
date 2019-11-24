@@ -1,4 +1,4 @@
-#include "Terrain.hlsli"
+#include "Base.hlsli"
 
 cbuffer cbTessFactor : register(b0)
 {

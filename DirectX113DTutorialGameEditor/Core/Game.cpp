@@ -6158,11 +6158,9 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 					bool bIsNodeOpen{ ImGui::TreeNodeEx(Object3DPair.first.c_str(), Flags) };
 					if (ImGui::IsItemClicked())
 					{
-						SelectObject3D(Object3DPair.first);
+						DeselectAll();
 
-						DeselectObject2D();
-						DeselectCamera();
-						DeselectInstance();
+						SelectObject3D(Object3DPair.first);
 					}
 
 					ImGui::NextColumn();
@@ -6253,11 +6251,9 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 					bool bIsNodeOpen{ ImGui::TreeNodeEx(Object2DPair.first.c_str(), Flags) };
 					if (ImGui::IsItemClicked())
 					{
-						SelectObject2D(Object2DPair.first);
+						DeselectAll();
 
-						DeselectObject3D();
-						DeselectCamera();
-						DeselectInstance();
+						SelectObject2D(Object2DPair.first);
 					}
 					if (bIsNodeOpen)
 					{
@@ -6291,11 +6287,9 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 					bool bIsNodeOpen{ ImGui::TreeNodeEx(CameraPair.first.c_str(), Flags) };
 					if (ImGui::IsItemClicked())
 					{
-						SelectCamera(CameraPair.first);
+						DeselectAll();
 
-						DeselectObject3D();
-						DeselectObject2D();
-						DeselectInstance();
+						SelectCamera(CameraPair.first);
 					}
 					if (bIsNodeOpen)
 					{

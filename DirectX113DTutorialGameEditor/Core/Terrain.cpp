@@ -28,8 +28,8 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterialData& Material
 	vMaterialData.emplace_back(MaterialData);
 	CreateTerrainObject3D(vMaterialData);
 
-	m_Object2DTextureRepresentation = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
-	m_Object2DTextureRepresentation->Create(Generate2DRectangle(XMFLOAT2(600, 480)), true);
+	m_Object2DTextureRep = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
+	m_Object2DTextureRep->Create(Generate2DRectangle(XMFLOAT2(600, 480)), true);
 
 	CreateHeightMapTexture(true);
 	CreateMaskingTexture(true);
@@ -37,6 +37,8 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterialData& Material
 	CreateWater();
 
 	Scale(XMVectorSet(UniformScaling, UniformScaling, UniformScaling, 0));
+
+	m_TerrainFileData.bShouldSave = true;
 }
 
 void CTerrain::Load(const string& FileName)
@@ -54,8 +56,8 @@ void CTerrain::Load(const string& FileName)
 
 	CreateTerrainObject3D(m_TerrainFileData.vTerrainMaterialData);
 
-	m_Object2DTextureRepresentation = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
-	m_Object2DTextureRepresentation->Create(Generate2DRectangle(XMFLOAT2(600, 480)), true);
+	m_Object2DTextureRep = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
+	m_Object2DTextureRep->Create(Generate2DRectangle(XMFLOAT2(600, 480)), true);
 
 	CreateHeightMapTexture(false);
 	CreateMaskingTexture(false);
@@ -74,6 +76,8 @@ void CTerrain::Save(const string& FileName)
 
 	CModelPorter ModelPorter{};
 	ModelPorter.ExportTerrain(FileName, m_TerrainFileData, m_vFoliages);
+
+	m_TerrainFileData.bShouldSave = false;
 }
 
 void CTerrain::Scale(const XMVECTOR& Scaling)
@@ -89,6 +93,16 @@ void CTerrain::Scale(const XMVECTOR& Scaling)
 		m_Object3DWater->ComponentTransform.Scaling = Scaling;
 		m_Object3DWater->UpdateWorldMatrix();
 	}
+}
+
+void CTerrain::RegisterChange()
+{
+	m_TerrainFileData.bShouldSave = true;
+}
+
+bool CTerrain::ShouldSave() const
+{
+	return m_TerrainFileData.bShouldSave;
 }
 
 void CTerrain::CreateFoliageCluster(const vector<string>& vFoliageFileNames, uint32_t PlacingDetail, bool bShouldClear)
@@ -113,6 +127,8 @@ void CTerrain::CreateFoliageCluster(const vector<string>& vFoliageFileNames, uin
 	m_TerrainFileData.bHasFoliageCluster = true;
 
 	CreateWindRepresentation();
+
+	RegisterChange();
 }
 
 void CTerrain::SetFoliageDensity(float Density)
@@ -225,24 +241,14 @@ void CTerrain::CreateWater()
 	m_Object3DWater = make_unique<CObject3D>("Water", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
 
 	SMesh WaterMesh{ GenerateTerrainBase(XMFLOAT2(m_TerrainFileData.SizeX, m_TerrainFileData.SizeZ), KTextureSubdivisionDetail, KWaterColor) };
-	m_Object3DWater->Create(WaterMesh);
+
+	CMaterialData WaterMaterialData{};
+	WaterMaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\water_diffuse.jpg");
+	WaterMaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\water_normal.jpg");
+	WaterMaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\water_displacement.jpg");
+
+	m_Object3DWater->Create(WaterMesh, WaterMaterialData);
 	m_Object3DWater->ShouldTessellate(true);
-
-	m_WaterDiffuseTexture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
-	m_WaterDiffuseTexture->CreateTextureFromFile("Asset\\water_diffuse.jpg", false);
-	m_WaterDiffuseTexture->SetSlot(0);
-	m_WaterDiffuseTexture->Use();
-
-	m_WaterNormalTexture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
-	m_WaterNormalTexture->CreateTextureFromFile("Asset\\water_normal.jpg", false);
-	m_WaterNormalTexture->SetSlot(1);
-	m_WaterNormalTexture->Use();
-
-	m_WaterDisplacementTexture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
-	m_WaterDisplacementTexture->CreateTextureFromFile("Asset\\water_displacement.jpg", false);
-	m_WaterDisplacementTexture->SetSlot(0);
-	m_WaterDisplacementTexture->SetShaderType(EShaderType::DomainShader);
-	m_WaterDisplacementTexture->Use();
 }
 
 void CTerrain::CreateFoliagePlacingTexutre(bool bShouldClear)
@@ -267,8 +273,8 @@ void CTerrain::CreateFoliagePlacingTexutre(bool bShouldClear)
 
 void CTerrain::CreateWindRepresentation()
 {
-	m_Object3DWindRepresentation = make_unique<CObject3D>("WindRepr", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
-	m_Object3DWindRepresentation->Create(GenerateSphere());
+	m_Object3DWindRep = make_unique<CObject3D>("WindRepr", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	m_Object3DWindRep->Create(GenerateSphere());
 }
 
 void CTerrain::AddMaterial(const CMaterialData& MaterialData)
@@ -277,6 +283,8 @@ void CTerrain::AddMaterial(const CMaterialData& MaterialData)
 	if ((int)m_Object3DTerrain->GetModel().vMaterialData.size() == KMaterialMaxCount) return;
 
 	m_Object3DTerrain->AddMaterial(MaterialData);
+
+	RegisterChange();
 }
 
 void CTerrain::SetMaterial(int MaterialID, const CMaterialData& NewMaterialData)
@@ -285,6 +293,8 @@ void CTerrain::SetMaterial(int MaterialID, const CMaterialData& NewMaterialData)
 	assert(MaterialID >= 0 && MaterialID < 4);
 
 	m_Object3DTerrain->SetMaterial(MaterialID, NewMaterialData);
+
+	RegisterChange();
 }
 
 const CMaterialData& CTerrain::GetMaterial(int Index) const
@@ -424,6 +434,8 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 
 	// Update HeightMap Texture
 	m_HeightMapTexture->UpdateTextureRawData(&m_TerrainFileData.vHeightMapTextureRawData[0]);
+
+	RegisterChange();
 }
 
 void CTerrain::UpdateMasking(EMaskingLayer eLayer, float Value, bool bForceSet)
@@ -505,6 +517,8 @@ void CTerrain::UpdateMasking(EMaskingLayer eLayer, float Value, bool bForceSet)
 
 	// Update Masking Texture
 	m_MaskingTexture->UpdateTextureRawData(&m_TerrainFileData.vMaskingTextureRawData[0]);
+
+	RegisterChange();
 }
 
 void CTerrain::UpdateFoliagePlacing(bool bErase)
@@ -592,6 +606,8 @@ void CTerrain::UpdateFoliagePlacing(bool bErase)
 	
 	// Update Foliage Placing Texture
 	m_FoliagePlacingTexture->UpdateTextureRawData(&m_TerrainFileData.vFoliagePlacingTextureRawData[0]);
+
+	RegisterChange();
 }
 
 void CTerrain::SetMaskingLayer(EMaskingLayer eLayer)
@@ -877,7 +893,7 @@ const DirectX::XMMATRIX& CTerrain::GetWaterWorldMatrix() const
 
 const DirectX::XMMATRIX& CTerrain::GetWindRepresentationWorldMatrix() const
 {
-	return m_Object3DWindRepresentation->ComponentTransform.MatrixWorld;
+	return m_Object3DWindRep->ComponentTransform.MatrixWorld;
 }
 
 void CTerrain::UpdateWind(float DeltaTime)
@@ -947,9 +963,6 @@ void CTerrain::DrawWater()
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::DSWater)->Use();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSWater)->Use();
 
-	m_WaterDiffuseTexture->Use();
-	m_WaterNormalTexture->Use();
-	m_WaterDisplacementTexture->Use();
 	m_Object3DWater->Draw();
 
 	//m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
@@ -986,18 +999,18 @@ void CTerrain::DrawFoliageCluster()
 void CTerrain::DrawWindRepresentation()
 {
 	// Wind sphere represenatation
-	if (m_Object3DWindRepresentation)
+	if (m_Object3DWindRep)
 	{
 		m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->Wireframe());
 
-		m_Object3DWindRepresentation->ComponentTransform.Translation = XMLoadFloat3(&m_CBWindData.Position);
-		m_Object3DWindRepresentation->ComponentTransform.Scaling = XMVectorSet(m_CBWindData.Radius, m_CBWindData.Radius, m_CBWindData.Radius, 0);
-		m_Object3DWindRepresentation->UpdateWorldMatrix();
+		m_Object3DWindRep->ComponentTransform.Translation = XMLoadFloat3(&m_CBWindData.Position);
+		m_Object3DWindRep->ComponentTransform.Scaling = XMVectorSet(m_CBWindData.Radius, m_CBWindData.Radius, m_CBWindData.Radius, 0);
+		m_Object3DWindRep->UpdateWorldMatrix();
 
 		m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->Use();
 		m_PtrGame->GetBaseShader(CGame::EBaseShader::PSVertexColor)->Use();
 
-		m_Object3DWindRepresentation->Draw();
+		m_Object3DWindRep->Draw();
 
 		m_PtrGame->SetUniversalRSState();
 	}
@@ -1005,7 +1018,7 @@ void CTerrain::DrawWindRepresentation()
 
 void CTerrain::DrawHeightMapTexture()
 {
-	if (!m_Object2DTextureRepresentation) return;
+	if (!m_Object2DTextureRep) return;
 
 	m_HeightMapTexture->SetShaderType(EShaderType::PixelShader);
 	m_HeightMapTexture->Use();
@@ -1016,14 +1029,14 @@ void CTerrain::DrawHeightMapTexture()
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSHeightMap2D)->Use();
 
-	m_Object2DTextureRepresentation->Draw();
+	m_Object2DTextureRep->Draw();
 
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }
 
 void CTerrain::DrawMaskingTexture()
 {
-	if (!m_Object2DTextureRepresentation) return;
+	if (!m_Object2DTextureRep) return;
 
 	m_MaskingTexture->Use(0);
 
@@ -1033,7 +1046,7 @@ void CTerrain::DrawMaskingTexture()
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSMasking2D)->Use();
 
-	m_Object2DTextureRepresentation->Draw();
+	m_Object2DTextureRep->Draw();
 
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }
@@ -1041,7 +1054,7 @@ void CTerrain::DrawMaskingTexture()
 void CTerrain::DrawFoliagePlacingTexture()
 {
 	if (!m_FoliagePlacingTexture) return;
-	if (!m_Object2DTextureRepresentation) return;
+	if (!m_Object2DTextureRep) return;
 
 	m_FoliagePlacingTexture->SetShaderType(EShaderType::PixelShader);
 	m_FoliagePlacingTexture->Use();
@@ -1052,7 +1065,7 @@ void CTerrain::DrawFoliagePlacingTexture()
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
 	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSHeightMap2D)->Use();
 
-	m_Object2DTextureRepresentation->Draw();
+	m_Object2DTextureRep->Draw();
 
 	m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetCommonStates()->DepthDefault(), 0);
 }

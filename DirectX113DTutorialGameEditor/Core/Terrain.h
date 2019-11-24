@@ -77,6 +77,8 @@ public:
 		std::vector<SPixel8UInt> vFoliagePlacingTextureRawData{};
 
 		std::vector<CMaterialData> vTerrainMaterialData{};
+
+		bool bShouldSave{ true };
 	};
 
 public:
@@ -95,6 +97,8 @@ public:
 
 private:
 	void Scale(const XMVECTOR& Scaling);
+	void RegisterChange();
+	bool ShouldSave() const;
 
 public:
 	void CreateFoliageCluster(const std::vector<std::string>& vFoliageFileNames, uint32_t PlacingDetail, bool bShouldClear = true);
@@ -257,7 +261,7 @@ private:
 	CGame* const					m_PtrGame{};
 
 private:
-	std::unique_ptr<CObject2D>		m_Object2DTextureRepresentation{};
+	std::unique_ptr<CObject2D>		m_Object2DTextureRep{};
 	std::unique_ptr<CObject3D>		m_Object3DTerrain{};
 
 private:
@@ -271,9 +275,6 @@ private:
 
 private:
 	std::unique_ptr<CObject3D>		m_Object3DWater{};
-	std::unique_ptr<CTexture>		m_WaterDiffuseTexture{};
-	std::unique_ptr<CTexture>		m_WaterNormalTexture{};
-	std::unique_ptr<CTexture>		m_WaterDisplacementTexture{};
 
 private:
 	std::vector<std::unique_ptr<CObject3D>>	m_vFoliages{};
@@ -281,7 +282,7 @@ private:
 	std::unique_ptr<CTexture>				m_FoliagePlacingTexture{};
 
 	SCBWindData							m_CBWindData{};
-	std::unique_ptr<CObject3D>			m_Object3DWindRepresentation{};
+	std::unique_ptr<CObject3D>			m_Object3DWindRep{};
 
 private:
 	SCBTerrainSelectionData	m_CBTerrainSelectionData{};

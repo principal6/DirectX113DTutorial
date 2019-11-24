@@ -1,10 +1,9 @@
 #include "Core/Game.h"
 
 // @TODO
-// refactor all the codes
-// update scene loading/saving
+// save models with PBR material (ModelPorter) 
+// update scene loading/saving (save editor camera state into the scene)
 // pre-cal vp, wvp matrices
-// save models with PBR material + save editor camera state into the scene
 // implement shadow mapping
 
 IMGUI_IMPL_API LRESULT  ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);

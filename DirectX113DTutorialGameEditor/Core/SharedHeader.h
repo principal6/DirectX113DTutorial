@@ -30,6 +30,20 @@ enum class EShaderType
 	PixelShader
 };
 
+struct SVertex3D
+{
+	SVertex3D() {}
+	SVertex3D(const XMVECTOR& _Position, const XMVECTOR& _Color, const XMVECTOR& _TexCoord = XMVectorSet(0, 0, 0, 0)) :
+		Position{ _Position }, Color{ _Color }, TexCoord{ _TexCoord } {}
+
+	XMVECTOR Position{};
+	XMVECTOR Color{};
+	XMVECTOR TexCoord{};
+	XMVECTOR Normal{};
+	XMVECTOR Tangent{};
+	XMVECTOR Bitangent{};
+};
+
 struct STriangle
 {
 	STriangle() {}
@@ -38,6 +52,23 @@ struct STriangle
 	uint32_t I0{};
 	uint32_t I1{};
 	uint32_t I2{};
+};
+
+struct SVertexAnimation
+{
+	static constexpr uint32_t KMaxWeightCount{ 4 };
+
+	uint32_t	BoneIDs[KMaxWeightCount]{};
+	float		Weights[KMaxWeightCount]{};
+};
+
+struct SMesh
+{
+	std::vector<SVertex3D>			vVertices{};
+	std::vector<SVertexAnimation>	vVerticesAnimation{};
+	std::vector<STriangle>			vTriangles{};
+
+	size_t							MaterialID{};
 };
 
 static const XMMATRIX KMatrixIdentity{ XMMatrixIdentity() };

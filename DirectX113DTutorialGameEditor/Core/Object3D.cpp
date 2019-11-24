@@ -36,17 +36,6 @@ void CObject3D::Create(const SMesh& Mesh, const CMaterialData& MaterialData)
 	m_bIsCreated = true;
 }
 
-void CObject3D::Create(const vector<SMesh>& vMeshes, const vector<CMaterialData>& vMaterialData)
-{
-	m_Model.vMeshes = vMeshes;
-	m_Model.vMaterialData = vMaterialData;
-	
-	CreateMeshBuffers();
-	CreateMaterialTextures();
-
-	m_bIsCreated = true;
-}
-
 void CObject3D::Create(const SModel& Model)
 {
 	m_Model = Model;
@@ -64,13 +53,13 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 	ULONGLONG StartTimePoint{ GetTickCount64() };
 	if (bIsModelRigged)
 	{
-		m_AssimpLoader.LoadAnimatedModelFromFile(FileName, m_Model, m_PtrDevice, m_PtrDeviceContext);
+		m_AssimpLoader.LoadAnimatedModelFromFile(FileName, &m_Model, m_PtrDevice, m_PtrDeviceContext);
 
 		ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSAnimation);
 	}
 	else
 	{
-		m_AssimpLoader.LoadStaticModelFromFile(FileName, m_Model, m_PtrDevice, m_PtrDeviceContext);
+		m_AssimpLoader.LoadStaticModelFromFile(FileName, &m_Model, m_PtrDevice, m_PtrDeviceContext);
 	}
 	OutputDebugString(("- Model [" + FileName + "] loaded. [" + to_string(GetTickCount64() - StartTimePoint) + "] elapsed.\n").c_str());
 
@@ -99,7 +88,7 @@ void CObject3D::AddAnimationFromFile(const string& FileName, const string& Anima
 {
 	if (!m_Model.bIsModelRigged) return;
 
-	m_AssimpLoader.AddAnimationFromFile(FileName, m_Model);
+	m_AssimpLoader.AddAnimationFromFile(FileName, &m_Model);
 	m_Model.vAnimations.back().Name = AnimationName;
 }
 
@@ -490,13 +479,13 @@ CObject3D::SInstanceCPUData& CObject3D::GetInstanceCPUData(const string& Name)
 	return m_vInstanceCPUData[m_mapInstanceNameToIndex.at(Name)];
 }
 
-SInstanceGPUData& CObject3D::GetInstanceGPUData(int InstanceID)
+CObject3D::SInstanceGPUData& CObject3D::GetInstanceGPUData(int InstanceID)
 {
 	assert(InstanceID < m_vInstanceGPUData.size());
 	return m_vInstanceGPUData[InstanceID];
 }
 
-SInstanceGPUData& CObject3D::GetInstanceGPUData(const std::string& Name)
+CObject3D::SInstanceGPUData& CObject3D::GetInstanceGPUData(const std::string& Name)
 {
 	assert(m_mapInstanceNameToIndex.find(Name) != m_mapInstanceNameToIndex.end());
 	return m_vInstanceGPUData[m_mapInstanceNameToIndex.at(Name)];

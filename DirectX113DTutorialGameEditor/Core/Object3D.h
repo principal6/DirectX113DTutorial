@@ -1,9 +1,74 @@
 #pragma once
 
+#include "SharedHeader.h"
+#include "Material.h"
 #include "AssimpLoader.h"
 
 class CGame;
 class CShader;
+
+struct SModel
+{
+	struct SNode
+	{
+		struct SBlendWeight
+		{
+			uint32_t	MeshIndex{};
+			uint32_t	VertexID{};
+			float		Weight{};
+		};
+
+		int32_t					Index{};
+		std::string				Name{};
+
+		int32_t					ParentNodeIndex{};
+		std::vector<int32_t>	vChildNodeIndices{};
+		XMMATRIX				MatrixTransformation{};
+
+		bool						bIsBone{ false };
+		uint32_t					BoneIndex{};
+		std::vector<SBlendWeight>	vBlendWeights{};
+		XMMATRIX					MatrixBoneOffset{};
+	};
+
+	struct SAnimation
+	{
+		struct SNodeAnimation
+		{
+			struct SKey
+			{
+				float		Time{};
+				XMVECTOR	Value{};
+			};
+
+			uint32_t			Index{};
+			std::string			NodeName{};
+			std::vector<SKey>	vPositionKeys{};
+			std::vector<SKey>	vRotationKeys{};
+			std::vector<SKey>	vScalingKeys{};
+		};
+
+		std::vector<SNodeAnimation>				vNodeAnimations{};
+
+		float									Duration{};
+		float									TicksPerSecond{};
+
+		std::unordered_map<std::string, size_t>	mapNodeAnimationNameToIndex{};
+
+		std::string								Name{};
+	};
+
+	std::vector<SMesh>						vMeshes{};
+	std::vector<CMaterialData>				vMaterialData{};
+
+	std::vector<SNode>						vNodes{};
+	std::unordered_map<std::string, size_t>	mapNodeNameToIndex{};
+	uint32_t								ModelBoneCount{};
+
+	std::vector<SAnimation>					vAnimations{};
+	bool									bIsModelRigged{};
+	bool									bUseMultipleTexturesInSingleMesh{ false };
+};
 
 class CObject3D
 {
@@ -50,6 +115,11 @@ public:
 		float		Yaw{};
 		float		Roll{};
 		SBoundingSphere	BoundingSphere{};
+	};
+
+	struct SInstanceGPUData
+	{
+		XMMATRIX	WorldMatrix{ KMatrixIdentity };
 	};
 
 	struct SCBAnimationData
@@ -130,7 +200,6 @@ public:
 public:
 	void Create(const SMesh& Mesh);
 	void Create(const SMesh& Mesh, const CMaterialData& MaterialData);
-	void Create(const std::vector<SMesh>& vMeshes, const std::vector<CMaterialData>& vMaterialData);
 	void Create(const SModel& Model);
 
 	void CreateFromFile(const std::string& FileName, bool bIsModelRigged);
@@ -217,6 +286,7 @@ private:
 public:
 	static constexpr size_t KInstanceNameZeroEndedMaxLength{ 32 };
 	static constexpr size_t KMaxAnimationNameLength{ 15 };
+	static constexpr uint32_t KMaxBoneMatrixCount{ 60 };
 
 private:
 	static constexpr float KBoundingSphereDefaultRadius{ 1.0f };

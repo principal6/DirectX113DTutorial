@@ -95,7 +95,7 @@ public:
 
 	struct SCBAnimationBonesData
 	{
-		XMMATRIX	BoneMatrices[KMaxBoneMatrixCount]{};
+		XMMATRIX	BoneMatrices[CObject3D::KMaxBoneMatrixCount]{};
 	};
 
 	struct SCBPSFlagsData

@@ -165,6 +165,9 @@ void CModelPorter::ImportTerrain(const std::string& FileName, CTerrain::STerrain
 		Data.vTerrainMaterialData[iMaterial].Index(iMaterial);
 	}
 
+	// @important: right after importing the terrain, it doens't need to be saved again!
+	Data.bShouldSave = false;
+
 	m_BinaryFile.Close();
 }
 

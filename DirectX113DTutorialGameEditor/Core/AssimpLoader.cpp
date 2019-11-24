@@ -1,13 +1,41 @@
+#include <Assimp/Importer.hpp>
+#include <Assimp/scene.h>
+#include <Assimp/postprocess.h>
+
 #include "AssimpLoader.h"
 #include "PrimitiveGenerator.h"
+#include "Object3D.h"
+
+#pragma comment(lib, "assimp-vc142-mtd.lib")
 
 using std::vector;
 using std::string;
 using std::unordered_map;
 
-void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
+static XMVECTOR ConvertaiVector3DToXMVECTOR(const aiVector3D& Vector, float w)
 {
-	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded | 
+	return XMVectorSet(Vector.x, Vector.y, Vector.z, w);
+}
+
+static XMVECTOR ConvertaiQuaternionToXMVECTOR(const aiQuaternion& Quaternion)
+{
+	return XMVectorSet(Quaternion.x, Quaternion.y, Quaternion.z, Quaternion.w);
+}
+
+static XMMATRIX ConvertaiMatrix4x4ToXMMATRIX(const aiMatrix4x4& Matrix)
+{
+	return XMMatrixTranspose(XMMatrixSet(
+		Matrix.a1, Matrix.a2, Matrix.a3, Matrix.a4,
+		Matrix.b1, Matrix.b2, Matrix.b3, Matrix.b4,
+		Matrix.c1, Matrix.c2, Matrix.c3, Matrix.c4,
+		Matrix.d1, Matrix.d2, Matrix.d3, Matrix.d4
+	));
+}
+
+void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel* const Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
+{
+	Assimp::Importer AssimpImporter{};
+	m_Scene = AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
 		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes | aiProcess_PreTransformVertices |
 		aiProcess_SplitLargeMeshes | aiProcess_FixInfacingNormals |
 		aiProcess_Triangulate | aiProcess_JoinIdenticalVertices);
@@ -16,20 +44,21 @@ void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel& Mode
 	assert(m_Scene->HasMeshes());
 	assert(m_Scene->mRootNode);
 
-	LoadMeshesFromFile(m_Scene, Model.vMeshes);
+	LoadMeshesFromFile(m_Scene, Model->vMeshes);
 
-	for (auto& Mesh : Model.vMeshes)
+	for (auto& Mesh : Model->vMeshes)
 	{
 		CalculateTangents(Mesh);
 	}
 
-	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model.vMaterialData);
+	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model->vMaterialData);
 }
 
-void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
+void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel* const Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
 {
-	m_AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
-	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
+	Assimp::Importer AssimpImporter{};
+	AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
+	m_Scene = AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
 		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph |
 		aiProcess_SplitLargeMeshes | aiProcess_ImproveCacheLocality | aiProcess_FixInfacingNormals |
 		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices |
@@ -39,27 +68,27 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 	assert(m_Scene->HasMeshes());
 	assert(m_Scene->mRootNode);
 
-	LoadMeshesFromFile(m_Scene, Model.vMeshes);
+	LoadMeshesFromFile(m_Scene, Model->vMeshes);
 	
-	for (auto& Mesh : Model.vMeshes)
+	for (auto& Mesh : Model->vMeshes)
 	{
 		CalculateTangents(Mesh);
 	}
 
-	for (auto& Mesh : Model.vMeshes)
+	for (auto& Mesh : Model->vMeshes)
 	{
 		Mesh.vVerticesAnimation.resize(Mesh.vVertices.size());
 	}
 
-	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model.vMaterialData);
+	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model->vMaterialData);
 
 	// Scene에서 재귀적으로 Node의 Tree를 만든다.
 	LoadNodes(m_Scene, m_Scene->mRootNode, -1, Model);
 	
 	// Node의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다.
-	for (auto& Node : Model.vNodes)
+	for (auto& Node : Model->vNodes)
 	{
-		Model.mapNodeNameToIndex[Node.Name] = Node.Index;
+		Model->mapNodeNameToIndex[Node.Name] = Node.Index;
 	}
 
 	// Scene에서 각 Mesh에 연결된 Bone들을 불러온다.
@@ -72,7 +101,7 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 	LoadAnimations(m_Scene, Model);
 
 	// NodeAnimation의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다. 
-	for (auto& Animation : Model.vAnimations)
+	for (auto& Animation : Model->vAnimations)
 	{
 		for (auto& NodeAnimation : Animation.vNodeAnimations)
 		{
@@ -80,13 +109,14 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel& Mo
 		}
 	}
 
-	Model.bIsModelRigged = true;
+	Model->bIsModelRigged = true;
 }
 
-void CAssimpLoader::AddAnimationFromFile(const string& FileName, SModel& Model)
+void CAssimpLoader::AddAnimationFromFile(const string& FileName, SModel* const Model)
 {
-	m_AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
-	m_Scene = m_AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
+	Assimp::Importer AssimpImporter{};
+	AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
+	m_Scene = AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
 		aiProcess_ValidateDataStructure | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph |
 		aiProcess_SplitLargeMeshes | aiProcess_ImproveCacheLocality | aiProcess_FixInfacingNormals |
 		aiProcess_Triangulate | aiProcess_SplitByBoneCount | aiProcess_JoinIdenticalVertices |
@@ -99,33 +129,13 @@ void CAssimpLoader::AddAnimationFromFile(const string& FileName, SModel& Model)
 	LoadAnimations(m_Scene, Model);
 
 	// NodeAnimation의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다. 
-	for (auto& Animation : Model.vAnimations)
+	for (auto& Animation : Model->vAnimations)
 	{
 		for (auto& NodeAnimation : Animation.vNodeAnimations)
 		{
 			Animation.mapNodeAnimationNameToIndex[NodeAnimation.NodeName] = NodeAnimation.Index;
 		}
 	}
-}
-
-XMVECTOR CAssimpLoader::ConvertaiVector3DToXMVECTOR(const aiVector3D& Vector, float w)
-{
-	return XMVectorSet(Vector.x, Vector.y, Vector.z, w);
-}
-
-XMVECTOR CAssimpLoader::ConvertaiQuaternionToXMVECTOR(const aiQuaternion& Quaternion)
-{
-	return XMVectorSet(Quaternion.x, Quaternion.y, Quaternion.z, Quaternion.w);
-}
-
-XMMATRIX CAssimpLoader::ConvertaiMatrix4x4ToXMMATRIX(const aiMatrix4x4& Matrix)
-{
-	return XMMatrixTranspose(XMMatrixSet(
-		Matrix.a1, Matrix.a2, Matrix.a3, Matrix.a4,
-		Matrix.b1, Matrix.b2, Matrix.b3, Matrix.b4,
-		Matrix.c1, Matrix.c2, Matrix.c3, Matrix.c4,
-		Matrix.d1, Matrix.d2, Matrix.d3, Matrix.d4
-	));
 }
 
 void CAssimpLoader::LoadMeshesFromFile(const aiScene* const Scene, vector<SMesh>& vMeshes)
@@ -180,7 +190,7 @@ void CAssimpLoader::LoadMeshesFromFile(const aiScene* const Scene, vector<SMesh>
 	}
 }
 
-void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext, 
+void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* const Device, ID3D11DeviceContext* const DeviceContext, 
 	vector<CMaterialData>& vMaterialData)
 {
 	unsigned int MaterialCount{ Scene->mNumMaterials };
@@ -221,10 +231,10 @@ void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Devi
 
 			aiGetMaterialTexture(_aiMaterial, aiTextureType_DISPLACEMENT, 0, &DisplacementTextureFileName);
 
-			LoadTextureData(Scene, DiffuseTextureFileName, MaterialData, STextureData::EType::DiffuseTexture);
-			LoadTextureData(Scene, NormalTextureFileName, MaterialData, STextureData::EType::NormalTexture);
-			LoadTextureData(Scene, OpacityTextureFileName, MaterialData, STextureData::EType::OpacityTexture);
-			LoadTextureData(Scene, DisplacementTextureFileName, MaterialData, STextureData::EType::DisplacementTexture);
+			LoadTextureData(Scene, &DiffuseTextureFileName, MaterialData, STextureData::EType::DiffuseTexture);
+			LoadTextureData(Scene, &NormalTextureFileName, MaterialData, STextureData::EType::NormalTexture);
+			LoadTextureData(Scene, &OpacityTextureFileName, MaterialData, STextureData::EType::OpacityTexture);
+			LoadTextureData(Scene, &DisplacementTextureFileName, MaterialData, STextureData::EType::DisplacementTexture);
 
 			MaterialData.HasAnyTexture(true);
 		}
@@ -244,11 +254,11 @@ void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Devi
 	}
 }
 
-void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString& TextureFileName, CMaterialData& MaterialData,
+void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString* const TextureFileName, CMaterialData& MaterialData,
 	STextureData::EType eTextureType)
 {
-	const aiTexture* const _aiTexture{ Scene->GetEmbeddedTexture(TextureFileName.C_Str()) };
-	if (TextureFileName.length == 0 && _aiTexture == nullptr) return; // No texture
+	const aiTexture* const _aiTexture{ Scene->GetEmbeddedTexture(TextureFileName->C_Str()) };
+	if (TextureFileName->length == 0 && _aiTexture == nullptr) return; // No texture
 	STextureData& TextureData{ MaterialData.GetTextureData(eTextureType) };
 	if (_aiTexture)
 	{
@@ -269,16 +279,16 @@ void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString& 
 	else
 	{
 		TextureData.bHasTexture = true;
-		TextureData.FileName = TextureFileName.C_Str();
+		TextureData.FileName = TextureFileName->C_Str();
 	}
 }
 
-void CAssimpLoader::LoadNodes(const aiScene* const Scene, aiNode* const aiCurrentNode, int32_t ParentNodeIndex, SModel& Model)
+void CAssimpLoader::LoadNodes(const aiScene* const Scene, aiNode* const aiCurrentNode, int32_t ParentNodeIndex, SModel* const Model)
 {
-	Model.vNodes.emplace_back();
-	SModel::SNode& Node{ Model.vNodes.back() };
+	Model->vNodes.emplace_back();
+	SModel::SNode& Node{ Model->vNodes.back() };
 
-	int32_t NodeIndex{ static_cast<int32_t>(Model.vNodes.size() - 1) };
+	int32_t NodeIndex{ static_cast<int32_t>(Model->vNodes.size() - 1) };
 
 	Node.Index = NodeIndex;
 	Node.Name = aiCurrentNode->mName.C_Str();
@@ -288,7 +298,7 @@ void CAssimpLoader::LoadNodes(const aiScene* const Scene, aiNode* const aiCurren
 	if (Node.ParentNodeIndex != -1)
 	{
 		// 부모 Node에 현재 Node를 Child로 등록한다.
-		Model.vNodes[Node.ParentNodeIndex].vChildNodeIndices.emplace_back(NodeIndex);
+		Model->vNodes[Node.ParentNodeIndex].vChildNodeIndices.emplace_back(NodeIndex);
 	}
 
 	if (aiCurrentNode->mNumChildren)
@@ -301,12 +311,12 @@ void CAssimpLoader::LoadNodes(const aiScene* const Scene, aiNode* const aiCurren
 	}
 }
 
-void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel& Model)
+void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel* const Model)
 {
 	unordered_map<string, uint32_t> mapBones{};
 
 	int TotalBoneCount{};
-	for (unsigned int iMesh = 0; iMesh < Model.vMeshes.size(); ++iMesh)
+	for (unsigned int iMesh = 0; iMesh < Model->vMeshes.size(); ++iMesh)
 	{
 		const aiMesh* const _aiMesh{ Scene->mMeshes[iMesh] };
 		if (_aiMesh->HasBones())
@@ -316,8 +326,8 @@ void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel& Model)
 				const aiBone* const _aiBone{ _aiMesh->mBones[iBone] };
 
 				string BoneName{ _aiBone->mName.C_Str() };
-				size_t BoneNodeIndex{ Model.mapNodeNameToIndex[BoneName] };
-				SModel::SNode& BoneNode{ Model.vNodes[BoneNodeIndex] };
+				size_t BoneNodeIndex{ Model->mapNodeNameToIndex[BoneName] };
+				SModel::SNode& BoneNode{ Model->vNodes[BoneNodeIndex] };
 
 				// BoneCount는 현재 Bone이 처음 나온 경우에만 증가시켜야 한다! (동일한 Bone이 서로 다른 Mesh에서 참조될 수 있기 때문)
 				if (mapBones[BoneName] == 0)
@@ -342,15 +352,15 @@ void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel& Model)
 		}
 	}
 
-	Model.ModelBoneCount = TotalBoneCount;
+	Model->ModelBoneCount = TotalBoneCount;
 }
 
-void CAssimpLoader::MatchWeightsAndVertices(SModel& Model)
+void CAssimpLoader::MatchWeightsAndVertices(SModel* const Model)
 {
 	vector<unordered_map<uint32_t, uint32_t>> mapBlendCountPerVertexPerMesh{};
-	mapBlendCountPerVertexPerMesh.resize(Model.vMeshes.size());
+	mapBlendCountPerVertexPerMesh.resize(Model->vMeshes.size());
 
-	for (auto& BoneNode : Model.vNodes)
+	for (auto& BoneNode : Model->vNodes)
 	{
 		for (size_t iBlendWeight = 0; iBlendWeight < BoneNode.vBlendWeights.size(); ++iBlendWeight)
 		{
@@ -364,9 +374,9 @@ void CAssimpLoader::MatchWeightsAndVertices(SModel& Model)
 				int deb{};
 			}
 
-			if (mapBlendCountPerVertexPerMesh[MeshID][VertexID] >= KMaxWeightCount) continue;
+			if (mapBlendCountPerVertexPerMesh[MeshID][VertexID] >= SVertexAnimation::KMaxWeightCount) continue;
 
-			SMesh& Mesh{ Model.vMeshes[BlendWeight.MeshIndex] };
+			SMesh& Mesh{ Model->vMeshes[BlendWeight.MeshIndex] };
 			Mesh.vVerticesAnimation[VertexID].BoneIDs[BlendIndexPerVertex] = BoneNode.BoneIndex;
 			Mesh.vVerticesAnimation[VertexID].Weights[BlendIndexPerVertex] = BlendWeight.Weight;
 
@@ -375,7 +385,7 @@ void CAssimpLoader::MatchWeightsAndVertices(SModel& Model)
 	}
 }
 
-void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel& Model)
+void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel* const Model)
 {
 	if (Scene->mNumAnimations)
 	{
@@ -385,8 +395,8 @@ void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel& Model)
 			const aiAnimation* const _aiAnimation{ Scene->mAnimations[iaiAnimation] };
 			const unsigned int& ChannelCount{ _aiAnimation->mNumChannels };
 
-			Model.vAnimations.emplace_back();
-			SModel::SAnimation& Animation{ Model.vAnimations.back() };
+			Model->vAnimations.emplace_back();
+			SModel::SAnimation& Animation{ Model->vAnimations.back() };
 			Animation.TicksPerSecond = static_cast<float>(_aiAnimation->mTicksPerSecond);
 			Animation.Duration = static_cast<float>(_aiAnimation->mDuration);
 			Animation.vNodeAnimations.resize(ChannelCount);
