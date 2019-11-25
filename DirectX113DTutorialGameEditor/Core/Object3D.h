@@ -3,12 +3,16 @@
 #include "SharedHeader.h"
 #include "Material.h"
 #include "AssimpLoader.h"
+#include "ModelPorter.h"
 
 class CGame;
 class CShader;
 
 struct SModel
 {
+	SModel() {}
+	SModel(const CModelPorter::SSMODData& SMODFile) : vMeshes{ SMODFile.vMeshes }, vMaterialData{ SMODFile.vMaterialData } {}
+
 	struct SNode
 	{
 		struct SBlendWeight
@@ -97,29 +101,6 @@ public:
 		BOOL		bUseDisplacement{ TRUE };
 		float		DisplacementFactor{ 1.0f };
 		float		Pads[2]{};
-	};
-
-	struct SBoundingSphere
-	{
-		float		Radius{ KBoundingSphereDefaultRadius };
-		float		RadiusBias{ KBoundingSphereDefaultRadius };
-		XMVECTOR	CenterOffset{};
-	};
-
-	struct SInstanceCPUData
-	{
-		std::string	Name{};
-		XMVECTOR	Translation{};
-		XMVECTOR	Scaling{ XMVectorSet(1, 1, 1, 0) };
-		float		Pitch{};
-		float		Yaw{};
-		float		Roll{};
-		SBoundingSphere	BoundingSphere{};
-	};
-
-	struct SInstanceGPUData
-	{
-		XMMATRIX	WorldMatrix{ KMatrixIdentity };
 	};
 
 	struct SCBAnimationData
@@ -227,11 +208,13 @@ public:
 	size_t GetMaterialCount() const;
 
 	void CreateInstances(int InstanceCount);
+	void CreateInstances(const std::vector<SInstanceCPUData>& vInstanceData);
 	void InsertInstance(bool bShouldCreateInstanceBuffers = true);
 	void InsertInstance(const std::string& Name);
 	void DeleteInstance(const std::string& Name);
 	SInstanceCPUData& GetInstanceCPUData(int InstanceID);
 	SInstanceCPUData& GetInstanceCPUData(const std::string& Name);
+	const std::vector<SInstanceCPUData>& GetInstanceCPUDataVector() const;
 	SInstanceGPUData& GetInstanceGPUData(int InstanceID);
 	SInstanceGPUData& GetInstanceGPUData(const std::string& Name);
 	void CreateInstanceBuffers();
@@ -264,6 +247,7 @@ public:
 	bool IsInstanced() const { return (m_vInstanceCPUData.size() > 0) ? true : false; }
 	uint32_t GetInstanceCount() const { return (uint32_t)m_vInstanceCPUData.size(); }
 	const SModel& GetModel() const { return m_Model; }
+	CModelPorter::SSMODData GetSMODData() const { return CModelPorter::SSMODData(m_Model.vMeshes, m_Model.vMaterialData); }
 	SModel& GetModel() { return m_Model; }
 	const std::string& GetName() const { return m_Name; }
 	const std::string& GetModelFileName() const { return m_ModelFileName; }
@@ -284,12 +268,10 @@ private:
 	void LimitFloatRotation(float& Value, const float Min, const float Max);
 
 public:
-	static constexpr size_t KInstanceNameZeroEndedMaxLength{ 32 };
 	static constexpr size_t KMaxAnimationNameLength{ 15 };
 	static constexpr uint32_t KMaxBoneMatrixCount{ 60 };
 
 private:
-	static constexpr float KBoundingSphereDefaultRadius{ 1.0f };
 	static constexpr int32_t KAnimationTextureWidth{ 4 * (int32_t)KMaxBoneMatrixCount };
 	static constexpr int32_t KAnimationTextureReservedHeight{ 1 };
 	static constexpr int32_t KAnimationTextureReservedFirstPixelCount{ 2 };

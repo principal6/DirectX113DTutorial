@@ -1715,6 +1715,7 @@ void CGame::LoadTerrain(const string& TerrainFileName)
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Terrain->Load(TerrainFileName);
 	UpdateCBTerrainData(m_Terrain->GetTerrainData());
+	UpdateCBTerrainMaskingSpace(m_Terrain->GetMaskingSpaceData());
 	
 	int MaterialCount{ m_Terrain->GetMaterialCount() };
 	for (int iMaterial = 0; iMaterial < MaterialCount; ++iMaterial)
@@ -6144,7 +6145,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 					if (FileDialog.SaveFileDialog("smod 파일(*.smod)\0*.smod\0", "3D 오브젝트 저장하기", ".smod"))
 					{
 						CObject3D* const Object3D{ GetSelectedObject3D() };
-						m_ModelPorter.ExportStaticModel(Object3D->GetModel(), FileDialog.GetFileName());
+						m_ModelPorter.ExportStaticModel(FileDialog.GetFileName(), Object3D->GetSMODData());
 					}
 				}
 			}
@@ -6223,7 +6224,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 							ImGui::PushID(iObject3DPair * 2 + 1);
 							if (ImGui::Button(u8"제거"))
 							{
-								const CObject3D::SInstanceCPUData& InstanceCPUData{ Object3D->GetInstanceCPUData(GetSelectedInstanceID()) };
+								const SInstanceCPUData& InstanceCPUData{ Object3D->GetInstanceCPUData(GetSelectedInstanceID()) };
 								Object3D->DeleteInstance(InstanceCPUData.Name);
 							}
 							ImGui::PopID();

@@ -1,6 +1,5 @@
 #include "Object3D.h"
 #include "Game.h"
-#include "ModelPorter.h"
 
 using std::max;
 using std::min;
@@ -62,7 +61,9 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 	{
 		// SMOD file
 		CModelPorter ModelPorter{};
-		Create(ModelPorter.ImportStaticModel(m_ModelFileName));
+		CModelPorter::SSMODData SMODData{};
+		ModelPorter.ImportStaticModel(m_ModelFileName, SMODData);
+		Create(SMODData);
 		return;
 	}
 	else
@@ -333,6 +334,8 @@ size_t CObject3D::GetMaterialCount() const
 
 void CObject3D::CreateInstances(int InstanceCount)
 {
+	if (InstanceCount <= 0) return;
+
 	m_vInstanceCPUData.clear();
 	m_vInstanceCPUData.resize(InstanceCount);
 	for (auto& InstanceCPUData : m_vInstanceCPUData)
@@ -357,6 +360,33 @@ void CObject3D::CreateInstances(int InstanceCount)
 	UpdateAllInstancesWorldMatrix();
 }
 
+void CObject3D::CreateInstances(const std::vector<SInstanceCPUData>& vInstanceData)
+{
+	if (vInstanceData.empty()) return;
+
+	m_mapInstanceNameToIndex.clear();
+
+	m_vInstanceCPUData = vInstanceData;
+
+	size_t iInstance{};
+	for (auto& InstanceCPUData : m_vInstanceCPUData)
+	{
+		InstanceCPUData.Scaling = ComponentTransform.Scaling;
+
+		m_mapInstanceNameToIndex[InstanceCPUData.Name] = iInstance;
+		++iInstance;
+	}
+
+	m_vInstanceGPUData.clear();
+	m_vInstanceGPUData.resize(vInstanceData.size());
+
+	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSInstance);
+
+	CreateInstanceBuffers();
+
+	UpdateAllInstancesWorldMatrix();
+}
+
 void CObject3D::InsertInstance(bool bShouldCreateInstanceBuffers)
 {
 	uint32_t InstanceCount{ GetInstanceCount() };
@@ -371,10 +401,10 @@ void CObject3D::InsertInstance(bool bShouldCreateInstanceBuffers)
 		}
 	}
 
-	if (Name.length() >= KInstanceNameZeroEndedMaxLength)
+	if (Name.length() >= SInstanceCPUData::KMaxNameLengthZeroTerminated)
 	{
 		MB_WARN(("인스턴스 이름 [" + Name + "] 이 최대 길이(" +
-			to_string(KInstanceNameZeroEndedMaxLength - 1) + " 자)를 넘어\n인스턴스 생성에 실패했습니다.").c_str(), "인스턴스 생성 실패");
+			to_string(SInstanceCPUData::KMaxNameLengthZeroTerminated - 1) + " 자)를 넘어\n인스턴스 생성에 실패했습니다.").c_str(), "인스턴스 생성 실패");
 		return;
 	}
 
@@ -404,12 +434,12 @@ void CObject3D::InsertInstance(const string& Name)
 	bool bShouldRecreateInstanceBuffer{ m_vInstanceCPUData.size() == m_vInstanceCPUData.capacity() };
 
 	std::string LimitedName{ Name };
-	if (LimitedName.length() >= KInstanceNameZeroEndedMaxLength)
+	if (LimitedName.length() >= SInstanceCPUData::KMaxNameLengthZeroTerminated)
 	{
-		MB_WARN(("인스턴스 이름 [" + LimitedName + "] 이 최대 길이(" + to_string(KInstanceNameZeroEndedMaxLength - 1) +
+		MB_WARN(("인스턴스 이름 [" + LimitedName + "] 이 최대 길이(" + to_string(SInstanceCPUData::KMaxNameLengthZeroTerminated - 1) +
 			" 자)를 넘어 잘려서 저장됩니다.").c_str(), "이름 길이 제한");
 
-		LimitedName.resize(KInstanceNameZeroEndedMaxLength - 1);
+		LimitedName.resize(SInstanceCPUData::KMaxNameLengthZeroTerminated - 1);
 	}
 
 	m_vInstanceCPUData.emplace_back();
@@ -486,25 +516,30 @@ void CObject3D::DeleteInstance(const string& Name)
 	m_PtrGame->SelectInstance((int)iInstance);	
 }
 
-CObject3D::SInstanceCPUData& CObject3D::GetInstanceCPUData(int InstanceID)
+SInstanceCPUData& CObject3D::GetInstanceCPUData(int InstanceID)
 {
 	assert(InstanceID < m_vInstanceCPUData.size());
 	return m_vInstanceCPUData[InstanceID];
 }
 
-CObject3D::SInstanceCPUData& CObject3D::GetInstanceCPUData(const string& Name)
+SInstanceCPUData& CObject3D::GetInstanceCPUData(const string& Name)
 {
 	assert(m_mapInstanceNameToIndex.find(Name) != m_mapInstanceNameToIndex.end());
 	return m_vInstanceCPUData[m_mapInstanceNameToIndex.at(Name)];
 }
 
-CObject3D::SInstanceGPUData& CObject3D::GetInstanceGPUData(int InstanceID)
+const std::vector<SInstanceCPUData>& CObject3D::GetInstanceCPUDataVector() const
+{
+	return m_vInstanceCPUData;
+}
+
+SInstanceGPUData& CObject3D::GetInstanceGPUData(int InstanceID)
 {
 	assert(InstanceID < m_vInstanceGPUData.size());
 	return m_vInstanceGPUData[InstanceID];
 }
 
-CObject3D::SInstanceGPUData& CObject3D::GetInstanceGPUData(const std::string& Name)
+SInstanceGPUData& CObject3D::GetInstanceGPUData(const std::string& Name)
 {
 	assert(m_mapInstanceNameToIndex.find(Name) != m_mapInstanceNameToIndex.end());
 	return m_vInstanceGPUData[m_mapInstanceNameToIndex.at(Name)];

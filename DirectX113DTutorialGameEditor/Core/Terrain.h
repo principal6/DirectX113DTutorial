@@ -3,6 +3,7 @@
 #include "Object2D.h"
 #include "Object3D.h"
 #include "Material.h"
+#include "ModelPorter.h"
 
 class CGame;
 
@@ -52,35 +53,6 @@ public:
 		XMMATRIX	InverseTerrainWorld{};
 	};
 
-	struct STerrainFileData
-	{
-		std::string FileName{};
-
-		float SizeX{};
-		float SizeZ{};
-		float HeightRange{};
-		float TerrainTessellationFactor{ KTessFactorMin };
-
-		std::vector<SPixel8UInt> vHeightMapTextureRawData{};
-
-		bool bShouldDrawWater{ false };
-		float WaterHeight{};
-		float WaterTessellationFactor{ KTessFactorMin };
-
-		uint32_t MaskingDetail{ KMaskingDefaultDetail };
-		std::vector<SPixel32UInt> vMaskingTextureRawData{};
-		
-		bool bHasFoliageCluster{ false };
-		uint32_t FoliagePlacingDetail{ KDefaultFoliagePlacingDetail };
-		float FoliageDenstiy{};
-		std::vector<std::string> vFoliageFileNames{};
-		std::vector<SPixel8UInt> vFoliagePlacingTextureRawData{};
-
-		std::vector<CMaterialData> vTerrainMaterialData{};
-
-		bool bShouldSave{ true };
-	};
-
 public:
 	CTerrain(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext, CGame* const PtrGame) :
 		m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }, m_PtrGame{ PtrGame }
@@ -101,7 +73,8 @@ private:
 	bool ShouldSave() const;
 
 public:
-	void CreateFoliageCluster(const std::vector<std::string>& vFoliageFileNames, uint32_t PlacingDetail, bool bShouldClear = true);
+	void CreateFoliageCluster();
+	void CreateFoliageCluster(const std::vector<std::string>& vFoliageFileNames, uint32_t PlacingDetail);
 	void SetFoliageDensity(float Density);
 	float GetFoliageDenstiy() const;
 
@@ -295,6 +268,6 @@ private:
 	EMaskingLayer			m_eMaskingLayer{};
 	float					m_MaskingAttenuation{ KMaskingMinAttenuation };
 
-	STerrainFileData		m_TerrainFileData{};
-	SCBTerrainData			m_CBTerrainData{};
+	CModelPorter::STERRData	m_TerrainFileData{ KTessFactorMin, KTessFactorMin, KMaskingDefaultDetail, KDefaultFoliagePlacingDetail };
+	SCBTerrainData					m_CBTerrainData{};
 };

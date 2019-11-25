@@ -1,44 +1,44 @@
 #include "ModelPorter.h"
+#include "Object3D.h"
 
 using std::vector;
 using std::unique_ptr;
 using std::make_unique;
 using std::string;
 
-SModel CModelPorter::ImportStaticModel(const std::string& FileName)
+void CModelPorter::ImportStaticModel(const std::string& FileName, CModelPorter::SSMODData& SMODFile)
 {
 	m_BinaryFile.OpenToRead(FileName);
 
 	// 8B Signature (SMOD_KJW)
 	std::string Signature{ m_BinaryFile.ReadString(8) };
 
-	SModel Model{};
-	ReadStaticModelFile(Model);
+	ReadStaticModelFile(SMODFile);
 
 	m_BinaryFile.Close();
-
-	return Model;
 }
 
-void CModelPorter::ExportStaticModel(const SModel& Model, const std::string& FileName)
+void CModelPorter::ExportStaticModel(const std::string& FileName, const CModelPorter::SSMODData& SMODFile)
 {
 	m_BinaryFile.OpenToWrite(FileName);
 
 	// 8B Signature
 	m_BinaryFile.WriteString("SMOD_KJW", 8);
 
-	WriteStaticModelFile(Model);
+	WriteStaticModelFile(SMODFile);
 
 	m_BinaryFile.Close();
 }
 
-void CModelPorter::ImportTerrain(const std::string& FileName, CTerrain::STerrainFileData& Data, vector<unique_ptr<CObject3D>>& vFoliageObject3Ds,
-	ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext, CGame* const PtrGame)
+void CModelPorter::ImportTerrain(const std::string& FileName, CModelPorter::STERRData& Data)
 {
+	uint16_t StringLength{};
+	
 	m_BinaryFile.OpenToRead(FileName);
 
 	// 8B Signature (TERR_KJW)
 	std::string Signature{ m_BinaryFile.ReadString(8) };
+
 
 	// 4B (float) Terrain size x
 	Data.SizeX = m_BinaryFile.ReadFloat();
@@ -52,6 +52,10 @@ void CModelPorter::ImportTerrain(const std::string& FileName, CTerrain::STerrain
 	// 4B (float) Terrain tessellation factor
 	Data.TerrainTessellationFactor = m_BinaryFile.ReadFloat();
 
+	// 4B (float) Uniform scaling factor
+	Data.UniformScalingFactor = m_BinaryFile.ReadFloat();
+
+
 	// 4B (uint32_t) HeightMap texture raw data size
 	Data.vHeightMapTextureRawData.resize(m_BinaryFile.ReadUInt32());
 
@@ -62,6 +66,7 @@ void CModelPorter::ImportTerrain(const std::string& FileName, CTerrain::STerrain
 		Pixel.R = m_BinaryFile.ReadUInt8();
 	}
 
+
 	// 1B (bool) bShouldDrawWater
 	Data.bShouldDrawWater = m_BinaryFile.ReadBool();
 
@@ -70,6 +75,7 @@ void CModelPorter::ImportTerrain(const std::string& FileName, CTerrain::STerrain
 
 	// 4B (float) Water tessellation factor
 	Data.WaterTessellationFactor = m_BinaryFile.ReadFloat();
+
 
 	// 4B (float) Masking detail
 	Data.MaskingDetail = m_BinaryFile.ReadUInt32();
@@ -87,6 +93,7 @@ void CModelPorter::ImportTerrain(const std::string& FileName, CTerrain::STerrain
 		Pixel.A = m_BinaryFile.ReadUInt8();
 	}
 
+
 	// 1B (bool) bHasFoliageCluster
 	Data.bHasFoliageCluster = m_BinaryFile.ReadBool();
 
@@ -95,15 +102,6 @@ void CModelPorter::ImportTerrain(const std::string& FileName, CTerrain::STerrain
 
 	// 4B (float) Foliage density
 	Data.FoliageDenstiy = m_BinaryFile.ReadFloat();
-
-	// 1B (uint8_t) Foliage file names count
-	Data.vFoliageFileNames.resize(m_BinaryFile.ReadUInt8());
-
-	for (auto& FoliageFileName : Data.vFoliageFileNames)
-	{
-		// 512B (string, file name) Foliage file name
-		FoliageFileName = m_BinaryFile.ReadString(512);
-	}
 
 	// 4B (uint32_t) Foliage placing texture raw data size
 	Data.vFoliagePlacingTextureRawData.resize(m_BinaryFile.ReadUInt32());
@@ -115,55 +113,51 @@ void CModelPorter::ImportTerrain(const std::string& FileName, CTerrain::STerrain
 		Pixel.R = m_BinaryFile.ReadUInt8();
 	}
 
-	// Foliage instance data
-	int iFoliage{};
-	vFoliageObject3Ds.resize(Data.vFoliageFileNames.size());
-	for (auto& FoliageObject3D : vFoliageObject3Ds)
+	// 1B (uint8_t) Foliage count
+	Data.vFoliageData.resize(m_BinaryFile.ReadUInt8());
+
+	for (auto& FoliageData : Data.vFoliageData)
 	{
-		FoliageObject3D = make_unique<CObject3D>("Foliage", PtrDevice, PtrDeviceContext, PtrGame);
-		FoliageObject3D->CreateFromFile(Data.vFoliageFileNames[iFoliage], false);
+		// # @NameStructure@ File name
+		StringLength = m_BinaryFile.ReadUInt16();
+		FoliageData.FileName = m_BinaryFile.ReadString((int32_t)StringLength);
 
 		// 4B (uint32_t) Foliage instance count
-		uint32_t InstanceCount{ m_BinaryFile.ReadUInt32() };
-		for (uint32_t iInstance = 0; iInstance < InstanceCount; ++iInstance)
+		FoliageData.vInstanceData.resize(m_BinaryFile.ReadUInt32());
+
+		for (auto& InstanceData : FoliageData.vInstanceData)
 		{
 			// # 32B (string, KInstanceNameMaxLength) Foliage instance name
-			std::string InstanceName{ m_BinaryFile.ReadString(CObject3D::KInstanceNameZeroEndedMaxLength) };
-
-			FoliageObject3D->InsertInstance(InstanceName);
-			auto& Instance{ FoliageObject3D->GetInstanceCPUData(InstanceName) };
+			InstanceData.Name = m_BinaryFile.ReadString(SInstanceCPUData::KMaxNameLengthZeroTerminated);
 
 			// # 16B (XMVECTOR) Foliage instance translation
-			Instance.Translation = m_BinaryFile.ReadXMVECTOR();
+			InstanceData.Translation = m_BinaryFile.ReadXMVECTOR();
 
 			// # 4B (float) Foliage instance pitch
-			Instance.Pitch = m_BinaryFile.ReadFloat();
+			InstanceData.Pitch = m_BinaryFile.ReadFloat();
 
 			// # 4B (float) Foliage instance yaw
-			Instance.Yaw = m_BinaryFile.ReadFloat();
+			InstanceData.Yaw = m_BinaryFile.ReadFloat();
 
 			// # 4B (float) Foliage instance roll
-			Instance.Roll = m_BinaryFile.ReadFloat();
+			InstanceData.Roll = m_BinaryFile.ReadFloat();
 
 			// # 16B (XMVECTOR) Foliage instance scaling
-			Instance.Scaling = m_BinaryFile.ReadXMVECTOR();
+			InstanceData.Scaling = m_BinaryFile.ReadXMVECTOR();
 		}
-
-		FoliageObject3D->UpdateAllInstancesWorldMatrix(); // @important
-
-		++iFoliage;
 	}
 
+
 	// 1B (uint8_t) Material count
-	Data.vTerrainMaterialData.resize(m_BinaryFile.ReadUInt8());
+	Data.vMaterialData.resize(m_BinaryFile.ReadUInt8());
 
 	// Material data
-	ReadModelMaterials(Data.vTerrainMaterialData);
+	ReadModelMaterials(Data.vMaterialData);
 
 	// @important
-	for (size_t iMaterial = 0; iMaterial < Data.vTerrainMaterialData.size(); ++iMaterial)
+	for (size_t iMaterial = 0; iMaterial < Data.vMaterialData.size(); ++iMaterial)
 	{
-		Data.vTerrainMaterialData[iMaterial].Index(iMaterial);
+		Data.vMaterialData[iMaterial].Index(iMaterial);
 	}
 
 	// @important: right after importing the terrain, it doens't need to be saved again!
@@ -172,12 +166,16 @@ void CModelPorter::ImportTerrain(const std::string& FileName, CTerrain::STerrain
 	m_BinaryFile.Close();
 }
 
-void CModelPorter::ExportTerrain(const std::string& FileName, const CTerrain::STerrainFileData& Data, const vector<unique_ptr<CObject3D>>& vFoliageObject3Ds)
+void CModelPorter::ExportTerrain(const std::string& FileName, const CModelPorter::STERRData& Data)
 {
+	uint16_t StringLength{};
+	string String{};
+
 	m_BinaryFile.OpenToWrite(FileName);
 
 	// 8B Signature
 	m_BinaryFile.WriteString("TERR_KJW", 8);
+
 
 	// 4B (float) Terrain size x
 	m_BinaryFile.WriteFloat(Data.SizeX);
@@ -191,6 +189,10 @@ void CModelPorter::ExportTerrain(const std::string& FileName, const CTerrain::ST
 	// 4B (float) Terrain tessellation factor
 	m_BinaryFile.WriteFloat(Data.TerrainTessellationFactor);
 
+	// 4B (float) Uniform scaling factor
+	m_BinaryFile.WriteFloat(Data.UniformScalingFactor);
+
+
 	// 4B (uint32_t) HeightMap texture raw data size
 	m_BinaryFile.WriteUInt32((uint32_t)Data.vHeightMapTextureRawData.size());
 
@@ -201,6 +203,7 @@ void CModelPorter::ExportTerrain(const std::string& FileName, const CTerrain::ST
 		m_BinaryFile.WriteUInt8(Pixel.R);
 	}
 
+
 	// 1B (bool) bShouldDrawWater
 	m_BinaryFile.WriteBool(Data.bShouldDrawWater);
 
@@ -209,6 +212,7 @@ void CModelPorter::ExportTerrain(const std::string& FileName, const CTerrain::ST
 
 	// 4B (float) Water tessellation factor
 	m_BinaryFile.WriteFloat(Data.WaterTessellationFactor);
+
 
 	// 4B (uint32_t) Masking detail
 	m_BinaryFile.WriteUInt32(Data.MaskingDetail);
@@ -226,6 +230,7 @@ void CModelPorter::ExportTerrain(const std::string& FileName, const CTerrain::ST
 		m_BinaryFile.WriteUInt8(Pixel.A);
 	}
 
+
 	// 1B (bool) bHasFoliageCluster
 	m_BinaryFile.WriteBool(Data.bHasFoliageCluster);
 
@@ -234,15 +239,6 @@ void CModelPorter::ExportTerrain(const std::string& FileName, const CTerrain::ST
 
 	// 4B (float) Foliage density
 	m_BinaryFile.WriteFloat(Data.FoliageDenstiy);
-
-	// 1B (uint8_t) Foliage file names count
-	m_BinaryFile.WriteUInt8((uint8_t)Data.vFoliageFileNames.size());
-
-	for (const auto& FoliageFileName : Data.vFoliageFileNames)
-	{
-		// 512B (string, file name) Foliage file name
-		m_BinaryFile.WriteString(FoliageFileName, 512);
-	}
 
 	// 4B (uint32_t) Foliage placing texture raw data size
 	m_BinaryFile.WriteUInt32((uint32_t)Data.vFoliagePlacingTextureRawData.size());
@@ -254,58 +250,59 @@ void CModelPorter::ExportTerrain(const std::string& FileName, const CTerrain::ST
 		m_BinaryFile.WriteUInt8(Pixel.R);
 	}
 
-	// Foliage instance data
-	for (const auto& FoliageObject3D : vFoliageObject3Ds)
+	// # 1B (uint8_t) Foliage count
+	m_BinaryFile.WriteUInt8((uint8_t)Data.vFoliageData.size());
+
+	for (const auto& FoliageData : Data.vFoliageData)
 	{
-		uint32_t InstanceCount{ FoliageObject3D->GetInstanceCount() };
+		// # @NameStructure@ File name
+		StringLength = (uint16_t)FoliageData.FileName.size();
+		m_BinaryFile.WriteUInt16(StringLength);
+		m_BinaryFile.WriteString(FoliageData.FileName, StringLength);
 
 		// 4B (uint32_t) Foliage instance count
-		m_BinaryFile.WriteUInt32(InstanceCount);
+		m_BinaryFile.WriteUInt32((uint32_t)FoliageData.vInstanceData.size());
 
-		for (uint32_t iInstance = 0; iInstance < InstanceCount; ++iInstance)
+		for (auto& InstanceData : FoliageData.vInstanceData)
 		{
-			const auto& Instance{ FoliageObject3D->GetInstanceCPUData(iInstance) };
-
 			// # 32B (string, KInstanceNameMaxLength) Foliage instance name
-			m_BinaryFile.WriteString(Instance.Name, CObject3D::KInstanceNameZeroEndedMaxLength);
+			m_BinaryFile.WriteString(InstanceData.Name, SInstanceCPUData::KMaxNameLengthZeroTerminated);
 
 			// # 16B (XMVECTOR) Foliage instance translation
-			m_BinaryFile.WriteXMVECTOR(Instance.Translation);
-			
+			m_BinaryFile.WriteXMVECTOR(InstanceData.Translation);
+
 			// # 4B (float) Foliage instance pitch
-			m_BinaryFile.WriteFloat(Instance.Pitch);
+			m_BinaryFile.WriteFloat(InstanceData.Pitch);
 
 			// # 4B (float) Foliage instance yaw
-			m_BinaryFile.WriteFloat(Instance.Yaw);
+			m_BinaryFile.WriteFloat(InstanceData.Yaw);
 
 			// # 4B (float) Foliage instance roll
-			m_BinaryFile.WriteFloat(Instance.Roll);
+			m_BinaryFile.WriteFloat(InstanceData.Roll);
 
 			// # 16B (XMVECTOR) Foliage instance scaling
-			m_BinaryFile.WriteXMVECTOR(Instance.Scaling);
+			m_BinaryFile.WriteXMVECTOR(InstanceData.Scaling);
 		}
 	}
 
-	// 1B (uint8_t) Material count
-	m_BinaryFile.WriteUInt8((uint8_t)Data.vTerrainMaterialData.size());
-
-	WriteModelMaterials(Data.vTerrainMaterialData);
+	
+	WriteModelMaterials(Data.vMaterialData);
 
 	m_BinaryFile.Close();
 }
 
-void CModelPorter::ReadStaticModelFile(SModel& Model)
+void CModelPorter::ReadStaticModelFile(CModelPorter::SSMODData& SMODFile)
 {
 	// ##### MATERIAL #####
 	// 1B (uint8_t) Material count
-	Model.vMaterialData.resize(m_BinaryFile.ReadUInt8());
+	SMODFile.vMaterialData.resize(m_BinaryFile.ReadUInt8());
 
-	ReadModelMaterials(Model.vMaterialData);
+	ReadModelMaterials(SMODFile.vMaterialData);
 
 	// ##### MESH #####
 	// 1B (uint8_t) Mesh count
-	Model.vMeshes.resize(m_BinaryFile.ReadUInt8());
-	for (SMesh& Mesh : Model.vMeshes)
+	SMODFile.vMeshes.resize(m_BinaryFile.ReadUInt8());
+	for (SMesh& Mesh : SMODFile.vMeshes)
 	{
 		// # 1B (uint8_t) Mesh index
 		m_BinaryFile.ReadUInt8();
@@ -431,19 +428,19 @@ void CModelPorter::ReadModelMaterials(std::vector<CMaterialData>& vMaterialData)
 	}
 }
 
-void CModelPorter::WriteStaticModelFile(const SModel& Model)
+void CModelPorter::WriteStaticModelFile(const CModelPorter::SSMODData& SMODFile)
 {
-	WriteModelMaterials(Model.vMaterialData);
+	WriteModelMaterials(SMODFile.vMaterialData);
 
 	// 1B (uint8_t) Mesh count
-	m_BinaryFile.WriteUInt8((uint8_t)Model.vMeshes.size());
+	m_BinaryFile.WriteUInt8((uint8_t)SMODFile.vMeshes.size());
 
-	for (uint8_t iMesh = 0; iMesh < (uint8_t)Model.vMeshes.size(); ++iMesh)
+	for (uint8_t iMesh = 0; iMesh < (uint8_t)SMODFile.vMeshes.size(); ++iMesh)
 	{
 		// 1B (uint8_t) Mesh index
 		m_BinaryFile.WriteUInt8(iMesh);
 
-		const SMesh& Mesh{ Model.vMeshes[iMesh] };
+		const SMesh& Mesh{ SMODFile.vMeshes[iMesh] };
 
 		// 1B (uint8_t) Material ID
 		m_BinaryFile.WriteUInt8((uint8_t)Mesh.MaterialID);

@@ -19,6 +19,7 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterialData& Material
 	m_TerrainFileData.SizeZ = TerrainSize.y;
 	m_TerrainFileData.HeightRange = KHeightRange;
 	m_TerrainFileData.MaskingDetail = max(min(MaskingDetail, KMaskingMaxDetail), KMaskingMinDetail);
+	m_TerrainFileData.UniformScalingFactor = UniformScaling;
 
 	m_CBTerrainData.TerrainSizeX = m_TerrainFileData.SizeX;
 	m_CBTerrainData.TerrainSizeZ = m_TerrainFileData.SizeZ;
@@ -36,7 +37,7 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterialData& Material
 
 	CreateWater();
 
-	Scale(XMVectorSet(UniformScaling, UniformScaling, UniformScaling, 0));
+	Scale(XMVectorSet(m_TerrainFileData.UniformScalingFactor, m_TerrainFileData.UniformScalingFactor, m_TerrainFileData.UniformScalingFactor, 0));
 
 	m_TerrainFileData.bShouldSave = true;
 }
@@ -48,13 +49,13 @@ void CTerrain::Load(const string& FileName)
 	m_TerrainFileData.FileName = FileName;
 
 	CModelPorter ModelPorter{};
-	ModelPorter.ImportTerrain(FileName, m_TerrainFileData, m_vFoliages, m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	ModelPorter.ImportTerrain(FileName, m_TerrainFileData);
 
 	m_CBTerrainData.TerrainSizeX = m_TerrainFileData.SizeX;
 	m_CBTerrainData.TerrainSizeZ = m_TerrainFileData.SizeZ;
 	m_CBTerrainData.TerrainHeightRange = m_TerrainFileData.HeightRange;
 
-	CreateTerrainObject3D(m_TerrainFileData.vTerrainMaterialData);
+	CreateTerrainObject3D(m_TerrainFileData.vMaterialData);
 
 	m_Object2DTextureRep = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
 	m_Object2DTextureRep->Create(Generate2DRectangle(XMFLOAT2(600, 480)), true);
@@ -64,7 +65,12 @@ void CTerrain::Load(const string& FileName)
 
 	CreateWater();
 
-	CreateFoliageCluster(m_TerrainFileData.vFoliageFileNames, m_TerrainFileData.FoliagePlacingDetail, false);
+	Scale(XMVectorSet(m_TerrainFileData.UniformScalingFactor, m_TerrainFileData.UniformScalingFactor, m_TerrainFileData.UniformScalingFactor, 0));
+
+	if (m_TerrainFileData.vFoliageData.size())
+	{
+		CreateFoliageCluster();
+	}
 }
 
 void CTerrain::Save(const string& FileName)
@@ -72,10 +78,15 @@ void CTerrain::Save(const string& FileName)
 	if (!m_Object3DTerrain) return;
 
 	m_TerrainFileData.FileName = FileName;
-	m_TerrainFileData.vTerrainMaterialData = m_Object3DTerrain->GetModel().vMaterialData;
+	m_TerrainFileData.vMaterialData = m_Object3DTerrain->GetModel().vMaterialData;
 
 	CModelPorter ModelPorter{};
-	ModelPorter.ExportTerrain(FileName, m_TerrainFileData, m_vFoliages);
+	for (size_t iFoliage = 0; iFoliage < m_vFoliages.size(); ++iFoliage)
+	{
+		m_TerrainFileData.vFoliageData[iFoliage].vInstanceData = m_vFoliages[iFoliage]->GetInstanceCPUDataVector();
+	}
+	
+	ModelPorter.ExportTerrain(FileName, m_TerrainFileData);
 
 	m_TerrainFileData.bShouldSave = false;
 }
@@ -105,23 +116,48 @@ bool CTerrain::ShouldSave() const
 	return m_TerrainFileData.bShouldSave;
 }
 
-void CTerrain::CreateFoliageCluster(const vector<string>& vFoliageFileNames, uint32_t PlacingDetail, bool bShouldClear)
+void CTerrain::CreateFoliageCluster()
 {
 	srand((unsigned int)GetTickCount64());
 
-	m_TerrainFileData.vFoliageFileNames = vFoliageFileNames;
+	CreateFoliagePlacingTexutre(true);
+
+	m_vFoliages.clear();
+	for (const auto& FoliageData : m_TerrainFileData.vFoliageData)
+	{
+		m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext, m_PtrGame));
+		m_vFoliages.back()->CreateFromFile(FoliageData.FileName, false);
+		m_vFoliages.back()->CreateInstances(FoliageData.vInstanceData);
+	}
+
+	m_TerrainFileData.bHasFoliageCluster = true;
+
+	CreateWindRepresentation();
+
+	RegisterChange();
+}
+
+void CTerrain::CreateFoliageCluster(const std::vector<std::string>& vFoliageFileNames, uint32_t PlacingDetail)
+{
+	srand((unsigned int)GetTickCount64());
+
+	m_TerrainFileData.vFoliageData.clear();
+	m_TerrainFileData.vFoliageData.resize(vFoliageFileNames.size());
+	for (size_t iFoliageData = 0; iFoliageData < m_TerrainFileData.vFoliageData.size(); ++iFoliageData)
+	{
+		m_TerrainFileData.vFoliageData[iFoliageData].FileName = vFoliageFileNames[iFoliageData];
+	}
+
 	m_TerrainFileData.FoliagePlacingDetail = PlacingDetail;
 
-	CreateFoliagePlacingTexutre(bShouldClear);
+	CreateFoliagePlacingTexutre(true);
 
-	if (bShouldClear)
+	m_vFoliages.clear();
+	for (const auto& FoliageData : m_TerrainFileData.vFoliageData)
 	{
-		m_vFoliages.clear();
-		for (const auto& FoliageFileName : m_TerrainFileData.vFoliageFileNames)
-		{
-			m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext, m_PtrGame));
-			m_vFoliages.back()->CreateFromFile(FoliageFileName, false);
-		}
+		m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext, m_PtrGame));
+		m_vFoliages.back()->CreateFromFile(FoliageData.FileName, false);
+		m_vFoliages.back()->CreateInstances(FoliageData.vInstanceData);
 	}
 
 	m_TerrainFileData.bHasFoliageCluster = true;

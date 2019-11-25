@@ -1,8 +1,7 @@
 #include "Core/Game.h"
 
 // @TODO
-// update scene loading/saving (save editor camera state into the scene)
-// pre-cal vp, wvp matrices
+// update scene loading/saving (save editor camera state into the scene) => BINARY ??
 // implement shadow mapping
 
 IMGUI_IMPL_API LRESULT  ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);

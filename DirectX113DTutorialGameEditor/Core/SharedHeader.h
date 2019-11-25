@@ -21,6 +21,8 @@
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 
+static const XMMATRIX KMatrixIdentity{ XMMatrixIdentity() };
+
 enum class EShaderType
 {
 	VertexShader,
@@ -71,7 +73,32 @@ struct SMesh
 	size_t							MaterialID{};
 };
 
-static const XMMATRIX KMatrixIdentity{ XMMatrixIdentity() };
+struct SBoundingSphere
+{
+	static constexpr float KDefaultRadius{ 1.0f };
+
+	float		Radius{ KDefaultRadius };
+	float		RadiusBias{ KDefaultRadius };
+	XMVECTOR	CenterOffset{};
+};
+
+struct SInstanceCPUData
+{
+	static constexpr size_t KMaxNameLengthZeroTerminated{ 32 };
+
+	std::string	Name{};
+	XMVECTOR	Translation{};
+	XMVECTOR	Scaling{ XMVectorSet(1, 1, 1, 0) };
+	float		Pitch{};
+	float		Yaw{};
+	float		Roll{};
+	SBoundingSphere	BoundingSphere{};
+};
+
+struct SInstanceGPUData
+{
+	XMMATRIX	WorldMatrix{ KMatrixIdentity };
+};
 
 #define ENUM_CLASS_FLAG(enum_type)\
 static enum_type operator|(enum_type a, enum_type b)\
