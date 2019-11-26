@@ -4,6 +4,7 @@ cbuffer cbSpace : register(b0)
 {
 	float4x4 World;
 	float4x4 ViewProjection;
+	float4x4 WVP;
 }
 
 cbuffer cbBones : register(b1)

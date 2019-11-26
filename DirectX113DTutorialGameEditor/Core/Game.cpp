@@ -1407,11 +1407,12 @@ void CGame::SetUniversalbUseLighiting()
 
 void CGame::UpdateCBSpace(const XMMATRIX& World)
 {
-	m_CBSpaceWVPData.World = m_CBSpace2DData.World = XMMatrixTranspose(World);
-	m_CBSpaceWVPData.ViewProjection = GetTransposedViewProjectionMatrix();
-	m_CBSpaceWVP->Update();
+	const XMMATRIX VP{ m_MatrixView * m_MatrixProjection };
 
-	m_CBSpaceVPData.ViewProjection = GetTransposedViewProjectionMatrix();
+	m_CBSpaceWVPData.World = m_CBSpace2DData.World = XMMatrixTranspose(World);
+	m_CBSpaceWVPData.ViewProjection = m_CBSpaceVPData.ViewProjection = XMMatrixTranspose(VP);
+	m_CBSpaceWVPData.WVP = XMMatrixTranspose(World * VP);
+	m_CBSpaceWVP->Update();
 	m_CBSpaceVP->Update();
 
 	m_CBSpace2DData.Projection = XMMatrixTranspose(m_MatrixProjection2D);
@@ -3513,7 +3514,7 @@ void CGame::DrawTerrain(float DeltaTime)
 	SetUniversalRSState();
 	SetUniversalbUseLighiting();
 	
-	m_CBSpaceVPData.ViewProjection = GetTransposedViewProjectionMatrix();
+	UpdateCBSpace(m_Terrain->GetSelectionData().TerrainWorld);
 
 	m_Terrain->UpdateWind(DeltaTime);
 	UpdateCBWindData(m_Terrain->GetWindData());
@@ -6747,9 +6748,4 @@ Mouse::State CGame::GetMouseState() const
 const XMFLOAT2& CGame::GetWindowSize() const
 {
 	return m_WindowSize;
-}
-
-XMMATRIX CGame::GetTransposedViewProjectionMatrix() const
-{
-	return XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
 }

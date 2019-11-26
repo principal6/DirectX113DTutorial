@@ -48,6 +48,8 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 
 	Output.Position = Output.WorldPosition = Bezier;
 
+	// This bool is used for drawing normals.
+	// If the value is not 0, it means that it is already in projection space by GSNormal.
 	if (Output.bUseVertexColor == 0)
 	{
 		Output.Position = mul(float4(Output.Position.xyz, 1), ViewProjection);

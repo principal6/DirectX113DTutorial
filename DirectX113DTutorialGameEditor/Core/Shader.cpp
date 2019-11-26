@@ -7,6 +7,9 @@ using std::wstring;
 void CShader::Create(EShaderType Type, const wstring& FileName, const string& EntryPoint,
 	const D3D11_INPUT_ELEMENT_DESC* InputElementDescs, UINT NumElements)
 {
+	static const char KCompileFailureTitle[]{ "Failed to compile shader." };
+	static const char KCompileFailureMessage[]{ "Check out shader model/file name/entry point name." };
+
 	if (InputElementDescs) assert(Type == EShaderType::VertexShader);
 
 	m_ShaderType = Type;
@@ -16,6 +19,8 @@ void CShader::Create(EShaderType Type, const wstring& FileName, const string& En
 	case EShaderType::VertexShader:
 		D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
 			"vs_4_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
+
+		if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
 
 		m_PtrDevice->CreateVertexShader(m_Blob->GetBufferPointer(), m_Blob->GetBufferSize(), nullptr, &m_VertexShader);
 
@@ -28,11 +33,15 @@ void CShader::Create(EShaderType Type, const wstring& FileName, const string& En
 		D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
 			"hs_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
 
+		if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
+
 		m_PtrDevice->CreateHullShader(m_Blob->GetBufferPointer(), m_Blob->GetBufferSize(), nullptr, &m_HullShader);
 		break;
 	case EShaderType::DomainShader:
 		D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
 			"ds_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
+
+		if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
 
 		m_PtrDevice->CreateDomainShader(m_Blob->GetBufferPointer(), m_Blob->GetBufferSize(), nullptr, &m_DomainShader);
 		break;
@@ -40,11 +49,15 @@ void CShader::Create(EShaderType Type, const wstring& FileName, const string& En
 		D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
 			"gs_4_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
 
+		if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
+
 		m_PtrDevice->CreateGeometryShader(m_Blob->GetBufferPointer(), m_Blob->GetBufferSize(), nullptr, &m_GeometryShader);
 		break;
 	case EShaderType::PixelShader:
 		D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
 			"ps_4_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
+
+		if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
 
 		m_PtrDevice->CreatePixelShader(m_Blob->GetBufferPointer(), m_Blob->GetBufferSize(), nullptr, &m_PixelShader);
 		break;
@@ -65,7 +78,7 @@ void CShader::Use()
 	{
 	case EShaderType::VertexShader:
 		m_PtrDeviceContext->VSSetShader(m_VertexShader.Get(), nullptr, 0);
-		m_PtrDeviceContext->IASetInputLayout(m_InputLayout.Get());
+		if (m_InputLayout) m_PtrDeviceContext->IASetInputLayout(m_InputLayout.Get());
 		break;
 	case EShaderType::HullShader:
 		m_PtrDeviceContext->HSSetShader(m_HullShader.Get(), nullptr, 0);
