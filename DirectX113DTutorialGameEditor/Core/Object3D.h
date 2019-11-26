@@ -185,6 +185,13 @@ public:
 
 	void CreateFromFile(const std::string& FileName, bool bIsModelRigged);
 
+private:
+	void CreateMeshBuffers();
+	void CreateMeshBuffer(size_t MeshIndex, bool IsAnimated);
+
+	void CreateMaterialTextures();
+	void CreateMaterialTexture(size_t Index);
+
 public:
 	bool HasAnimations();
 	void AddAnimationFromFile(const std::string& FileName, const std::string& AnimationName);
@@ -207,6 +214,7 @@ public:
 	void SetMaterial(size_t Index, const CMaterialData& MaterialData);
 	size_t GetMaterialCount() const;
 
+public:
 	void CreateInstances(int InstanceCount);
 	void CreateInstances(const std::vector<SInstanceCPUData>& vInstanceData);
 	void InsertInstance(bool bShouldCreateInstanceBuffers = true);
@@ -217,19 +225,28 @@ public:
 	const std::vector<SInstanceCPUData>& GetInstanceCPUDataVector() const;
 	SInstanceGPUData& GetInstanceGPUData(int InstanceID);
 	SInstanceGPUData& GetInstanceGPUData(const std::string& Name);
-	void CreateInstanceBuffers();
 
-	void UpdateQuadUV(const XMFLOAT2& UVOffset, const XMFLOAT2& UVSize);
-	void UpdateMeshBuffer(size_t MeshIndex = 0);
+	void CreateInstanceBuffers();
 	void UpdateInstanceBuffers();
 	void UpdateInstanceBuffer(size_t MeshIndex = 0);
+
+private:
+	void CreateInstanceBuffer(size_t MeshIndex);
+
+public:
+	void UpdateQuadUV(const XMFLOAT2& UVOffset, const XMFLOAT2& UVSize);
+	void UpdateMeshBuffer(size_t MeshIndex = 0);
 
 	void UpdateWorldMatrix();
 	void UpdateInstanceWorldMatrix(uint32_t InstanceID);
 	void UpdateAllInstancesWorldMatrix();
 
+public:
 	void Animate(float DeltaTime);
 	void Draw(bool bIgnoreOwnTexture = false, bool bIgnoreInstances = false) const;
+
+private:
+	void CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick, const SModel::SNode& Node, XMMATRIX ParentTransform);
 
 public:
 	bool ShouldTessellate() const { return m_bShouldTesselate; }
@@ -255,16 +272,6 @@ public:
 	CMaterialTextureSet* GetMaterialTextureSet(size_t iMaterial);
 
 private:
-	void CreateMeshBuffers();
-	void CreateMeshBuffer(size_t MeshIndex, bool IsAnimated);
-
-	void CreateInstanceBuffer(size_t MeshIndex);
-
-	void CreateMaterialTextures();
-	void CreateMaterialTexture(size_t Index);
-
-	void CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick, const SModel::SNode& Node, XMMATRIX ParentTransform);
-
 	void LimitFloatRotation(float& Value, const float Min, const float Max);
 
 public:

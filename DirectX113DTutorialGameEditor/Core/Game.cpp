@@ -2397,7 +2397,7 @@ void CGame::SelectObject3D(const string& Name)
 void CGame::DeselectObject3D()
 {
 	m_PtrSelectedObject3D = nullptr;
-	m_SelectedInstanceID = -1;
+	DeselectInstance();
 }
 
 bool CGame::IsAnyObject3DSelected() const
@@ -2425,7 +2425,7 @@ void CGame::SelectObject2D(const string& Name)
 	{
 		if (!m_PtrSelectedObject2D->IsInstanced())
 		{
-			m_SelectedInstanceID = -1;
+			DeselectInstance();
 		}
 	}
 }
@@ -2433,7 +2433,7 @@ void CGame::SelectObject2D(const string& Name)
 void CGame::DeselectObject2D()
 {
 	m_PtrSelectedObject2D = nullptr;
-	m_SelectedInstanceID = -1;
+	DeselectInstance();
 }
 
 bool CGame::IsAnyObject2DSelected() const
@@ -2459,7 +2459,7 @@ void CGame::SelectCamera(const string& Name)
 	m_PtrSelectedCamera = GetCamera(Name);
 	if (m_PtrSelectedCamera)
 	{
-		m_SelectedInstanceID = -1;
+		DeselectInstance();
 	}
 }
 
@@ -2534,14 +2534,8 @@ void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
 void CGame::Select3DGizmos()
 {
 	if (EFLAG_HAS_NO(m_eFlagsRendering, EFlagsRendering::Use3DGizmos)) return;
-	if (IsAnyObject3DSelected())
-	{
-		if (m_PtrSelectedObject3D->IsInstanced() && !IsAnyInstanceSelected()) return;
-	}
-	else
-	{
-		return;
-	}
+	if (!IsAnyObject3DSelected()) return;
+	if (m_PtrSelectedObject3D->IsInstanced() && !IsAnyInstanceSelected()) return;
 
 	XMVECTOR* pTranslation{ &m_PtrSelectedObject3D->ComponentTransform.Translation };
 	XMVECTOR* pScaling{ &m_PtrSelectedObject3D->ComponentTransform.Scaling };
@@ -2841,6 +2835,7 @@ void CGame::CastPickingRay()
 void CGame::PickBoundingSphere()
 {
 	m_vObject3DPickingCandidates.clear();
+
 	m_PtrPickedObject3D = nullptr;
 	m_PickedInstanceID = -1;
 
@@ -3595,14 +3590,8 @@ void CGame::DrawTerrain(float DeltaTime)
 
 void CGame::Draw3DGizmos()
 {
-	if (IsAnyObject3DSelected())
-	{
-		if (m_PtrSelectedObject3D->IsInstanced() && !IsAnyInstanceSelected()) return;
-	}
-	else
-	{
-		return;
-	}
+	if (!IsAnyObject3DSelected()) return;
+	if (m_PtrSelectedObject3D->IsInstanced() && !IsAnyInstanceSelected()) return;
 
 	switch (m_e3DGizmoMode)
 	{
@@ -4567,13 +4556,12 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								Object3D->SetTessFactorData(TessFactorData);
 							}
 
-							float InsideTessFactor{ TessFactorData.InsideTessFactor };
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8"테셀레이션 내부 계수");
 							ImGui::SameLine(ItemsOffsetX);
-							if (ImGui::SliderFloat(u8"##테셀레이션 내부 계수", &InsideTessFactor, 0.0f, 64.0f, "%.2f"))
+							if (ImGui::SliderFloat(u8"##테셀레이션 내부 계수", &TessFactorData.InsideTessFactor, 0.0f, 64.0f, "%.2f"))
 							{
-								TessFactorData.InsideTessFactor = InsideTessFactor;
+								Object3D->SetTessFactorData(TessFactorData);
 							}
 
 							CObject3D::SCBDisplacementData DisplacementData{ Object3D->GetDisplacementData() };
@@ -6759,11 +6747,6 @@ Mouse::State CGame::GetMouseState() const
 const XMFLOAT2& CGame::GetWindowSize() const
 {
 	return m_WindowSize;
-}
-
-float CGame::GetSkyTime() const
-{
-	return m_CBSkyTimeData.SkyTime;
 }
 
 XMMATRIX CGame::GetTransposedViewProjectionMatrix() const

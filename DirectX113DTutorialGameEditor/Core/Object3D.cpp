@@ -64,7 +64,8 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 		CModelPorter::SSMODData SMODData{};
 		ModelPorter.ImportStaticModel(m_ModelFileName, SMODData);
 		Create(SMODData);
-		return;
+
+		m_bIsCreated = true;
 	}
 	else
 	{
@@ -97,6 +98,93 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 
 		m_bIsCreated = true;
 	}
+}
+
+void CObject3D::CreateMeshBuffers()
+{
+	m_vMeshBuffers.clear();
+	m_vMeshBuffers.resize(m_Model.vMeshes.size());
+	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
+	{
+		CreateMeshBuffer(iMesh, m_Model.bIsModelRigged);
+	}
+}
+
+void CObject3D::CreateMeshBuffer(size_t MeshIndex, bool IsAnimated)
+{
+	const SMesh& Mesh{ m_Model.vMeshes[MeshIndex] };
+
+	{
+		D3D11_BUFFER_DESC BufferDesc{};
+		BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SVertex3D) * Mesh.vVertices.size());
+		BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		BufferDesc.MiscFlags = 0;
+		BufferDesc.StructureByteStride = 0;
+		BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+
+		D3D11_SUBRESOURCE_DATA SubresourceData{};
+		SubresourceData.pSysMem = &Mesh.vVertices[0];
+		m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, &m_vMeshBuffers[MeshIndex].VertexBuffer);
+	}
+
+	if (IsAnimated)
+	{
+		D3D11_BUFFER_DESC BufferDesc{};
+		BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SVertexAnimation) * Mesh.vVerticesAnimation.size());
+		BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		BufferDesc.MiscFlags = 0;
+		BufferDesc.StructureByteStride = 0;
+		BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+
+		D3D11_SUBRESOURCE_DATA SubresourceData{};
+		SubresourceData.pSysMem = &Mesh.vVerticesAnimation[0];
+		m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, &m_vMeshBuffers[MeshIndex].VertexBufferAnimation);
+	}
+
+	{
+		D3D11_BUFFER_DESC BufferDesc{};
+		BufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+		BufferDesc.ByteWidth = static_cast<UINT>(sizeof(STriangle) * Mesh.vTriangles.size());
+		BufferDesc.CPUAccessFlags = 0;
+		BufferDesc.MiscFlags = 0;
+		BufferDesc.StructureByteStride = 0;
+		BufferDesc.Usage = D3D11_USAGE_DEFAULT;
+
+		D3D11_SUBRESOURCE_DATA SubresourceData{};
+		SubresourceData.pSysMem = &Mesh.vTriangles[0];
+		m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, &m_vMeshBuffers[MeshIndex].IndexBuffer);
+	}
+}
+
+void CObject3D::CreateMaterialTextures()
+{
+	m_vMaterialTextureSets.clear();
+
+	for (CMaterialData& MaterialData : m_Model.vMaterialData)
+	{
+		// @important
+		m_vMaterialTextureSets.emplace_back(make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext));
+
+		if (MaterialData.HasAnyTexture())
+		{
+			m_vMaterialTextureSets.back()->CreateTextures(MaterialData);
+		}
+	}
+}
+
+void CObject3D::CreateMaterialTexture(size_t Index)
+{
+	if (Index == m_vMaterialTextureSets.size())
+	{
+		m_vMaterialTextureSets.emplace_back(make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext));
+	}
+	else
+	{
+		m_vMaterialTextureSets[Index] = make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext);
+	}
+	m_vMaterialTextureSets[Index]->CreateTextures(m_Model.vMaterialData[Index]);
 }
 
 bool CObject3D::HasAnimations()
@@ -545,64 +633,6 @@ SInstanceGPUData& CObject3D::GetInstanceGPUData(const std::string& Name)
 	return m_vInstanceGPUData[m_mapInstanceNameToIndex.at(Name)];
 }
 
-void CObject3D::CreateMeshBuffers()
-{
-	m_vMeshBuffers.clear();
-	m_vMeshBuffers.resize(m_Model.vMeshes.size());
-	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
-	{
-		CreateMeshBuffer(iMesh, m_Model.bIsModelRigged);
-	}
-}
-
-void CObject3D::CreateMeshBuffer(size_t MeshIndex, bool IsAnimated)
-{
-	const SMesh& Mesh{ m_Model.vMeshes[MeshIndex] };
-
-	{
-		D3D11_BUFFER_DESC BufferDesc{};
-		BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SVertex3D) * Mesh.vVertices.size());
-		BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		BufferDesc.MiscFlags = 0;
-		BufferDesc.StructureByteStride = 0;
-		BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-
-		D3D11_SUBRESOURCE_DATA SubresourceData{};
-		SubresourceData.pSysMem = &Mesh.vVertices[0];
-		m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, &m_vMeshBuffers[MeshIndex].VertexBuffer);
-	}
-
-	if (IsAnimated)
-	{
-		D3D11_BUFFER_DESC BufferDesc{};
-		BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SVertexAnimation) * Mesh.vVerticesAnimation.size());
-		BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		BufferDesc.MiscFlags = 0;
-		BufferDesc.StructureByteStride = 0;
-		BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-
-		D3D11_SUBRESOURCE_DATA SubresourceData{};
-		SubresourceData.pSysMem = &Mesh.vVerticesAnimation[0];
-		m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, &m_vMeshBuffers[MeshIndex].VertexBufferAnimation);
-	}
-
-	{
-		D3D11_BUFFER_DESC BufferDesc{};
-		BufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-		BufferDesc.ByteWidth = static_cast<UINT>(sizeof(STriangle) * Mesh.vTriangles.size());
-		BufferDesc.CPUAccessFlags = 0;
-		BufferDesc.MiscFlags = 0;
-		BufferDesc.StructureByteStride = 0;
-		BufferDesc.Usage = D3D11_USAGE_DEFAULT;
-
-		D3D11_SUBRESOURCE_DATA SubresourceData{};
-		SubresourceData.pSysMem = &Mesh.vTriangles[0];
-		m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, &m_vMeshBuffers[MeshIndex].IndexBuffer);
-	}
-}
-
 void CObject3D::CreateInstanceBuffers()
 {
 	if (m_vInstanceCPUData.empty()) return;
@@ -630,33 +660,23 @@ void CObject3D::CreateInstanceBuffer(size_t MeshIndex)
 	m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, &m_vInstanceBuffers[MeshIndex].Buffer);
 }
 
-void CObject3D::CreateMaterialTextures()
+void CObject3D::UpdateInstanceBuffers()
 {
-	m_vMaterialTextureSets.clear();
-	
-	for (CMaterialData& MaterialData : m_Model.vMaterialData)
+	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
 	{
-		// @important
-		m_vMaterialTextureSets.emplace_back(make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext));
-
-		if (MaterialData.HasAnyTexture())
-		{
-			m_vMaterialTextureSets.back()->CreateTextures(MaterialData);
-		}
+		UpdateInstanceBuffer(iMesh);
 	}
 }
 
-void CObject3D::CreateMaterialTexture(size_t Index)
+void CObject3D::UpdateInstanceBuffer(size_t MeshIndex)
 {
-	if (Index == m_vMaterialTextureSets.size())
+	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
+	if (SUCCEEDED(m_PtrDeviceContext->Map(m_vInstanceBuffers[MeshIndex].Buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
 	{
-		m_vMaterialTextureSets.emplace_back(make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext));
+		memcpy(MappedSubresource.pData, &m_vInstanceGPUData[0], sizeof(SInstanceGPUData) * m_vInstanceGPUData.size());
+
+		m_PtrDeviceContext->Unmap(m_vInstanceBuffers[MeshIndex].Buffer.Get(), 0);
 	}
-	else
-	{
-		m_vMaterialTextureSets[Index] = make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext);
-	}
-	m_vMaterialTextureSets[Index]->CreateTextures(m_Model.vMaterialData[Index]);
 }
 
 void CObject3D::UpdateQuadUV(const XMFLOAT2& UVOffset, const XMFLOAT2& UVSize)
@@ -682,25 +702,6 @@ void CObject3D::UpdateMeshBuffer(size_t MeshIndex)
 		memcpy(MappedSubresource.pData, &m_Model.vMeshes[MeshIndex].vVertices[0], sizeof(SVertex3D) * m_Model.vMeshes[MeshIndex].vVertices.size());
 
 		m_PtrDeviceContext->Unmap(m_vMeshBuffers[MeshIndex].VertexBuffer.Get(), 0);
-	}
-}
-
-void CObject3D::UpdateInstanceBuffers()
-{
-	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
-	{
-		UpdateInstanceBuffer(iMesh);
-	}
-}
-
-void CObject3D::UpdateInstanceBuffer(size_t MeshIndex)
-{
-	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
-	if (SUCCEEDED(m_PtrDeviceContext->Map(m_vInstanceBuffers[MeshIndex].Buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
-	{
-		memcpy(MappedSubresource.pData, &m_vInstanceGPUData[0], sizeof(SInstanceGPUData) * m_vInstanceGPUData.size());
-
-		m_PtrDeviceContext->Unmap(m_vInstanceBuffers[MeshIndex].Buffer.Get(), 0);
 	}
 }
 
@@ -809,29 +810,6 @@ void CObject3D::UpdateAllInstancesWorldMatrix()
 	UpdateInstanceBuffers();
 }
 
-void CObject3D::Animate(float DeltaTime)
-{
-	if (!m_Model.vAnimations.size()) return;
-
-	SModel::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationID] };
-	m_CurrentAnimationTick += CurrentAnimation.TicksPerSecond * DeltaTime;
-	if (m_CurrentAnimationTick > CurrentAnimation.Duration)
-	{
-		m_CurrentAnimationTick = 0.0f;
-	}
-
-	if (m_BakedAnimationTexture)
-	{
-		m_CBAnimationData.bUseGPUSkinning = TRUE;
-		m_CBAnimationData.AnimationID = m_CurrentAnimationID;
-		m_CBAnimationData.AnimationTick = m_CurrentAnimationTick;
-	}
-	else
-	{
-		CalculateAnimatedBoneMatrices(m_Model.vAnimations[m_CurrentAnimationID], m_CurrentAnimationTick, m_Model.vNodes[0], XMMatrixIdentity());
-	}
-}
-
 void CObject3D::ShouldTessellate(bool Value)
 {
 	m_bShouldTesselate = Value;
@@ -863,7 +841,93 @@ CMaterialTextureSet* CObject3D::GetMaterialTextureSet(size_t iMaterial)
 	return m_vMaterialTextureSets[iMaterial].get();
 }
 
-void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick, 
+void CObject3D::Animate(float DeltaTime)
+{
+	if (!m_Model.vAnimations.size()) return;
+
+	SModel::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationID] };
+	m_CurrentAnimationTick += CurrentAnimation.TicksPerSecond * DeltaTime;
+	if (m_CurrentAnimationTick > CurrentAnimation.Duration)
+	{
+		m_CurrentAnimationTick = 0.0f;
+	}
+
+	if (m_BakedAnimationTexture)
+	{
+		m_CBAnimationData.bUseGPUSkinning = TRUE;
+		m_CBAnimationData.AnimationID = m_CurrentAnimationID;
+		m_CBAnimationData.AnimationTick = m_CurrentAnimationTick;
+	}
+	else
+	{
+		CalculateAnimatedBoneMatrices(m_Model.vAnimations[m_CurrentAnimationID], m_CurrentAnimationTick, m_Model.vNodes[0], XMMatrixIdentity());
+	}
+}
+
+void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
+{
+	if (HasBakedAnimationTexture()) m_BakedAnimationTexture->Use();
+
+	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
+	{
+		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };
+		const CMaterialData& MaterialData{ m_Model.vMaterialData[Mesh.MaterialID] };
+
+		// per mesh
+		m_PtrGame->UpdateCBMaterialData(MaterialData);
+
+		if (MaterialData.HasAnyTexture() && !bIgnoreOwnTexture)
+		{
+			if (m_Model.bUseMultipleTexturesInSingleMesh) // This bool is for CTerrain
+			{
+				for (const CMaterialData& MaterialDatum : m_Model.vMaterialData)
+				{
+					const CMaterialTextureSet* MaterialTextureSet{ m_vMaterialTextureSets[MaterialDatum.Index()].get() };
+					MaterialTextureSet->UseTextures();
+				}
+			}
+			else
+			{
+				const CMaterialTextureSet* MaterialTextureSet{ m_vMaterialTextureSets[Mesh.MaterialID].get() };
+				MaterialTextureSet->UseTextures();
+			}
+		}
+
+		if (ShouldTessellate())
+		{
+			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+		}
+		else
+		{
+			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		}
+
+		m_PtrDeviceContext->IASetIndexBuffer(m_vMeshBuffers[iMesh].IndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+		m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_vMeshBuffers[iMesh].VertexBuffer.GetAddressOf(), 
+			&m_vMeshBuffers[iMesh].VertexBufferStride, &m_vMeshBuffers[iMesh].VertexBufferOffset);
+
+		if (IsRiggedModel())
+		{
+			m_PtrDeviceContext->IASetVertexBuffers(1, 1, m_vMeshBuffers[iMesh].VertexBufferAnimation.GetAddressOf(),
+				&m_vMeshBuffers[iMesh].VertexBufferAnimationStride, &m_vMeshBuffers[iMesh].VertexBufferAnimationOffset);
+		}
+
+		if (IsInstanced() && !bIgnoreInstances)
+		{
+			m_PtrDeviceContext->IASetVertexBuffers(2, 1, m_vInstanceBuffers[iMesh].Buffer.GetAddressOf(),
+				&m_vInstanceBuffers[iMesh].Stride, &m_vInstanceBuffers[iMesh].Offset);
+
+			m_PtrDeviceContext->DrawIndexedInstanced(static_cast<UINT>(Mesh.vTriangles.size() * 3), static_cast<UINT>(m_vInstanceCPUData.size()), 0, 0, 0);
+		}
+		else
+		{
+			m_PtrDeviceContext->DrawIndexed(static_cast<UINT>(Mesh.vTriangles.size() * 3), 0, 0);
+		}
+	}
+}
+
+void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick,
 	const SModel::SNode& Node, XMMATRIX ParentTransform)
 {
 	XMMATRIX MatrixTransformation{ Node.MatrixTransformation * ParentTransform };
@@ -937,82 +1001,12 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentA
 		// Transpose at the last moment!
 		m_AnimatedBoneMatrices[Node.BoneIndex] = XMMatrixTranspose(Node.MatrixBoneOffset * MatrixTransformation);
 	}
-	
+
 	if (Node.vChildNodeIndices.size())
 	{
 		for (auto iChild : Node.vChildNodeIndices)
 		{
 			CalculateAnimatedBoneMatrices(CurrentAnimation, AnimationTick, m_Model.vNodes[iChild], MatrixTransformation);
-		}
-	}
-}
-
-void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
-{
-	if (HasBakedAnimationTexture()) m_BakedAnimationTexture->Use();
-
-	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
-	{
-		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };
-		const CMaterialData& MaterialData{ m_Model.vMaterialData[Mesh.MaterialID] };
-
-		// per mesh
-		m_PtrGame->UpdateCBMaterialData(MaterialData);
-
-		if (MaterialData.HasAnyTexture())
-		{
-			if (m_Model.bUseMultipleTexturesInSingleMesh) // This bool is for CTerrain
-			{
-				for (const CMaterialData& MaterialDatum : m_Model.vMaterialData)
-				{
-					const CMaterialTextureSet* MaterialTextureSet{ m_vMaterialTextureSets[MaterialDatum.Index()].get() };
-					if (MaterialDatum.HasAnyTexture() && !bIgnoreOwnTexture)
-					{
-						MaterialTextureSet->UseTextures();
-					}
-				}
-			}
-			else
-			{
-				const CMaterialTextureSet* MaterialTextureSet{ m_vMaterialTextureSets[Mesh.MaterialID].get() };
-				m_PtrGame->UpdateCBMaterialData(MaterialData);
-				if (MaterialData.HasAnyTexture() && !bIgnoreOwnTexture)
-				{
-					MaterialTextureSet->UseTextures();
-				}
-			}
-		}
-
-		if (ShouldTessellate())
-		{
-			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
-		}
-		else
-		{
-			m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		}
-
-		m_PtrDeviceContext->IASetIndexBuffer(m_vMeshBuffers[iMesh].IndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-
-		m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_vMeshBuffers[iMesh].VertexBuffer.GetAddressOf(), 
-			&m_vMeshBuffers[iMesh].VertexBufferStride, &m_vMeshBuffers[iMesh].VertexBufferOffset);
-
-		if (IsRiggedModel())
-		{
-			m_PtrDeviceContext->IASetVertexBuffers(1, 1, m_vMeshBuffers[iMesh].VertexBufferAnimation.GetAddressOf(),
-				&m_vMeshBuffers[iMesh].VertexBufferAnimationStride, &m_vMeshBuffers[iMesh].VertexBufferAnimationOffset);
-		}
-
-		if (IsInstanced() && !bIgnoreInstances)
-		{
-			m_PtrDeviceContext->IASetVertexBuffers(2, 1, m_vInstanceBuffers[iMesh].Buffer.GetAddressOf(),
-				&m_vInstanceBuffers[iMesh].Stride, &m_vInstanceBuffers[iMesh].Offset);
-
-			m_PtrDeviceContext->DrawIndexedInstanced(static_cast<UINT>(Mesh.vTriangles.size() * 3), static_cast<UINT>(m_vInstanceCPUData.size()), 0, 0, 0);
-		}
-		else
-		{
-			m_PtrDeviceContext->DrawIndexed(static_cast<UINT>(Mesh.vTriangles.size() * 3), 0, 0);
 		}
 	}
 }

@@ -515,7 +515,6 @@ public:
 	auto GetSpriteBatchPtr() const->SpriteBatch* { return m_SpriteBatch.get(); }
 	auto GetSpriteFontPtr() const->SpriteFont* { return m_SpriteFont.get(); }
 	auto GetWindowSize() const->const XMFLOAT2&;
-	auto GetSkyTime() const->float;
 	auto GetTransposedViewProjectionMatrix() const->XMMATRIX;
 	auto GetDepthStencilStateLessEqualNoWrite() const->ID3D11DepthStencilState* { return m_DepthStencilStateLessEqualNoWrite.Get(); }
 	auto GetBlendStateAlphaToCoverage() const->ID3D11BlendState* { return m_BlendAlphaToCoverage.Get(); }

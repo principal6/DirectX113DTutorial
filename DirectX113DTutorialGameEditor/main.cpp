@@ -1,6 +1,7 @@
 #include "Core/Game.h"
 
 // @TODO
+// implement deferred shading!
 // update scene loading/saving (save editor camera state into the scene) => BINARY ??
 // implement shadow mapping
 

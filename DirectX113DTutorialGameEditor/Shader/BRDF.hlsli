@@ -7,7 +7,6 @@ static const float3 KMonochromatic = float3(0.2126, 0.7152, 0.0722);
 //           Albedo
 // BRDF() = --------
 //             ¥ð
-//
 static float3 DiffuseBRDF_Lambertian(float3 DiffuseColor)
 {
 	return DiffuseColor / KPI;
@@ -64,7 +63,7 @@ static float NormalDistribution_GGX(float Alpha, float NdotM)
 // << Specular BRDF >>
 //                    F * G * D
 // BRDF() = ----------------------------
-//           ¥ð * dot(N, Wi) * dot(N, Wo)
+//           4 * dot(N, Wi) * dot(N, Wo)
 static float3 SpecularBRDF_GGX(float3 F0, float NdotL, float NdotV, float NdotM, float MdotL, float Roughness)
 {
 	float Alpha = max(Roughness * Roughness, 0.001);
@@ -74,7 +73,7 @@ static float3 SpecularBRDF_GGX(float3 F0, float NdotL, float NdotV, float NdotM,
 	float D = NormalDistribution_GGX(Alpha, NdotM);
 
 	float3 Numerator = F * G * D;
-	float Denominator = 4 * NdotL * NdotV; // Mathematically this number '4' should be 'PI', but practically '4' is not bad!
+	float Denominator = 4 * NdotL * NdotV;
 	return (Numerator / Denominator);
 }
 

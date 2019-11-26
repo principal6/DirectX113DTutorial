@@ -52,11 +52,11 @@ cbuffer cbLight : register(b1)
 
 cbuffer cbMaterial : register(b2)
 {
-	float3	MaterialAmbientColor;
-	float	MaterialSpecularExponent;
+	float3	MaterialAmbientColor; // Classical
+	float	MaterialSpecularExponent; // Classical
 	float3	MaterialDiffuseColor;
-	float	MaterialSpecularIntensity;
-	float3	MaterialSpecularColor;
+	float	MaterialSpecularIntensity; // Classical
+	float3	MaterialSpecularColor; // Classical
 	float	MaterialRoughness;
 
 	float	MaterialMetalness;
@@ -149,10 +149,10 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 		float3 N = MacrosurfaceNormal; // Macrosurface normal vector
 
-		// This is equivalent of L vector (light direction from a point on interface-- both for macrosurface and microsurface.)
+		// This is equivalent of L vector (light direction from a point on the interface-- both for macrosurface and microsurface.)
 		float3 Wi_direct = DirectionalLightDirection.xyz;
 
-		// This is equivalent of V vector (view direction from a point on interface-- both for macrosurface and microsurface.)
+		// This is equivalent of V vector (view direction from a point on the interface-- both for macrosurface and microsurface.)
 		float3 Wo = normalize(EyePosition.xyz - Input.WorldPosition.xyz); 
 
 		if (bUsePhysicallyBasedRendering == true)
