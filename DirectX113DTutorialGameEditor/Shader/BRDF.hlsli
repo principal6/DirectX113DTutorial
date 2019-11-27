@@ -9,7 +9,7 @@ static const float3 KMonochromatic = float3(0.2126, 0.7152, 0.0722);
 //             ¥ð
 static float3 DiffuseBRDF_Lambertian(float3 DiffuseColor)
 {
-	return DiffuseColor / KPI;
+	return DiffuseColor * K1DIVPI;
 }
 
 // Fresnel reflectance approximation by Schlick

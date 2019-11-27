@@ -43,17 +43,17 @@ cbuffer cbLight : register(b1)
 
 cbuffer cbMaterial : register(b2)
 {
-	float3	MaterialAmbientColor;
-	float	MaterialSpecularExponent;
+	float3	MaterialAmbientColor; // Classical
+	float	MaterialSpecularExponent; // Classical
 	float3	MaterialDiffuseColor;
-	float	MaterialSpecularIntensity;
-	float3	MaterialSpecularColor;
+	float	MaterialSpecularIntensity; // Classical
+	float3	MaterialSpecularColor; // Classical
 	float	MaterialRoughness;
 
 	float	MaterialMetalness;
 	uint	FlagsHasTexture;
 	uint	FlagsIsTextureSRGB;
-	float	Reserved;
+	uint	TotalMaterialCount; // for Terrain this is texture layer count
 }
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
@@ -70,7 +70,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			// # Here we make sure that input RGB values are in linear-space!
 			if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
 			{
-				// # Convert gamma-space RGB to linear-space RGB (sRGB)
+				// # Convert gamma-space RGB to linear-space RGB
 				DiffuseColor = pow(DiffuseColor, 2.2);
 			}
 		}
@@ -109,7 +109,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	}
 
 	// # Here we make sure that output RGB values are in gamma-space!
-	// # Convert linear-space RGB (sRGB) to gamma-space RGB
+	// # Convert linear-space RGB to gamma-space RGB
 	OutputColor.xyz = pow(OutputColor.xyz, 0.4545);
 
 	if (FlagsHasTexture & FLAG_ID_OPACITY) OutputColor.a *= Opacity;

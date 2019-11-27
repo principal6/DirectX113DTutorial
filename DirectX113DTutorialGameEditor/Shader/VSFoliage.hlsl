@@ -27,7 +27,7 @@ Texture2D<float> HeightMapTexture : register(t0);
 
 float GetHeightFromHeightMap(float2 XZ)
 {
-	float2 uv = CalculateHeightMapUV(float2(TerrainSizeX, TerrainSizeZ), XZ);
+	float2 uv = GetHeightMapUVFromPosition(float2(TerrainSizeX, TerrainSizeZ), XZ);
 	float y_norm = HeightMapTexture.SampleLevel(Sampler, uv, 0);
 	return (y_norm * TerrainHeightRange - TerrainHeightRange / 2.0f);
 }

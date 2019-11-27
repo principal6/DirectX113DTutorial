@@ -874,7 +874,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 		const CMaterialData& MaterialData{ m_Model.vMaterialData[Mesh.MaterialID] };
 
 		// per mesh
-		m_PtrGame->UpdateCBMaterialData(MaterialData);
+		m_PtrGame->UpdateCBMaterialData(MaterialData, (uint32_t)m_Model.vMaterialData.size());
 
 		if (MaterialData.HasAnyTexture() && !bIgnoreOwnTexture)
 		{

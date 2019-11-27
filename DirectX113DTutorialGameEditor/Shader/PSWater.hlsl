@@ -40,7 +40,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 DiffuseColor = DiffuseTexture.SampleLevel(CurrentSampler, AnimatedTexCoord, 0);
 
 	// # Here we make sure that input RGB values are in linear-space!
-	// # Convert gamma-space RGB to linear-space RGB (sRGB)
+	// # Convert gamma-space RGB to linear-space RGB
 	DiffuseColor.xyz = pow(DiffuseColor.xyz, 2.2);
 
 	float4 OutputColor = DiffuseColor;
@@ -58,7 +58,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	OutputColor.a = Input.Color.a;
 
 	// # Here we make sure that output RGB values are in gamma-space!
-	// # Convert linear-space RGB (sRGB) to gamma-space RGB
+	// # Convert linear-space RGB to gamma-space RGB
 	OutputColor.xyz = pow(OutputColor.xyz, 0.4545);
 
 	return OutputColor;

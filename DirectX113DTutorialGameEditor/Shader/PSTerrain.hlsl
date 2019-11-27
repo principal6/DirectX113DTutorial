@@ -17,47 +17,38 @@ SamplerState LinearClampSampler : register(s1);
 
 Texture2D Layer0DiffuseTexture : register(t0);
 Texture2D Layer0NormalTexture : register(t1);
-Texture2D Layer0OpacityTexture : register(t2);
+// Opacity texture slot
 Texture2D Layer0SpecularIntensityTexture : register(t3);
 Texture2D Layer0RoughnessTexture : register(t4);
-Texture2D Layer0MetalnessTexture : register(t5);
+// Metalness texture slot
 Texture2D Layer0AmbientOcclusionTexture : register(t6);
 // Displacement texture slot
 
 Texture2D Layer1DiffuseTexture : register(t8);
 Texture2D Layer1NormalTexture : register(t9);
-Texture2D Layer1OpacityTexture : register(t10);
+// Opacity texture slot
 Texture2D Layer1SpecularIntensityTexture : register(t11);
 Texture2D Layer1RoughnessTexture : register(t12);
-Texture2D Layer1MetalnessTexture : register(t13);
+// Metalness texture slot
 Texture2D Layer1AmbientOcclusionTexture : register(t14);
 // Displacement texture slot
 
 Texture2D Layer2DiffuseTexture : register(t16);
 Texture2D Layer2NormalTexture : register(t17);
-Texture2D Layer2OpacityTexture : register(t18);
+// Opacity texture slot
 Texture2D Layer2SpecularIntensityTexture : register(t19);
 Texture2D Layer2RoughnessTexture : register(t20);
-Texture2D Layer2MetalnessTexture : register(t21);
+// Metalness texture slot
 Texture2D Layer2AmbientOcclusionTexture : register(t22);
 // Displacement texture slot
 
 Texture2D Layer3DiffuseTexture : register(t24);
 Texture2D Layer3NormalTexture : register(t25);
-Texture2D Layer3OpacityTexture : register(t26);
+// Opacity texture slot
 Texture2D Layer3SpecularIntensityTexture : register(t27);
 Texture2D Layer3RoughnessTexture : register(t28);
-Texture2D Layer3MetalnessTexture : register(t29);
+// Metalness texture slot
 Texture2D Layer3AmbientOcclusionTexture : register(t30);
-// Displacement texture slot
-
-Texture2D Layer4DiffuseTexture : register(t32);
-Texture2D Layer4NormalTexture : register(t33);
-Texture2D Layer4OpacityTexture : register(t34);
-Texture2D Layer4SpecularIntensityTexture : register(t35);
-Texture2D Layer4RoughnessTexture : register(t36);
-Texture2D Layer4MetalnessTexture : register(t37);
-Texture2D Layer4AmbientOcclusionTexture : register(t38);
 // Displacement texture slot
 
 Texture2D MaskingTexture : register(t40);
@@ -112,18 +103,20 @@ cbuffer cbEditorTime : register(b4)
 
 cbuffer cbMaterial : register(b5)
 {
-	float3	MaterialAmbientColor;
-	float	MaterialSpecularExponent;
+	float3	MaterialAmbientColor; // Classical
+	float	MaterialSpecularExponent; // Classical
 	float3	MaterialDiffuseColor;
-	float	MaterialSpecularIntensity;
-	float3	MaterialSpecularColor;
+	float	MaterialSpecularIntensity; // Classical
+	float3	MaterialSpecularColor; // Classical
 	float	MaterialRoughness;
 
 	float	MaterialMetalness;
 	uint	FlagsHasTexture;
 	uint	FlagsIsTextureSRGB;
-	float	Reserved;
+	uint	TotalMaterialCount; // for Terrain this is texture layer count
 }
+
+#define TEX_COORD Input.TexCoord.xy
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
@@ -132,110 +125,88 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 MaskingSpacePosition = mul(LocalMaskingPosition, MaskingSpaceMatrix);
 	float4 Masking = MaskingTexture.Sample(LinearWrapSampler, MaskingSpacePosition.xz);
 
-	const float2 KTexCoord = Input.TexCoord.xy;
-
-	float4 DiffuseLayer0 = Layer0DiffuseTexture.Sample(LinearWrapSampler, KTexCoord);
-	float4 DiffuseLayer1 = Layer1DiffuseTexture.Sample(LinearWrapSampler, KTexCoord);
-	float4 DiffuseLayer2 = Layer2DiffuseTexture.Sample(LinearWrapSampler, KTexCoord);
-	float4 DiffuseLayer3 = Layer3DiffuseTexture.Sample(LinearWrapSampler, KTexCoord);
-	float4 DiffuseLayer4 = Layer4DiffuseTexture.Sample(LinearWrapSampler, KTexCoord);
 	float4 BlendedDiffuse = float4(MaterialDiffuseColor, 1);
 	if (FlagsHasTexture & FLAG_ID_DIFFUSE)
 	{
+		float4 DiffuseLayer0 = (TotalMaterialCount >= 1) ? Layer0DiffuseTexture.Sample(LinearWrapSampler, TEX_COORD) : float4(1, 1, 1, 1);
+		float4 DiffuseLayer1 = (TotalMaterialCount >= 2) ? Layer1DiffuseTexture.Sample(LinearWrapSampler, TEX_COORD) : float4(1, 1, 1, 1);
+		float4 DiffuseLayer2 = (TotalMaterialCount >= 3) ? Layer2DiffuseTexture.Sample(LinearWrapSampler, TEX_COORD) : float4(1, 1, 1, 1);
+		float4 DiffuseLayer3 = (TotalMaterialCount >= 4) ? Layer3DiffuseTexture.Sample(LinearWrapSampler, TEX_COORD) : float4(1, 1, 1, 1);
+
 		// # Here we make sure that input RGB values are in linear-space!
+		// # Convert gamma-space RGB to linear-space RGB
 		if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
 		{
-			// # Convert gamma-space RGB to linear-space RGB (sRGB)
-			DiffuseLayer0.xyz = pow(DiffuseLayer0.xyz, 2.2);
-			DiffuseLayer1.xyz = pow(DiffuseLayer1.xyz, 2.2);
-			DiffuseLayer2.xyz = pow(DiffuseLayer2.xyz, 2.2);
-			DiffuseLayer3.xyz = pow(DiffuseLayer3.xyz, 2.2);
-			DiffuseLayer4.xyz = pow(DiffuseLayer4.xyz, 2.2);
+			if (TotalMaterialCount >= 1) DiffuseLayer0.xyz = pow(DiffuseLayer0.xyz, 2.2);
+			if (TotalMaterialCount >= 2) DiffuseLayer1.xyz = pow(DiffuseLayer1.xyz, 2.2);
+			if (TotalMaterialCount >= 3) DiffuseLayer2.xyz = pow(DiffuseLayer2.xyz, 2.2);
+			if (TotalMaterialCount >= 4) DiffuseLayer3.xyz = pow(DiffuseLayer3.xyz, 2.2);
 		}
 
-		BlendedDiffuse = DiffuseLayer0;
-		BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer1.xyz, Masking.r);
-		BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer2.xyz, Masking.g);
-		BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer3.xyz, Masking.b);
-		BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer4.xyz, Masking.a);
+		if (TotalMaterialCount >= 1) BlendedDiffuse = DiffuseLayer0;
+		if (TotalMaterialCount >= 2) BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer1.xyz, Masking.r);
+		if (TotalMaterialCount >= 3) BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer2.xyz, Masking.g);
+		if (TotalMaterialCount >= 4) BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer3.xyz, Masking.b);
 	}
 	
-	float4 NormalLayer0 = normalize((Layer0NormalTexture.Sample(LinearWrapSampler, KTexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer1 = normalize((Layer1NormalTexture.Sample(LinearWrapSampler, KTexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer2 = normalize((Layer2NormalTexture.Sample(LinearWrapSampler, KTexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer3 = normalize((Layer3NormalTexture.Sample(LinearWrapSampler, KTexCoord) * 2.0f) - 1.0f);
-	float4 NormalLayer4 = normalize((Layer4NormalTexture.Sample(LinearWrapSampler, KTexCoord) * 2.0f) - 1.0f);
 	float4 BlendedNormal = Input.WorldNormal;
 	if (FlagsHasTexture & FLAG_ID_NORMAL)
 	{
+		float4 NormalLayer0 = (TotalMaterialCount >= 1) ? normalize((Layer0NormalTexture.Sample(LinearWrapSampler, TEX_COORD) * 2.0f) - 1.0f) : float4(0, 1, 0, 1);
+		float4 NormalLayer1 = (TotalMaterialCount >= 2) ? normalize((Layer1NormalTexture.Sample(LinearWrapSampler, TEX_COORD) * 2.0f) - 1.0f) : float4(0, 1, 0, 1);
+		float4 NormalLayer2 = (TotalMaterialCount >= 3) ? normalize((Layer2NormalTexture.Sample(LinearWrapSampler, TEX_COORD) * 2.0f) - 1.0f) : float4(0, 1, 0, 1);
+		float4 NormalLayer3 = (TotalMaterialCount >= 4) ? normalize((Layer3NormalTexture.Sample(LinearWrapSampler, TEX_COORD) * 2.0f) - 1.0f) : float4(0, 1, 0, 1);
+
+		if (TotalMaterialCount >= 1) BlendedNormal = NormalLayer0;
+		if (TotalMaterialCount >= 2) BlendedNormal.xyz = lerp(BlendedNormal.xyz, NormalLayer1.xyz, Masking.r);
+		if (TotalMaterialCount >= 3) BlendedNormal.xyz = lerp(BlendedNormal.xyz, NormalLayer2.xyz, Masking.g);
+		if (TotalMaterialCount >= 4) BlendedNormal.xyz = lerp(BlendedNormal.xyz, NormalLayer3.xyz, Masking.b);
+
 		const float3x3 KTextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
-		BlendedNormal = NormalLayer0;
-		BlendedNormal.xyz = lerp(BlendedNormal.xyz, NormalLayer1.xyz, Masking.r);
-		BlendedNormal.xyz = lerp(BlendedNormal.xyz, NormalLayer2.xyz, Masking.g);
-		BlendedNormal.xyz = lerp(BlendedNormal.xyz, NormalLayer3.xyz, Masking.b);
-		BlendedNormal.xyz = lerp(BlendedNormal.xyz, NormalLayer4.xyz, Masking.a);
 		BlendedNormal = normalize(BlendedNormal);
 		BlendedNormal = normalize(float4(mul(BlendedNormal.xyz, KTextureSpace), 0.0f));
 	}
 
-	float SpecularIntensityLayer0 = Layer0SpecularIntensityTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float SpecularIntensityLayer1 = Layer1SpecularIntensityTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float SpecularIntensityLayer2 = Layer2SpecularIntensityTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float SpecularIntensityLayer3 = Layer3SpecularIntensityTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float SpecularIntensityLayer4 = Layer4SpecularIntensityTexture.Sample(LinearWrapSampler, KTexCoord).r;
 	float BlendedSpecularIntensity = MaterialSpecularIntensity;
 	if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY)
 	{
-		BlendedSpecularIntensity = SpecularIntensityLayer0;
-		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer1, Masking.r);
-		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer2, Masking.g);
-		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer3, Masking.b);
-		BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer4, Masking.a);
+		float SpecularIntensityLayer0 = (TotalMaterialCount >= 1) ? Layer0SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+		float SpecularIntensityLayer1 = (TotalMaterialCount >= 2) ? Layer1SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+		float SpecularIntensityLayer2 = (TotalMaterialCount >= 3) ? Layer2SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+		float SpecularIntensityLayer3 = (TotalMaterialCount >= 4) ? Layer3SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+
+		if (TotalMaterialCount >= 1) BlendedSpecularIntensity = SpecularIntensityLayer0;
+		if (TotalMaterialCount >= 2) BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer1, Masking.r);
+		if (TotalMaterialCount >= 3) BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer2, Masking.g);
+		if (TotalMaterialCount >= 4) BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer3, Masking.b);
 	}
 
-	float RoughnessLayer0 = Layer0RoughnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float RoughnessLayer1 = Layer1RoughnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float RoughnessLayer2 = Layer2RoughnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float RoughnessLayer3 = Layer3RoughnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float RoughnessLayer4 = Layer4RoughnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
 	float BlendedRoughness = MaterialRoughness;
 	if (FlagsHasTexture & FLAG_ID_ROUGHNESS)
 	{
-		BlendedRoughness = RoughnessLayer0;
-		BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer1, Masking.r);
-		BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer2, Masking.g);
-		BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer3, Masking.b);
-		BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer4, Masking.a);
+		float RoughnessLayer0 = (TotalMaterialCount >= 1) ? Layer0RoughnessTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+		float RoughnessLayer1 = (TotalMaterialCount >= 2) ? Layer1RoughnessTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+		float RoughnessLayer2 = (TotalMaterialCount >= 3) ? Layer2RoughnessTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+		float RoughnessLayer3 = (TotalMaterialCount >= 4) ? Layer3RoughnessTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+
+		if (TotalMaterialCount >= 1) BlendedRoughness = RoughnessLayer0;
+		if (TotalMaterialCount >= 2) BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer1, Masking.r);
+		if (TotalMaterialCount >= 3) BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer2, Masking.g);
+		if (TotalMaterialCount >= 4) BlendedRoughness = lerp(BlendedRoughness, RoughnessLayer3, Masking.b);
 	}
 
-	float MetalnessLayer0 = Layer0MetalnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float MetalnessLayer1 = Layer1MetalnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float MetalnessLayer2 = Layer2MetalnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float MetalnessLayer3 = Layer3MetalnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float MetalnessLayer4 = Layer4MetalnessTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float BlendedMetalness = MaterialMetalness;
-	if (FlagsHasTexture & FLAG_ID_METALNESS)
-	{
-		BlendedMetalness = MetalnessLayer0;
-		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer1, Masking.r);
-		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer2, Masking.g);
-		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer3, Masking.b);
-		BlendedMetalness = lerp(BlendedMetalness, MetalnessLayer4, Masking.a);
-	}
-
-	float AmbientOcclusionLayer0 = Layer0AmbientOcclusionTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float AmbientOcclusionLayer1 = Layer1AmbientOcclusionTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float AmbientOcclusionLayer2 = Layer2AmbientOcclusionTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float AmbientOcclusionLayer3 = Layer3AmbientOcclusionTexture.Sample(LinearWrapSampler, KTexCoord).r;
-	float AmbientOcclusionLayer4 = Layer4AmbientOcclusionTexture.Sample(LinearWrapSampler, KTexCoord).r;
 	float BlendedAmbientOcclusion = 1.0;
 	if (FlagsHasTexture & FLAG_ID_METALNESS)
 	{
-		BlendedAmbientOcclusion = AmbientOcclusionLayer0;
-		BlendedAmbientOcclusion = lerp(BlendedAmbientOcclusion, AmbientOcclusionLayer1, Masking.r);
-		BlendedAmbientOcclusion = lerp(BlendedAmbientOcclusion, AmbientOcclusionLayer2, Masking.g);
-		BlendedAmbientOcclusion = lerp(BlendedAmbientOcclusion, AmbientOcclusionLayer3, Masking.b);
-		BlendedAmbientOcclusion = lerp(BlendedAmbientOcclusion, AmbientOcclusionLayer4, Masking.a);
+		float AmbientOcclusionLayer0 = (TotalMaterialCount >= 1) ? Layer0AmbientOcclusionTexture.Sample(LinearWrapSampler, TEX_COORD).r : 1;
+		float AmbientOcclusionLayer1 = (TotalMaterialCount >= 2) ? Layer1AmbientOcclusionTexture.Sample(LinearWrapSampler, TEX_COORD).r : 1;
+		float AmbientOcclusionLayer2 = (TotalMaterialCount >= 3) ? Layer2AmbientOcclusionTexture.Sample(LinearWrapSampler, TEX_COORD).r : 1;
+		float AmbientOcclusionLayer3 = (TotalMaterialCount >= 4) ? Layer3AmbientOcclusionTexture.Sample(LinearWrapSampler, TEX_COORD).r : 1;
+
+		if (TotalMaterialCount >= 1) BlendedAmbientOcclusion = AmbientOcclusionLayer0;
+		if (TotalMaterialCount >= 2) BlendedAmbientOcclusion = lerp(BlendedAmbientOcclusion, AmbientOcclusionLayer1, Masking.r);
+		if (TotalMaterialCount >= 3) BlendedAmbientOcclusion = lerp(BlendedAmbientOcclusion, AmbientOcclusionLayer2, Masking.g);
+		if (TotalMaterialCount >= 4) BlendedAmbientOcclusion = lerp(BlendedAmbientOcclusion, AmbientOcclusionLayer3, Masking.b);
 	}
 	
 	// Selection highlight (for edit mode)
@@ -259,14 +230,12 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		}
 	}
 
-	float3 MacrosurfaceNormal = BlendedNormal.xyz;
-	float3 Albedo = BlendedDiffuse.xyz;
-	float4 OutputColor = float4(Albedo, 1);
+	float4 OutputColor = float4(BlendedDiffuse.xyz, 1);
 	{
 		// Exposure tone mapping for raw albedo
-		Albedo = float3(1.0, 1.0, 1.0) - exp(-Albedo * Exposure);
+		float3 Albedo = float3(1.0, 1.0, 1.0) - exp(-BlendedDiffuse.xyz * Exposure);
 
-		float3 N = MacrosurfaceNormal; // Macrosurface normal vector
+		float3 N = BlendedNormal.xyz; // Macrosurface normal vector
 
 		// This is equivalent of L vector (light direction from a point on interface-- both for macrosurface and microsurface.)
 		float3 Wi_direct = DirectionalLightDirection.xyz;
@@ -277,7 +246,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		if (bUsePhysicallyBasedRendering)
 		{
 			// Calculate Fresnel reflectance at incident angle of 0 degree
-			float3 F0 = lerp(KFresnel_dielectric, Albedo, BlendedMetalness);
+			float3 F0 = lerp(KFresnel_dielectric, Albedo, MaterialMetalness);
 
 			// This is equivalent of M vector == Half-way direction between Wi(== L) and Wo(== V)
 			// Which is also visible microsurfaces' normal vector
@@ -314,42 +283,16 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 				OutputColor.xyz = Lo_direct_diff + Lo_direct_spec;
 			}
 
-			// Indirect light (only diffuse)
+			// @important: below codes are commented because of the performance issue in my poor laptop...
+			// Indirect light
 			{
-				// Indirect light direction
-				float3 Wi_indirect = normalize(-Wo + (2.0 * dot(N, Wo) * N)); // @important: do not clamp dot product...!!!!
-				float NdotWi_indirect = dot(N, Wi_indirect);
+				OutputColor.xyz += CalculateClassicalAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
 
-				float3 M = normalize(Wi_indirect + Wo);
-				float MdotWi_indirect = max(dot(M, Wi_indirect), 0);
-
+				/*
 				// Diffuse: Irradiance of the surface point
 				float3 Ei_indirect = IrradianceTexture.SampleBias(LinearWrapSampler, N, BlendedRoughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
-				if (!(FlagsIsTextureSRGB & FLAG_ID_IRRADIANCE)) Ei_indirect = pow(Ei_indirect, 2.2);
 
-				// Calculate Fresnel reflectance of macrosurface
-				float3 F_Macrosurface_indirect = Fresnel_Schlick(F0, NdotWi_indirect);
-
-				// Specular light intensity
-				float Ks_indirect = dot(KMonochromatic, F_Macrosurface_indirect); // Monochromatic intensity calculation
-				float Kd_indirect = 1.0 - Ks_indirect;
-
-				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo / KPI;
-
-				OutputColor.xyz += Lo_indirect_diff * BlendedAmbientOcclusion;
-
-				// @important: below codes are commented because of the performance issue in my poor laptop...
-				/*
-				// @important: use SampleLevel, not SampleBias (we must not depend on distance but on roughness when selecting mip level)
-				float3 PrefilteredRadiance = PrefilteredRadianceTexture.SampleLevel(LinearWrapSampler, Wi_indirect,
-					BlendedRoughness * (float)(PrefilteredRadianceTextureMipLevels - 1)).rgb;
-
-				// @important: use linear clamp sampler in order to avoid sampling at border issues!!
-				float2 IntegratedBRDF = IntegratedBRDFTexture.SampleLevel(LinearClampSampler, float2(saturate(dot(N, Wo)), 1 - BlendedRoughness), 0).rg;
-
-				float3 Lo_indirect_spec = Ks_indirect * PrefilteredRadiance * (Albedo * IntegratedBRDF.x + IntegratedBRDF.y);
-
-				OutputColor.xyz += (Lo_indirect_diff + Lo_indirect_spec) * BlendedAmbientOcclusion;
+				OutputColor.xyz += Ei_indirect * Albedo * K1DIVPI * BlendedAmbientOcclusion;
 				*/
 			}
 		}
@@ -368,19 +311,12 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	}
 
 	// # Here we make sure that output RGB values are in gamma-space!
-	// # Convert linear-space RGB (sRGB) to gamma-space RGB
+	// # Convert linear-space RGB to gamma-space RGB
 	OutputColor.xyz = pow(OutputColor.xyz, 0.4545);
 
 	// For normal & tangent drawing
-	if (Input.bUseVertexColor != 0)
-	{
-		return Input.Color;
-	}
-
-	if (bIsHighlitPixel == true)
-	{
-		OutputColor = HighlitAlbedo;
-	}
+	if (Input.bUseVertexColor != 0) return Input.Color;
+	if (bIsHighlitPixel == true) OutputColor = HighlitAlbedo;
 
 	return OutputColor;
 }

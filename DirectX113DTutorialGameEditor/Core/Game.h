@@ -133,7 +133,7 @@ public:
 		float		Metalness{};
 		uint32_t	FlagsHasTexture{};
 		uint32_t	FlagsIsTextureSRGB{};
-		float		Reserved{};
+		uint32_t	TotalMaterialCount{};
 	};
 
 	struct SCBSkyTimeData
@@ -351,7 +351,7 @@ public:
 
 	// Shader-related settings
 public:
-	void UpdateCBMaterialData(const CMaterialData& MaterialData);
+	void UpdateCBMaterialData(const CMaterialData& MaterialData, uint32_t TotalMaterialCount);
 
 private:
 	void UpdateCBSpace(const XMMATRIX& World = KMatrixIdentity);

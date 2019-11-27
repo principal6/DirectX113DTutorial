@@ -18,7 +18,7 @@ float4 main(VS_PARTICLE_OUTPUT Input) : SV_TARGET
 	}
 
 	// # Here we make sure that output RGB values are in gamma-space!
-	// # Convert linear-space RGB (sRGB) to gamma-space RGB
+	// # Convert linear-space RGB to gamma-space RGB
 	OutputColor.xyz = pow(OutputColor.xyz, 0.4545);
 
 	return OutputColor;

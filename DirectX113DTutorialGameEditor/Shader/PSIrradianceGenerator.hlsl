@@ -43,7 +43,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	}
 
 	Irradiance = Irradiance * KPI / (float)SampleCount;
-	
+
 	// HDR range adjustment
 	Irradiance.rgb *= RangeFactor;
 

@@ -21,26 +21,14 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(InputPatch<VS_OUTPUT, 3> Patch, uin
 {
 	HS_CONSTANT_DATA_OUTPUT Output;
 
-	float Distance0 = distance(Patch[0].WorldPosition, EyePosition);
-	float Distance1 = distance(Patch[1].WorldPosition, EyePosition);
-	float Distance2 = distance(Patch[2].WorldPosition, EyePosition);
-	Distance0 = ThresholdDistance(Distance0);
-	Distance1 = ThresholdDistance(Distance1);
-	Distance2 = ThresholdDistance(Distance2);
+	float E0 = EdgeTessFactor / ThresholdDistance(distance(Patch[0].WorldPosition, EyePosition));
+	float E1 = EdgeTessFactor / ThresholdDistance(distance(Patch[1].WorldPosition, EyePosition));
+	float E2 = EdgeTessFactor / ThresholdDistance(distance(Patch[2].WorldPosition, EyePosition));
+	Output.EdgeTessFactor[0] = max(E1, E2);
+	Output.EdgeTessFactor[1] = max(E0, E2);
+	Output.EdgeTessFactor[2] = max(E0, E1);
 
-	float E0 = EdgeTessFactor / Distance0;
-	float E1 = EdgeTessFactor / Distance1;
-	float E2 = EdgeTessFactor / Distance2;
-	float Edge0 = max(E1, E2);
-	float Edge1 = max(E0, E2);
-	float Edge2 = max(E0, E1);
-	Output.EdgeTessFactor[0] = Edge0;
-	Output.EdgeTessFactor[1] = Edge1;
-	Output.EdgeTessFactor[2] = Edge2;
-
-	float4 CenterPosition = (Patch[0].WorldPosition + Patch[1].WorldPosition + Patch[2].WorldPosition) / 3.0f;
-	float DistanceCenter = distance(CenterPosition, EyePosition);
-	DistanceCenter = ThresholdDistance(DistanceCenter);
+	float DistanceCenter = ThresholdDistance(distance((Patch[0].WorldPosition + Patch[1].WorldPosition + Patch[2].WorldPosition) * 0.3334, EyePosition));
 	float Inside = InsideTessFactor / DistanceCenter;
 	Output.InsideTessFactor = Inside;
 	
@@ -48,16 +36,13 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(InputPatch<VS_OUTPUT, 3> Patch, uin
 }
 
 [domain("tri")]
-[maxtessfactor(64.0f)]
+[maxtessfactor(64.0)]
 [outputcontrolpoints(3)]
 [outputtopology("triangle_cw")]
 [partitioning("fractional_odd")]
 [patchconstantfunc("CalcHSPatchConstants")]
 HS_OUTPUT main(InputPatch<VS_OUTPUT, 3> Patch, uint i : SV_OutputControlPointID, uint PatchID : SV_PrimitiveID )
 {
-	HS_OUTPUT Output;
-
-	Output = Patch[i];
-
+	HS_OUTPUT Output = Patch[i];
 	return Output;
 }

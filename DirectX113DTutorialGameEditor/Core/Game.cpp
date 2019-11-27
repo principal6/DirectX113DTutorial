@@ -1455,7 +1455,7 @@ void CGame::UpdateCBDisplacementData(const CObject3D::SCBDisplacementData& Data)
 	m_CBDisplacement->Update();
 }
 
-void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
+void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData, uint32_t TotalMaterialCount)
 {
 	m_CBMaterialData.AmbientColor = MaterialData.AmbientColor();
 	m_CBMaterialData.DiffuseColor = MaterialData.DiffuseColor();
@@ -1489,6 +1489,9 @@ void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData)
 	if (m_IrradianceTexture) FlagsIsTextureSRGB += m_IrradianceTexture->IssRGB() ? 0x8000 : 0;
 
 	m_CBMaterialData.FlagsIsTextureSRGB = FlagsIsTextureSRGB;
+
+	m_CBMaterialData.TotalMaterialCount = TotalMaterialCount;
+
 	m_CBMaterial->Update();
 }
 

@@ -3,22 +3,17 @@
 
 cbuffer cbMaterial : register(b0)
 {
-	float3	MaterialAmbientColor;
-	float	MaterialSpecularExponent;
+	float3	MaterialAmbientColor; // Classical
+	float	MaterialSpecularExponent; // Classical
 	float3	MaterialDiffuseColor;
-	float	MaterialSpecularIntensity;
-	float3	MaterialSpecularColor;
+	float	MaterialSpecularIntensity; // Classical
+	float3	MaterialSpecularColor; // Classical
 	float	MaterialRoughness;
 
 	float	MaterialMetalness;
-	bool	bHasDiffuseTexture;
-	bool	bHasNormalTexture;
-	bool	bHasOpacityTexture;
-
-	bool	bHasSpecularIntensityTexture;
-	bool	bHasRoughnessTexture;
-	bool	bHasMetalnessTexture;
-	bool	Reserved;
+	uint	FlagsHasTexture;
+	uint	FlagsIsTextureSRGB;
+	uint	TotalMaterialCount; // for Terrain this is texture layer count
 }
 
 cbuffer cbEditorTime : register(b1)
@@ -47,7 +42,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	}
 
 	// # Here we make sure that output RGB values are in gamma-space!
-	// # Convert linear-space RGB (sRGB) to gamma-space RGB
+	// # Convert linear-space RGB to gamma-space RGB
 	OutputColor.xyz = pow(OutputColor.xyz, 0.4545);
 
 	return OutputColor;

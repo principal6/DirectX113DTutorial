@@ -62,7 +62,7 @@ cbuffer cbMaterial : register(b2)
 	float	MaterialMetalness;
 	uint	FlagsHasTexture;
 	uint	FlagsIsTextureSRGB;
-	float	Reserved;
+	uint	TotalMaterialCount; // for Terrain this is texture layer count
 }
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
@@ -86,7 +86,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			// # Here we make sure that input RGB values are in linear-space!
 			if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
 			{
-				// # Convert gamma-space RGB to linear-space RGB (sRGB)
+				// # Convert gamma-space RGB to linear-space RGB
 				DiffuseColor = pow(DiffuseColor, 2.2);
 			}
 		}
@@ -139,15 +139,13 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		AmbientColor = SpecularColor = DiffuseColor;
 	}
 
-	float3 MacrosurfaceNormal = WorldNormal.xyz;
-	float3 Albedo = DiffuseColor;
-	float4 OutputColor = float4(Albedo, 1);
+	float4 OutputColor = float4(DiffuseColor, 1);
 	if (bUseLighting == true)
 	{
 		// Exposure tone mapping for raw albedo
-		Albedo = float3(1.0, 1.0, 1.0) - exp(-Albedo * Exposure);
+		float3 Albedo = float3(1.0, 1.0, 1.0) - exp(-DiffuseColor * Exposure);
 
-		float3 N = MacrosurfaceNormal; // Macrosurface normal vector
+		float3 N = WorldNormal.xyz; // Macrosurface normal vector
 
 		// This is equivalent of L vector (light direction from a point on the interface-- both for macrosurface and microsurface.)
 		float3 Wi_direct = DirectionalLightDirection.xyz;
@@ -213,7 +211,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 				float Ks_indirect = dot(KMonochromatic, F_Macrosurface_indirect); // Monochromatic intensity calculation
 				float Kd_indirect = 1.0 - Ks_indirect;
 
-				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo / KPI;
+				float3 Lo_indirect_diff = Kd_indirect * Ei_indirect * Albedo * K1DIVPI;
 
 				//					1   N
 				// L_prefiltered = ---  ¥Ò  Li cos¥è
@@ -245,7 +243,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	}
 
 	// # Here we make sure that output RGB values are in gamma-space!
-	// # Convert linear-space RGB (sRGB) to gamma-space RGB
+	// # Convert linear-space RGB to gamma-space RGB
 	OutputColor.xyz = pow(OutputColor.xyz, 0.4545);
 
 	if (Input.bUseVertexColor != 0) OutputColor = Input.Color;

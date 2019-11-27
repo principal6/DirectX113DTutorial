@@ -177,7 +177,7 @@ public:
 	void DrawFoliagePlacingTexture();
 
 public:
-	static constexpr int KMaterialMaxCount{ 5 }; // It includes 1 main texture + 4 layer textures
+	static constexpr int KMaterialMaxCount{ 4 }; // It includes 1 main texture + 3 layer textures
 	static constexpr int KTextureSubdivisionDetail{ 4 };
 
 	static constexpr float KMinUniformScaling{ 1.0f };
