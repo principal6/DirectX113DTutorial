@@ -69,16 +69,16 @@ public:
 	void SetData(const SCameraData& Data);
 	const SCameraData& GetData() const { return m_CameraData; }
 
-	const XMVECTOR& GetEyePosition() const { return m_CameraData.EyePosition; }
+	XMVECTOR& GetEyePosition() { return m_CameraData.EyePosition; }
 	const XMVECTOR& GetFocusPosition() const { return m_CameraData.FocusPosition; }
 	const XMVECTOR& GetUpDirection() const { return m_CameraData.UpDirection; }
 	const XMVECTOR& GetForward() const { return m_CameraData.Forward; }
-	float GetPitch() const { return m_CameraData.Pitch; }
-	float GetYaw() const { return m_CameraData.Yaw; }
+	float& GetPitch() { return m_CameraData.Pitch; }
+	float& GetYaw() { return m_CameraData.Yaw; }
 	float GetZoomDistance() const { return m_CameraData.ZoomDistance; }
 	const std::string& GetName() const { return m_Name; }
 
-private:
+public:
 	void Update();
 
 private:

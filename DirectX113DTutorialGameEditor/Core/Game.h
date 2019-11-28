@@ -458,13 +458,19 @@ private:
 	void CastPickingRay();
 	void UpdatePickingRay();
 	void PickBoundingSphere();
-	bool PickTriangle();
+	bool PickObject3DTriangle();
 
 private:
+	bool IsAnyCameraPicked() const;
+	bool IsAnyObject3DPicked() const;
+	bool IsAnyInstancePicked() const;
 	const std::string& GetPickedObject3DName() const;
 	int GetPickedInstanceID() const;
 
+	bool IsAnythingSelected() const;
+
 	void SelectObject3D(const std::string& Name);
+	void SelectPickedObject3D();
 	void DeselectObject3D();
 	bool IsAnyObject3DSelected() const;
 	CObject3D* GetSelectedObject3D();
@@ -477,6 +483,7 @@ private:
 	const std::string& GetSelectedObject2DName() const;
 
 	void SelectCamera(const std::string& Name);
+	void SelectPickedCamera();
 	void DeselectCamera();
 	bool IsAnyCameraSelected() const;
 	CCamera* GetSelectedCamera();
@@ -494,6 +501,7 @@ private:
 
 public:
 	void SelectInstance(int InstanceID);
+	void SelectPickedInstance();
 	void DeselectInstance();
 	bool IsAnyInstanceSelected() const;
 	int GetSelectedInstanceID() const;
@@ -593,6 +601,7 @@ public:
 	static constexpr float KBSRadiusBiasMinLimit{ 0.001f };
 	static constexpr float KBSRadiusBiasMaxLimit{ 1000.0f };
 	static constexpr float KBSRadiusBiasDelta{ +0.01f };
+	static constexpr float KCameraRepSelectionRadius{ 0.25f };
 	static constexpr int KAssetNameMaxLength{ 100 };
 
 private:
@@ -801,9 +810,10 @@ private:
 	XMVECTOR	m_PickingRayWorldSpaceOrigin{};
 	XMVECTOR	m_PickingRayWorldSpaceDirection{};
 	std::vector<SObject3DPickingCandiate>	m_vObject3DPickingCandidates{};
-	CObject3D* m_PtrPickedObject3D{};
-	CObject3D* m_PtrSelectedObject3D{};
-	CObject2D* m_PtrSelectedObject2D{};
+	CObject3D*	m_PtrPickedObject3D{};
+	CCamera*	m_PtrPickedCamera{};
+	CObject3D*	m_PtrSelectedObject3D{};
+	CObject2D*	m_PtrSelectedObject2D{};
 	int			m_PickedInstanceID{ -1 };
 	int			m_SelectedInstanceID{ -1 };
 	XMVECTOR	m_PickedTriangleV0{};
