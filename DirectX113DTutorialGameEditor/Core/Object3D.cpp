@@ -604,6 +604,15 @@ void CObject3D::DeleteInstance(const string& Name)
 	m_PtrGame->SelectInstance((int)iInstance);	
 }
 
+void CObject3D::ClearInstances()
+{
+	m_vInstanceCPUData.clear();
+	m_vInstanceGPUData.clear();
+	m_mapInstanceNameToIndex.clear();
+
+	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase);
+}
+
 SInstanceCPUData& CObject3D::GetInstanceCPUData(int InstanceID)
 {
 	assert(InstanceID < m_vInstanceCPUData.size());
@@ -775,6 +784,15 @@ void CObject3D::UpdateInstanceWorldMatrix(uint32_t InstanceID)
 	
 	// Update GPU data
 	m_vInstanceGPUData[InstanceID].WorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
+
+	UpdateInstanceBuffers();
+}
+
+void CObject3D::UpdateInstanceWorldMatrix(uint32_t InstanceID, const XMMATRIX& WorldMatrix)
+{
+	if (InstanceID >= m_vInstanceGPUData.size()) return;
+
+	m_vInstanceGPUData[InstanceID].WorldMatrix = WorldMatrix;
 
 	UpdateInstanceBuffers();
 }

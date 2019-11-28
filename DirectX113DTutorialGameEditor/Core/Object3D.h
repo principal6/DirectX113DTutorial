@@ -220,6 +220,7 @@ public:
 	void InsertInstance(bool bShouldCreateInstanceBuffers = true);
 	void InsertInstance(const std::string& Name);
 	void DeleteInstance(const std::string& Name);
+	void ClearInstances();
 	SInstanceCPUData& GetInstanceCPUData(int InstanceID);
 	SInstanceCPUData& GetInstanceCPUData(const std::string& Name);
 	const std::vector<SInstanceCPUData>& GetInstanceCPUDataVector() const;
@@ -239,6 +240,7 @@ public:
 
 	void UpdateWorldMatrix();
 	void UpdateInstanceWorldMatrix(uint32_t InstanceID);
+	void UpdateInstanceWorldMatrix(uint32_t InstanceID, const XMMATRIX& WorldMatrix);
 	void UpdateAllInstancesWorldMatrix();
 
 public:

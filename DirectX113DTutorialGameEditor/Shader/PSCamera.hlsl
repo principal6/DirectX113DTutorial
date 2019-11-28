@@ -25,20 +25,23 @@ cbuffer cbEditorTime : register(b1)
 
 cbuffer cbCameraSelection : register(b2)
 {
-	bool bIsSelected;
-	float3 Pad3;
+	uint SelectedCameraID;
+	uint CurrentCameraID;
+	float2 Pads;
 }
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
+	if (Input.InstanceID == CurrentCameraID) discard;
+
 	float4 AmbientColor = float4(MaterialAmbientColor, 1);
 	float4 DiffuseColor = float4(MaterialDiffuseColor, 1);
 	float4 SpecularColor = float4(MaterialSpecularColor, 1);
 
 	float4 OutputColor = DiffuseColor;
-	if (bIsSelected == true)
+	if (Input.InstanceID == SelectedCameraID)
 	{
-		OutputColor += 0.5 * sin(NormalizedTime * KPI);
+		OutputColor += float4(0.6, 0.3, 0.6, 0) * sin(NormalizedTime * KPI);
 	}
 
 	// # Here we make sure that output RGB values are in gamma-space!

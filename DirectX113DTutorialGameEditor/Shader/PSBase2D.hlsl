@@ -9,7 +9,7 @@ cbuffer cbFlags : register(b0)
 	bool3 Pads;
 }
 
-float4 main(VS_OUTPUT Input) : SV_TARGET
+float4 main(VS_2D_OUTPUT Input) : SV_TARGET
 {
 	float4 OutputColor = Input.Color;
 

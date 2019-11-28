@@ -1,6 +1,6 @@
 #include "Shared.hlsli"
 
-struct VS_INPUT
+struct VS_FOLIAGE_INPUT
 {
 	float4 Position		: POSITION;
 	float4 Color		: COLOR;
@@ -15,7 +15,7 @@ struct VS_INPUT
 	float4 InstanceWorld3	: INSTANCEWORLD3;
 };
 
-struct VS_OUTPUT
+struct VS_FOLIAGE_OUTPUT
 {
 	float4	Position		: SV_POSITION;
 	float4	WorldPosition	: POSITION;

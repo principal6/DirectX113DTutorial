@@ -32,9 +32,9 @@ float GetHeightFromHeightMap(float2 XZ)
 	return (y_norm * TerrainHeightRange - TerrainHeightRange / 2.0f);
 }
 
-VS_OUTPUT main(VS_INPUT Input)
+VS_FOLIAGE_OUTPUT main(VS_FOLIAGE_INPUT Input)
 {
-	VS_OUTPUT Output;
+	VS_FOLIAGE_OUTPUT Output;
 
 	const float4x4 KInstanceWorld = float4x4(Input.InstanceWorld0, Input.InstanceWorld1, Input.InstanceWorld2, Input.InstanceWorld3);
 	const float2 KInstanceXZ = float2(KInstanceWorld._m30, KInstanceWorld._m32);

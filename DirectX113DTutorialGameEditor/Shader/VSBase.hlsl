@@ -25,6 +25,7 @@ VS_OUTPUT main(VS_INPUT Input)
 	Output.WorldBitangent = normalize(mul(ResultBitangent, World));
 
 	Output.bUseVertexColor = 0;
+	Output.InstanceID = Input.InstanceID;
 
 	return Output;
 }

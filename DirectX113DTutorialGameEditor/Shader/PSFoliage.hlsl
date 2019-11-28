@@ -56,7 +56,7 @@ cbuffer cbMaterial : register(b2)
 	uint	TotalMaterialCount; // for Terrain this is texture layer count
 }
 
-float4 main(VS_OUTPUT Input) : SV_TARGET
+float4 main(VS_FOLIAGE_OUTPUT Input) : SV_TARGET
 {
 	float4 DiffuseColor = float4(1, 1, 1, 1);
 	float Opacity = 1.0f;

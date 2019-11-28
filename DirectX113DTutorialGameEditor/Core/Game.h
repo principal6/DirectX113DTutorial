@@ -173,8 +173,9 @@ public:
 
 	struct SCBCameraSelectionData
 	{
-		BOOL		bIsSelected{ false };
-		float		Pads[3]{};
+		uint32_t	SelectedCameraID{};
+		uint32_t	CurrentCameraID{};
+		float		Pads[2]{};
 	};
 
 	struct SCBScreenData
@@ -198,19 +199,20 @@ public:
 
 	enum class EFlagsRendering
 	{
-		None = 0x000,
-		DrawWireFrame = 0x001,
-		DrawNormals = 0x002,
-		Use3DGizmos = 0x004,
-		DrawMiniAxes = 0x008,
-		DrawPickingData = 0x010,
-		DrawBoundingSphere = 0x020,
-		DrawTerrainHeightMapTexture = 0x040,
-		DrawTerrainMaskingTexture = 0x080,
-		DrawTerrainFoliagePlacingTexture = 0x100,
-		TessellateTerrain = 0x200, // 내부적으로만 사용하는 플래그!
-		UseLighting = 0x400,
-		UsePhysicallyBasedRendering = 0x800
+		None = 0x0000,
+		DrawWireFrame = 0x0001,
+		DrawNormals = 0x0002,
+		Use3DGizmos = 0x0004,
+		DrawMiniAxes = 0x0008,
+		DrawPickingData = 0x0010,
+		DrawBoundingSphere = 0x0020,
+		DrawTerrainHeightMapTexture = 0x0040,
+		DrawTerrainMaskingTexture = 0x0080,
+		DrawTerrainFoliagePlacingTexture = 0x0100,
+		DrawGrid = 0x0200,
+		TessellateTerrain = 0x0400, // 내부적으로만 사용하는 플래그!
+		UseLighting = 0x0800,
+		UsePhysicallyBasedRendering = 0x1000
 	};
 
 	enum class ERasterizerState
@@ -403,10 +405,6 @@ public:
 	CCamera* GetCamera(const std::string& Name, bool bShowWarning = true);
 	const std::map<std::string, size_t>& GetCameraMap() const { return m_mapCameraNameToIndex; }
 
-private:
-	void CreateEditorCamera();
-	CCamera* GetEditorCamera(bool bShowWarning = true);
-
 public:
 	CShader* AddCustomShader();
 	CShader* GetCustomShader(size_t Index) const;
@@ -483,12 +481,15 @@ private:
 	const std::string& GetSelectedObject2DName() const;
 
 	void SelectCamera(const std::string& Name);
+	void SelectCamera(int CameraID);
 	void SelectPickedCamera();
 	void DeselectCamera();
 	bool IsAnyCameraSelected() const;
 	CCamera* GetSelectedCamera();
 	const std::string& GetSelectedCameraName() const;
 	CCamera* GetCurrentCamera();
+	void UseEditorCamera();
+	void UseCamera(CCamera* const Camera);
 
 	void Select3DGizmos();
 	void Deselect3DGizmos();
@@ -546,6 +547,8 @@ private:
 	void DrawPickingRay();
 	void DrawPickedTriangle();
 
+	void DrawGrid();
+
 	void DrawSky(float DeltaTime);
 	void DrawTerrain(float DeltaTime);
 
@@ -555,7 +558,7 @@ private:
 	void Draw3DGizmoScalings(E3DGizmoAxis Axis);
 	void Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight);
 
-	void DrawCameraRepresentations();
+	void DrawCameraRep();
 
 	void DrawEditorGUI();
 	void DrawEditorGUIMenuBar();
@@ -627,6 +630,8 @@ private:
 	static constexpr int KIrradianceTextureSlot{ 51 };
 	static constexpr int KPrefilteredRadianceTextureSlot{ 52 };
 	static constexpr int KIntegratedBRDFTextureSlot{ 53 };
+	static constexpr int KEditorCameraID{ -999 };
+	static constexpr float KEditorCameraDefaultMovementFactor{ 3.0f };
 
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
@@ -740,6 +745,8 @@ private:
 	std::vector<CMaterialData>							m_vMaterialData{};
 	std::vector<std::unique_ptr<CMaterialTextureSet>>	m_vMaterialTextureSets{};
 
+	std::unique_ptr<CObject3DLine>				m_Grid{};
+
 	std::unique_ptr<CObject3DLine>				m_Object3DLinePickingRay{};
 	std::unique_ptr<CObject3D>					m_Object3DPickedTriangle{};
 
@@ -800,20 +807,21 @@ private:
 	float			m_FarZ{};
 
 	XMMATRIX								m_MatrixView{};
+	std::unique_ptr<CCamera>				m_EditorCamera{};
 	std::vector<std::unique_ptr<CCamera>>	m_vCameras{};
-	CCamera* m_PtrCurrentCamera{};
-	CCamera* m_PtrSelectedCamera{};
-	float									m_CameraMovementFactor{ 10.0f };
-	std::unique_ptr<CObject3D>				m_Object3D_CameraRepresentation{};
+	CCamera*								m_PtrCurrentCamera{};
+	int										m_CurrentCameraID{ -1 };
+	int										m_SelectedCameraID{ -1 };
+	std::unique_ptr<CObject3D>				m_CameraRep{};
 
 private:
 	XMVECTOR	m_PickingRayWorldSpaceOrigin{};
 	XMVECTOR	m_PickingRayWorldSpaceDirection{};
 	std::vector<SObject3DPickingCandiate>	m_vObject3DPickingCandidates{};
 	CObject3D*	m_PtrPickedObject3D{};
-	CCamera*	m_PtrPickedCamera{};
 	CObject3D*	m_PtrSelectedObject3D{};
 	CObject2D*	m_PtrSelectedObject2D{};
+	int			m_PickedCameraID{ -1 };
 	int			m_PickedInstanceID{ -1 };
 	int			m_SelectedInstanceID{ -1 };
 	XMVECTOR	m_PickedTriangleV0{};

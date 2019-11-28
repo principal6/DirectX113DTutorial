@@ -7,22 +7,23 @@ cbuffer cbSpace : register(b0)
 	float4x4 WVP;
 }
 
-VS_OUTPUT main(VS_INPUT input)
+VS_OUTPUT main(VS_INPUT Input)
 {
-	VS_OUTPUT output;
+	VS_OUTPUT Output;
 
-	output.WorldPosition = mul(input.Position, World);
-	output.Position = mul(output.WorldPosition, ViewProjection);
-	output.Position.z *= 0.01f;
+	Output.WorldPosition = mul(Input.Position, World);
+	Output.Position = mul(Output.WorldPosition, ViewProjection);
+	Output.Position.z *= 0.01f;
 
-	output.Color = input.Color;
-	output.TexCoord = input.TexCoord;
+	Output.Color = Input.Color;
+	Output.TexCoord = Input.TexCoord;
 
-	output.WorldNormal = normalize(mul(input.Normal, World));
-	output.WorldTangent = normalize(mul(input.Tangent, World));
-	output.WorldBitangent = CalculateBitangent(output.WorldNormal, output.WorldTangent);
+	Output.WorldNormal = normalize(mul(Input.Normal, World));
+	Output.WorldTangent = normalize(mul(Input.Tangent, World));
+	Output.WorldBitangent = CalculateBitangent(Output.WorldNormal, Output.WorldTangent);
 
-	output.bUseVertexColor = 0;
+	Output.bUseVertexColor = 0;
+	Output.InstanceID = Input.InstanceID;
 
-	return output;
+	return Output;
 }

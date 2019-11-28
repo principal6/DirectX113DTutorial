@@ -48,6 +48,10 @@ public:
 		float		Pitch{};
 		float		Yaw{};
 		XMVECTOR	Forward{};
+
+		float		MovementFactor{ 1.0f };
+
+		XMMATRIX	WorldMatrix{};
 	};
 
 public:
@@ -55,13 +59,14 @@ public:
 	~CCamera() {}
 
 public:
-	void Move(EMovementDirection Direction, float StrideFactor = 1.0f);
-	void Rotate(int DeltaX, int DeltaY, float RotationFactor = 1.0f);
+	void Move(EMovementDirection Direction, float DeltaTime);
+	void Rotate(int DeltaX, int DeltaY, float DeltaTime);
 	void Zoom(int DeltaWheel, float ZoomFactor = 1.0f);
 
 	void SetEyePosition(const XMVECTOR& Position);
 	void SetPitch(float Value);
 	void SetYaw(float Value);
+	void SetMovementFactor(float MovementFactor);
 
 	void SetType(EType eType);
 	EType GetType() const { return m_CameraData.eType; }
@@ -70,16 +75,25 @@ public:
 	const SCameraData& GetData() const { return m_CameraData; }
 
 	XMVECTOR& GetEyePosition() { return m_CameraData.EyePosition; }
+	float& GetPitch() { return m_CameraData.Pitch; }
+	float& GetYaw() { return m_CameraData.Yaw; }
+
+	const XMVECTOR& GetEyePosition() const { return m_CameraData.EyePosition; }
 	const XMVECTOR& GetFocusPosition() const { return m_CameraData.FocusPosition; }
 	const XMVECTOR& GetUpDirection() const { return m_CameraData.UpDirection; }
 	const XMVECTOR& GetForward() const { return m_CameraData.Forward; }
-	float& GetPitch() { return m_CameraData.Pitch; }
-	float& GetYaw() { return m_CameraData.Yaw; }
+	float GetPitch() const { return m_CameraData.Pitch; }
+	float GetYaw() const { return m_CameraData.Yaw; }
 	float GetZoomDistance() const { return m_CameraData.ZoomDistance; }
 	const std::string& GetName() const { return m_Name; }
+	float GetMovementFactor() const { return m_CameraData.MovementFactor; }
+	const XMMATRIX& GetWorldMatrix() const { return m_CameraData.WorldMatrix; }
 
 public:
 	void Update();
+
+private:
+	void UpdateWorldMatrix();
 
 private:
 	static constexpr float KPitchLimit{ XM_PIDIV2 - 0.01f };

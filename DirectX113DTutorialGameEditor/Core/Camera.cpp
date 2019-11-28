@@ -3,8 +3,10 @@
 using std::max;
 using std::min;
 
-void CCamera::Move(EMovementDirection Direction, float StrideFactor)
+void CCamera::Move(EMovementDirection Direction, float DeltaTime)
 {
+	DeltaTime *= m_CameraData.MovementFactor;
+
 	XMVECTOR dPosition{};
 
 	if (m_CameraData.eType == EType::FreeLook)
@@ -14,16 +16,16 @@ void CCamera::Move(EMovementDirection Direction, float StrideFactor)
 		switch (Direction)
 		{
 		case EMovementDirection::Forward:
-			dPosition = +m_CameraData.Forward * StrideFactor;
+			dPosition = +m_CameraData.Forward * DeltaTime;
 			break;
 		case EMovementDirection::Backward:
-			dPosition = -m_CameraData.Forward * StrideFactor;
+			dPosition = -m_CameraData.Forward * DeltaTime;
 			break;
 		case EMovementDirection::Rightward:
-			dPosition = +Rightward * StrideFactor;
+			dPosition = +Rightward * DeltaTime;
 			break;
 		case EMovementDirection::Leftward:
-			dPosition = -Rightward * StrideFactor;
+			dPosition = -Rightward * DeltaTime;
 			break;
 		default:
 			break;
@@ -37,16 +39,16 @@ void CCamera::Move(EMovementDirection Direction, float StrideFactor)
 		switch (Direction)
 		{
 		case EMovementDirection::Forward:
-			dPosition = +GroundForward * StrideFactor;
+			dPosition = +GroundForward * DeltaTime;
 			break;
 		case EMovementDirection::Backward:
-			dPosition = -GroundForward * StrideFactor;
+			dPosition = -GroundForward * DeltaTime;
 			break;
 		case EMovementDirection::Rightward:
-			dPosition = +GroundRightward * StrideFactor;
+			dPosition = +GroundRightward * DeltaTime;
 			break;
 		case EMovementDirection::Leftward:
-			dPosition = -GroundRightward * StrideFactor;
+			dPosition = -GroundRightward * DeltaTime;
 			break;
 		default:
 			break;
@@ -55,12 +57,14 @@ void CCamera::Move(EMovementDirection Direction, float StrideFactor)
 
 	m_CameraData.EyePosition += dPosition;
 	m_CameraData.FocusPosition += dPosition;
+
+	UpdateWorldMatrix();
 }
 
-void CCamera::Rotate(int DeltaX, int DeltaY, float RotationFactor)
+void CCamera::Rotate(int DeltaX, int DeltaY, float DeltaTime)
 {
-	m_CameraData.Pitch += RotationFactor * DeltaY;
-	m_CameraData.Yaw += RotationFactor * DeltaX;
+	m_CameraData.Pitch += DeltaTime * DeltaY;
+	m_CameraData.Yaw += DeltaTime * DeltaX;
 
 	m_CameraData.Pitch = max(-KPitchLimit, m_CameraData.Pitch);
 	m_CameraData.Pitch = min(+KPitchLimit, m_CameraData.Pitch);
@@ -89,6 +93,8 @@ void CCamera::Rotate(int DeltaX, int DeltaY, float RotationFactor)
 	{
 		m_CameraData.EyePosition = m_CameraData.FocusPosition - m_CameraData.Forward * m_CameraData.ZoomDistance;
 	}
+
+	UpdateWorldMatrix();
 }
 
 void CCamera::Zoom(int DeltaWheel, float ZoomFactor)
@@ -101,6 +107,8 @@ void CCamera::Zoom(int DeltaWheel, float ZoomFactor)
 
 		m_CameraData.EyePosition = m_CameraData.FocusPosition - m_CameraData.Forward * m_CameraData.ZoomDistance;
 	}
+
+	UpdateWorldMatrix();
 }
 
 void CCamera::SetEyePosition(const XMVECTOR& Position)
@@ -124,6 +132,11 @@ void CCamera::SetYaw(float Value)
 	Update();
 }
 
+void CCamera::SetMovementFactor(float MovementFactor)
+{
+	m_CameraData.MovementFactor = MovementFactor;
+}
+
 void CCamera::SetType(EType eType)
 {
 	m_CameraData.eType = eType;
@@ -142,4 +155,12 @@ void CCamera::Update()
 {
 	Rotate(0, 0, 0.0f);
 	Move(EMovementDirection::Forward, 0.0f);
+}
+
+void CCamera::UpdateWorldMatrix()
+{
+	XMMATRIX Translation{ XMMatrixTranslationFromVector(m_CameraData.EyePosition) };
+	XMMATRIX Rotation{ XMMatrixRotationRollPitchYaw(m_CameraData.Pitch, m_CameraData.Yaw, 0) };
+
+	m_CameraData.WorldMatrix = Rotation * Translation;
 }

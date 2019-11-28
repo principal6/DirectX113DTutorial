@@ -7,9 +7,9 @@ cbuffer cbSpace : register(b0)
 	float4x4 WVP;
 }
 
-VS_OUTPUT main(VS_INPUT Input)
+VS_2D_OUTPUT main(VS_2D_INPUT Input)
 {
-	VS_OUTPUT Output;
+	VS_2D_OUTPUT Output;
 
 	Output.Position = mul(Input.Position, World);
 	Output.Position = mul(Output.Position, Projection);
