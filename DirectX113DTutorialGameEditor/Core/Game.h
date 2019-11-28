@@ -494,7 +494,7 @@ private:
 	void Deselect3DGizmos();
 	bool IsGizmoHovered() const;
 	bool IsGizmoSelected() const;
-	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
+	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis, XMVECTOR* const OutPtrT);
 	bool ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
 
 	void DeselectAll();

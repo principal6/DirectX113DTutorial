@@ -12,6 +12,7 @@ static XMVECTOR Lerp(const XMVECTOR& a, const XMVECTOR& b, float t);
 static XMVECTOR Slerp(const XMVECTOR& P0, const XMVECTOR& P1, float t);
 static int GetRandom(int Min, int Max);
 static float GetRandom(float Min, float Max);
+static bool IntersectPointSphere(const XMVECTOR& PointInSpace, float SphereRadius, const XMVECTOR& SphereCenter);
 static bool IntersectRaySphere(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, float Radius, const XMVECTOR& Center, XMVECTOR* const OutPtrT) noexcept;
 static XMVECTOR CalculateTriangleNormal(const XMVECTOR& TriangleV0, const XMVECTOR& TriangleV1, const XMVECTOR& TriangleV2);
 static bool IsPointInTriangle(const XMVECTOR& Point, const XMVECTOR& TriangleV0, const XMVECTOR& TriangleV1, const XMVECTOR& TriangleV2);
@@ -19,7 +20,10 @@ static bool IntersectRayPlane(const XMVECTOR& RayOrigin, const XMVECTOR& RayDire
 static bool IntersectRayTriangle(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection,
 	const XMVECTOR& TriangleV0, const XMVECTOR& TriangleV1, const XMVECTOR& TriangleV2, XMVECTOR* OutPtrT);
 static float GetPlanePointDistnace(const XMVECTOR& PlaneP, const XMVECTOR& PlaneN, const XMVECTOR& Point);
-static bool IntersectRayCylinder(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, float CylinderHeight, float CylinderRadius);
+static bool IntersectRayCylinder(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, 
+	float CylinderHeight, float CylinderRadius, XMVECTOR* OutPtrT = nullptr);
+static bool IntersectRayHollowCylinderCentered(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection,
+	float CylinderHeight, float CylinderInnerRadius, float CylinderOuterRadius, XMVECTOR* OutPtrT = nullptr);
 
 static float Lerp(float a, float b, float t)
 {
@@ -69,6 +73,17 @@ static float GetRandom(float Min, float Max)
 	int IntRangeHalf{ (int)(IntRange / 2) };
 
 	return static_cast<float>((rand() % (IntRange + 1) / KFreedom) + Min);
+}
+
+static bool IntersectPointSphere(const XMVECTOR& PointInSpace, float SphereRadius, const XMVECTOR& SphereCenter)
+{
+	float SphereRadiusSquare{ SphereRadius * SphereRadius };
+	XMVECTOR CenterToPoint{ PointInSpace - SphereCenter };
+	if (XMVectorGetX(XMVector3Dot(CenterToPoint, CenterToPoint)) <= SphereRadiusSquare)
+	{
+		return true;
+	}
+	return false;
 }
 
 static bool IntersectRaySphere(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, float Radius, const XMVECTOR& Center, XMVECTOR* const OutPtrT) noexcept
@@ -176,7 +191,8 @@ static float GetPlanePointDistnace(const XMVECTOR& PlaneP, const XMVECTOR& Plane
 	return XMVectorGetX(XMVector3Dot(PlaneN, Point - PlaneP));
 }
 
-static bool IntersectRayCylinder(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, float CylinderHeight, float CylinderRadius)
+static bool IntersectRayCylinder(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, 
+	float CylinderHeight, float CylinderRadius, XMVECTOR* OutPtrT)
 {
 	// Ray: O + tD
 	
@@ -210,7 +226,11 @@ static bool IntersectRayCylinder(const XMVECTOR& RayOrigin, const XMVECTOR& RayD
 			float t_positive{ (-b + sqrt(discriminant)) / (2 * a) };
 			XMVECTOR PointOnCylinder{ RayOrigin + t_positive * RayDirection };
 			float PointY{ XMVectorGetY(PointOnCylinder) };
-			if (PointY >= 0.0f && PointY <= CylinderHeight) return true;
+			if (PointY >= 0.0f && PointY <= CylinderHeight)
+			{
+				if (OutPtrT) *OutPtrT = XMVectorSet(t_positive, t_positive, t_positive, t_positive);
+				return true;
+			}
 		}
 	}
 
@@ -224,6 +244,7 @@ static bool IntersectRayCylinder(const XMVECTOR& RayOrigin, const XMVECTOR& RayD
 			float Z{ XMVectorGetZ(PointOnPlane) };
 			if (X * X + Z * Z <= KRadiusSquare)
 			{
+				if (OutPtrT) *OutPtrT = t;
 				return true;
 			}
 		}
@@ -239,6 +260,83 @@ static bool IntersectRayCylinder(const XMVECTOR& RayOrigin, const XMVECTOR& RayD
 			float Z{ XMVectorGetZ(PointOnPlane) };
 			if (X * X + Z * Z <= KRadiusSquare)
 			{
+				if (OutPtrT) *OutPtrT = t;
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+static bool IntersectRayHollowCylinderCentered(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection,
+	float CylinderHeight, float CylinderInnerRadius, float CylinderOuterRadius, XMVECTOR* OutPtrT)
+{
+	const float KHalfHeight{ CylinderHeight * 0.5f };
+	const float KInnerRadiusSquare{ CylinderInnerRadius * CylinderInnerRadius };
+	const float KOuterRadiusSquare{ CylinderOuterRadius * CylinderOuterRadius };
+
+	// Side intersection
+	{
+		XMVECTOR OPrime{ XMVectorSetY(RayOrigin, 0.0f) };
+		XMVECTOR DPrime{ XMVectorSetY(RayDirection, 0.0f) };
+		float a{ XMVectorGetX(XMVector3Dot(DPrime, DPrime)) };
+		float b{ 2 * XMVectorGetX(XMVector3Dot(OPrime, DPrime)) };
+		float c{ XMVectorGetX(XMVector3Dot(OPrime, OPrime)) - KOuterRadiusSquare };
+		float discriminant{ b * b - 4 * a * c };
+		if (discriminant >= 0.0f)
+		{
+			float t_positive{ (-b + sqrt(discriminant)) / (2 * a) };
+			float t_negative{ (-b - sqrt(discriminant)) / (2 * a) };
+
+			XMVECTOR PointOnCylinderPositive{ RayOrigin + t_positive * RayDirection };
+			XMVECTOR PointOnCylinderNegative{ RayOrigin + t_negative * RayDirection };
+			float PointYPositive{ XMVectorGetY(PointOnCylinderPositive) };
+			float PointYNegative{ XMVectorGetY(PointOnCylinderNegative) };
+
+			if (PointYPositive >= -KHalfHeight && PointYPositive <= +KHalfHeight)
+			{
+				if (OutPtrT) *OutPtrT = XMVectorSet(t_positive, t_positive, t_positive, t_positive);
+				return true;
+			}
+
+			if (PointYNegative >= -KHalfHeight && PointYNegative <= +KHalfHeight)
+			{
+				if (OutPtrT) *OutPtrT = XMVectorSet(t_negative, t_negative, t_negative, t_negative);
+				return true;
+			}
+		}
+	}
+
+	// Upper cap intersection
+	{
+		XMVECTOR t{};
+		if (IntersectRayPlane(RayOrigin, RayDirection, XMVectorSet(0, +KHalfHeight, 0, 1), XMVectorSet(0, +1.0f, 0, 0), &t))
+		{
+			XMVECTOR PointOnPlane{ RayOrigin + t * RayDirection };
+			float X{ XMVectorGetX(PointOnPlane) };
+			float Z{ XMVectorGetZ(PointOnPlane) };
+			float DistanceSquare{ X * X + Z * Z };
+			if (DistanceSquare <= KOuterRadiusSquare && DistanceSquare >= KInnerRadiusSquare)
+			{
+				if (OutPtrT) *OutPtrT = t;
+				return true;
+			}
+		}
+	}
+
+	// Lower cap intersection
+	{
+		XMVECTOR t{};
+		if (IntersectRayPlane(RayOrigin, RayDirection, XMVectorSet(0, -KHalfHeight, 0, 1), XMVectorSet(0, -1.0f, 0, 0), &t))
+		{
+			XMVECTOR PointOnPlane{ RayOrigin + t * RayDirection };
+			float X{ XMVectorGetX(PointOnPlane) };
+			float Z{ XMVectorGetZ(PointOnPlane) };
+			float DistanceSquare{ X * X + Z * Z };
+			if (DistanceSquare <= KOuterRadiusSquare && DistanceSquare >= KInnerRadiusSquare)
+			{
+				if (OutPtrT) *OutPtrT = t;
 				return true;
 			}
 		}

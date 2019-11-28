@@ -2919,24 +2919,26 @@ void CGame::Select3DGizmos()
 			}
 			break;
 		case E3DGizmoMode::Rotation:
-			m_bIsGizmoHovered = true;
-			if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationPitch.get(), E3DGizmoAxis::AxisX))
+		{
+			XMVECTOR T{ KVectorGreatest };
+			m_bIsGizmoHovered = false;
+			if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationPitch.get(), E3DGizmoAxis::AxisX, &T))
 			{
 				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
+				m_bIsGizmoHovered = true;
 			}
-			else if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationYaw.get(), E3DGizmoAxis::AxisY))
+			if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationYaw.get(), E3DGizmoAxis::AxisY, &T))
 			{
 				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
+				m_bIsGizmoHovered = true;
 			}
-			else if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationRoll.get(), E3DGizmoAxis::AxisZ))
+			if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationRoll.get(), E3DGizmoAxis::AxisZ, &T))
 			{
 				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
-			}
-			else
-			{
-				m_bIsGizmoHovered = false;
+				m_bIsGizmoHovered = true;
 			}
 			break;
+		}
 		case E3DGizmoMode::Scaling:
 			m_bIsGizmoHovered = true;
 			if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingX.get(), E3DGizmoAxis::AxisX))
@@ -2985,38 +2987,69 @@ bool CGame::IsGizmoSelected() const
 	return m_bIsGizmoSelected;
 }
 
-bool CGame::ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis)
+bool CGame::ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis, XMVECTOR* const OutPtrT)
 {
-	XMVECTOR PlaneNormal{};
+	static constexpr float KHollowCylinderInnerRaidus{ 0.9375f };
+	static constexpr float KHollowCylinderOuterRaidus{ 1.0625f };
+	static constexpr float KHollowCylinderHeight{ 0.125f };
+
+	XMVECTOR CylinderSpaceRayOrigin{ m_PickingRayWorldSpaceOrigin - Gizmo->ComponentTransform.Translation };
+	XMVECTOR CylinderSpaceRayDirection{ m_PickingRayWorldSpaceDirection };
+
+	XMVECTOR NewT{ KVectorGreatest };
 	switch (Axis)
 	{
 	case E3DGizmoAxis::None:
+	{
 		return false;
-		break;
+	}
 	case E3DGizmoAxis::AxisX:
-		PlaneNormal = XMVectorSet(1, 0, 0, 0);
-		break;
-	case E3DGizmoAxis::AxisY:
-		PlaneNormal = XMVectorSet(0, 1, 0, 0);
-		break;
-	case E3DGizmoAxis::AxisZ:
-		PlaneNormal = XMVectorSet(0, 0, 1, 0);
-		break;
-	default:
+	{
+		XMMATRIX RotationMatrix{ XMMatrixRotationZ(XM_PIDIV2) };
+		CylinderSpaceRayOrigin = XMVector3TransformCoord(CylinderSpaceRayOrigin, RotationMatrix);
+		CylinderSpaceRayDirection = XMVector3TransformNormal(CylinderSpaceRayDirection, RotationMatrix);
+		if (IntersectRayHollowCylinderCentered(CylinderSpaceRayOrigin, CylinderSpaceRayDirection, KHollowCylinderHeight,
+			KHollowCylinderInnerRaidus * m_3DGizmoDistanceScalar, KHollowCylinderOuterRaidus * m_3DGizmoDistanceScalar, &NewT))
+		{
+			if (XMVector3Less(NewT, *OutPtrT))
+			{
+				*OutPtrT = NewT;
+				return true;
+			}
+		}
 		break;
 	}
-
-	if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-		K3DGizmoSelectionRadius * m_3DGizmoDistanceScalar, Gizmo->ComponentTransform.Translation, nullptr))
+	case E3DGizmoAxis::AxisY:
 	{
-		XMVECTOR PlaneT{};
-		if (IntersectRayPlane(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, Gizmo->ComponentTransform.Translation, PlaneNormal, &PlaneT))
+		if (IntersectRayHollowCylinderCentered(CylinderSpaceRayOrigin, CylinderSpaceRayDirection, KHollowCylinderHeight,
+			KHollowCylinderInnerRaidus * m_3DGizmoDistanceScalar, KHollowCylinderOuterRaidus * m_3DGizmoDistanceScalar, &NewT))
 		{
-			XMVECTOR PointOnPlane{ m_PickingRayWorldSpaceOrigin + PlaneT * m_PickingRayWorldSpaceDirection };
-
-			float Dist{ XMVectorGetX(XMVector3Length(PointOnPlane - Gizmo->ComponentTransform.Translation)) };
-			if (Dist >= K3DGizmoSelectionLowBoundary * m_3DGizmoDistanceScalar && Dist <= K3DGizmoSelectionHighBoundary * m_3DGizmoDistanceScalar) return true;
+			if (XMVector3Less(NewT, *OutPtrT))
+			{
+				*OutPtrT = NewT;
+				return true;
+			}
 		}
+		break;
+	}
+	case E3DGizmoAxis::AxisZ:
+	{
+		XMMATRIX RotationMatrix{ XMMatrixRotationX(XM_PIDIV2) };
+		CylinderSpaceRayOrigin = XMVector3TransformCoord(CylinderSpaceRayOrigin, RotationMatrix);
+		CylinderSpaceRayDirection = XMVector3TransformNormal(CylinderSpaceRayDirection, RotationMatrix);
+		if (IntersectRayHollowCylinderCentered(CylinderSpaceRayOrigin, CylinderSpaceRayDirection, KHollowCylinderHeight,
+			KHollowCylinderInnerRaidus * m_3DGizmoDistanceScalar, KHollowCylinderOuterRaidus * m_3DGizmoDistanceScalar, &NewT))
+		{
+			if (XMVector3Less(NewT, *OutPtrT))
+			{
+				*OutPtrT = NewT;
+				return true;
+			}
+		}
+		break;
+	}
+	default:
+		break;
 	}
 	return false;
 }
