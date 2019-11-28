@@ -2398,9 +2398,13 @@ void CGame::PickBoundingSphere()
 
 	XMVECTOR T{ KVectorGreatest };
 
-	for (auto& i : m_vObject3Ds)
+	for (auto& i : m_vCameras)
 	{
-		auto* Object3D{ i.get() };
+
+	}
+
+	for (const auto& Object3D : m_vObject3Ds)
+	{
 		if (Object3D->ComponentPhysics.bIsPickable)
 		{
 			if (Object3D->IsInstanced())
@@ -2413,7 +2417,7 @@ void CGame::PickBoundingSphere()
 					if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
 						InstanceCPUData.BoundingSphere.Radius, InstanceCPUData.Translation + InstanceCPUData.BoundingSphere.CenterOffset, &NewT))
 					{
-						m_vObject3DPickingCandidates.emplace_back(Object3D, iInstance, NewT);
+						m_vObject3DPickingCandidates.emplace_back(Object3D.get(), iInstance, NewT);
 					}
 				}
 			}
@@ -2423,7 +2427,7 @@ void CGame::PickBoundingSphere()
 				if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
 					Object3D->ComponentPhysics.BoundingSphere.Radius, Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
 				{
-					m_vObject3DPickingCandidates.emplace_back(Object3D, NewT);
+					m_vObject3DPickingCandidates.emplace_back(Object3D.get(), NewT);
 				}
 			}
 		}

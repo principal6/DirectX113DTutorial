@@ -38,12 +38,12 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 OutputColor = DiffuseColor;
 	if (bIsSelected == true)
 	{
-		OutputColor += OutputColor * sin(NormalizedTime * KPI);
+		OutputColor += 0.5 * sin(NormalizedTime * KPI);
 	}
 
 	// # Here we make sure that output RGB values are in gamma-space!
 	// # Convert linear-space RGB to gamma-space RGB
-	OutputColor.xyz = pow(OutputColor.xyz, 0.4545);
+	//OutputColor.xyz = pow(OutputColor.xyz, 0.4545);
 
 	return OutputColor;
 }
