@@ -2368,6 +2368,146 @@ bool CGame::Pick()
 	return false;
 }
 
+void CGame::CastPickingRay()
+{
+	float ViewSpaceRayDirectionX{ (m_CapturedMouseState.x / (m_WindowSize.x / 2.0f) - 1.0f) / XMVectorGetX(m_MatrixProjection.r[0]) };
+	float ViewSpaceRayDirectionY{ (-(m_CapturedMouseState.y / (m_WindowSize.y / 2.0f) - 1.0f)) / XMVectorGetY(m_MatrixProjection.r[1]) };
+	static float ViewSpaceRayDirectionZ{ 1.0f };
+
+	static XMVECTOR ViewSpaceRayOrigin{ XMVectorSet(0, 0, 0, 1) };
+	XMVECTOR ViewSpaceRayDirection{ XMVectorSet(ViewSpaceRayDirectionX, ViewSpaceRayDirectionY, ViewSpaceRayDirectionZ, 0) };
+
+	XMMATRIX MatrixViewInverse{ XMMatrixInverse(nullptr, m_MatrixView) };
+	m_PickingRayWorldSpaceOrigin = XMVector3TransformCoord(ViewSpaceRayOrigin, MatrixViewInverse);
+	m_PickingRayWorldSpaceDirection = XMVector3TransformNormal(ViewSpaceRayDirection, MatrixViewInverse);
+}
+
+void CGame::UpdatePickingRay()
+{
+	m_Object3DLinePickingRay->GetVertices().at(0).Position = m_PickingRayWorldSpaceOrigin;
+	m_Object3DLinePickingRay->GetVertices().at(1).Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
+	m_Object3DLinePickingRay->UpdateVertexBuffer();
+}
+
+void CGame::PickBoundingSphere()
+{
+	m_vObject3DPickingCandidates.clear();
+
+	m_PtrPickedObject3D = nullptr;
+	m_PickedInstanceID = -1;
+
+	XMVECTOR T{ KVectorGreatest };
+
+	for (auto& i : m_vObject3Ds)
+	{
+		auto* Object3D{ i.get() };
+		if (Object3D->ComponentPhysics.bIsPickable)
+		{
+			if (Object3D->IsInstanced())
+			{
+				int InstanceCount{ (int)Object3D->GetInstanceCount() };
+				for (int iInstance = 0; iInstance < InstanceCount; ++iInstance)
+				{
+					auto& InstanceCPUData{ Object3D->GetInstanceCPUData(iInstance) };
+					XMVECTOR NewT{ KVectorGreatest };
+					if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
+						InstanceCPUData.BoundingSphere.Radius, InstanceCPUData.Translation + InstanceCPUData.BoundingSphere.CenterOffset, &NewT))
+					{
+						m_vObject3DPickingCandidates.emplace_back(Object3D, iInstance, NewT);
+					}
+				}
+			}
+			else
+			{
+				XMVECTOR NewT{ KVectorGreatest };
+				if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
+					Object3D->ComponentPhysics.BoundingSphere.Radius, Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
+				{
+					m_vObject3DPickingCandidates.emplace_back(Object3D, NewT);
+				}
+			}
+		}
+	}
+}
+
+bool CGame::PickTriangle()
+{
+	XMVECTOR T{ KVectorGreatest };
+	if (m_PtrPickedObject3D == nullptr)
+	{
+		for (SObject3DPickingCandiate& Candidate : m_vObject3DPickingCandidates)
+		{
+			// Pick only static models' triangle.
+			// Rigged models should be selected by its bounding sphere, not triangles!
+			if (Candidate.PtrObject3D->GetModel().bIsModelRigged)
+			{
+				Candidate.bHasFailedPickingTest = false;
+				continue;
+			}
+
+			Candidate.bHasFailedPickingTest = true;
+			XMMATRIX WorldMatrix{ Candidate.PtrObject3D->ComponentTransform.MatrixWorld };
+			if (Candidate.InstanceID >= 0)
+			{
+				const auto& InstanceGPUData{ Candidate.PtrObject3D->GetInstanceGPUData(Candidate.InstanceID) };
+				WorldMatrix = InstanceGPUData.WorldMatrix;
+			}
+			for (const SMesh& Mesh : Candidate.PtrObject3D->GetModel().vMeshes)
+			{
+				for (const STriangle& Triangle : Mesh.vTriangles)
+				{
+					XMVECTOR V0{ Mesh.vVertices[Triangle.I0].Position };
+					XMVECTOR V1{ Mesh.vVertices[Triangle.I1].Position };
+					XMVECTOR V2{ Mesh.vVertices[Triangle.I2].Position };
+					V0 = XMVector3TransformCoord(V0, WorldMatrix);
+					V1 = XMVector3TransformCoord(V1, WorldMatrix);
+					V2 = XMVector3TransformCoord(V2, WorldMatrix);
+
+					XMVECTOR NewT{};
+					if (IntersectRayTriangle(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, V0, V1, V2, &NewT))
+					{
+						if (XMVector3Less(NewT, T))
+						{
+							T = NewT;
+
+							Candidate.bHasFailedPickingTest = false;
+							Candidate.T = NewT;
+
+							XMVECTOR N{ CalculateTriangleNormal(V0, V1, V2) };
+
+							m_PickedTriangleV0 = V0 + N * 0.01f;
+							m_PickedTriangleV1 = V1 + N * 0.01f;
+							m_PickedTriangleV2 = V2 + N * 0.01f;
+
+							continue;
+						}
+					}
+				}
+			}
+		}
+
+		vector<SObject3DPickingCandiate> vFilteredCandidates{};
+		for (const SObject3DPickingCandiate& Candidate : m_vObject3DPickingCandidates)
+		{
+			if (Candidate.bHasFailedPickingTest == false) vFilteredCandidates.emplace_back(Candidate);
+		}
+		if (!vFilteredCandidates.empty())
+		{
+			XMVECTOR TCmp{ KVectorGreatest };
+			for (const SObject3DPickingCandiate& FilteredCandidate : vFilteredCandidates)
+			{
+				if (XMVector3Less(FilteredCandidate.T, TCmp))
+				{
+					m_PtrPickedObject3D = FilteredCandidate.PtrObject3D;
+					m_PickedInstanceID = FilteredCandidate.InstanceID;
+				}
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
 const string& CGame::GetPickedObject3DName() const
 {
 	assert(m_PtrPickedObject3D);
@@ -2822,138 +2962,6 @@ void CGame::DeselectAll()
 	Deselect3DGizmos();
 }
 
-void CGame::CastPickingRay()
-{
-	float ViewSpaceRayDirectionX{ (m_CapturedMouseState.x / (m_WindowSize.x / 2.0f) - 1.0f) / XMVectorGetX(m_MatrixProjection.r[0]) };
-	float ViewSpaceRayDirectionY{ (-(m_CapturedMouseState.y / (m_WindowSize.y / 2.0f) - 1.0f)) / XMVectorGetY(m_MatrixProjection.r[1]) };
-	static float ViewSpaceRayDirectionZ{ 1.0f };
-
-	static XMVECTOR ViewSpaceRayOrigin{ XMVectorSet(0, 0, 0, 1) };
-	XMVECTOR ViewSpaceRayDirection{ XMVectorSet(ViewSpaceRayDirectionX, ViewSpaceRayDirectionY, ViewSpaceRayDirectionZ, 0) };
-
-	XMMATRIX MatrixViewInverse{ XMMatrixInverse(nullptr, m_MatrixView) };
-	m_PickingRayWorldSpaceOrigin = XMVector3TransformCoord(ViewSpaceRayOrigin, MatrixViewInverse);
-	m_PickingRayWorldSpaceDirection = XMVector3TransformNormal(ViewSpaceRayDirection, MatrixViewInverse);
-}
-
-void CGame::PickBoundingSphere()
-{
-	m_vObject3DPickingCandidates.clear();
-
-	m_PtrPickedObject3D = nullptr;
-	m_PickedInstanceID = -1;
-
-	XMVECTOR T{ KVectorGreatest };
-	for (auto& i : m_vObject3Ds)
-	{
-		auto* Object3D{ i.get() };
-		if (Object3D->ComponentPhysics.bIsPickable)
-		{
-			if (Object3D->IsInstanced())
-			{
-				int InstanceCount{ (int)Object3D->GetInstanceCount() };
-				for (int iInstance = 0; iInstance < InstanceCount; ++iInstance)
-				{
-					auto& InstanceCPUData{ Object3D->GetInstanceCPUData(iInstance) };
-					XMVECTOR NewT{ KVectorGreatest };
-					if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-						InstanceCPUData.BoundingSphere.Radius, InstanceCPUData.Translation + InstanceCPUData.BoundingSphere.CenterOffset, &NewT))
-					{
-						m_vObject3DPickingCandidates.emplace_back(Object3D, iInstance, NewT);
-					}
-				}
-			}
-			else
-			{
-				XMVECTOR NewT{ KVectorGreatest };
-				if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-					Object3D->ComponentPhysics.BoundingSphere.Radius, Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
-				{
-					m_vObject3DPickingCandidates.emplace_back(Object3D, NewT);
-				}
-			}
-		}
-	}
-}
-
-bool CGame::PickTriangle()
-{
-	XMVECTOR T{ KVectorGreatest };
-	if (m_PtrPickedObject3D == nullptr)
-	{
-		for (SObject3DPickingCandiate& Candidate : m_vObject3DPickingCandidates)
-		{
-			// Pick only static models' triangle.
-			// Rigged models should be selected by its bounding sphere, not triangles!
-			if (Candidate.PtrObject3D->GetModel().bIsModelRigged)
-			{
-				Candidate.bHasFailedPickingTest = false;
-				continue;
-			}
-
-			Candidate.bHasFailedPickingTest = true;
-			XMMATRIX WorldMatrix{ Candidate.PtrObject3D->ComponentTransform.MatrixWorld };
-			if (Candidate.InstanceID >= 0)
-			{
-				const auto& InstanceGPUData{ Candidate.PtrObject3D->GetInstanceGPUData(Candidate.InstanceID) };
-				WorldMatrix = InstanceGPUData.WorldMatrix;
-			}
-			for (const SMesh& Mesh : Candidate.PtrObject3D->GetModel().vMeshes)
-			{
-				for (const STriangle& Triangle : Mesh.vTriangles)
-				{
-					XMVECTOR V0{ Mesh.vVertices[Triangle.I0].Position };
-					XMVECTOR V1{ Mesh.vVertices[Triangle.I1].Position };
-					XMVECTOR V2{ Mesh.vVertices[Triangle.I2].Position };
-					V0 = XMVector3TransformCoord(V0, WorldMatrix);
-					V1 = XMVector3TransformCoord(V1, WorldMatrix);
-					V2 = XMVector3TransformCoord(V2, WorldMatrix);
-
-					XMVECTOR NewT{};
-					if (IntersectRayTriangle(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection, V0, V1, V2, &NewT))
-					{
-						if (XMVector3Less(NewT, T))
-						{
-							T = NewT;
-
-							Candidate.bHasFailedPickingTest = false;
-							Candidate.T = NewT;
-
-							XMVECTOR N{ CalculateTriangleNormal(V0, V1, V2) };
-
-							m_PickedTriangleV0 = V0 + N * 0.01f;
-							m_PickedTriangleV1 = V1 + N * 0.01f;
-							m_PickedTriangleV2 = V2 + N * 0.01f;
-
-							continue;
-						}
-					}
-				}
-			}
-		}
-
-		vector<SObject3DPickingCandiate> vFilteredCandidates{};
-		for (const SObject3DPickingCandiate& Candidate : m_vObject3DPickingCandidates)
-		{
-			if (Candidate.bHasFailedPickingTest == false) vFilteredCandidates.emplace_back(Candidate);
-		}
-		if (!vFilteredCandidates.empty())
-		{
-			XMVECTOR TCmp{ KVectorGreatest };
-			for (const SObject3DPickingCandiate& FilteredCandidate : vFilteredCandidates)
-			{
-				if (XMVector3Less(FilteredCandidate.T, TCmp))
-				{
-					m_PtrPickedObject3D = FilteredCandidate.PtrObject3D;
-					m_PickedInstanceID = FilteredCandidate.InstanceID;
-				}
-			}
-			return true;
-		}
-	}
-	return false;
-}
-
 void CGame::BeginRendering(const FLOAT* ClearColor, bool bUseDeferredRendering)
 {
 	m_bUseDeferredRendering = bUseDeferredRendering;
@@ -3097,6 +3105,7 @@ void CGame::Update()
 			
 			if (m_bLeftButtonPressedOnce)
 			{
+				// When a Gizmo is selected, the interaction must be fixed to the attached object.
 				if (Pick() && !IsGizmoSelected())
 				{
 					DeselectAll();
@@ -3274,8 +3283,8 @@ void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
 
 	SetUniversalbUseLighiting();
 
-	m_CBPSFlagsData.bUseLighting = EFLAG_HAS_NO(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoLighting);
-	m_CBPSFlagsData.bUseTexture = EFLAG_HAS_NO(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoTexture);
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoLighting)) m_CBPSFlagsData.bUseLighting = false;
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoTexture)) m_CBPSFlagsData.bUseTexture = false;
 	m_CBPSFlags->Update();
 
 	assert(PtrObject3D->ComponentRender.PtrVS);
@@ -3399,13 +3408,6 @@ void CGame::DrawMiniAxes()
 	}
 
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
-}
-
-void CGame::UpdatePickingRay()
-{
-	m_Object3DLinePickingRay->GetVertices().at(0).Position = m_PickingRayWorldSpaceOrigin;
-	m_Object3DLinePickingRay->GetVertices().at(1).Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
-	m_Object3DLinePickingRay->UpdateVertexBuffer();
 }
 
 void CGame::DrawPickingRay()
@@ -5682,17 +5684,6 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ToggleGameRenderingFlags(EFlagsRendering::DrawNormals);
 						}
 
-						/*
-						ImGui::AlignTextToFramePadding();
-						ImGui::Text(u8"3D Gizmo 표시");
-						ImGui::SameLine(ItemsOffsetX);
-						bool bDrawBoundingSphere{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos) };
-						if (ImGui::Checkbox(u8"##3D Gizmo 표시", &bDrawBoundingSphere))
-						{
-							ToggleGameRenderingFlags(EFlagsRendering::Use3DGizmos);
-						}
-						*/
-
 						ImGui::AlignTextToFramePadding();
 						ImGui::Text(u8"화면 상단에 좌표축 표시");
 						ImGui::SameLine(ItemsOffsetX);
@@ -5702,17 +5693,6 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ToggleGameRenderingFlags(EFlagsRendering::DrawMiniAxes);
 						}
 
-						/*
-						ImGui::AlignTextToFramePadding();
-						ImGui::Text(u8"피킹 데이터 표시");
-						ImGui::SameLine(ItemsOffsetX);
-						bool bDrawPickingData{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawPickingData) };
-						if (ImGui::Checkbox(u8"##피킹 데이터 표시", &bDrawPickingData))
-						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawPickingData);
-						}
-						*/
-						
 						ImGui::AlignTextToFramePadding();
 						ImGui::Text(u8"Bounding Sphere 표시");
 						ImGui::SameLine(ItemsOffsetX);
@@ -5772,6 +5752,24 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						if (ImGui::Checkbox(u8"##물리 기반 렌더링 사용", &bUsePhysicallyBasedRendering))
 						{
 							ToggleGameRenderingFlags(EFlagsRendering::UsePhysicallyBasedRendering);
+						}
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"3D Gizmo 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bUse3DGizmos{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos) };
+						if (ImGui::Checkbox(u8"##3D Gizmo 표시", &bUse3DGizmos))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::Use3DGizmos);
+						}
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"피킹 데이터 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawPickingData{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawPickingData) };
+						if (ImGui::Checkbox(u8"##피킹 데이터 표시", &bDrawPickingData))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::DrawPickingData);
 						}
 					}
 					ImGui::PopItemWidth();

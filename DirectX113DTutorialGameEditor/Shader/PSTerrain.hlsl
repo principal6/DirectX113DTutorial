@@ -231,6 +231,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	}
 
 	float4 OutputColor = float4(BlendedDiffuse.xyz, 1);
+	if (bUseLighting == true)
 	{
 		// Exposure tone mapping for raw albedo
 		float3 Albedo = float3(1.0, 1.0, 1.0) - exp(-BlendedDiffuse.xyz * Exposure);

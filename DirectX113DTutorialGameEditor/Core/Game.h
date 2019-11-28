@@ -453,6 +453,14 @@ public:
 
 private:
 	bool Pick();
+
+private:
+	void CastPickingRay();
+	void UpdatePickingRay();
+	void PickBoundingSphere();
+	bool PickTriangle();
+
+private:
 	const std::string& GetPickedObject3DName() const;
 	int GetPickedInstanceID() const;
 
@@ -493,11 +501,6 @@ public:
 private:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
 
-private:
-	void CastPickingRay();
-	void PickBoundingSphere();
-	bool PickTriangle();
-
 public:
 	void BeginRendering(const FLOAT* ClearColor, bool bUseDeferredRendering = true);
 	void Update();
@@ -532,7 +535,6 @@ private:
 
 	void DrawMiniAxes();
 
-	void UpdatePickingRay();
 	void DrawPickingRay();
 	void DrawPickedTriangle();
 
