@@ -1,0 +1,29 @@
+#include "Billboard.hlsli"
+
+SamplerState LinearClampSampler : register(s0);
+SamplerState PointClampSampler : register(s1);
+Texture2D BillboardTexture : register(t0);
+
+cbuffer cbEditorTime : register(b0)
+{
+	float NormalizedTime;
+	float NormalizedTimeHalfSpeed;
+	float2 Reserved;
+}
+
+cbuffer cbBillboardSelection : register(b1)
+{
+	bool bUseBillboardSelection;
+	uint SelectedBillboardID;
+	float2 Pads;
+}
+
+float4 main(DS_BILLBOARD_OUTPUT Input) : SV_TARGET
+{
+	float4 Sampled = BillboardTexture.Sample(LinearClampSampler, Input.TexCoord);
+	if (bUseBillboardSelection && Input.InstanceID == SelectedBillboardID)
+	{
+		Sampled += float4(0.6, 0.3, 0.6, 0) * sin(NormalizedTime * KPI);
+	}
+	return Sampled;
+}

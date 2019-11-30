@@ -20,7 +20,7 @@ cbuffer cbEditorTime : register(b1)
 {
 	float NormalizedTime;
 	float NormalizedTimeHalfSpeed;
-	float2 Pad2;
+	float2 Reserved;
 }
 
 cbuffer cbCameraSelection : register(b2)

@@ -286,15 +286,15 @@ private:
 	static constexpr int32_t KAnimationTextureReservedFirstPixelCount{ 2 };
 
 public:
-	SComponentTransform			ComponentTransform{};
-	SComponentRender			ComponentRender{};
-	SComponentPhysics			ComponentPhysics{};
-	EFlagsRendering				eFlagsRendering{};
+	SComponentTransform				ComponentTransform{};
+	SComponentRender				ComponentRender{};
+	SComponentPhysics				ComponentPhysics{};
+	EFlagsRendering					eFlagsRendering{};
 
 private:
-	ID3D11Device* const			m_PtrDevice{};
-	ID3D11DeviceContext* const	m_PtrDeviceContext{};
-	CGame* const				m_PtrGame{};
+	ID3D11Device* const				m_PtrDevice{};
+	ID3D11DeviceContext* const		m_PtrDeviceContext{};
+	CGame* const					m_PtrGame{};
 
 private:
 	std::string						m_Name{};

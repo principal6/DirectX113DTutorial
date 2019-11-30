@@ -91,6 +91,12 @@
     <ClCompile Include="Core\CubemapRep.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Billboard.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Light.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTK\Audio.h">
@@ -459,6 +465,12 @@
     <ClInclude Include="Core\CubemapRep.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Billboard.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Light.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Library Include="DirectXTK\DirectXTK.lib">
@@ -534,6 +546,9 @@
     </None>
     <None Include="DirectXTex\DirectXTex.inl">
       <Filter>DirectXTex</Filter>
+    </None>
+    <None Include="Shader\Billboard.hlsli">
+      <Filter>Shader</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -658,6 +673,18 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\PSBRDFIntegrator.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\VSBillboard.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\HSBillboard.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\DSBillboard.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PSBillboard.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

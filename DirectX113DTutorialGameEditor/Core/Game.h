@@ -18,6 +18,8 @@
 #include "Terrain.h"
 #include "CubemapRep.h"
 #include "ModelPorter.h"
+#include "Billboard.h"
+#include "Light.h"
 
 #include "TinyXml2/tinyxml2.h"
 #include "ImGui/imgui.h"
@@ -40,14 +42,17 @@ public:
 		VSParticle,
 		VSScreenQuad,
 		VSBase2D,
+		VSBillboard,
 
 		HSTerrain,
 		HSWater,
 		HSStatic,
+		HSBillboard,
 
 		DSTerrain,
 		DSWater,
 		DSStatic,
+		DSBillboard,
 
 		GSNormal,
 		GSParticle,
@@ -70,6 +75,7 @@ public:
 		PSFromHDR,
 		PSRadiancePrefiltering,
 		PSBRDFIntegrator,
+		PSBillboard,
 
 		PSBase2D,
 		PSMasking2D,
@@ -86,6 +92,8 @@ public:
 
 	struct SCBSpaceVPData
 	{
+		XMMATRIX	View{};
+		XMMATRIX	Projection{};
 		XMMATRIX	ViewProjection{};
 	};
 
@@ -168,13 +176,20 @@ public:
 	{
 		float		NormalizedTime{};
 		float		NormalizedTimeHalfSpeed{};
-		float		Pads[2]{};
+		float		Reserved[2]{};
 	};
 
 	struct SCBCameraSelectionData
 	{
 		uint32_t	SelectedCameraID{};
 		uint32_t	CurrentCameraID{};
+		float		Pads[2]{};
+	};
+
+	struct SCBBillboardSelectionData
+	{
+		BOOL		bUseBillboardSelection{ FALSE };
+		uint32_t	SelectedBillboardID{};
 		float		Pads[2]{};
 	};
 
@@ -370,6 +385,8 @@ private:
 	// This function also updates terrain's world matrix by calling UpdateCBSpace() from inside.
 	void UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection);
 
+	void UpdateCBBillboard(const CBillboard::SCBBillboardData& Data);
+
 public:
 	void CreateDynamicSky(const std::string& SkyDataFileName, float ScalingFactor);
 	void CreateStaticSky(float ScalingFactor);
@@ -439,6 +456,11 @@ public:
 	ID3D11ShaderResourceView* GetMaterialTextureSRV(STextureData::EType eType, const std::string& Name) const;
 
 public:
+	bool InsertLight(CLight::EType eType, const std::string& Name);
+	void DeleteLight(const std::string& Name);
+	CLight* GetLight(const std::string& Name, bool bShowWarning = true);
+
+public:
 	void SetMode(EMode eMode);
 	EMode GetMode() const { return m_eMode; }
 
@@ -459,7 +481,9 @@ private:
 	bool PickObject3DTriangle();
 
 private:
+	bool IsAnythingPicked() const;
 	bool IsAnyCameraPicked() const;
+	bool IsAnyLightPicked() const;
 	bool IsAnyObject3DPicked() const;
 	bool IsAnyInstancePicked() const;
 	const std::string& GetPickedObject3DName() const;
@@ -490,6 +514,13 @@ private:
 	CCamera* GetCurrentCamera();
 	void UseEditorCamera();
 	void UseCamera(CCamera* const Camera);
+
+	void SelectLight(const std::string& Name);
+	void SelectPickedLight();
+	void DeselectLight();
+	bool IsAnyLightSelected() const;
+	CLight* GetSelectedLight();
+	const std::string& GetSelectedLightName() const;
 
 	void Select3DGizmos();
 	void Deselect3DGizmos();
@@ -559,6 +590,7 @@ private:
 	void Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight);
 
 	void DrawCameraRep();
+	void DrawLightRep();
 
 	void DrawEditorGUI();
 	void DrawEditorGUIMenuBar();
@@ -647,16 +679,18 @@ private:
 	std::unique_ptr<CShader>	m_VSFoliage{};
 	std::unique_ptr<CShader>	m_VSParticle{};
 	std::unique_ptr<CShader>	m_VSScreenQuad{};
-
 	std::unique_ptr<CShader>	m_VSBase2D{};
+	std::unique_ptr<CShader>	m_VSBillboard{};
 
 	std::unique_ptr<CShader>	m_HSTerrain{};
 	std::unique_ptr<CShader>	m_HSWater{};
 	std::unique_ptr<CShader>	m_HSStatic{};
+	std::unique_ptr<CShader>	m_HSBillboard{};
 
 	std::unique_ptr<CShader>	m_DSTerrain{};
 	std::unique_ptr<CShader>	m_DSWater{};
 	std::unique_ptr<CShader>	m_DSStatic{};
+	std::unique_ptr<CShader>	m_DSBillboard{};
 
 	std::unique_ptr<CShader>	m_GSNormal{};
 	std::unique_ptr<CShader>	m_GSParticle{};
@@ -679,6 +713,7 @@ private:
 	std::unique_ptr<CShader>	m_PSFromHDR{};
 	std::unique_ptr<CShader>	m_PSRadiancePrefiltering{};
 	std::unique_ptr<CShader>	m_PSBRDFIntegrator{};
+	std::unique_ptr<CShader>	m_PSBillboard{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
@@ -709,6 +744,8 @@ private:
 	std::unique_ptr<CConstantBuffer> m_CBScreen{};
 	std::unique_ptr<CConstantBuffer> m_CBRadiancePrefiltering{};
 	std::unique_ptr<CConstantBuffer> m_CBIrradianceGenerator{};
+	std::unique_ptr<CConstantBuffer> m_CBBillboard{};
+	std::unique_ptr<CConstantBuffer> m_CBBillboardSelection{};
 
 	SCBSpaceWVPData				m_CBSpaceWVPData{};
 	SCBSpaceVPData				m_CBSpaceVPData{};
@@ -736,6 +773,8 @@ private:
 	SCBScreenData						m_CBScreenData{};
 	SCBRadiancePrefiltering				m_CBRadiancePrefilteringData{};
 	SCBIrradianceGenerator				m_CBIrradianceGeneratorData{};
+	CBillboard::SCBBillboardData		m_CBBillboardData{};
+	SCBBillboardSelectionData			m_CBBillboardSelectionData{};
 
 private:
 	std::vector<std::unique_ptr<CShader>>				m_vShaders{};
@@ -770,6 +809,11 @@ private:
 	std::map<std::string, size_t>	m_mapObject2DNameToIndex{};
 
 	size_t							m_PrimitiveCreationCounter{};
+
+private:
+	std::unique_ptr<CBillboard>				m_LightRep{};
+	std::vector<std::unique_ptr<CLight>>	m_vLights{};
+	std::map<std::string, size_t>			m_mapLightNameToIndex{};
 
 private:
 	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationPitch{};
@@ -822,6 +866,8 @@ private:
 	CObject3D*	m_PtrSelectedObject3D{};
 	CObject2D*	m_PtrSelectedObject2D{};
 	int			m_PickedCameraID{ -1 };
+	int			m_PickedLightID{ -1 };
+	int			m_SelectedLightID{ -1 };
 	int			m_PickedInstanceID{ -1 };
 	int			m_SelectedInstanceID{ -1 };
 	XMVECTOR	m_PickedTriangleV0{};
@@ -834,7 +880,7 @@ private:
 	std::unique_ptr<CTerrain>	m_Terrain{};
 
 private:
-	ImFont* m_EditorGUIFont{};
+	ImFont*						m_EditorGUIFont{};
 	SEditorGUIBools				m_EditorGUIBools{};
 
 private:

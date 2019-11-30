@@ -245,7 +245,7 @@ void CTexture::UpdateTextureInfo()
 	}
 
 	m_TextureSize.x = static_cast<float>(m_Texture2DDesc.Width);
-	m_TextureSize.x = static_cast<float>(m_Texture2DDesc.Height);
+	m_TextureSize.y = static_cast<float>(m_Texture2DDesc.Height);
 }
 
 void CTexture::UpdateTextureRawData(const SPixel8UInt* const PtrData)
