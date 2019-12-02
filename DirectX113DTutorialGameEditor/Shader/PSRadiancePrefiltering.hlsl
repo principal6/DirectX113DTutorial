@@ -12,7 +12,7 @@ cbuffer cbRadiancePrefiltering : register(b0)
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	const uint KSampleCount = 2048;
+	const uint KSampleCount = 1024;
 	const uint KOrder = GetHammersleyOrder(KSampleCount);
 	const float KBase = GetHammersleyBase(KOrder);
 

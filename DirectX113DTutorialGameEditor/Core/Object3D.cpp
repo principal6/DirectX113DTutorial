@@ -74,8 +74,6 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 		if (bIsModelRigged)
 		{
 			m_AssimpLoader.LoadAnimatedModelFromFile(FileName, &m_Model, m_PtrDevice, m_PtrDeviceContext);
-
-			ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSAnimation);
 		}
 		else
 		{
@@ -441,8 +439,6 @@ void CObject3D::CreateInstances(int InstanceCount)
 		m_mapInstanceNameToIndex[Name] = iInstance;
 	}
 
-	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSInstance);
-
 	CreateInstanceBuffers();
 
 	UpdateAllInstancesWorldMatrix();
@@ -467,8 +463,6 @@ void CObject3D::CreateInstances(const std::vector<SInstanceCPUData>& vInstanceDa
 
 	m_vInstanceGPUData.clear();
 	m_vInstanceGPUData.resize(vInstanceData.size());
-
-	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSInstance);
 
 	CreateInstanceBuffers();
 
@@ -512,8 +506,6 @@ void CObject3D::InsertInstance(bool bShouldCreateInstanceBuffers)
 		if (bShouldRecreateInstanceBuffer) CreateInstanceBuffers();
 	}
 
-	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSInstance);
-
 	UpdateInstanceWorldMatrix(static_cast<int>(m_vInstanceCPUData.size() - 1));
 }
 
@@ -539,8 +531,6 @@ void CObject3D::InsertInstance(const string& Name)
 
 	if (m_vInstanceCPUData.size() == 1) CreateInstanceBuffers();
 	if (bShouldRecreateInstanceBuffer) CreateInstanceBuffers();
-
-	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSInstance);
 
 	UpdateInstanceWorldMatrix(static_cast<int>(m_vInstanceCPUData.size() - 1));
 }
@@ -576,8 +566,6 @@ void CObject3D::DeleteInstance(const string& Name)
 
 		if (m_vInstanceCPUData.empty())
 		{
-			ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase);
-
 			// @important
 			m_PtrGame->DeselectInstance();
 			return;
@@ -609,8 +597,6 @@ void CObject3D::ClearInstances()
 	m_vInstanceCPUData.clear();
 	m_vInstanceGPUData.clear();
 	m_mapInstanceNameToIndex.clear();
-
-	ComponentRender.PtrVS = m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase);
 }
 
 SInstanceCPUData& CObject3D::GetInstanceCPUData(int InstanceID)
@@ -925,7 +911,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 		m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_vMeshBuffers[iMesh].VertexBuffer.GetAddressOf(), 
 			&m_vMeshBuffers[iMesh].VertexBufferStride, &m_vMeshBuffers[iMesh].VertexBufferOffset);
 
-		if (IsRiggedModel())
+		if (IsRigged())
 		{
 			m_PtrDeviceContext->IASetVertexBuffers(1, 1, m_vMeshBuffers[iMesh].VertexBufferAnimation.GetAddressOf(),
 				&m_vMeshBuffers[iMesh].VertexBufferAnimationStride, &m_vMeshBuffers[iMesh].VertexBufferAnimationOffset);

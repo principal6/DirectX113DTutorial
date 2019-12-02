@@ -1,5 +1,6 @@
 #include "Terrain.hlsli"
 #include "BRDF.hlsli"
+#include "GBuffer.hlsli"
 
 #define FLAG_ID_DIFFUSE 0x01
 #define FLAG_ID_NORMAL 0x02
@@ -117,6 +118,7 @@ cbuffer cbMaterial : register(b5)
 }
 
 #define TEX_COORD Input.TexCoord.xy
+#define N BlendedNormal.xyz // Macrosurface normal
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
@@ -236,8 +238,6 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		// Exposure tone mapping for raw albedo
 		float3 Albedo = float3(1.0, 1.0, 1.0) - exp(-BlendedDiffuse.xyz * Exposure);
 
-		float3 N = BlendedNormal.xyz; // Macrosurface normal vector
-
 		// This is equivalent of L vector (light direction from a point on interface-- both for macrosurface and microsurface.)
 		float3 Wi_direct = DirectionalLightDirection.xyz;
 
@@ -320,4 +320,77 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	if (bIsHighlitPixel == true) OutputColor = HighlitAlbedo;
 
 	return OutputColor;
+}
+
+GBufferOutput gbuffer(VS_OUTPUT Input)
+{
+	float4 WorldVertexPosition = float4(Input.WorldPosition.x, 0, -Input.WorldPosition.z, 1);
+	float4 LocalMaskingPosition = mul(WorldVertexPosition, InverseTerrainWorld);
+	float4 MaskingSpacePosition = mul(LocalMaskingPosition, MaskingSpaceMatrix);
+	float4 Masking = MaskingTexture.Sample(LinearWrapSampler, MaskingSpacePosition.xz);
+
+	float4 BlendedDiffuse = float4(MaterialDiffuseColor, 1);
+	if (FlagsHasTexture & FLAG_ID_DIFFUSE)
+	{
+		float4 DiffuseLayer0 = (TotalMaterialCount >= 1) ? Layer0DiffuseTexture.Sample(LinearWrapSampler, TEX_COORD) : float4(1, 1, 1, 1);
+		float4 DiffuseLayer1 = (TotalMaterialCount >= 2) ? Layer1DiffuseTexture.Sample(LinearWrapSampler, TEX_COORD) : float4(1, 1, 1, 1);
+		float4 DiffuseLayer2 = (TotalMaterialCount >= 3) ? Layer2DiffuseTexture.Sample(LinearWrapSampler, TEX_COORD) : float4(1, 1, 1, 1);
+		float4 DiffuseLayer3 = (TotalMaterialCount >= 4) ? Layer3DiffuseTexture.Sample(LinearWrapSampler, TEX_COORD) : float4(1, 1, 1, 1);
+
+		// # Here we make sure that input RGB values are in linear-space!
+		// # Convert gamma-space RGB to linear-space RGB
+		if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
+		{
+			if (TotalMaterialCount >= 1) DiffuseLayer0.xyz = pow(DiffuseLayer0.xyz, 2.2);
+			if (TotalMaterialCount >= 2) DiffuseLayer1.xyz = pow(DiffuseLayer1.xyz, 2.2);
+			if (TotalMaterialCount >= 3) DiffuseLayer2.xyz = pow(DiffuseLayer2.xyz, 2.2);
+			if (TotalMaterialCount >= 4) DiffuseLayer3.xyz = pow(DiffuseLayer3.xyz, 2.2);
+		}
+
+		if (TotalMaterialCount >= 1) BlendedDiffuse = DiffuseLayer0;
+		if (TotalMaterialCount >= 2) BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer1.xyz, Masking.r);
+		if (TotalMaterialCount >= 3) BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer2.xyz, Masking.g);
+		if (TotalMaterialCount >= 4) BlendedDiffuse.xyz = lerp(BlendedDiffuse.xyz, DiffuseLayer3.xyz, Masking.b);
+	}
+
+	float3 Normal = Input.WorldNormal.xyz;
+	if (FlagsHasTexture & FLAG_ID_NORMAL)
+	{
+		const float3x3 KTextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
+		Normal = normalize((Layer0NormalTexture.Sample(LinearWrapSampler, TEX_COORD).xyz * 2.0) - 1.0);
+		Normal = normalize(mul(Normal, KTextureSpace));
+	}
+
+	float SpecularIntensity = (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY) ? 
+		Layer0SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : MaterialSpecularIntensity;
+	float Roughness = (FlagsHasTexture & FLAG_ID_ROUGHNESS) ? Layer0RoughnessTexture.Sample(LinearWrapSampler, TEX_COORD).r : MaterialRoughness;
+	float AmbientOcclusion = (FlagsHasTexture & FLAG_ID_METALNESS) ? Layer0AmbientOcclusionTexture.Sample(LinearWrapSampler, TEX_COORD).r : 1.0;
+
+	// Selection highlight (for edit mode)
+	bool bIsHighlitPixel = false;
+	float4 HighlitAlbedo = BlendedDiffuse;
+	if (bShowSelection == true)
+	{
+		const float3 ColorCmp = float3(0.2f, 0.4f, 0.6f);
+		const float3 HighlightFactor = float3(0.2f, 0.2f, 0.2f);
+		const float Sine = sin(NormalizedTimeHalfSpeed * KPI);
+
+		float4 TerrainPosition = float4(Input.WorldPosition.x, 0, Input.WorldPosition.z, 1);
+		float4 WorldSelectionPosition = float4(AnaloguePosition.x, 0, AnaloguePosition.y, 1);
+		float Distance = distance(TerrainPosition, WorldSelectionPosition);
+		if (Distance <= SelectionRadius)
+		{
+			BlendedDiffuse.xyz = max(BlendedDiffuse.xyz, ColorCmp);
+			BlendedDiffuse.xyz += HighlightFactor * Sine;
+			bIsHighlitPixel = true;
+			HighlitAlbedo = BlendedDiffuse;
+		}
+	}
+	if (bIsHighlitPixel == true) BlendedDiffuse.xyz = HighlitAlbedo.xyz;
+
+	GBufferOutput Output;
+	Output.BaseColor_Rough = float4(BlendedDiffuse.xyz, Roughness);
+	Output.Normal = float4(Normal * 0.5 + 0.5, 0);
+	Output.MetalAO = float4(0.5, AmbientOcclusion, 0, 0); // Metalness 0.5 is Terrain signature
+	return Output;
 }

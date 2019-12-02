@@ -31,7 +31,7 @@ public:
 	}
 	~CShader() {}
 
-	void Create(EShaderType Type, const std::wstring& FileName, const std::string& EntryPoint,
+	void Create(EShaderType Type, bool bShouldCompile, const std::wstring& FileName, const std::string& EntryPoint,
 		const D3D11_INPUT_ELEMENT_DESC* InputElementDescs = nullptr, UINT NumElements = 0);
 
 	void AttachConstantBuffer(CConstantBuffer* const ConstantBuffer, int32_t Slot = -1);

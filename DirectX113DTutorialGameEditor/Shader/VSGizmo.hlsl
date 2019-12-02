@@ -23,7 +23,10 @@ VS_OUTPUT main(VS_INPUT Input)
 	Output.WorldBitangent = CalculateBitangent(Output.WorldNormal, Output.WorldTangent);
 
 	Output.bUseVertexColor = 0;
+
+#ifndef DEBUG_SHADER
 	Output.InstanceID = Input.InstanceID;
+#endif
 
 	return Output;
 }

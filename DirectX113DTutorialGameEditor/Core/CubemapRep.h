@@ -19,8 +19,7 @@ public:
 	~CCubemapRep() {}
 
 public:
-	void UnfoldCubemap(ID3D11ShaderResourceView* const CubemapSRV, 
-		ID3D11RenderTargetView** const CurrentRenderTargetView, ID3D11DepthStencilView* const CurrentDepthStencilView);
+	void UnfoldCubemap(ID3D11ShaderResourceView* const CubemapSRV);
 
 	ID3D11ShaderResourceView* GetSRV() const;
 

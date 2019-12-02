@@ -30,7 +30,10 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 	Output.WorldNormal = normalize(Output.WorldNormal);
 	
 	Output.bUseVertexColor = Patch[0].bUseVertexColor + Patch[1].bUseVertexColor + Patch[2].bUseVertexColor;
+
+#ifndef DEBUG_SHADER
 	Output.InstanceID = Patch[0].InstanceID;
+#endif
 
 	float4 P1 = Patch[0].WorldPosition;
 	float4 P2 = Patch[1].WorldPosition;

@@ -18,17 +18,18 @@ public:
 		assert(m_PtrDevice);
 		assert(m_PtrDeviceContext);
 	}
-	~CLight() {}
+	virtual ~CLight() {}
 
 public:
-	void SetPosition(const XMVECTOR& Position);
-	const XMVECTOR& GetPosition() const;
-	XMVECTOR& GetPosition();
+	virtual void SetPosition(const XMVECTOR& Position);
+	virtual const XMVECTOR& GetPosition() const;
+	virtual XMVECTOR& GetPosition();
 
 public:
-	const std::string& GetName() const;
-	EType GetType() const;
-	float GetBoundingSphereRadius() const;
+	virtual const std::string& GetName() const;
+	virtual EType GetType() const;
+	virtual float GetBoundingSphereRadius() const;
+	virtual XMMATRIX GetWorldMatrix() const abstract;
 
 protected:
 	ID3D11Device* const			m_PtrDevice{};
@@ -53,10 +54,10 @@ public:
 	{
 		m_eType = EType::PointLight;
 	}
-	~CPointLight() {}
+	virtual ~CPointLight() {}
 
 public:
-	void Apply();
+	void Light();
 
 public:
 	void SetColor(const XMVECTOR& Color);
@@ -64,6 +65,8 @@ public:
 
 	void SetRange(float Range);
 	float GetRange() const;
+
+	XMMATRIX GetWorldMatrix() const override;
 
 private:
 	XMVECTOR					m_Color{ 1, 1, 1, 1 };

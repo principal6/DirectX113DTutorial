@@ -142,8 +142,6 @@ void CGame::InitializeEditorAssets()
 	{
 		m_CameraRep = make_unique<CObject3D>("CameraRepresentation", m_Device.Get(), m_DeviceContext.Get(), this);
 		m_CameraRep->CreateFromFile("Asset\\camera_repr.fbx", false);
-		m_CameraRep->ComponentRender.PtrVS = GetBaseShader(EBaseShader::VSBase);
-		m_CameraRep->ComponentRender.PtrPS = GetBaseShader(EBaseShader::PSCamera);
 	}
 
 	if (!m_LightRep)
@@ -269,8 +267,7 @@ void CGame::CreateSwapChain(bool bWindowed)
 {
 	DXGI_SWAP_CHAIN_DESC SwapChainDesc{};
 	SwapChainDesc.BufferCount = 1;
-	SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // LDR
-	//SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // HDR
+	SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	SwapChainDesc.BufferDesc.Width = static_cast<UINT>(m_WindowSize.x);
 	SwapChainDesc.BufferDesc.Height = static_cast<UINT>(m_WindowSize.y);
 	SwapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
@@ -286,24 +283,112 @@ void CGame::CreateSwapChain(bool bWindowed)
 	SwapChainDesc.Windowed = bWindowed;
 
 	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0, D3D11_SDK_VERSION,
-		&SwapChainDesc, &m_SwapChain, &m_Device, nullptr, &m_DeviceContext);
+		&SwapChainDesc, m_SwapChain.ReleaseAndGetAddressOf(), m_Device.ReleaseAndGetAddressOf(), nullptr, m_DeviceContext.ReleaseAndGetAddressOf());
 }
 
 void CGame::CreateViews()
 {
-	// Create back buffer RTV
-	ComPtr<ID3D11Texture2D> BackBuffer{};
-	m_SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), &BackBuffer);
-	m_Device->CreateRenderTargetView(BackBuffer.Get(), nullptr, &m_DeviceRTV);
-
-	// Create deferred RTV
+	// Create depth-stencil DSV + GBuffer #0
 	{
 		D3D11_TEXTURE2D_DESC Texture2DDesc{};
 		Texture2DDesc.ArraySize = 1;
-		Texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		Texture2DDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 		Texture2DDesc.CPUAccessFlags = 0;
-		Texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // LDR
-		//Texture2DDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // HDR
+		Texture2DDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; // @important
+		Texture2DDesc.Width = static_cast<UINT>(m_WindowSize.x);
+		Texture2DDesc.Height = static_cast<UINT>(m_WindowSize.y);
+		Texture2DDesc.MipLevels = 0;
+		Texture2DDesc.MiscFlags = 0;
+		Texture2DDesc.SampleDesc.Count = 1;
+		Texture2DDesc.SampleDesc.Quality = 0;
+		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+
+		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_DepthStencilBuffer.ReleaseAndGetAddressOf());
+
+		D3D11_DEPTH_STENCIL_VIEW_DESC DSVDesc{};
+		DSVDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+		m_Device->CreateDepthStencilView(m_DepthStencilBuffer.Get(), &DSVDesc, m_DepthStencilDSV.ReleaseAndGetAddressOf());
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
+		SRVDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		SRVDesc.Texture2D.MipLevels = 1;
+		SRVDesc.Texture2D.MostDetailedMip = 0;
+		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		m_Device->CreateShaderResourceView(m_DepthStencilBuffer.Get(), &SRVDesc, m_DepthStencilSRV.ReleaseAndGetAddressOf());
+	}
+
+	// Create GBuffer #1 - Base color 24 & Roguhness 8
+	{
+		D3D11_TEXTURE2D_DESC Texture2DDesc{};
+		Texture2DDesc.ArraySize = 1;
+		Texture2DDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+		Texture2DDesc.CPUAccessFlags = 0;
+		Texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		Texture2DDesc.Width = static_cast<UINT>(m_WindowSize.x);
+		Texture2DDesc.Height = static_cast<UINT>(m_WindowSize.y);
+		Texture2DDesc.MipLevels = 0;
+		Texture2DDesc.MiscFlags = 0;
+		Texture2DDesc.SampleDesc.Count = 1;
+		Texture2DDesc.SampleDesc.Quality = 0;
+		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+
+		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_BaseColorRoughBuffer.ReleaseAndGetAddressOf());
+		m_Device->CreateRenderTargetView(m_BaseColorRoughBuffer.Get(), nullptr, m_BaseColorRoughRTV.ReleaseAndGetAddressOf());
+		m_Device->CreateShaderResourceView(m_BaseColorRoughBuffer.Get(), nullptr, m_BaseColorRoughSRV.ReleaseAndGetAddressOf());
+	}
+
+	// Create GBuffer #2 - Normal 32
+	{
+		D3D11_TEXTURE2D_DESC Texture2DDesc{};
+		Texture2DDesc.ArraySize = 1;
+		Texture2DDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+		Texture2DDesc.CPUAccessFlags = 0;
+		Texture2DDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+		Texture2DDesc.Width = static_cast<UINT>(m_WindowSize.x);
+		Texture2DDesc.Height = static_cast<UINT>(m_WindowSize.y);
+		Texture2DDesc.MipLevels = 0;
+		Texture2DDesc.MiscFlags = 0;
+		Texture2DDesc.SampleDesc.Count = 1;
+		Texture2DDesc.SampleDesc.Quality = 0;
+		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+
+		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_NormalBuffer.ReleaseAndGetAddressOf());
+		m_Device->CreateRenderTargetView(m_NormalBuffer.Get(), nullptr, m_NormalRTV.ReleaseAndGetAddressOf());
+		m_Device->CreateShaderResourceView(m_NormalBuffer.Get(), nullptr, m_NormalSRV.ReleaseAndGetAddressOf());
+	}
+
+	// Create GBuffer #3 - Metalness 8 & Ambient occlusion 8
+	{
+		D3D11_TEXTURE2D_DESC Texture2DDesc{};
+		Texture2DDesc.ArraySize = 1;
+		Texture2DDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+		Texture2DDesc.CPUAccessFlags = 0;
+		Texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		Texture2DDesc.Width = static_cast<UINT>(m_WindowSize.x);
+		Texture2DDesc.Height = static_cast<UINT>(m_WindowSize.y);
+		Texture2DDesc.MipLevels = 0;
+		Texture2DDesc.MiscFlags = 0;
+		Texture2DDesc.SampleDesc.Count = 1;
+		Texture2DDesc.SampleDesc.Quality = 0;
+		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+
+		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_MetalAOBuffer.ReleaseAndGetAddressOf());
+		m_Device->CreateRenderTargetView(m_MetalAOBuffer.Get(), nullptr, m_MetalAORTV.ReleaseAndGetAddressOf());
+		m_Device->CreateShaderResourceView(m_MetalAOBuffer.Get(), nullptr, m_MetalAOSRV.ReleaseAndGetAddressOf());
+	}
+
+	// Create back-buffer RTV
+	m_SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)m_BackBuffer.ReleaseAndGetAddressOf());
+	m_Device->CreateRenderTargetView(m_BackBuffer.Get(), nullptr, m_BackBufferRTV.ReleaseAndGetAddressOf());
+
+	// Create deferred RTV, SRV
+	{
+		D3D11_TEXTURE2D_DESC Texture2DDesc{};
+		Texture2DDesc.ArraySize = 1;
+		Texture2DDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+		Texture2DDesc.CPUAccessFlags = 0;
+		Texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		Texture2DDesc.Height = static_cast<UINT>(m_WindowSize.y);
 		Texture2DDesc.MipLevels = 1;
 		Texture2DDesc.SampleDesc.Count = 1;
@@ -325,22 +410,6 @@ void CGame::CreateViews()
 		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 		m_Device->CreateRenderTargetView(m_ScreenQuadTexture.Get(), &ScreenQuadRTVDesc, m_ScreenQuadRTV.ReleaseAndGetAddressOf());
 	}
-
-	// Create depth-stencil view
-	D3D11_TEXTURE2D_DESC DepthStencilBufferDesc{};
-	DepthStencilBufferDesc.ArraySize = 1;
-	DepthStencilBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-	DepthStencilBufferDesc.CPUAccessFlags = 0;
-	DepthStencilBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	DepthStencilBufferDesc.Width = static_cast<UINT>(m_WindowSize.x);
-	DepthStencilBufferDesc.Height = static_cast<UINT>(m_WindowSize.y);
-	DepthStencilBufferDesc.MipLevels = 0;
-	DepthStencilBufferDesc.MiscFlags = 0;
-	DepthStencilBufferDesc.SampleDesc.Count = 1;
-	DepthStencilBufferDesc.SampleDesc.Quality = 0;
-	DepthStencilBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	m_Device->CreateTexture2D(&DepthStencilBufferDesc, nullptr, &m_DepthStencilBuffer);
-	m_Device->CreateDepthStencilView(m_DepthStencilBuffer.Get(), nullptr, &m_DepthStencilView);
 }
 
 void CGame::InitializeViewports()
@@ -470,6 +539,8 @@ void CGame::CreateConstantBuffers()
 		&m_CBDisplacementData, sizeof(m_CBDisplacementData));
 	m_CBLight = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBLightData, sizeof(m_CBLightData));
+	m_CBDirectionalLight = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBDirectionalLightData, sizeof(m_CBDirectionalLightData));
 	m_CBMaterial = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBMaterialData, sizeof(m_CBMaterialData));
 	m_CBPSFlags = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
@@ -500,6 +571,8 @@ void CGame::CreateConstantBuffers()
 		&m_CBBillboardData, sizeof(m_CBBillboardData));
 	m_CBBillboardSelection = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBBillboardSelectionData, sizeof(m_CBBillboardSelectionData));
+	m_CBGBufferUnpacking = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBGBufferUnpackingData, sizeof(m_CBGBufferUnpackingData));
 
 	m_CBSpaceWVP->Create();
 	m_CBSpaceVP->Create();
@@ -511,6 +584,7 @@ void CGame::CreateConstantBuffers()
 	m_CBTessFactor->Create();
 	m_CBDisplacement->Create();
 	m_CBLight->Create();
+	m_CBDirectionalLight->Create();
 	m_CBMaterial->Create();
 	m_CBPSFlags->Create();
 	m_CBGizmoColorFactor->Create();
@@ -526,144 +600,156 @@ void CGame::CreateConstantBuffers()
 	m_CBIrradianceGenerator->Create();
 	m_CBBillboard->Create();
 	m_CBBillboardSelection->Create();
+	m_CBGBufferUnpacking->Create();
 }
 
 void CGame::CreateBaseShaders()
 {
+	bool bShouldCompile{ false };
+
 	m_VSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSBase->Create(EShaderType::VertexShader, L"Shader\\VSBase.hlsl", "main",
+	m_VSBase->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSBase.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSBase->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSInstance = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSInstance->Create(EShaderType::VertexShader, L"Shader\\VSInstance.hlsl", "main",
+	m_VSInstance->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSInstance.hlsl", "main", 
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSInstance->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSAnimation = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSAnimation->Create(EShaderType::VertexShader, L"Shader\\VSAnimation.hlsl", "main", 
+	m_VSAnimation->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSAnimation.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSAnimation->AttachConstantBuffer(m_CBSpaceWVP.get());
 	m_VSAnimation->AttachConstantBuffer(m_CBAnimationBones.get());
 	m_VSAnimation->AttachConstantBuffer(m_CBAnimation.get());
 
 	m_VSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSSky->Create(EShaderType::VertexShader, L"Shader\\VSSky.hlsl", "main", 
+	m_VSSky->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSSky.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSSky->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSLine->Create(EShaderType::VertexShader, L"Shader\\VSLine.hlsl", "main", 
+	m_VSLine->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSLine.hlsl", "main", 
 		CObject3DLine::KInputElementDescs, ARRAYSIZE(CObject3DLine::KInputElementDescs));
 	m_VSLine->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSGizmo->Create(EShaderType::VertexShader, L"Shader\\VSGizmo.hlsl", "main", 
+	m_VSGizmo->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSGizmo.hlsl", "main", 
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSGizmo->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSTerrain->Create(EShaderType::VertexShader, L"Shader\\VSTerrain.hlsl", "main",
+	m_VSTerrain->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSTerrain.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSTerrain->AttachConstantBuffer(m_CBSpaceWVP.get());
 	m_VSTerrain->AttachConstantBuffer(m_CBTerrain.get());
 
 	m_VSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSFoliage->Create(EShaderType::VertexShader, L"Shader\\VSFoliage.hlsl", "main",
+	m_VSFoliage->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSFoliage.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSFoliage->AttachConstantBuffer(m_CBSpaceWVP.get());
 	m_VSFoliage->AttachConstantBuffer(m_CBTerrain.get());
 	m_VSFoliage->AttachConstantBuffer(m_CBWind.get());
 
 	m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSParticle->Create(EShaderType::VertexShader, L"Shader\\VSParticle.hlsl", "main",
+	m_VSParticle->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSParticle.hlsl", "main",
 		CParticlePool::KInputElementDescs, ARRAYSIZE(CParticlePool::KInputElementDescs));
 
 	m_VSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	//m_VSScreenQuad->Create(EShaderType::VertexShader, L"Shader\\VSScreenQuad.hlsl", "main");
-	m_VSScreenQuad->Create(EShaderType::VertexShader, L"Shader\\VSScreenQuad.hlsl", "main", 
+	//m_VSScreenQuad->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSScreenQuad.hlsl", "main");
+	m_VSScreenQuad->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSScreenQuad.hlsl", "main", 
 		KScreenQuadInputElementDescs, ARRAYSIZE(KScreenQuadInputElementDescs));
 
 	m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSBase2D->Create(EShaderType::VertexShader, L"Shader\\VSBase2D.hlsl", "main",
+	m_VSBase2D->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSBase2D.hlsl", "main",
 		CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
 	m_VSBase2D->AttachConstantBuffer(m_CBSpace2D.get());
 
 	m_VSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSBillboard->Create(EShaderType::VertexShader, L"Shader\\VSBillboard.hlsl", "main",
+	m_VSBillboard->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSBillboard.hlsl", "main",
 		CBillboard::KInputElementDescs, ARRAYSIZE(CBillboard::KInputElementDescs));
 
+	m_VSNull = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_VSNull->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSNull.hlsl", "main");
+
 	m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_HSTerrain->Create(EShaderType::HullShader, L"Shader\\HSTerrain.hlsl", "main");
+	m_HSTerrain->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSTerrain.hlsl", "main");
 	m_HSTerrain->AttachConstantBuffer(m_CBLight.get());
 	m_HSTerrain->AttachConstantBuffer(m_CBTessFactor.get());
 
 	m_HSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_HSWater->Create(EShaderType::HullShader, L"Shader\\HSWater.hlsl", "main");
+	m_HSWater->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSWater.hlsl", "main");
 	m_HSWater->AttachConstantBuffer(m_CBLight.get());
 	m_HSWater->AttachConstantBuffer(m_CBTessFactor.get());
 
 	m_HSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_HSStatic->Create(EShaderType::HullShader, L"Shader\\HSStatic.hlsl", "main");
+	m_HSStatic->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSStatic.hlsl", "main");
 	m_HSStatic->AttachConstantBuffer(m_CBTessFactor.get());
 
 	m_HSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_HSBillboard->Create(EShaderType::HullShader, L"Shader\\HSBillboard.hlsl", "main");
+	m_HSBillboard->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSBillboard.hlsl", "main");
 
 	m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_DSTerrain->Create(EShaderType::DomainShader, L"Shader\\DSTerrain.hlsl", "main");
+	m_DSTerrain->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSTerrain.hlsl", "main");
 	m_DSTerrain->AttachConstantBuffer(m_CBSpaceVP.get());
 	m_DSTerrain->AttachConstantBuffer(m_CBDisplacement.get());
 
 	m_DSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_DSWater->Create(EShaderType::DomainShader, L"Shader\\DSWater.hlsl", "main");
+	m_DSWater->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSWater.hlsl", "main");
 	m_DSWater->AttachConstantBuffer(m_CBSpaceVP.get());
 	m_DSWater->AttachConstantBuffer(m_CBWaterTime.get());
 
 	m_DSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_DSStatic->Create(EShaderType::DomainShader, L"Shader\\DSStatic.hlsl", "main");
+	m_DSStatic->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSStatic.hlsl", "main");
 	m_DSStatic->AttachConstantBuffer(m_CBSpaceVP.get());
 	m_DSStatic->AttachConstantBuffer(m_CBDisplacement.get());
 
 	m_DSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_DSBillboard->Create(EShaderType::DomainShader, L"Shader\\DSBillboard.hlsl", "main");
+	m_DSBillboard->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSBillboard.hlsl", "main");
 	m_DSBillboard->AttachConstantBuffer(m_CBSpaceVP.get());
 	m_DSBillboard->AttachConstantBuffer(m_CBBillboard.get());
 
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_GSNormal->Create(EShaderType::GeometryShader, L"Shader\\GSNormal.hlsl", "main");
+	m_GSNormal->Create(EShaderType::GeometryShader, bShouldCompile, L"Shader\\GSNormal.hlsl", "main");
 	m_GSNormal->AttachConstantBuffer(m_CBSpaceVP.get());
 
 	m_GSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_GSParticle->Create(EShaderType::GeometryShader, L"Shader\\GSParticle.hlsl", "main");
+	m_GSParticle->Create(EShaderType::GeometryShader, bShouldCompile, L"Shader\\GSParticle.hlsl", "main");
 	m_GSParticle->AttachConstantBuffer(m_CBSpaceVP.get());
 
 	m_PSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSBase->Create(EShaderType::PixelShader, L"Shader\\PSBase.hlsl", "main");
+	m_PSBase->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBase.hlsl", "main");
 	m_PSBase->AttachConstantBuffer(m_CBPSFlags.get());
 	m_PSBase->AttachConstantBuffer(m_CBLight.get());
 	m_PSBase->AttachConstantBuffer(m_CBMaterial.get());
 
+	m_PSBase_gbuffer = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSBase_gbuffer->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBase.hlsl", "gbuffer");
+	m_PSBase_gbuffer->AttachConstantBuffer(m_CBPSFlags.get());
+	m_PSBase_gbuffer->AttachConstantBuffer(m_CBLight.get());
+	m_PSBase_gbuffer->AttachConstantBuffer(m_CBMaterial.get());
+
 	m_PSVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSVertexColor->Create(EShaderType::PixelShader, L"Shader\\PSVertexColor.hlsl", "main");
+	m_PSVertexColor->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSVertexColor.hlsl", "main");
 
 	m_PSDynamicSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSDynamicSky->Create(EShaderType::PixelShader, L"Shader\\PSDynamicSky.hlsl", "main");
+	m_PSDynamicSky->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSDynamicSky.hlsl", "main");
 	m_PSDynamicSky->AttachConstantBuffer(m_CBSkyTime.get());
 
 	m_PSCloud = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSCloud->Create(EShaderType::PixelShader, L"Shader\\PSCloud.hlsl", "main");
+	m_PSCloud->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSCloud.hlsl", "main");
 	m_PSCloud->AttachConstantBuffer(m_CBSkyTime.get());
 
 	m_PSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSLine->Create(EShaderType::PixelShader, L"Shader\\PSLine.hlsl", "main");
+	m_PSLine->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSLine.hlsl", "main");
 
 	m_PSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSGizmo->Create(EShaderType::PixelShader, L"Shader\\PSGizmo.hlsl", "main");
+	m_PSGizmo->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSGizmo.hlsl", "main");
 	m_PSGizmo->AttachConstantBuffer(m_CBGizmoColorFactor.get());
 
 	m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSTerrain->Create(EShaderType::PixelShader, L"Shader\\PSTerrain.hlsl", "main");
+	m_PSTerrain->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSTerrain.hlsl", "main");
 	m_PSTerrain->AttachConstantBuffer(m_CBPSFlags.get());
 	m_PSTerrain->AttachConstantBuffer(m_CBTerrainMaskingSpace.get());
 	m_PSTerrain->AttachConstantBuffer(m_CBLight.get());
@@ -671,70 +757,91 @@ void CGame::CreateBaseShaders()
 	m_PSTerrain->AttachConstantBuffer(m_CBEditorTime.get());
 	m_PSTerrain->AttachConstantBuffer(m_CBMaterial.get());
 
+	m_PSTerrain_gbuffer = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSTerrain_gbuffer->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSTerrain.hlsl", "gbuffer");
+	m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBPSFlags.get());
+	m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainMaskingSpace.get());
+	m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBLight.get());
+	m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainSelection.get());
+	m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBEditorTime.get());
+	m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBMaterial.get());
+
 	m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSWater->Create(EShaderType::PixelShader, L"Shader\\PSWater.hlsl", "main");
+	m_PSWater->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSWater.hlsl", "main");
 	m_PSWater->AttachConstantBuffer(m_CBWaterTime.get());
 	m_PSWater->AttachConstantBuffer(m_CBLight.get());
 
 	m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSFoliage->Create(EShaderType::PixelShader, L"Shader\\PSFoliage.hlsl", "main");
+	m_PSFoliage->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSFoliage.hlsl", "main");
 	m_PSFoliage->AttachConstantBuffer(m_CBPSFlags.get());
 	m_PSFoliage->AttachConstantBuffer(m_CBLight.get());
 	m_PSFoliage->AttachConstantBuffer(m_CBMaterial.get());
 
 	m_PSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSParticle->Create(EShaderType::PixelShader, L"Shader\\PSParticle.hlsl", "main");
+	m_PSParticle->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSParticle.hlsl", "main");
 
 	m_PSCamera = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSCamera->Create(EShaderType::PixelShader, L"Shader\\PSCamera.hlsl", "main");
+	m_PSCamera->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSCamera.hlsl", "main");
 	m_PSCamera->AttachConstantBuffer(m_CBMaterial.get());
 	m_PSCamera->AttachConstantBuffer(m_CBEditorTime.get());
 	m_PSCamera->AttachConstantBuffer(m_CBCameraSelection.get());
 
 	m_PSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSScreenQuad->Create(EShaderType::PixelShader, L"Shader\\PSScreenQuad.hlsl", "main");
+	m_PSScreenQuad->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "main");
+
+	m_PSScreenQuad_opaque = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSScreenQuad_opaque->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "opaque");
 
 	m_CBScreenData.InverseScreenSize = XMFLOAT2(1.0f / m_WindowSize.x, 1.0f / m_WindowSize.y);
 	m_CBScreen->Update();
 
 	m_PSEdgeDetector = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSEdgeDetector->Create(EShaderType::PixelShader, L"Shader\\PSEdgeDetector.hlsl", "main");
+	m_PSEdgeDetector->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSEdgeDetector.hlsl", "main");
 	m_PSEdgeDetector->AttachConstantBuffer(m_CBScreen.get());
 
 	m_PSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSSky->Create(EShaderType::PixelShader, L"Shader\\PSSky.hlsl", "main");
+	m_PSSky->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSSky.hlsl", "main");
 
 	m_PSIrradianceGenerator = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSIrradianceGenerator->Create(EShaderType::PixelShader, L"Shader\\PSIrradianceGenerator.hlsl", "main");
+	m_PSIrradianceGenerator->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSIrradianceGenerator.hlsl", "main");
 	m_PSIrradianceGenerator->AttachConstantBuffer(m_CBIrradianceGenerator.get());
 
 	m_PSFromHDR = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSFromHDR->Create(EShaderType::PixelShader, L"Shader\\PSFromHDR.hlsl", "main");
+	m_PSFromHDR->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSFromHDR.hlsl", "main");
 
 	m_PSRadiancePrefiltering = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSRadiancePrefiltering->Create(EShaderType::PixelShader, L"Shader\\PSRadiancePrefiltering.hlsl", "main");
+	m_PSRadiancePrefiltering->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSRadiancePrefiltering.hlsl", "main");
 	m_PSRadiancePrefiltering->AttachConstantBuffer(m_CBRadiancePrefiltering.get());
 
 	m_PSBRDFIntegrator = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSBRDFIntegrator->Create(EShaderType::PixelShader, L"Shader\\PSBRDFIntegrator.hlsl", "main");
+	m_PSBRDFIntegrator->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBRDFIntegrator.hlsl", "main");
 
 	m_PSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSBillboard->Create(EShaderType::PixelShader, L"Shader\\PSBillboard.hlsl", "main");
+	m_PSBillboard->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBillboard.hlsl", "main");
 	m_PSBillboard->AttachConstantBuffer(m_CBEditorTime.get());
 	m_PSBillboard->AttachConstantBuffer(m_CBBillboardSelection.get());
 
+	m_PSDirectionalLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSDirectionalLight->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "main");
+	m_PSDirectionalLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
+	m_PSDirectionalLight->AttachConstantBuffer(m_CBDirectionalLight.get());
+	
+	m_PSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSPointLight->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSPointLight.hlsl", "main");
+	m_PSPointLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
+
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSBase2D->Create(EShaderType::PixelShader, L"Shader\\PSBase2D.hlsl", "main");
+	m_PSBase2D->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBase2D.hlsl", "main");
 	m_PSBase2D->AttachConstantBuffer(m_CBPS2DFlags.get());
 
 	m_PSMasking2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSMasking2D->Create(EShaderType::PixelShader, L"Shader\\PSMasking2D.hlsl", "main");
+	m_PSMasking2D->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSMasking2D.hlsl", "main");
 
 	m_PSHeightMap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSHeightMap2D->Create(EShaderType::PixelShader, L"Shader\\PSHeightMap2D.hlsl", "main");
+	m_PSHeightMap2D->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSHeightMap2D.hlsl", "main");
 	
 	m_PSCubemap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSCubemap2D->Create(EShaderType::PixelShader, L"Shader\\PSCubemap2D.hlsl", "main");
+	m_PSCubemap2D->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSCubemap2D.hlsl", "main");
 }
 
 void CGame::CreateMiniAxes()
@@ -750,23 +857,14 @@ void CGame::CreateMiniAxes()
 	vMaterialData[1].SetUniformColor(XMFLOAT3(0, 1, 0));
 	vMaterialData[2].SetUniformColor(XMFLOAT3(0, 0, 1));
 	m_vObject3DMiniAxes[0]->Create(KAxisCone, vMaterialData[0]);
-	m_vObject3DMiniAxes[0]->ComponentRender.PtrVS = m_VSBase.get();
-	m_vObject3DMiniAxes[0]->ComponentRender.PtrPS = m_PSBase.get();
 	m_vObject3DMiniAxes[0]->ComponentTransform.Roll = -XM_PIDIV2;
-	m_vObject3DMiniAxes[0]->eFlagsRendering = CObject3D::EFlagsRendering::NoLighting;
-
+	
 	m_vObject3DMiniAxes[1]->Create(KAxisCone, vMaterialData[1]);
-	m_vObject3DMiniAxes[1]->ComponentRender.PtrVS = m_VSBase.get();
-	m_vObject3DMiniAxes[1]->ComponentRender.PtrPS = m_PSBase.get();
-	m_vObject3DMiniAxes[1]->eFlagsRendering = CObject3D::EFlagsRendering::NoLighting;
-
+	
 	m_vObject3DMiniAxes[2]->Create(KAxisCone, vMaterialData[2]);
-	m_vObject3DMiniAxes[2]->ComponentRender.PtrVS = m_VSBase.get();
-	m_vObject3DMiniAxes[2]->ComponentRender.PtrPS = m_PSBase.get();
 	m_vObject3DMiniAxes[2]->ComponentTransform.Yaw = -XM_PIDIV2;
 	m_vObject3DMiniAxes[2]->ComponentTransform.Roll = -XM_PIDIV2;
-	m_vObject3DMiniAxes[2]->eFlagsRendering = CObject3D::EFlagsRendering::NoLighting;
-
+	
 	m_vObject3DMiniAxes[0]->ComponentTransform.Scaling =
 		m_vObject3DMiniAxes[1]->ComponentTransform.Scaling =
 		m_vObject3DMiniAxes[2]->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.8f, 0.1f, 0);
@@ -905,20 +1003,6 @@ void CGame::Create3DGizmos()
 		m_Object3D_3DGizmoScalingZ->Create(MeshAxis);
 		m_Object3D_3DGizmoScalingZ->ComponentTransform.Pitch = XM_PIDIV2;
 	}
-
-	m_Object3D_3DGizmoRotationPitch->ComponentRender.PtrVS =
-		m_Object3D_3DGizmoRotationYaw->ComponentRender.PtrVS = m_Object3D_3DGizmoRotationRoll->ComponentRender.PtrVS =
-		m_Object3D_3DGizmoTranslationX->ComponentRender.PtrVS =
-		m_Object3D_3DGizmoTranslationY->ComponentRender.PtrVS = m_Object3D_3DGizmoTranslationZ->ComponentRender.PtrVS =
-		m_Object3D_3DGizmoScalingX->ComponentRender.PtrVS =
-		m_Object3D_3DGizmoScalingY->ComponentRender.PtrVS = m_Object3D_3DGizmoScalingZ->ComponentRender.PtrVS = m_VSGizmo.get();
-
-	m_Object3D_3DGizmoRotationPitch->ComponentRender.PtrPS =
-		m_Object3D_3DGizmoRotationYaw->ComponentRender.PtrPS = m_Object3D_3DGizmoRotationRoll->ComponentRender.PtrPS =
-		m_Object3D_3DGizmoTranslationX->ComponentRender.PtrPS =
-		m_Object3D_3DGizmoTranslationY->ComponentRender.PtrPS = m_Object3D_3DGizmoTranslationZ->ComponentRender.PtrPS =
-		m_Object3D_3DGizmoScalingX->ComponentRender.PtrPS = 
-		m_Object3D_3DGizmoScalingY->ComponentRender.PtrPS = m_Object3D_3DGizmoScalingZ->ComponentRender.PtrPS = m_PSGizmo.get();
 }
 
 void CGame::CreateScreenQuadVertexBuffer()
@@ -1242,7 +1326,7 @@ void CGame::SaveScene(const string& FileName)
 				{
 					xmlModelFileName->SetAttribute("ID", "Model");
 					xmlModelFileName->SetAttribute("FileName", Object3D->GetModelFileName().c_str());
-					xmlModelFileName->SetAttribute("IsRigged", Object3D->IsRiggedModel());
+					xmlModelFileName->SetAttribute("IsRigged", Object3D->IsRigged());
 					xmlObject->InsertEndChild(xmlModelFileName);
 				}
 
@@ -1564,6 +1648,17 @@ void CGame::UpdateCBBillboard(const CBillboard::SCBBillboardData& Data)
 	m_CBBillboard->Update();
 }
 
+void CGame::UpdateCBDirectionalLight()
+{
+	m_CBDirectionalLightData.LightDirection = m_CBLightData.DirectionalLightDirection;
+	m_CBDirectionalLightData.LightColor = m_CBLightData.DirectionalLightColor;
+	m_CBDirectionalLightData.Exposure = m_CBLightData.Exposure;
+	m_CBDirectionalLightData.EnvironmentTextureMipLevels = m_CBPSFlagsData.EnvironmentTextureMipLevels;
+	m_CBDirectionalLightData.PrefilteredRadianceTextureMipLevels = m_CBPSFlagsData.PrefilteredRadianceTextureMipLevels;
+
+	m_CBDirectionalLight->Update();
+}
+
 void CGame::CreateDynamicSky(const string& SkyDataFileName, float ScalingFactor)
 {
 	using namespace tinyxml2;
@@ -1610,48 +1705,22 @@ void CGame::CreateDynamicSky(const string& SkyDataFileName, float ScalingFactor)
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterialData);
 	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
-	m_Object3DSkySphere->ComponentRender.PtrVS = m_VSSky.get();
-	m_Object3DSkySphere->ComponentRender.PtrPS = m_PSDynamicSky.get();
 	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
-	m_Object3DSkySphere->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
 
 	m_Object3DSun = make_unique<CObject3D>("Sun", m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Object3DSun->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterialData);
 	m_Object3DSun->UpdateQuadUV(m_SkyData.Sun.UVOffset, m_SkyData.Sun.UVSize);
 	m_Object3DSun->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Sun.WidthHeightRatio, 0);
-	m_Object3DSun->ComponentRender.PtrVS = m_VSSky.get();
-	m_Object3DSun->ComponentRender.PtrPS = m_PSBase.get();
 	m_Object3DSun->ComponentRender.bIsTransparent = true;
 	m_Object3DSun->ComponentPhysics.bIsPickable = false;
-	m_Object3DSun->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
 	
 	m_Object3DMoon = make_unique<CObject3D>("Moon", m_Device.Get(), m_DeviceContext.Get(), this);
 	m_Object3DMoon->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterialData);
 	m_Object3DMoon->UpdateQuadUV(m_SkyData.Moon.UVOffset, m_SkyData.Moon.UVSize);
 	m_Object3DMoon->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Moon.WidthHeightRatio, 0);
-	m_Object3DMoon->ComponentRender.PtrVS = m_VSSky.get();
-	m_Object3DMoon->ComponentRender.PtrPS = m_PSBase.get();
 	m_Object3DMoon->ComponentRender.bIsTransparent = true;
 	m_Object3DMoon->ComponentPhysics.bIsPickable = false;
-	m_Object3DMoon->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
 	
-	/*
-	SModel CloudModel{};
-	CloudModel.vMeshes.emplace_back(GenerateSphere(64));
-	CloudModel.vMaterials.resize(1);
-	CloudModel.vMaterials[0].SetDiffuseTextureFileName("Asset\\earth_clouds.png");
-
-	m_Object3DCloud = make_unique<CObject3D>("Cloud", m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Object3DCloud->Create(CloudModel);
-	m_Object3DCloud->ComponentTransform.Scaling = XMVectorSet(KSkyDistance * 2, KSkyDistance * 4, KSkyDistance * 2, 0);
-	m_Object3DCloud->ComponentTransform.Roll = -XM_PIDIV2;
-	m_Object3DCloud->ComponentRender.PtrVS = m_VSSky.get();
-	m_Object3DCloud->ComponentRender.PtrPS = m_PSCloud.get();
-	m_Object3DCloud->ComponentRender.bIsTransparent = true;
-	m_Object3DCloud->ComponentPhysics.bIsPickable = false;
-	m_Object3DCloud->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
-	*/
-
 	m_SkyData.bIsDataSet = true;
 	m_SkyData.bIsDynamic = true;
 
@@ -1666,10 +1735,7 @@ void CGame::CreateStaticSky(float ScalingFactor)
 	//m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
 	m_Object3DSkySphere->Create(GenerateCubemapSphere(KSkySphereSegmentCount));
 	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
-	m_Object3DSkySphere->ComponentRender.PtrVS = m_VSSky.get();
-	m_Object3DSkySphere->ComponentRender.PtrPS = m_PSSky.get();
 	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
-	m_Object3DSkySphere->eFlagsRendering = CObject3D::EFlagsRendering::NoCulling | CObject3D::EFlagsRendering::NoLighting;
 
 	m_SkyData.bIsDataSet = true;
 	m_SkyData.bIsDynamic = false;
@@ -1927,6 +1993,12 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::VSBase2D:
 		Result = m_VSBase2D.get();
 		break;
+	case EBaseShader::VSBillboard:
+		Result = m_VSBillboard.get();
+		break;
+	case EBaseShader::VSNull:
+		Result = m_VSNull.get();
+		break;
 	case EBaseShader::HSTerrain:
 		Result = m_HSTerrain.get();
 		break;
@@ -1936,6 +2008,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::HSStatic:
 		Result = m_HSStatic.get();
 		break;
+	case EBaseShader::HSBillboard:
+		Result = m_HSBillboard.get();
+		break;
 	case EBaseShader::DSTerrain:
 		Result = m_DSTerrain.get();
 		break;
@@ -1944,6 +2019,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::DSStatic:
 		Result = m_DSStatic.get();
+		break;
+	case EBaseShader::DSBillboard:
+		Result = m_DSBillboard.get();
 		break;
 	case EBaseShader::GSNormal:
 		Result = m_GSNormal.get();
@@ -1987,6 +2065,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::PSScreenQuad:
 		Result = m_PSScreenQuad.get();
 		break;
+	case EBaseShader::PSScreenQuad_Opaque:
+		Result = m_PSScreenQuad_opaque.get();
+		break;
 	case EBaseShader::PSEdgeDetector:
 		Result = m_PSEdgeDetector.get();
 		break;
@@ -2004,6 +2085,18 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSBRDFIntegrator:
 		Result = m_PSBRDFIntegrator.get();
+		break;
+	case EBaseShader::PSBillboard:
+		Result = m_PSBillboard.get();
+		break;
+	case EBaseShader::PSBase_GBuffer:
+		Result = m_PSBase_gbuffer.get();
+		break;
+	case EBaseShader::PSDirectionalLight:
+		Result = m_PSDirectionalLight.get();
+		break;
+	case EBaseShader::PSPointLight:
+		Result = m_PSPointLight.get();
 		break;
 	case EBaseShader::PSBase2D:
 		Result = m_PSBase2D.get();
@@ -2045,8 +2138,6 @@ bool CGame::InsertObject3D(const string& Name)
 	}
 
 	m_vObject3Ds.emplace_back(make_unique<CObject3D>(Name, m_Device.Get(), m_DeviceContext.Get(), this));
-	m_vObject3Ds.back()->ComponentRender.PtrVS = m_VSBase.get();
-	m_vObject3Ds.back()->ComponentRender.PtrPS = m_PSBase.get();
 
 	m_mapObject3DNameToIndex[Name] = m_vObject3Ds.size() - 1;
 
@@ -3308,32 +3399,13 @@ void CGame::DeselectAll()
 	Deselect3DGizmos();
 }
 
-void CGame::BeginRendering(const FLOAT* ClearColor, bool bUseDeferredRendering)
+void CGame::BeginRendering(const FLOAT* ClearColor)
 {
-	m_bUseDeferredRendering = bUseDeferredRendering;
-
-	if (m_bUseDeferredRendering)
-	{
-		m_DeviceContext->OMSetRenderTargets(1, m_ScreenQuadRTV.GetAddressOf(), m_DepthStencilView.Get());
-
-		m_DeviceContext->ClearRenderTargetView(m_ScreenQuadRTV.Get(), Colors::CornflowerBlue);
-		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-	}
-	else
-	{
-		m_DeviceContext->OMSetRenderTargets(1, m_DeviceRTV.GetAddressOf(), m_DepthStencilView.Get());
-
-		m_DeviceContext->ClearRenderTargetView(m_DeviceRTV.Get(), Colors::CornflowerBlue);
-		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-	}
-
 	ID3D11SamplerState* LinearWrapSampler{ m_CommonStates->LinearWrap() };
 	ID3D11SamplerState* LinearClampSampler{ m_CommonStates->LinearClamp() };
 	m_DeviceContext->PSSetSamplers(0, 1, &LinearWrapSampler);
 	m_DeviceContext->PSSetSamplers(1, 1, &LinearClampSampler);
 	m_DeviceContext->DSSetSamplers(0, 1, &LinearWrapSampler); // @important: in order to use displacement mapping
-
-	m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
 
 	SetUniversalRSState();
 
@@ -3536,116 +3608,155 @@ void CGame::Draw()
 
 	m_CBLightData.EyePosition = m_PtrCurrentCamera->GetEyePosition();
 	m_CBLight->Update();
+	m_CBDirectionalLight->Update();
 
 	m_CBPSFlagsData.EnvironmentTextureMipLevels = (m_EnvironmentTexture) ? m_EnvironmentTexture->GetMipLevels() : 0;
 	m_CBPSFlagsData.PrefilteredRadianceTextureMipLevels = (m_PrefilteredRadianceTexture) ? m_PrefilteredRadianceTexture->GetMipLevels() : 0;
 	m_CBPSFlagsData.bUsePhysicallyBasedRendering = EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UsePhysicallyBasedRendering);
 	m_CBPSFlags->Update();
 
-	if (m_eMode == EMode::Edit)
+	// Deferred shading
 	{
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawWireFrame))
+		// @important
+		SetForwardRenderTargets(true, true); // @important: just for clearing...
+		SetDeferredRenderTargets(true, true);
+
+		m_DeviceContext->OMSetBlendState(m_CommonStates->Opaque(), nullptr, 0xFFFFFFFF);
+
+		// Terrain
+		DrawTerrain(m_DeltaTimeF);
+
+		// Opaque Object3Ds
+		for (auto& Object3D : m_vObject3Ds)
 		{
-			m_eRasterizerState = ERasterizerState::WireFrame;
-		}
-		else
-		{
-			m_eRasterizerState = ERasterizerState::CullCounterClockwise;
-		}
+			if (Object3D->ComponentRender.bIsTransparent) continue;
 
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawMiniAxes))
-		{
-			DrawMiniAxes();
-		}
-
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawPickingData))
-		{
-			DrawPickingRay();
-
-			DrawPickedTriangle();
-		}
-
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawGrid))
-		{
-			DrawGrid();
-		}
-
-		DrawCameraRep();
-
-		DrawObject3DLines();
-	}
-
-	if (m_SkyData.bIsDataSet)
-	{
-		DrawSky(m_DeltaTimeF);
-	}
-
-	DrawTerrain(m_DeltaTimeF);
-	
-	if (m_eMode == EMode::Edit)
-	{
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals))
-		{
-			UpdateCBSpace();
-			m_GSNormal->Use();
-		}
-	}
-
-	// Opaque Object3Ds
-	for (auto& Object3D : m_vObject3Ds)
-	{
-		if (Object3D->ComponentRender.bIsTransparent) continue;
-
-		if (Object3D->IsRiggedModel())
-		{
-			if (Object3D->HasBakedAnimationTexture())
+			if (Object3D->IsRigged())
 			{
-				UpdateCBAnimationData(Object3D->GetAnimationData());
+				if (Object3D->HasBakedAnimationTexture())
+				{
+					UpdateCBAnimationData(Object3D->GetAnimationData());
+				}
+				else
+				{
+					UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
+				}
+
+				Object3D->Animate(m_DeltaTimeF);
+			}
+
+			Object3D->UpdateWorldMatrix();
+			DrawObject3D(Object3D.get());
+
+			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
+			{
+				DrawObject3DBoundingSphere(Object3D.get());
+			}
+		}
+
+		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
+		m_DeviceContext->OMSetRenderTargets(1, m_BackBufferRTV.GetAddressOf(), nullptr);
+
+		ID3D11ShaderResourceView* SRVs[]{ m_DepthStencilSRV.Get(), m_BaseColorRoughSRV.Get(), m_NormalSRV.Get(), m_MetalAOSRV.Get() };
+
+		// @important
+		m_CBGBufferUnpackingData.PerspectiveValues =
+			XMFLOAT4(1.0f / XMVectorGetX(m_MatrixProjection.r[0]), 1.0f / XMVectorGetY(m_MatrixProjection.r[1]), 
+				XMVectorGetZ(m_MatrixProjection.r[3]), -XMVectorGetZ(m_MatrixProjection.r[2]));
+		m_CBGBufferUnpackingData.InverseViewMatrix = XMMatrixTranspose(XMMatrixInverse(nullptr, m_MatrixView));
+		m_CBGBufferUnpacking->Update();
+
+		// @important
+		UpdateCBDirectionalLight();
+		
+		DrawFullScreenQuad(m_PSDirectionalLight.get(), SRVs, ARRAYSIZE(SRVs));
+
+		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
+	}
+
+	// @important
+	// Forward shading
+	{
+		SetForwardRenderTargets();
+
+		if (m_eMode == EMode::Edit)
+		{
+			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawWireFrame))
+			{
+				m_eRasterizerState = ERasterizerState::WireFrame;
 			}
 			else
 			{
-				UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
+				m_eRasterizerState = ERasterizerState::CullCounterClockwise;
 			}
 
+			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawMiniAxes))
+			{
+				DrawMiniAxes();
+			}
+
+			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawPickingData))
+			{
+				DrawPickingRay();
+
+				DrawPickedTriangle();
+			}
+
+			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawGrid))
+			{
+				DrawGrid();
+			}
+
+			DrawCameraRep();
+
+			DrawObject3DLines();
+		}
+
+		if (m_SkyData.bIsDataSet)
+		{
+			DrawSky(m_DeltaTimeF);
+		}
+
+		if (m_eMode == EMode::Edit)
+		{
+			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals))
+			{
+				UpdateCBSpace();
+				m_GSNormal->Use();
+			}
+		}
+
+		m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
+
+		// Transparent Object3Ds
+		for (auto& Object3D : m_vObject3Ds)
+		{
+			if (!Object3D->ComponentRender.bIsTransparent) continue;
+
 			Object3D->Animate(m_DeltaTimeF);
-		}
-		
-		UpdateObject3D(Object3D.get());
-		DrawObject3D(Object3D.get());
+			Object3D->UpdateWorldMatrix();
+			DrawObject3D(Object3D.get());
 
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
-		{
-			DrawObject3DBoundingSphere(Object3D.get());
+			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
+			{
+				DrawObject3DBoundingSphere(Object3D.get());
+			}
 		}
 	}
-
-	// Transparent Object3Ds
-	for (auto& Object3D : m_vObject3Ds)
+	
+	// 2D
 	{
-		if (!Object3D->ComponentRender.bIsTransparent) continue;
+		m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
+		DrawObject2Ds();
 
-		Object3D->Animate(m_DeltaTimeF);
-		UpdateObject3D(Object3D.get());
-		DrawObject3D(Object3D.get());
-
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
-		{
-			DrawObject3DBoundingSphere(Object3D.get());
-		}
+		if (m_eMode == EMode::Edit) DrawLightRep();
 	}
-
-	m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
-
-	DrawObject2Ds();
-
-	if (m_eMode == EMode::Edit) DrawLightRep();
 }
 
-void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
+void CGame::DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances, bool bIgnoreOwnTexture)
 {
 	if (!PtrObject3D) return;
 
-	PtrObject3D->UpdateWorldMatrix();
 	UpdateCBSpace(PtrObject3D->ComponentTransform.MatrixWorld);
 
 	SetUniversalbUseLighiting();
@@ -3655,23 +3766,24 @@ void CGame::UpdateObject3D(CObject3D* const PtrObject3D)
 	m_CBPSFlagsData.bUseTexture = EFLAG_HAS_NO(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoTexture);
 	m_CBPSFlags->Update();
 
-	assert(PtrObject3D->ComponentRender.PtrVS);
-	assert(PtrObject3D->ComponentRender.PtrPS);
-	CShader* VS{ PtrObject3D->ComponentRender.PtrVS };
-	CShader* PS{ PtrObject3D->ComponentRender.PtrPS };
-	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::UseRawVertexColor))
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoCulling))
 	{
-		PS = m_PSVertexColor.get();
+		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
+	}
+	else
+	{
+		SetUniversalRSState();
 	}
 
-	VS->Use();
-	PS->Use();
-}
-
-void CGame::DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstances, bool bIgnoreOwnTexture)
-{
-	if (!PtrObject3D) return;
-
+	if (PtrObject3D->IsRigged())
+	{
+		m_VSAnimation->Use();
+	}
+	else
+	{
+		(PtrObject3D->IsInstanced() && !bIgnoreInstances) ? m_VSInstance->Use() : m_VSBase->Use();
+	}
+	
 	if (PtrObject3D->ShouldTessellate())
 	{
 		UpdateCBTessFactorData(PtrObject3D->GetTessFactorData());
@@ -3681,13 +3793,13 @@ void CGame::DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstanc
 		m_DSStatic->Use();
 	}
 
-	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoCulling))
+	if (m_bIsDeferredRenderTargetsSet)
 	{
-		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
+		m_PSBase_gbuffer->Use();
 	}
 	else
 	{
-		SetUniversalRSState();
+		m_PSBase->Use();
 	}
 
 	PtrObject3D->Draw(bIgnoreOwnTexture, bIgnoreInstances);
@@ -3763,10 +3875,18 @@ void CGame::DrawMiniAxes()
 {
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[1]);
 
+	m_VSBase->Use();
+	m_PSBase->Use();
+
+	m_CBPSFlagsData.bUseLighting = false;
+	m_CBPSFlagsData.bUseTexture = false;
+	m_CBPSFlags->Update();
+
 	for (auto& Object3D : m_vObject3DMiniAxes)
 	{
-		UpdateObject3D(Object3D.get());
-		DrawObject3D(Object3D.get());
+		UpdateCBSpace(Object3D->ComponentTransform.MatrixWorld);
+
+		Object3D->Draw();
 
 		Object3D->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition() + m_PtrCurrentCamera->GetForward();
 
@@ -3821,6 +3941,11 @@ void CGame::DrawGrid()
 
 void CGame::DrawSky(float DeltaTime)
 {
+	m_CBPSFlagsData.bUseLighting = false;
+	m_CBPSFlags->Update();
+
+	m_DeviceContext->RSSetState(m_CommonStates->CullNone());
+
 	if (m_SkyData.bIsDynamic)
 	{
 		// Elapse SkyTime [0.0f, 1.0f]
@@ -3844,13 +3969,19 @@ void CGame::DrawSky(float DeltaTime)
 		XMVECTOR DirectionalLightSourcePosition{ XMVector3TransformCoord(XMVectorSet(1, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, DirectionalLightRoll)) };
 		SetDirectionalLightDirection(DirectionalLightSourcePosition);
 
+		m_VSSky->Use();
+		m_PSDynamicSky->Use();
+
 		// SkySphere
 		{
 			m_Object3DSkySphere->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition();
+			m_Object3DSkySphere->UpdateWorldMatrix();
+			UpdateCBSpace(m_Object3DSkySphere->ComponentTransform.MatrixWorld);
 
-			UpdateObject3D(m_Object3DSkySphere.get());
-			DrawObject3D(m_Object3DSkySphere.get());
+			m_Object3DSkySphere->Draw();
 		}
+
+		m_PSBase->Use();
 
 		// Sun
 		{
@@ -3858,9 +3989,10 @@ void CGame::DrawSky(float DeltaTime)
 			XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, SunRoll)) };
 			m_Object3DSun->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition() + Offset;
 			m_Object3DSun->ComponentTransform.Roll = SunRoll;
-
-			UpdateObject3D(m_Object3DSun.get());
-			DrawObject3D(m_Object3DSun.get());
+			m_Object3DSun->UpdateWorldMatrix();
+			UpdateCBSpace(m_Object3DSun->ComponentTransform.MatrixWorld);
+			
+			m_Object3DSun->Draw();
 		}
 
 		// Moon
@@ -3869,9 +4001,10 @@ void CGame::DrawSky(float DeltaTime)
 			XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, MoonRoll)) };
 			m_Object3DMoon->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition() + Offset;
 			m_Object3DMoon->ComponentTransform.Roll = (MoonRoll > XM_2PI) ? (MoonRoll - XM_2PI) : MoonRoll;
+			m_Object3DMoon->UpdateWorldMatrix();
+			UpdateCBSpace(m_Object3DMoon->ComponentTransform.MatrixWorld);
 
-			UpdateObject3D(m_Object3DMoon.get());
-			DrawObject3D(m_Object3DMoon.get());
+			m_Object3DMoon->Draw();
 		}
 	}
 	else
@@ -3879,9 +4012,13 @@ void CGame::DrawSky(float DeltaTime)
 		// SkySphere
 		{
 			m_Object3DSkySphere->ComponentTransform.Translation = m_PtrCurrentCamera->GetEyePosition();
+			m_Object3DSkySphere->UpdateWorldMatrix();
+			UpdateCBSpace(m_Object3DSkySphere->ComponentTransform.MatrixWorld);
 
-			UpdateObject3D(m_Object3DSkySphere.get());
-			DrawObject3D(m_Object3DSkySphere.get(), true, true);
+			m_VSSky->Use();
+			m_PSSky->Use();
+
+			m_Object3DSkySphere->Draw();
 		}
 	}
 
@@ -3911,6 +4048,17 @@ void CGame::DrawTerrain(float DeltaTime)
 
 		UpdateCBTessFactorData(m_Terrain->GetTerrainTessFactorData());
 		UpdateCBDisplacementData(m_Terrain->GetTerrainDisplacementData());
+	}
+
+	m_VSTerrain->Use();
+
+	if (m_bIsDeferredRenderTargetsSet)
+	{
+		m_PSTerrain_gbuffer->Use();
+	}
+	else
+	{
+		m_PSTerrain->Use();
 	}
 	
 	m_Terrain->DrawTerrain(EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals) && (m_eMode == EMode::Edit));
@@ -3983,6 +4131,9 @@ void CGame::Draw3DGizmos()
 	{
 		if (GetSelectedObject3D()->IsInstanced() && !IsAnyInstanceSelected()) return;
 	}
+
+	m_VSGizmo->Use();
+	m_PSGizmo->Use();
 
 	switch (m_e3DGizmoMode)
 	{
@@ -4089,20 +4240,15 @@ void CGame::Draw3DGizmoScalings(E3DGizmoAxis Axis)
 
 void CGame::Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight)
 {
-	CShader* VS{ Gizmo->ComponentRender.PtrVS };
-	CShader* PS{ Gizmo->ComponentRender.PtrPS };
-
 	float Scalar{ XMVectorGetX(XMVector3Length(m_PtrCurrentCamera->GetEyePosition() - Gizmo->ComponentTransform.Translation)) * 0.1f };
 	Scalar = pow(Scalar, 0.7f);
 
 	Gizmo->ComponentTransform.Scaling = XMVectorSet(Scalar, Scalar, Scalar, 0.0f);
 	Gizmo->UpdateWorldMatrix();
 	UpdateCBSpace(Gizmo->ComponentTransform.MatrixWorld);
-	VS->Use();
 
 	m_CBGizmoColorFactorData.ColorFactor = (bShouldHighlight) ? XMVectorSet(2.0f, 2.0f, 2.0f, 0.95f) : XMVectorSet(0.75f, 0.75f, 0.75f, 0.75f);
 	m_CBGizmoColorFactor->Update();
-	PS->Use();
 
 	Gizmo->Draw();
 }
@@ -4111,16 +4257,14 @@ void CGame::DrawCameraRep()
 {
 	m_DeviceContext->RSSetState(m_CommonStates->CullNone());
 	
-	CShader* const VS{ m_CameraRep->ComponentRender.PtrVS };
-	CShader* const PS{ m_CameraRep->ComponentRender.PtrPS };
-	VS->Use();
-	PS->Use();
-
 	UpdateCBSpace();
 
 	m_CBCameraSelectionData.SelectedCameraID = m_SelectedCameraID;
 	m_CBCameraSelectionData.CurrentCameraID = m_CurrentCameraID;
 	m_CBCameraSelection->Update();
+
+	m_VSBase->Use();
+	m_PSCamera->Use();
 
 	if (m_vCameras.size())
 	{
@@ -5052,7 +5196,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							}
 
 							// Rigged model
-							if (Object3D->IsRiggedModel())
+							if (Object3D->IsRigged())
 							{
 								ImGui::Separator();
 
@@ -5897,9 +6041,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							m_CBSpace2DData.Projection = XMMatrixTranspose(KMatrixIdentity);
 							m_CBSpace2D->Update();
 
-							m_EnvironmentRep->UnfoldCubemap(m_EnvironmentTexture->GetShaderResourceViewPtr(),
-								(m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
-								m_DepthStencilView.Get());
+							m_EnvironmentRep->UnfoldCubemap(m_EnvironmentTexture->GetShaderResourceViewPtr());
+							SetForwardRenderTargets(); // @important
 
 							ImGui::Image(m_EnvironmentRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
 						}
@@ -5959,9 +6102,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							m_CBSpace2DData.Projection = XMMatrixTranspose(KMatrixIdentity);
 							m_CBSpace2D->Update();
 
-							m_IrradianceRep->UnfoldCubemap(m_IrradianceTexture->GetShaderResourceViewPtr(),
-								(m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
-								m_DepthStencilView.Get());
+							m_IrradianceRep->UnfoldCubemap(m_IrradianceTexture->GetShaderResourceViewPtr());
+							SetForwardRenderTargets(); // @important
 
 							ImGui::Image(m_IrradianceRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
 						}
@@ -6020,9 +6162,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							m_CBSpace2DData.Projection = XMMatrixTranspose(KMatrixIdentity);
 							m_CBSpace2D->Update();
 
-							m_PrefilteredRadianceRep->UnfoldCubemap(m_PrefilteredRadianceTexture->GetShaderResourceViewPtr(),
-								(m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
-								m_DepthStencilView.Get());
+							m_PrefilteredRadianceRep->UnfoldCubemap(m_PrefilteredRadianceTexture->GetShaderResourceViewPtr());
+							SetForwardRenderTargets(); // @important
 
 							ImGui::Image(m_PrefilteredRadianceRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
 						}
@@ -6704,7 +6845,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 
 					ImGui::NextColumn();
 
-					if (IsAnyObject3DSelected() && !Object3D->IsRiggedModel())
+					if (IsAnyObject3DSelected() && !Object3D->IsRigged())
 					{
 						// 인스턴스 추가
 						ImGui::PushID(iObject3DPair * 2 + 0);
@@ -6969,8 +7110,7 @@ void CGame::GenerateCubemapFromHDRi()
 			m_DeviceContext->Draw(6, iCubeFace * 6);
 		}
 
-		m_DeviceContext->OMSetRenderTargets(1, (m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
-			m_DepthStencilView.Get());
+		SetForwardRenderTargets();
 	}
 
 	m_DeviceContext->GenerateMips(m_GeneratedEnvironmentMapSRV.Get());
@@ -6982,7 +7122,7 @@ void CGame::GenerateCubemapFromHDRi()
 
 void CGame::GenerateIrradianceMap(float RangeFactor)
 {
-	const uint32_t KMipLevelBias{ 3 }; // @important: Maybe becuase of my poor hardware...???
+	const uint32_t KMipLevelBias{ 4 }; // @important: Maybe becuase of my poor hardware...???
 
 	m_EnvironmentTexture->GetTexture2DPtr()->GetDesc(&m_GeneratedIrradianceMapTextureDesc);
 
@@ -7053,8 +7193,7 @@ void CGame::GenerateIrradianceMap(float RangeFactor)
 			m_DeviceContext->Draw(6, iCubeFace * 6);
 		}
 
-		m_DeviceContext->OMSetRenderTargets(1, (m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
-			m_DepthStencilView.Get());
+		SetForwardRenderTargets();
 	}
 
 	m_DeviceContext->GenerateMips(m_GeneratedIrradianceMapSRV.Get());
@@ -7145,8 +7284,7 @@ void CGame::GeneratePrefilteredRadianceMap(float RangeFactor)
 			}
 		}
 		
-		m_DeviceContext->OMSetRenderTargets(1, (m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
-			m_DepthStencilView.Get());
+		SetForwardRenderTargets();
 	}
 
 	m_PrefilteredRadianceTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
@@ -7201,8 +7339,7 @@ void CGame::GenerateIntegratedBRDFMap()
 			m_DeviceContext->Draw(6, 0);
 		}
 
-		m_DeviceContext->OMSetRenderTargets(1, (m_bUseDeferredRendering) ? m_ScreenQuadRTV.GetAddressOf() : m_DeviceRTV.GetAddressOf(),
-			m_DepthStencilView.Get());
+		SetForwardRenderTargets();
 	}
 
 	m_IntegratedBRDFTexture = make_unique<CTexture>(m_Device.Get(), m_DeviceContext.Get());
@@ -7214,51 +7351,39 @@ void CGame::EndRendering()
 {
 	if (m_IsDestroyed) return;
 
-	// Pass-through drawing
-	if (m_bUseDeferredRendering)
+	// Edge detection
 	{
-		DrawScreenQuadToSceen(m_PSScreenQuad.get(), true);
+		m_bIsDeferredRenderTargetsSet = false;
 
-		// Edge detection
+		m_DeviceContext->OMSetRenderTargets(1, m_ScreenQuadRTV.GetAddressOf(), m_DepthStencilDSV.Get());
+		m_DeviceContext->ClearRenderTargetView(m_ScreenQuadRTV.Get(), Colors::Transparent);
+		m_DeviceContext->ClearDepthStencilView(m_DepthStencilDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+		if (IsAnyObject3DSelected())
 		{
-			m_DeviceContext->OMSetRenderTargets(1, m_ScreenQuadRTV.GetAddressOf(), m_DepthStencilView.Get());
-			m_DeviceContext->ClearRenderTargetView(m_ScreenQuadRTV.Get(), Colors::Transparent);
-			m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-			if (IsAnyObject3DSelected())
+			CObject3D* const Object3D{ GetSelectedObject3D() };
+			if (IsAnyInstanceSelected())
 			{
-				CObject3D* const Object3D{ GetSelectedObject3D() };
-				if (IsAnyInstanceSelected())
-				{
-					int InstanceID{ GetSelectedInstanceID() };
-					const auto& InstanceGPUData{ Object3D->GetInstanceGPUData(InstanceID) };
-
-					UpdateObject3D(Object3D);
-
-					UpdateCBSpace(InstanceGPUData.WorldMatrix);
-					m_VSBase->Use();
-
-					DrawObject3D(Object3D, true);
-				}
-				else
-				{
-					UpdateObject3D(Object3D);
-					DrawObject3D(Object3D);
-				}
+				int InstanceID{ GetSelectedInstanceID() };
+				const auto& InstanceGPUData{ Object3D->GetInstanceGPUData(InstanceID) };
+				Object3D->ComponentTransform.MatrixWorld = InstanceGPUData.WorldMatrix;
+				DrawObject3D(Object3D, true);
 			}
-
-			DrawScreenQuadToSceen(m_PSEdgeDetector.get(), false);
+			else
+			{
+				Object3D->UpdateWorldMatrix();
+				DrawObject3D(Object3D);
+			}
 		}
-	}
-	else
-	{
-		DrawScreenQuadToSceen(m_PSScreenQuad.get(), false);
+
+		SetForwardRenderTargets();
+
+		DrawFullScreenQuad(m_PSEdgeDetector.get(), m_ScreenQuadSRV.GetAddressOf(), 1);
 	}
 
 	if (m_eMode != EMode::Play)
 	{
-		m_DeviceContext->OMSetRenderTargets(1, m_DeviceRTV.GetAddressOf(), m_DepthStencilView.Get());
-		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		m_DeviceContext->ClearDepthStencilView(m_DepthStencilDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 		if (m_eMode == EMode::Edit)
 		{
@@ -7274,26 +7399,52 @@ void CGame::EndRendering()
 	m_SwapChain->Present(0, 0);
 }
 
-void CGame::DrawScreenQuadToSceen(CShader* const PixelShader, bool bShouldClearDeviceRTV)
+void CGame::SetForwardRenderTargets(bool bClearRTV, bool bClearDSV)
+{
+	m_DeviceContext->OMSetRenderTargets(1, m_BackBufferRTV.GetAddressOf(), m_DepthStencilDSV.Get());
+
+	if (bClearRTV) m_DeviceContext->ClearRenderTargetView(m_BackBufferRTV.Get(), Colors::CornflowerBlue);
+	if (bClearDSV) m_DeviceContext->ClearDepthStencilView(m_DepthStencilDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+	m_bIsDeferredRenderTargetsSet = false;
+}
+
+void CGame::SetDeferredRenderTargets(bool bClearRTV, bool bClearDSV)
+{
+	ID3D11RenderTargetView* RTVs[]{ m_BaseColorRoughRTV.Get(), m_NormalRTV.Get(), m_MetalAORTV.Get() };
+
+	m_DeviceContext->OMSetRenderTargets(ARRAYSIZE(RTVs), RTVs, m_DepthStencilDSV.Get());
+
+	if (bClearRTV)
+	{
+		for (auto& RTV : RTVs)
+		{
+			m_DeviceContext->ClearRenderTargetView(RTV, Colors::Transparent); // @important
+		}
+	}
+
+	if (bClearDSV) m_DeviceContext->ClearDepthStencilView(m_DepthStencilDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+	m_bIsDeferredRenderTargetsSet = true;
+}
+
+void CGame::DrawFullScreenQuad(CShader* const PixelShader, ID3D11ShaderResourceView** const SRVs, UINT NumSRVs)
 {
 	m_DeviceContext->RSSetState(m_CommonStates->CullNone());
 
-	// Deferred texture to screen
-	m_DeviceContext->OMSetRenderTargets(1, m_DeviceRTV.GetAddressOf(), m_DepthStencilView.Get());
-	if (bShouldClearDeviceRTV) m_DeviceContext->ClearRenderTargetView(m_DeviceRTV.Get(), Colors::Transparent);
-	//m_DeviceContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	{
+		m_VSScreenQuad->Use();
+		PixelShader->Use();
 
-	m_VSScreenQuad->Use();
-	PixelShader->Use();
+		ID3D11SamplerState* const Samplers[]{ m_CommonStates->PointClamp(), m_CommonStates->LinearWrap(), m_CommonStates->LinearClamp() };
+		m_DeviceContext->PSSetSamplers(0, ARRAYSIZE(Samplers), Samplers);
+		m_DeviceContext->PSSetShaderResources(0, NumSRVs, SRVs);
 
-	ID3D11SamplerState* const PointSampler{ m_CommonStates->PointWrap() };
-	m_DeviceContext->PSSetSamplers(0, 1, &PointSampler);
-	m_DeviceContext->PSSetShaderResources(0, 1, m_ScreenQuadSRV.GetAddressOf());
-
-	// Draw full-screen quad vertices
-	m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_DeviceContext->IASetVertexBuffers(0, 1, m_ScreenQuadVertexBuffer.GetAddressOf(), &m_ScreenQuadVertexBufferStride, &m_ScreenQuadVertexBufferOffset);
-	m_DeviceContext->Draw(6, 0);
+		// Draw full-screen quad vertices
+		m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		m_DeviceContext->IASetVertexBuffers(0, 1, m_ScreenQuadVertexBuffer.GetAddressOf(), &m_ScreenQuadVertexBufferStride, &m_ScreenQuadVertexBufferOffset);
+		m_DeviceContext->Draw(6, 0);
+	}
 
 	SetUniversalRSState();
 }

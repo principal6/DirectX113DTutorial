@@ -963,12 +963,6 @@ void CTerrain::DrawTerrain(bool bDrawNormals)
 {
 	if (!m_Object3DTerrain) return;
 
-	CShader* const VS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::VSTerrain) };
-	CShader* const PS{ m_PtrGame->GetBaseShader(CGame::EBaseShader::PSTerrain) };
-	
-	VS->Use();
-	PS->Use();
-
 	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
 	m_HeightMapTexture->Use();
 	m_MaskingTexture->Use();

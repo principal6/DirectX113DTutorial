@@ -43,6 +43,7 @@ public:
 		VSScreenQuad,
 		VSBase2D,
 		VSBillboard,
+		VSNull,
 
 		HSTerrain,
 		HSWater,
@@ -58,17 +59,20 @@ public:
 		GSParticle,
 
 		PSBase,
+		PSBase_GBuffer,
 		PSVertexColor,
 		PSDynamicSky,
 		PSCloud,
 		PSLine,
 		PSGizmo,
 		PSTerrain,
+		PSTerrain_GBuffer,
 		PSWater,
 		PSFoliage,
 		PSParticle,
 		PSCamera,
 		PSScreenQuad,
+		PSScreenQuad_Opaque,
 		PSEdgeDetector,
 		PSSky,
 		PSIrradianceGenerator,
@@ -76,6 +80,8 @@ public:
 		PSRadiancePrefiltering,
 		PSBRDFIntegrator,
 		PSBillboard,
+		PSDirectionalLight,
+		PSPointLight,
 
 		PSBase2D,
 		PSMasking2D,
@@ -127,6 +133,16 @@ public:
 		XMFLOAT3	AmbientLightColor{ 1, 1, 1 };
 		float		AmbientLightIntensity{ 0.5f };
 		XMVECTOR	EyePosition{};
+	};
+
+	struct SCBDirectionalLightData
+	{
+		XMVECTOR	LightDirection{ XMVectorSet(0, 1, 0, 0) };
+		XMFLOAT3	LightColor{ 1, 1, 1 };
+		float		Exposure{ 1.0 };
+		uint32_t	EnvironmentTextureMipLevels{};
+		uint32_t	PrefilteredRadianceTextureMipLevels{};
+		float		Reserved[2]{};
 	};
 
 	struct SCBMaterialData
@@ -210,6 +226,12 @@ public:
 	{
 		float RangeFactor{};
 		float Pads[3]{};
+	};
+
+	struct SCBGBufferUnpackingData
+	{
+		XMFLOAT4 PerspectiveValues;
+		XMMATRIX InverseViewMatrix;
 	};
 
 	enum class EFlagsRendering
@@ -386,6 +408,7 @@ private:
 	void UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection);
 
 	void UpdateCBBillboard(const CBillboard::SCBBillboardData& Data);
+	void UpdateCBDirectionalLight();
 
 public:
 	void CreateDynamicSky(const std::string& SkyDataFileName, float ScalingFactor);
@@ -542,13 +565,15 @@ private:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
 
 public:
-	void BeginRendering(const FLOAT* ClearColor, bool bUseDeferredRendering = true);
+	void BeginRendering(const FLOAT* ClearColor);
 	void Update();
 	void Draw();
 	void EndRendering();
 
 private:
-	void DrawScreenQuadToSceen(CShader* const PixelShader, bool bShouldClearDeviceRTV);
+	void SetForwardRenderTargets(bool bClearRTV = false, bool bClearDSV = false);
+	void SetDeferredRenderTargets(bool bClearRTV = false, bool bClearDSV = false);
+	void DrawFullScreenQuad(CShader* const PixelShader, ID3D11ShaderResourceView** const SRVs, UINT NumSRVs);
 
 public:
 	auto GethWnd() const->HWND { return m_hWnd; }
@@ -565,8 +590,7 @@ public:
 	auto GetDeltaTime() const->float { return m_DeltaTimeF; }
 
 private:
-	void UpdateObject3D(CObject3D* const PtrObject3D);
-	void DrawObject3D(const CObject3D* const PtrObject3D, bool bIgnoreInstances = false, bool bIgnoreOwnTexture = false);
+	void DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances = false, bool bIgnoreOwnTexture = false);
 	void DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D);
 
 	void DrawObject3DLines();
@@ -681,6 +705,7 @@ private:
 	std::unique_ptr<CShader>	m_VSScreenQuad{};
 	std::unique_ptr<CShader>	m_VSBase2D{};
 	std::unique_ptr<CShader>	m_VSBillboard{};
+	std::unique_ptr<CShader>	m_VSNull{};
 
 	std::unique_ptr<CShader>	m_HSTerrain{};
 	std::unique_ptr<CShader>	m_HSWater{};
@@ -696,17 +721,20 @@ private:
 	std::unique_ptr<CShader>	m_GSParticle{};
 
 	std::unique_ptr<CShader>	m_PSBase{};
+	std::unique_ptr<CShader>	m_PSBase_gbuffer{};
 	std::unique_ptr<CShader>	m_PSVertexColor{};
 	std::unique_ptr<CShader>	m_PSDynamicSky{};
 	std::unique_ptr<CShader>	m_PSCloud{};
 	std::unique_ptr<CShader>	m_PSLine{};
 	std::unique_ptr<CShader>	m_PSGizmo{};
 	std::unique_ptr<CShader>	m_PSTerrain{};
+	std::unique_ptr<CShader>	m_PSTerrain_gbuffer{};
 	std::unique_ptr<CShader>	m_PSWater{};
 	std::unique_ptr<CShader>	m_PSFoliage{};
 	std::unique_ptr<CShader>	m_PSParticle{};
 	std::unique_ptr<CShader>	m_PSCamera{};
 	std::unique_ptr<CShader>	m_PSScreenQuad{};
+	std::unique_ptr<CShader>	m_PSScreenQuad_opaque{};
 	std::unique_ptr<CShader>	m_PSEdgeDetector{};
 	std::unique_ptr<CShader>	m_PSSky{};
 	std::unique_ptr<CShader>	m_PSIrradianceGenerator{};
@@ -714,6 +742,8 @@ private:
 	std::unique_ptr<CShader>	m_PSRadiancePrefiltering{};
 	std::unique_ptr<CShader>	m_PSBRDFIntegrator{};
 	std::unique_ptr<CShader>	m_PSBillboard{};
+	std::unique_ptr<CShader>	m_PSDirectionalLight{};
+	std::unique_ptr<CShader>	m_PSPointLight{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
@@ -731,6 +761,7 @@ private:
 	std::unique_ptr<CConstantBuffer> m_CBTessFactor{};
 	std::unique_ptr<CConstantBuffer> m_CBDisplacement{};
 	std::unique_ptr<CConstantBuffer> m_CBLight{};
+	std::unique_ptr<CConstantBuffer> m_CBDirectionalLight{};
 	std::unique_ptr<CConstantBuffer> m_CBMaterial{};
 	std::unique_ptr<CConstantBuffer> m_CBPSFlags{}; // ...
 	std::unique_ptr<CConstantBuffer> m_CBGizmoColorFactor{};
@@ -746,6 +777,7 @@ private:
 	std::unique_ptr<CConstantBuffer> m_CBIrradianceGenerator{};
 	std::unique_ptr<CConstantBuffer> m_CBBillboard{};
 	std::unique_ptr<CConstantBuffer> m_CBBillboardSelection{};
+	std::unique_ptr<CConstantBuffer> m_CBGBufferUnpacking{};
 
 	SCBSpaceWVPData				m_CBSpaceWVPData{};
 	SCBSpaceVPData				m_CBSpaceVPData{};
@@ -759,6 +791,7 @@ private:
 	CObject3D::SCBDisplacementData	m_CBDisplacementData{};
 
 	SCBLightData					m_CBLightData{};
+	SCBDirectionalLightData			m_CBDirectionalLightData{};
 	SCBMaterialData					m_CBMaterialData{};
 	SCBPSFlagsData					m_CBPSFlagsData{};
 	SCBGizmoColorFactorData			m_CBGizmoColorFactorData{};
@@ -775,6 +808,7 @@ private:
 	SCBIrradianceGenerator				m_CBIrradianceGeneratorData{};
 	CBillboard::SCBBillboardData		m_CBBillboardData{};
 	SCBBillboardSelectionData			m_CBBillboardSelectionData{};
+	SCBGBufferUnpackingData				m_CBGBufferUnpackingData{};
 
 private:
 	std::vector<std::unique_ptr<CShader>>				m_vShaders{};
@@ -923,60 +957,82 @@ private:
 	ComPtr<ID3D11Device>				m_Device{};
 	ComPtr<ID3D11DeviceContext>			m_DeviceContext{};
 
-	ComPtr<ID3D11RenderTargetView>		m_DeviceRTV{};
+	ComPtr<ID3D11Texture2D>				m_BackBuffer{};
+	ComPtr<ID3D11RenderTargetView>		m_BackBufferRTV{};
 
+	ComPtr<ID3D11Texture2D>				m_ScreenQuadTexture{};
 	ComPtr<ID3D11RenderTargetView>		m_ScreenQuadRTV{};
 	ComPtr<ID3D11ShaderResourceView>	m_ScreenQuadSRV{};
-	ComPtr<ID3D11Texture2D>				m_ScreenQuadTexture{};
 
-	std::unique_ptr<CTexture>			m_EnvironmentTexture{};
-	std::unique_ptr<CTexture>			m_IrradianceTexture{};
-	std::unique_ptr<CTexture>			m_PrefilteredRadianceTexture{};
-	std::unique_ptr<CTexture>			m_IntegratedBRDFTexture{};
-
-	std::unique_ptr<CCubemapRep>		m_EnvironmentRep{};
-	std::unique_ptr<CCubemapRep>		m_IrradianceRep{};
-	std::unique_ptr<CCubemapRep>		m_PrefilteredRadianceRep{};
-
-	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedIrradianceMapRTV{};
-	ComPtr<ID3D11ShaderResourceView>			m_GeneratedIrradianceMapSRV{};
-	ComPtr<ID3D11Texture2D>						m_GeneratedIrradianceMapTexture{};
-	D3D11_TEXTURE2D_DESC						m_GeneratedIrradianceMapTextureDesc{};
-
-	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedEnvironmentMapRTV{};
-	ComPtr<ID3D11ShaderResourceView>			m_GeneratedEnvironmentMapSRV{};
-	ComPtr<ID3D11Texture2D>						m_GeneratedEnvironmentMapTexture{};
-	D3D11_TEXTURE2D_DESC						m_GeneratedEnvironmentMapTextureDesc{};
-
-	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vPrefilteredRadianceMapRTV{};
-	ComPtr<ID3D11ShaderResourceView>			m_PrefilteredRadianceMapSRV{};
-	ComPtr<ID3D11Texture2D>						m_PrefilteredRadianceMapTexture{};
-	D3D11_TEXTURE2D_DESC						m_PrefilteredRadianceMapTextureDesc{};
-
-	ComPtr<ID3D11RenderTargetView>				m_IntegratedBRDFRTV{};
-	ComPtr<ID3D11ShaderResourceView>			m_IntegratedBRDFSRV{};
-	ComPtr<ID3D11Texture2D>						m_IntegratedBRDFTextureRaw{};
-	D3D11_TEXTURE2D_DESC						m_IntegratedBRDFTextureDesc{};
-	
-	ComPtr<ID3D11DepthStencilView>		m_DepthStencilView{};
+	// GBuffer #0 - Depth 24 Stencil 8
 	ComPtr<ID3D11Texture2D>				m_DepthStencilBuffer{};
+	ComPtr<ID3D11DepthStencilView>		m_DepthStencilDSV{};
+	ComPtr<ID3D11ShaderResourceView>	m_DepthStencilSRV{};
+
+	// GBuffer #1 - Base color 24 & Roughness 8
+	ComPtr<ID3D11Texture2D>				m_BaseColorRoughBuffer{};
+	ComPtr<ID3D11RenderTargetView>		m_BaseColorRoughRTV{};
+	ComPtr<ID3D11ShaderResourceView>	m_BaseColorRoughSRV{};
+
+	// GBuffer #2 - Normal 32
+	ComPtr<ID3D11Texture2D>				m_NormalBuffer{};
+	ComPtr<ID3D11RenderTargetView>		m_NormalRTV{};
+	ComPtr<ID3D11ShaderResourceView>	m_NormalSRV{};
+
+	// GBuffer #3 - Metalness 8 & AmbientOcclusion 8
+	ComPtr<ID3D11Texture2D>				m_MetalAOBuffer{};
+	ComPtr<ID3D11RenderTargetView>		m_MetalAORTV{};
+	ComPtr<ID3D11ShaderResourceView>	m_MetalAOSRV{};
 
 	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateLessEqualNoWrite{};
 	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateAlways{};
+
 	ComPtr<ID3D11BlendState>			m_BlendAlphaToCoverage{};
 
-	std::unique_ptr<Keyboard>			m_Keyboard{};
-	std::unique_ptr<Mouse>				m_Mouse{};
-	Keyboard::State						m_CapturedKeyboardState{};
-	Mouse::State						m_CapturedMouseState{};
-	bool								m_bLeftButtonPressedOnce{ false };
-	int									m_PrevCapturedMouseX{};
-	int									m_PrevCapturedMouseY{};
-	std::unique_ptr<SpriteBatch>		m_SpriteBatch{};
-	std::unique_ptr<SpriteFont>			m_SpriteFont{};
-	std::unique_ptr<CommonStates>		m_CommonStates{};
-	bool								m_IsDestroyed{ false };
-	bool								m_bUseDeferredRendering{ true };
+	bool								m_bIsDeferredRenderTargetsSet{ false };
+
+private:
+	std::unique_ptr<CTexture>					m_EnvironmentTexture{};
+	std::unique_ptr<CTexture>					m_IrradianceTexture{};
+	std::unique_ptr<CTexture>					m_PrefilteredRadianceTexture{};
+	std::unique_ptr<CTexture>					m_IntegratedBRDFTexture{};
+
+	std::unique_ptr<CCubemapRep>				m_EnvironmentRep{};
+	std::unique_ptr<CCubemapRep>				m_IrradianceRep{};
+	std::unique_ptr<CCubemapRep>				m_PrefilteredRadianceRep{};
+
+	D3D11_TEXTURE2D_DESC						m_GeneratedIrradianceMapTextureDesc{};
+	ComPtr<ID3D11Texture2D>						m_GeneratedIrradianceMapTexture{};
+	ComPtr<ID3D11ShaderResourceView>			m_GeneratedIrradianceMapSRV{};
+	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedIrradianceMapRTV{};
+
+	D3D11_TEXTURE2D_DESC						m_GeneratedEnvironmentMapTextureDesc{};
+	ComPtr<ID3D11Texture2D>						m_GeneratedEnvironmentMapTexture{};
+	ComPtr<ID3D11ShaderResourceView>			m_GeneratedEnvironmentMapSRV{};
+	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedEnvironmentMapRTV{};
+
+	D3D11_TEXTURE2D_DESC						m_PrefilteredRadianceMapTextureDesc{};
+	ComPtr<ID3D11Texture2D>						m_PrefilteredRadianceMapTexture{};
+	ComPtr<ID3D11ShaderResourceView>			m_PrefilteredRadianceMapSRV{};
+	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vPrefilteredRadianceMapRTV{};
+
+	ComPtr<ID3D11Texture2D>						m_IntegratedBRDFTextureRaw{};
+	ComPtr<ID3D11RenderTargetView>				m_IntegratedBRDFRTV{};
+	ComPtr<ID3D11ShaderResourceView>			m_IntegratedBRDFSRV{};
+	D3D11_TEXTURE2D_DESC						m_IntegratedBRDFTextureDesc{};
+
+private:
+	std::unique_ptr<Keyboard>		m_Keyboard{};
+	std::unique_ptr<Mouse>			m_Mouse{};
+	Keyboard::State					m_CapturedKeyboardState{};
+	Mouse::State					m_CapturedMouseState{};
+	bool							m_bLeftButtonPressedOnce{ false };
+	int								m_PrevCapturedMouseX{};
+	int								m_PrevCapturedMouseY{};
+	std::unique_ptr<SpriteBatch>	m_SpriteBatch{};
+	std::unique_ptr<SpriteFont>		m_SpriteFont{};
+	std::unique_ptr<CommonStates>	m_CommonStates{};
+	bool							m_IsDestroyed{ false };
 };
 
 ENUM_CLASS_FLAG(CGame::EFlagsRendering)

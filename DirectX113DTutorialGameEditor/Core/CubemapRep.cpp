@@ -3,8 +3,7 @@
 
 using std::make_unique;
 
-void CCubemapRep::UnfoldCubemap(ID3D11ShaderResourceView* const CubemapSRV, 
-	ID3D11RenderTargetView** const CurrentRenderTargetView, ID3D11DepthStencilView* const CurrentDepthStencilView)
+void CCubemapRep::UnfoldCubemap(ID3D11ShaderResourceView* const CubemapSRV)
 {
 	if (!m_Texture)
 	{
@@ -66,8 +65,6 @@ void CCubemapRep::UnfoldCubemap(ID3D11ShaderResourceView* const CubemapSRV,
 	
 	m_PtrDeviceContext->PSSetShaderResources(0, 1, &CubemapSRV);
 	m_CubemapRepresentation->Draw(true);
-
-	m_PtrDeviceContext->OMSetRenderTargets(1, CurrentRenderTargetView, CurrentDepthStencilView);
 }
 
 ID3D11ShaderResourceView* CCubemapRep::GetSRV() const

@@ -90,7 +90,10 @@ VS_OUTPUT main(VS_INPUT_ANIMATION Input)
 	Output.WorldBitangent = float4(normalize(cross(Output.WorldNormal.xyz, Output.WorldTangent.xyz)), 0);
 
 	Output.bUseVertexColor = 0;
+
+#ifndef DEBUG_SHADER
 	Output.InstanceID = Input.InstanceID;
+#endif
 
 	return Output;
 }

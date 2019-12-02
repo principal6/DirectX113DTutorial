@@ -15,7 +15,7 @@ XMVECTOR& CLight::GetPosition()
 	return m_Position;
 }
 
-void CPointLight::Apply()
+void CPointLight::Light()
 {
 
 }
@@ -38,6 +38,13 @@ void CPointLight::SetRange(float Range)
 float CPointLight::GetRange() const
 {
 	return m_Range;
+}
+
+XMMATRIX CPointLight::GetWorldMatrix() const
+{
+	XMMATRIX Scaling{ XMMatrixScaling(m_Range, m_Range, m_Range) };
+	XMMATRIX Translation{ XMMatrixTranslationFromVector(m_Position) };
+	return Scaling * Translation;
 }
 
 const std::string& CLight::GetName() const

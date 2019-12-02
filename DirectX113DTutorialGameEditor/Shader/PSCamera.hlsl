@@ -32,14 +32,19 @@ cbuffer cbCameraSelection : register(b2)
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
+#ifndef DEBUG_SHADER
 	if (Input.InstanceID == CurrentCameraID) discard;
+#endif
 
 	float4 AmbientColor = float4(MaterialAmbientColor, 1);
 	float4 DiffuseColor = float4(MaterialDiffuseColor, 1);
 	float4 SpecularColor = float4(MaterialSpecularColor, 1);
 
 	float4 OutputColor = DiffuseColor;
+
+#ifndef DEBUG_SHADER
 	if (Input.InstanceID == SelectedCameraID)
+#endif
 	{
 		OutputColor += float4(0.6, 0.3, 0.6, 0) * sin(NormalizedTime * KPI);
 	}

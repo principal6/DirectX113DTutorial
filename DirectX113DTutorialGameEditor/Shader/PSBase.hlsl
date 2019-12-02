@@ -1,5 +1,6 @@
 #include "Base.hlsli"
 #include "BRDF.hlsli"
+#include "GBuffer.hlsli"
 
 #define FLAG_ID_DIFFUSE 0x01
 #define FLAG_ID_NORMAL 0x02
@@ -65,6 +66,8 @@ cbuffer cbMaterial : register(b2)
 	uint	TotalMaterialCount; // for Terrain this is texture layer count
 }
 
+#define N WorldNormal.xyz // Macrosurface normal
+
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
 	float3 AmbientColor = MaterialAmbientColor;
@@ -94,7 +97,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		if (FlagsHasTexture & FLAG_ID_NORMAL)
 		{
 			WorldNormal = NormalTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
-			WorldNormal = normalize((WorldNormal * 2.0f) - 1.0f);
+			WorldNormal = normalize((WorldNormal * 2.0) - 1.0);
 
 			float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
 			WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
@@ -144,8 +147,6 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	{
 		// Exposure tone mapping for raw albedo
 		float3 Albedo = float3(1.0, 1.0, 1.0) - exp(-DiffuseColor * Exposure);
-
-		float3 N = WorldNormal.xyz; // Macrosurface normal vector
 
 		// This is equivalent of L vector (light direction from a point on the interface-- both for macrosurface and microsurface.)
 		float3 Wi_direct = DirectionalLightDirection.xyz;
@@ -250,4 +251,51 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	if (FlagsHasTexture & FLAG_ID_OPACITY) OutputColor.a *= Opacity;
 	
 	return OutputColor;
+}
+
+GBufferOutput gbuffer(VS_OUTPUT Input)
+{
+	float3 DiffuseColor = MaterialDiffuseColor;
+	float4 WorldNormal = normalize(Input.WorldNormal);
+	float SpecularIntensity = MaterialSpecularIntensity;
+	float Roughness = MaterialRoughness;
+	float Metalness = MaterialMetalness;
+	float AmbientOcclusion = 1.0;
+
+	if (bUseTexture == true)
+	{
+		if (FlagsHasTexture & FLAG_ID_DIFFUSE)
+		{
+			DiffuseColor = DiffuseTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).xyz;
+
+			// # Here we make sure that input RGB values are in linear-space!
+			if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
+			{
+				// # Convert gamma-space RGB to linear-space RGB
+				DiffuseColor = pow(DiffuseColor, 2.2);
+			}
+		}
+
+		if (FlagsHasTexture & FLAG_ID_NORMAL)
+		{
+			WorldNormal = NormalTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
+			WorldNormal = normalize((WorldNormal * 2.0f) - 1.0f);
+
+			float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
+			WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
+		}
+
+		if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY) SpecularIntensity = SpecularIntensityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+		if (FlagsHasTexture & FLAG_ID_ROUGHNESS) Roughness = RoughnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+		if (FlagsHasTexture & FLAG_ID_METALNESS) Metalness = MetalnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+		if (FlagsHasTexture & FLAG_ID_AMBIENTOCCLUSION) AmbientOcclusion = AmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
+
+	float3 BaseColor = float3(1.0, 1.0, 1.0) - exp(-DiffuseColor * Exposure);
+
+	GBufferOutput Output;
+	Output.BaseColor_Rough = float4(BaseColor, Roughness);
+	Output.Normal = float4(N * 0.5 + 0.5, 0);
+	Output.MetalAO = float4(Metalness, AmbientOcclusion, 0, 0);
+	return Output;
 }

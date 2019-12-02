@@ -25,7 +25,10 @@ VS_OUTPUT main(VS_INPUT Input)
 	Output.WorldBitangent = normalize(mul(ResultBitangent, World));
 
 	Output.bUseVertexColor = 0;
+
+#ifndef DEBUG_SHADER
 	Output.InstanceID = Input.InstanceID;
+#endif
 
 	return Output;
 }

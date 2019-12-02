@@ -23,13 +23,6 @@ static float3x3 KSobelKernelY =
 	-1, -2, -1
 };
 
-/*
-struct VS_INPUT
-{
-	uint VertexID : SV_VertexID;
-};
-*/
-
 struct VS_INPUT
 {
 	float4 Position : POSITION;
@@ -39,6 +32,7 @@ struct VS_INPUT
 struct VS_OUTPUT
 {
 	float4 Position : SV_POSITION;
+	float2 ProjectionSpacePosition : PROJ_POSITION;
 	float3 TexCoord : TEXCOORD;
 };
 

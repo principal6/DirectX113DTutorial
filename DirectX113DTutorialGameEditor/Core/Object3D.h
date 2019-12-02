@@ -83,7 +83,6 @@ public:
 		NoCulling = 0x01,
 		NoLighting = 0x02,
 		NoTexture = 0x04,
-		UseRawVertexColor = 0x08
 	};
 
 	struct SCBTessFactorData
@@ -130,8 +129,6 @@ public:
 
 	struct SComponentRender
 	{
-		CShader*	PtrVS{};
-		CShader*	PtrPS{};
 		bool		bIsTransparent{ false };
 		bool		bShouldAnimate{ false };
 	};
@@ -262,7 +259,7 @@ public:
 
 public:
 	bool IsCreated() const { return m_bIsCreated; }
-	bool IsRiggedModel() const { return m_Model.bIsModelRigged; }
+	bool IsRigged() const { return m_Model.bIsModelRigged; }
 	bool IsInstanced() const { return (m_vInstanceCPUData.size() > 0) ? true : false; }
 	uint32_t GetInstanceCount() const { return (uint32_t)m_vInstanceCPUData.size(); }
 	const SModel& GetModel() const { return m_Model; }
