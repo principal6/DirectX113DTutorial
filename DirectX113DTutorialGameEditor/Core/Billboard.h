@@ -75,7 +75,6 @@ public:
 
 private:
 	void CreateInstanceBuffer();
-
 	void UpdateInstanceBuffer();
 
 public:

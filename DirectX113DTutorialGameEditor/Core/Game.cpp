@@ -144,6 +144,11 @@ void CGame::InitializeEditorAssets()
 		m_CameraRep->CreateFromFile("Asset\\camera_repr.fbx", false);
 	}
 
+	if (!m_Light)
+	{
+		m_Light = make_unique<CLight>(m_Device.Get(), m_DeviceContext.Get());
+	}
+
 	if (!m_LightRep)
 	{
 		m_LightRep = make_unique<CBillboard>("LightRepresentation", m_Device.Get(), m_DeviceContext.Get());
@@ -493,19 +498,51 @@ void CGame::CreateDepthStencilStates()
 
 void CGame::CreateBlendStates()
 {
-	D3D11_BLEND_DESC BlendDesc{};
-	BlendDesc.AlphaToCoverageEnable = TRUE;
-	BlendDesc.IndependentBlendEnable = FALSE;
-	BlendDesc.RenderTarget[0].BlendEnable = TRUE;
-	BlendDesc.RenderTarget[0].BlendOp;
-	BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-	BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-	BlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_SRC_ALPHA;
-	BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
-	BlendDesc.RenderTarget[0].BlendOp = BlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-	BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	{
+		D3D11_BLEND_DESC BlendDesc{};
+		BlendDesc.AlphaToCoverageEnable = TRUE;
+		BlendDesc.IndependentBlendEnable = FALSE;
+		BlendDesc.RenderTarget[0].BlendEnable = TRUE;
+		BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+		BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+		BlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_SRC_ALPHA;
+		BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+		BlendDesc.RenderTarget[0].BlendOp = BlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+		BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
-	m_Device->CreateBlendState(&BlendDesc, m_BlendAlphaToCoverage.ReleaseAndGetAddressOf());
+		m_Device->CreateBlendState(&BlendDesc, m_BlendAlphaToCoverage.ReleaseAndGetAddressOf());
+	}
+	
+	{
+		D3D11_BLEND_DESC BlendDesc{};
+		BlendDesc.AlphaToCoverageEnable = FALSE;
+		BlendDesc.IndependentBlendEnable = FALSE;
+		BlendDesc.RenderTarget[0].BlendEnable = TRUE;
+		BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+		BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_DEST_ALPHA;
+		BlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+		BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+		BlendDesc.RenderTarget[0].BlendOp = BlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+		BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+		m_Device->CreateBlendState(&BlendDesc, m_BlendAdditiveLighting.ReleaseAndGetAddressOf());
+	}
+}
+
+void CGame::CreateRasterizerStates()
+{
+	D3D11_RASTERIZER_DESC RasterizerDesc{};
+	RasterizerDesc.AntialiasedLineEnable = FALSE;
+	RasterizerDesc.CullMode = D3D11_CULL_FRONT;
+	RasterizerDesc.DepthBias = 0;
+	RasterizerDesc.DepthBiasClamp = 0.0f;
+	RasterizerDesc.DepthClipEnable = FALSE;
+	RasterizerDesc.FillMode = D3D11_FILL_SOLID;
+	RasterizerDesc.FrontCounterClockwise = FALSE;
+	RasterizerDesc.MultisampleEnable = FALSE;
+	RasterizerDesc.ScissorEnable = FALSE;
+	RasterizerDesc.SlopeScaledDepthBias = 0.0f;
+	m_Device->CreateRasterizerState(&RasterizerDesc, m_RSCCWCullFront.ReleaseAndGetAddressOf());
 }
 
 void CGame::CreateInputDevices()
@@ -670,8 +707,9 @@ void CGame::CreateBaseShaders()
 	m_VSBillboard->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSBillboard.hlsl", "main",
 		CBillboard::KInputElementDescs, ARRAYSIZE(CBillboard::KInputElementDescs));
 
-	m_VSNull = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSNull->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSNull.hlsl", "main");
+	m_VSLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_VSLight->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSLight.hlsl", "main",
+		CLight::KInputElementDescs, ARRAYSIZE(CLight::KInputElementDescs));
 
 	m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSTerrain->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSTerrain.hlsl", "main");
@@ -689,6 +727,9 @@ void CGame::CreateBaseShaders()
 
 	m_HSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSBillboard->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSBillboard.hlsl", "main");
+
+	m_HSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_HSPointLight->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSPointLight.hlsl", "main");
 
 	m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSTerrain->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSTerrain.hlsl", "main");
@@ -709,6 +750,10 @@ void CGame::CreateBaseShaders()
 	m_DSBillboard->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSBillboard.hlsl", "main");
 	m_DSBillboard->AttachConstantBuffer(m_CBSpaceVP.get());
 	m_DSBillboard->AttachConstantBuffer(m_CBBillboard.get());
+
+	m_DSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_DSPointLight->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSPointLight.hlsl", "main");
+	m_DSPointLight->AttachConstantBuffer(m_CBSpaceVP.get());
 
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSNormal->Create(EShaderType::GeometryShader, bShouldCompile, L"Shader\\GSNormal.hlsl", "main");
@@ -1996,8 +2041,8 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::VSBillboard:
 		Result = m_VSBillboard.get();
 		break;
-	case EBaseShader::VSNull:
-		Result = m_VSNull.get();
+	case EBaseShader::VSLight:
+		Result = m_VSLight.get();
 		break;
 	case EBaseShader::HSTerrain:
 		Result = m_HSTerrain.get();
@@ -2011,6 +2056,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::HSBillboard:
 		Result = m_HSBillboard.get();
 		break;
+	case EBaseShader::HSPointLight:
+		Result = m_HSPointLight.get();
+		break;
 	case EBaseShader::DSTerrain:
 		Result = m_DSTerrain.get();
 		break;
@@ -2022,6 +2070,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::DSBillboard:
 		Result = m_DSBillboard.get();
+		break;
+	case EBaseShader::DSPointLight:
+		Result = m_DSPointLight.get();
 		break;
 	case EBaseShader::GSNormal:
 		Result = m_GSNormal.get();
@@ -2443,71 +2494,26 @@ ID3D11ShaderResourceView* CGame::GetMaterialTextureSRV(STextureData::EType eType
 
 bool CGame::InsertLight(CLight::EType eType, const std::string& Name)
 {
-	switch (eType)
+	if (m_Light->InsertInstance(Name, eType))
 	{
-	case CLight::EType::PointLight:
-	{
-		if (m_mapLightNameToIndex.find(Name) != m_mapLightNameToIndex.end())
-		{
-			MB_WARN("이미 존재하는 이름입니다.", "광원 추가 실패");
-			return false;
-		}
-
-		// @important
-		m_vLights.emplace_back(make_unique<CPointLight>(Name, m_Device.Get(), m_DeviceContext.Get()));
-		m_mapLightNameToIndex[Name] = m_vLights.size() - 1;
-
 		m_LightRep->InsertInstance(Name);
-
 		return true;
 	}
-	default:
-		return false;
-	}
+	return false;
 }
 
 void CGame::DeleteLight(const std::string& Name)
 {
-	if (!m_vLights.size()) return;
-	if (Name.length() == 0) return;
-	if (m_mapLightNameToIndex.find(Name) == m_mapLightNameToIndex.end())
+	string SavedName{ Name };
+	if (m_Light->DeleteInstance(SavedName))
 	{
-		MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Light 삭제 실패");
-		return;
-	}
-
-	size_t iLight{ m_mapLightNameToIndex.at(Name) };
-	if (iLight < m_vLights.size() - 1)
-	{
-		const string& SwappedName{ m_vLights.back()->GetName() };
-		swap(m_vLights[iLight], m_vLights.back());
-
-		m_mapLightNameToIndex[SwappedName] = iLight;
+		m_LightRep->DeleteInstance(SavedName);
 	}
 
 	if (IsAnyLightSelected())
 	{
-		if (Name == GetSelectedLightName())
-		{
-			DeselectLight();
-		}
+		DeselectLight();
 	}
-
-	m_vLights.pop_back();
-	m_mapLightNameToIndex.erase(Name);
-
-	m_LightRep->DeleteInstance(Name);
-}
-
-CLight* CGame::GetLight(const std::string& Name, bool bShowWarning)
-{
-	if (m_mapLightNameToIndex.find(Name) == m_mapLightNameToIndex.end())
-	{
-		if (bShowWarning) MB_WARN("그런 이름은 존재하지 않습니다.", "광원 얻어오기 실패");
-		return nullptr;
-	}
-
-	return m_vLights[m_mapLightNameToIndex.at(Name)].get();
 }
 
 void CGame::SetMode(EMode eMode)
@@ -2656,13 +2662,14 @@ void CGame::PickBoundingSphere()
 	if (m_vObject3DPickingCandidates.size()) return;
 
 	// Pick Light
-	for (int iLight = 0; iLight < m_vLights.size(); ++iLight)
+	size_t LightCount{ m_Light->GetInstanceCount() };
+	for (int iLight = 0; iLight < LightCount; ++iLight)
 	{
-		CLight* Light{ m_vLights[iLight].get() };
+		auto& Instance{ m_Light->GetInstanceGPUData(iLight) };
 
 		XMVECTOR NewT{ KVectorGreatest };
 		if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-			Light->GetBoundingSphereRadius(), Light->GetPosition(), &NewT))
+			m_Light->GetBoundingSphereRadius(), Instance.Position, &NewT))
 		{
 			m_PickedLightID = iLight;
 		}
@@ -2945,7 +2952,7 @@ void CGame::SelectLight(const std::string& Name)
 {
 	if (m_eEditMode != EEditMode::EditObject) return;
 
-	m_SelectedLightID = (int)m_mapLightNameToIndex.at(Name);
+	m_SelectedLightID = (int)m_Light->GetInstanceID(Name);
 }
 
 void CGame::SelectPickedLight()
@@ -2961,16 +2968,6 @@ void CGame::DeselectLight()
 bool CGame::IsAnyLightSelected() const
 {
 	return (m_SelectedLightID == -1) ? false : true;
-}
-
-CLight* CGame::GetSelectedLight()
-{
-	return m_vLights[m_SelectedLightID].get();
-}
-
-const std::string& CGame::GetSelectedLightName() const
-{
-	return m_vLights[m_SelectedLightID]->GetName();
 }
 
 void CGame::SelectInstance(int InstanceID)
@@ -3057,9 +3054,7 @@ void CGame::Select3DGizmos()
 
 	if (IsAnyLightSelected())
 	{
-		Light = GetSelectedLight();
-
-		pTranslation = &Light->GetPosition();
+		pTranslation = &m_Light->GetInstanceGPUData(m_SelectedLightID).Position;
 	}
 
 	if (IsAnyObject3DSelected())
@@ -3173,6 +3168,7 @@ void CGame::Select3DGizmos()
 			break;
 		}
 
+		// @important
 		if (IsAnyCameraSelected())
 		{
 			Camera->Update();
@@ -3180,6 +3176,7 @@ void CGame::Select3DGizmos()
 		}
 		else if (IsAnyLightSelected())
 		{
+			m_Light->SetInstancePosition(m_SelectedLightID, *pTranslation);
 			m_LightRep->SetInstancePosition(m_SelectedLightID, *pTranslation);
 		}
 		else if (IsAnyObject3DSelected())
@@ -3666,10 +3663,38 @@ void CGame::Draw()
 		m_CBGBufferUnpackingData.InverseViewMatrix = XMMatrixTranspose(XMMatrixInverse(nullptr, m_MatrixView));
 		m_CBGBufferUnpacking->Update();
 
-		// @important
-		UpdateCBDirectionalLight();
-		
-		DrawFullScreenQuad(m_PSDirectionalLight.get(), SRVs, ARRAYSIZE(SRVs));
+		// Directional light
+		{
+			// @important
+			UpdateCBDirectionalLight();
+
+			DrawFullScreenQuad(m_PSDirectionalLight.get(), SRVs, ARRAYSIZE(SRVs));
+		}
+
+		// Point light
+		if (m_Light->GetInstanceCount() > 0)
+		{
+			m_DeviceContext->OMSetBlendState(m_BlendAdditiveLighting.Get(), nullptr, 0xFFFFFFFF);
+			m_DeviceContext->RSSetState(m_CommonStates->CullCounterClockwise());
+
+			UpdateCBSpace();
+
+			m_VSLight->Use();
+			m_HSPointLight->Use();
+			m_DSPointLight->Use();
+			m_PSPointLight->Use();
+
+			ID3D11SamplerState* const Samplers[]{ m_CommonStates->PointClamp() };
+			m_DeviceContext->PSSetSamplers(0, ARRAYSIZE(Samplers), Samplers);
+
+			m_Light->Light();
+
+			m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
+			m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
+
+			m_DeviceContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
+			SetUniversalRSState();
+		}
 
 		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
 	}
@@ -4872,14 +4897,9 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 				}
 				else if (iSelectedOption == 4)
 				{
-					if (GetLight(NewObejctName, false))
+					if (!InsertLight((CLight::EType)iSelectedLightType, NewObejctName))
 					{
-						MB_WARN("이미 존재하는 이름입니다.", "광원 생성 실패");
 						IsObjectCreated = false;
-					}
-					else
-					{
-						InsertLight((CLight::EType)iSelectedLightType, NewObejctName);
 					}
 				}
 
@@ -5385,20 +5405,19 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					{
 						ImGui::PushItemWidth(ItemsWidth);
 						{
-							CLight* const SelectedLight{ GetSelectedLight() };
-							const XMVECTOR& KPosition{ SelectedLight->GetPosition() };
-							float Position[3]{ XMVectorGetX(KPosition), XMVectorGetY(KPosition), XMVectorGetZ(KPosition) };
+							const auto& SelectedLightCPU{ m_Light->GetInstanceCPUData(m_SelectedLightID) };
+							const auto& SelectedLightGPU{ m_Light->GetInstanceGPUData(m_SelectedLightID) };
 							
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8"선택된 광원:");
 							ImGui::SameLine(ItemsOffsetX);
 							ImGui::AlignTextToFramePadding();
-							ImGui::Text(u8"<%s>", GetSelectedLightName().c_str());
+							ImGui::Text(u8"<%s>", SelectedLightCPU.Name.c_str());
 
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8"광원 종류:");
 							ImGui::SameLine(ItemsOffsetX);
-							switch (SelectedLight->GetType())
+							switch (SelectedLightCPU.eType)
 							{
 							case CLight::EType::PointLight:
 								ImGui::AlignTextToFramePadding();
@@ -5408,14 +5427,33 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								break;
 							}
 
+							float Position[3]{ XMVectorGetX(SelectedLightGPU.Position), XMVectorGetY(SelectedLightGPU.Position),
+								XMVectorGetZ(SelectedLightGPU.Position) };
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8"위치");
 							ImGui::SameLine(ItemsOffsetX);
 							if (ImGui::DragFloat3(u8"##위치", Position, 0.01f, -10000.0f, +10000.0f, "%.3f"))
 							{
-								SelectedLight->SetPosition(XMVectorSet(Position[0], Position[1], Position[2], 1.0f));
+								m_Light->SetInstancePosition(m_SelectedLightID, XMVectorSet(Position[0], Position[1], Position[2], 1.0f));
+								m_LightRep->SetInstancePosition(m_SelectedLightID, SelectedLightGPU.Position);
+							}
 
-								m_LightRep->SetInstancePosition(m_SelectedLightID, SelectedLight->GetPosition());
+							float Color[3]{ XMVectorGetX(SelectedLightGPU.Color), XMVectorGetY(SelectedLightGPU.Color), XMVectorGetZ(SelectedLightGPU.Color) };
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"색상");
+							ImGui::SameLine(ItemsOffsetX);
+							if (ImGui::ColorEdit3(u8"##색상", Color, ImGuiColorEditFlags_RGB))
+							{
+								m_Light->SetInstanceColor(m_SelectedLightID, XMVectorSet(Color[0], Color[1], Color[2], 1.0f));
+							}
+
+							float Range{ SelectedLightGPU.Range };
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"범위");
+							ImGui::SameLine(ItemsOffsetX);
+							if (ImGui::DragFloat(u8"##범위", &Range, 0.1f, 0.1f, 10.0f, "%.1f"))
+							{
+								m_Light->SetInstanceRange(m_SelectedLightID, Range);
 							}
 						}
 						ImGui::PopItemWidth();
@@ -6802,7 +6840,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				}
 				if (IsAnyLightSelected())
 				{
-					string Name{ GetSelectedLightName() };
+					string Name{ m_Light->GetInstanceName(m_SelectedLightID) };
 					DeleteLight(Name);
 				}
 			}
@@ -7007,26 +7045,25 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 
 			if (ImGui::TreeNodeEx(u8"광원", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				for (const auto& LightPair : m_mapLightNameToIndex)
+				size_t LightCount{ m_Light->GetInstanceCount() };
+				for (size_t iLight = 0; iLight < LightCount; ++iLight)
 				{
-					CLight* const Light{ GetLight(LightPair.first) };
-
 					bool bIsThisLightSelected{ false };
 					if (IsAnyLightSelected())
 					{
-						if (GetSelectedLightName() == LightPair.first) bIsThisLightSelected = true;
+						if (iLight == m_SelectedLightID) bIsThisLightSelected = true;
 					}
 
 					ImGuiTreeNodeFlags Flags{ ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_Leaf };
 					if (bIsThisLightSelected) Flags |= ImGuiTreeNodeFlags_Selected;
 
 					ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
-					bool bIsNodeOpen{ ImGui::TreeNodeEx(LightPair.first.c_str(), Flags) };
+					bool bIsNodeOpen{ ImGui::TreeNodeEx(m_Light->GetInstanceName(iLight).c_str(), Flags) };
 					if (ImGui::IsItemClicked())
 					{
 						DeselectAll();
 
-						SelectLight(LightPair.first);
+						SelectLight(m_Light->GetInstanceName(iLight));
 
 						Select3DGizmos();
 					}

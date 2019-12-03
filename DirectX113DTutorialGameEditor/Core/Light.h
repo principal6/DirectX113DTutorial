@@ -2,8 +2,8 @@
 
 #include "SharedHeader.h"
 
-// Base class for any deferred light class
-class CLight
+// Light class for deferred shading
+class CLight final
 {
 public:
 	enum class EType
@@ -11,64 +11,79 @@ public:
 		PointLight
 	};
 
+	static constexpr D3D11_INPUT_ELEMENT_DESC KInputElementDescs[]
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0,  0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+		{ "COLOR"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+		{ "RANGE"	, 0, DXGI_FORMAT_R32_FLOAT			, 0, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+	};
+
+	struct SLightInstanceCPUData
+	{
+		SLightInstanceCPUData() {}
+		SLightInstanceCPUData(const std::string& _Name, EType _eType) : Name{ _Name }, eType{ _eType } {}
+
+		std::string Name{};
+		EType		eType{};
+	};
+
+	struct alignas(16) SLightInstanceGPUData
+	{
+		XMVECTOR	Position{ 0, 0, 0, 1 };
+		XMVECTOR	Color{ 1, 1, 1, 1 };
+		float		Range{ 1.0f };
+	};
+
+	struct SInstanceBuffer
+	{
+		ComPtr<ID3D11Buffer>	Buffer{};
+		UINT					Stride{ sizeof(SLightInstanceGPUData) }; // @important
+		UINT					Offset{};
+	};
+
 public:
-	CLight(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
-		m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
+	CLight(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
+		m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
 	{
 		assert(m_PtrDevice);
 		assert(m_PtrDeviceContext);
 	}
-	virtual ~CLight() {}
+	~CLight() {}
 
 public:
-	virtual void SetPosition(const XMVECTOR& Position);
-	virtual const XMVECTOR& GetPosition() const;
-	virtual XMVECTOR& GetPosition();
+	bool InsertInstance(const std::string& InstanceName, EType eType);
+	bool DeleteInstance(const std::string& InstanceName);
 
-public:
-	virtual const std::string& GetName() const;
-	virtual EType GetType() const;
-	virtual float GetBoundingSphereRadius() const;
-	virtual XMMATRIX GetWorldMatrix() const abstract;
+	size_t GetInstanceCount() const;
+	const SLightInstanceCPUData& GetInstanceCPUData(size_t InstanceID) const;
+	const SLightInstanceGPUData& GetInstanceGPUData(size_t InstanceID) const;
+	SLightInstanceGPUData& GetInstanceGPUData(size_t InstanceID);
+	std::string GetInstanceName(size_t InstanceID) const;
+	size_t GetInstanceID(const std::string& InstanceName) const;
+	
+	void SetInstancePosition(size_t InstanceID, const XMVECTOR& Position);
+	void SetInstanceColor(size_t InstanceID, const XMVECTOR& Color);
+	void SetInstanceRange(size_t InstanceID, float Range);
 
-protected:
-	ID3D11Device* const			m_PtrDevice{};
-	ID3D11DeviceContext* const	m_PtrDeviceContext{};
-
-protected:
-	std::string					m_Name{};
-	EType						m_eType{};
-
-	float						m_BoundingSphereRadius{ 1.0f };
-	XMVECTOR					m_Position{ 0, 0, 0, 1 };
-};
-
-
-// PointLight for deferred shading
-// Position, Color, Range
-class CPointLight final : public CLight
-{
-public:
-	CPointLight(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
-		CLight(Name, PtrDevice, PtrDeviceContext)
-	{
-		m_eType = EType::PointLight;
-	}
-	virtual ~CPointLight() {}
+private:
+	void CreateInstanceBuffer();
+	void UpdateInstanceBuffer();
 
 public:
 	void Light();
 
 public:
-	void SetColor(const XMVECTOR& Color);
-	const XMVECTOR& GetColor() const;
-
-	void SetRange(float Range);
-	float GetRange() const;
-
-	XMMATRIX GetWorldMatrix() const override;
+	float GetBoundingSphereRadius() const;
 
 private:
-	XMVECTOR					m_Color{ 1, 1, 1, 1 };
-	float						m_Range{ 1.0f };
+	ID3D11Device* const					m_PtrDevice{};
+	ID3D11DeviceContext* const			m_PtrDeviceContext{};
+
+private:
+	SInstanceBuffer						m_InstanceBuffer{};
+	std::vector<SLightInstanceCPUData>	m_vInstanceCPUData{};
+	std::vector<SLightInstanceGPUData>	m_vInstanceGPUData{};
+	std::map<std::string, size_t>		m_mapInstanceNameToIndex{};
+
+	float								m_BoundingSphereRadius{ 1.0f };
 };

@@ -1,4 +1,4 @@
-#include "Deferred.hlsli"
+#include "DeferredLight.hlsli"
 #include "BRDF.hlsli"
 
 SamplerState PointClampSampler : register(s0);
@@ -14,16 +14,60 @@ cbuffer cbGBufferUnpacking : register(b0)
 	float4x4 InverseViewMatrix;
 }
 
-float4 main(VS_OUTPUT Input) : SV_TARGET
+#define N WorldNormal
+#define BaseColor BaseColor_Rough.xyz
+#define Roughness BaseColor_Rough.a
+#define Metalness Metal_AO.x
+#define AmbientOcclusion Metal_AO.y
+#define EyePosition InverseViewMatrix[3].xyz
+
+float4 main(DS_OUTPUT Input) : SV_TARGET
 {
-	float ProjectionSpaceDepth = GBuffer_DepthStencil.SampleLevel(PointClampSampler, Input.TexCoord.xy, 0).x;
+	float2 UV = float2(Input.ProjectionPosition.x * 0.5 + 0.5, 0.5 - Input.ProjectionPosition.y * 0.5);
+
+	float ProjectionSpaceDepth = GBuffer_DepthStencil.SampleLevel(PointClampSampler, UV, 0).x;
+	if (ProjectionSpaceDepth == 1.0) discard; // @important: early out
 	float ViewSpaceDepth = PerspectiveValues.z / (ProjectionSpaceDepth + PerspectiveValues.w);
-	float4 WorldPosition = mul(float4(Input.TexCoord.xy * PerspectiveValues.xy * ViewSpaceDepth, ViewSpaceDepth, 1.0), InverseViewMatrix);
+	float4 ObjectWorldPosition = mul(float4(Input.ProjectionPosition.xy * PerspectiveValues.xy * ViewSpaceDepth, ViewSpaceDepth, 1.0), InverseViewMatrix);
 
-	float4 BaseColor_Rough = GBuffer_BaseColor_Rough.SampleLevel(PointClampSampler, Input.TexCoord.xy, 0);
-	float3 WorldNormal = (GBuffer_Normal.SampleLevel(PointClampSampler, Input.TexCoord.xy, 0).xyz) * 2.0 - 1.0;
-	float4 Metal_AO = GBuffer_Metal_AO.SampleLevel(PointClampSampler, Input.TexCoord.xy, 0);
+	float4 BaseColor_Rough = GBuffer_BaseColor_Rough.SampleLevel(PointClampSampler, UV, 0);
+	float3 WorldNormal = normalize((GBuffer_Normal.SampleLevel(PointClampSampler, UV, 0).xyz * 2.0) - 1.0);
+	float4 Metal_AO = GBuffer_Metal_AO.SampleLevel(PointClampSampler, UV, 0);
 
-	float4 OutputColor = float4(BaseColor_Rough.xyz, 1);
+	float4 OutputColor = float4(0, 0, 0, 1);
+	{
+		float4 LightWorldPosition = Input.WorldPosition;
+		float3 Li = Input.Color.rgb;
+
+		float3 Wi = normalize(LightWorldPosition.xyz - ObjectWorldPosition.xyz);
+		float3 Wo = normalize(EyePosition - ObjectWorldPosition.xyz);
+		float3 M = normalize(Wi + Wo);
+		float3 F0 = lerp(KFresnel_dielectric, BaseColor, Metalness);
+		float NdotWo = max(dot(N, Wo), 0.001);
+		float NdotWi = max(dot(N, Wi), 0.001);
+		float NdotM = saturate(dot(N, M));
+		float MdotWi = saturate(dot(M, Wi));
+
+		float3 DiffuseBRDF = DiffuseBRDF_Lambertian(BaseColor);
+		float3 SpecularBRDF = SpecularBRDF_GGX(F0, NdotWi, NdotWo, NdotM, MdotWi, Roughness);
+
+		float3 F_Macrosurface = Fresnel_Schlick(F0, NdotWi);
+		float Ks = dot(KMonochromatic, F_Macrosurface);
+		float Kd = 1.0 - Ks;
+
+		float3 Lo_diff = (Kd * DiffuseBRDF) * Li * NdotWi;
+		float3 Lo_spec = (Ks * SpecularBRDF) * Li * NdotWi;
+
+		float3 Lo = Lo_diff + Lo_spec;
+
+		float Distance = distance(ObjectWorldPosition, LightWorldPosition);
+		float DistanceOverRange = Distance * Input.InverseRange;
+		float Attenuation = saturate(1.0 - (DistanceOverRange * DistanceOverRange * 1.25 - 0.125));
+		//float Attenuation = saturate(1.0 - (DistanceOverRange * DistanceOverRange));
+		if (Attenuation == 0.0) discard;
+
+		OutputColor.xyz = Lo * Attenuation;
+	}
+	OutputColor = pow(OutputColor, 0.4545);
 	return OutputColor;
 }

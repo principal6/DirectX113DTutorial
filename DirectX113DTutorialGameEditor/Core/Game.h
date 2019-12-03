@@ -43,17 +43,19 @@ public:
 		VSScreenQuad,
 		VSBase2D,
 		VSBillboard,
-		VSNull,
+		VSLight,
 
 		HSTerrain,
 		HSWater,
 		HSStatic,
 		HSBillboard,
+		HSPointLight,
 
 		DSTerrain,
 		DSWater,
 		DSStatic,
 		DSBillboard,
+		DSPointLight,
 
 		GSNormal,
 		GSParticle,
@@ -362,6 +364,7 @@ private:
 	void InitializeViewports();
 	void CreateDepthStencilStates();
 	void CreateBlendStates();
+	void CreateRasterizerStates();
 	void CreateInputDevices();
 	void CreateConstantBuffers();
 	void CreateBaseShaders();
@@ -481,7 +484,6 @@ public:
 public:
 	bool InsertLight(CLight::EType eType, const std::string& Name);
 	void DeleteLight(const std::string& Name);
-	CLight* GetLight(const std::string& Name, bool bShowWarning = true);
 
 public:
 	void SetMode(EMode eMode);
@@ -542,8 +544,6 @@ private:
 	void SelectPickedLight();
 	void DeselectLight();
 	bool IsAnyLightSelected() const;
-	CLight* GetSelectedLight();
-	const std::string& GetSelectedLightName() const;
 
 	void Select3DGizmos();
 	void Deselect3DGizmos();
@@ -705,17 +705,19 @@ private:
 	std::unique_ptr<CShader>	m_VSScreenQuad{};
 	std::unique_ptr<CShader>	m_VSBase2D{};
 	std::unique_ptr<CShader>	m_VSBillboard{};
-	std::unique_ptr<CShader>	m_VSNull{};
+	std::unique_ptr<CShader>	m_VSLight{};
 
 	std::unique_ptr<CShader>	m_HSTerrain{};
 	std::unique_ptr<CShader>	m_HSWater{};
 	std::unique_ptr<CShader>	m_HSStatic{};
 	std::unique_ptr<CShader>	m_HSBillboard{};
+	std::unique_ptr<CShader>	m_HSPointLight{};
 
 	std::unique_ptr<CShader>	m_DSTerrain{};
 	std::unique_ptr<CShader>	m_DSWater{};
 	std::unique_ptr<CShader>	m_DSStatic{};
 	std::unique_ptr<CShader>	m_DSBillboard{};
+	std::unique_ptr<CShader>	m_DSPointLight{};
 
 	std::unique_ptr<CShader>	m_GSNormal{};
 	std::unique_ptr<CShader>	m_GSParticle{};
@@ -827,14 +829,14 @@ private:
 
 	std::vector<std::unique_ptr<CObject3D>>		m_vObject3DMiniAxes{};
 
-	std::string								m_SkyFileName{};
-	float									m_SkyScalingFactor{};
-	SSkyData								m_SkyData{};
-	CMaterialData							m_SkyMaterialData{};
-	std::unique_ptr<CObject3D>				m_Object3DSkySphere{};
-	std::unique_ptr<CObject3D>				m_Object3DSun{};
-	std::unique_ptr<CObject3D>				m_Object3DMoon{};
-	std::unique_ptr<CObject3D>				m_Object3DCloud{};
+	std::string						m_SkyFileName{};
+	float							m_SkyScalingFactor{};
+	SSkyData						m_SkyData{};
+	CMaterialData					m_SkyMaterialData{};
+	std::unique_ptr<CObject3D>		m_Object3DSkySphere{};
+	std::unique_ptr<CObject3D>		m_Object3DSun{};
+	std::unique_ptr<CObject3D>		m_Object3DMoon{};
+	std::unique_ptr<CObject3D>		m_Object3DCloud{};
 
 	std::map<std::string, size_t>	m_mapMaterialNameToIndex{};
 	std::map<std::string, size_t>	m_mapCameraNameToIndex{};
@@ -845,9 +847,8 @@ private:
 	size_t							m_PrimitiveCreationCounter{};
 
 private:
-	std::unique_ptr<CBillboard>				m_LightRep{};
-	std::vector<std::unique_ptr<CLight>>	m_vLights{};
-	std::map<std::string, size_t>			m_mapLightNameToIndex{};
+	std::unique_ptr<CBillboard>		m_LightRep{};
+	std::unique_ptr<CLight>			m_Light{};
 
 private:
 	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationPitch{};
@@ -862,12 +863,12 @@ private:
 	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingY{};
 	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingZ{};
 
-	bool						m_bIsGizmoHovered{ false };
-	bool						m_bIsGizmoSelected{ false };
-	E3DGizmoAxis				m_e3DGizmoSelectedAxis{};
-	E3DGizmoMode				m_e3DGizmoMode{};
-	float						m_3DGizmoDistanceScalar{};
-	XMVECTOR					m_CapturedGizmoTranslation{};
+	bool							m_bIsGizmoHovered{ false };
+	bool							m_bIsGizmoSelected{ false };
+	E3DGizmoAxis					m_e3DGizmoSelectedAxis{};
+	E3DGizmoMode					m_e3DGizmoMode{};
+	float							m_3DGizmoDistanceScalar{};
+	XMVECTOR						m_CapturedGizmoTranslation{};
 
 private:
 	std::vector<D3D11_VIEWPORT>	m_vViewports{};
@@ -988,6 +989,9 @@ private:
 	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateAlways{};
 
 	ComPtr<ID3D11BlendState>			m_BlendAlphaToCoverage{};
+	ComPtr<ID3D11BlendState>			m_BlendAdditiveLighting{};
+
+	ComPtr<ID3D11RasterizerState>		m_RSCCWCullFront{};
 
 	bool								m_bIsDeferredRenderTargetsSet{ false };
 

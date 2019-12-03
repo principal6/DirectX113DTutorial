@@ -101,7 +101,7 @@ void CBillboard::CreateInstanceBuffer()
 	D3D11_SUBRESOURCE_DATA SubresourceData{};
 	SubresourceData.pSysMem = &m_vInstanceGPUData[0];
 
-	m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, &m_InstanceBuffer.Buffer);
+	m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, m_InstanceBuffer.Buffer.ReleaseAndGetAddressOf());
 }
 
 void CBillboard::UpdateInstanceBuffer()

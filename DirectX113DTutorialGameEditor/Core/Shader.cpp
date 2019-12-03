@@ -58,8 +58,14 @@ void CShader::Create(EShaderType Type, bool bShouldCompile, const wstring& FileN
 	{
 		std::ifstream ifs{};
 		ifs.open(CSOFileName, ifs.binary);
+		if (!ifs.is_open())
+		{
+			MB_WARN("해당 cso파일을 찾을 수 없습니다.", "셰이더 생성 실패");
+			return;
+		}
 		ifs.seekg(0, ifs.end);
-		Buffer.resize((size_t)ifs.tellg());
+		size_t BufferSize{ (size_t)ifs.tellg() };
+		Buffer.resize(BufferSize);
 		ifs.seekg(0, ifs.beg);
 		ifs.read((char*)&Buffer[0], Buffer.size());
 		ifs.close();
