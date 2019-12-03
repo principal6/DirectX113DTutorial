@@ -67,6 +67,16 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 				Game.DeleteSelectedObject();
 			}
 
+			if (KeyDown == 'c' || KeyDown == 'C')
+			{
+				Game.CopySelectedObject();
+			}
+
+			if (KeyDown == 'v' || KeyDown == 'V')
+			{
+				Game.PasteCopiedObject();
+			}
+
 			Game.BeginRendering(Colors::CornflowerBlue);
 
 			Game.Update();

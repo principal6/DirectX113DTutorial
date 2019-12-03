@@ -1903,6 +1903,88 @@ void CGame::SaveTerrain(const string& TerrainFileName)
 	m_Terrain->Save(TerrainFileName);
 }
 
+void CGame::CopySelectedObject()
+{
+	if (!m_CapturedKeyboardState.LeftControl && !m_CapturedKeyboardState.LeftControl) return;
+
+	if (IsAnythingSelected())
+	{
+		if (IsAnyObject3DSelected())
+		{
+			if (IsAnyInstanceSelected())
+			{
+				m_PtrInstanceCopiedObject3D = GetSelectedObject3D();
+				if (m_PtrInstanceCopiedObject3D->GetName() != m_PtrInstanceCopiedObject3D->GetName()) m_CopyCounterObject3DInstance = 0;
+
+				m_CopiedObject3DInstanceData = m_PtrInstanceCopiedObject3D->GetInstanceCPUData(GetSelectedInstanceID());
+				m_CopiedObjectType = EObjectType::Object3DInstance;
+			}
+			else
+			{
+				m_PtrInstanceCopiedObject3D = nullptr;
+				m_CopiedObjectType = EObjectType::NONE;
+			}
+		}
+		else if (IsAnyLightSelected())
+		{
+			if (m_CopiedLightCPUData.Name != m_Light->GetInstanceCPUData(m_SelectedLightID).Name) m_CopyCounterLight = 0;
+
+			m_CopiedLightCPUData = m_Light->GetInstanceCPUData(m_SelectedLightID);
+			m_CopiedLightGPUData = m_Light->GetInstanceGPUData(m_SelectedLightID);
+			m_CopiedObjectType = EObjectType::Light;
+		}
+	}
+	else
+	{
+		m_CopiedObjectType = EObjectType::NONE;
+	}
+}
+
+void CGame::PasteCopiedObject()
+{
+	if (!m_CapturedKeyboardState.LeftControl && !m_CapturedKeyboardState.LeftControl) return;
+
+	switch (m_CopiedObjectType)
+	{
+	case CGame::EObjectType::NONE:
+		break;
+	case CGame::EObjectType::Object3D:
+		break;
+	case CGame::EObjectType::Object3DLine:
+		break;
+	case CGame::EObjectType::Object2D:
+		break;
+	case CGame::EObjectType::Camera:
+		break;
+	case CGame::EObjectType::Light:
+	{
+		InsertLight(m_CopiedLightCPUData.eType, m_CopiedLightCPUData.Name + "_" + to_string(m_CopyCounterLight));
+		size_t NewInstanceID{ m_Light->GetInstanceCount() - 1 };
+		m_Light->GetInstanceGPUData(NewInstanceID) = m_CopiedLightGPUData;
+		m_SelectedLightID = (int)NewInstanceID;
+
+		++m_CopyCounterLight;
+		break;
+	}
+	case CGame::EObjectType::Object3DInstance:
+	{
+		string NewName{ m_CopiedObject3DInstanceData.Name + "_" + to_string(m_CopyCounterObject3DInstance) };
+		m_PtrInstanceCopiedObject3D->InsertInstance(NewName);
+		auto& Dest{ m_PtrInstanceCopiedObject3D->GetInstanceCPUData(NewName) };
+		Dest = m_CopiedObject3DInstanceData;
+		Dest.Name = NewName;
+		uint32_t InstanceID{ m_PtrInstanceCopiedObject3D->GetInstanceCount() - 1 };
+		m_PtrInstanceCopiedObject3D->UpdateInstanceWorldMatrix(InstanceID);
+		SelectInstance(InstanceID);
+
+		++m_CopyCounterObject3DInstance;
+		break;
+	}
+	default:
+		break;
+	}
+}
+
 void CGame::DeleteSelectedObject()
 {
 	// Object3D
@@ -2519,7 +2601,7 @@ bool CGame::InsertLight(CLight::EType eType, const std::string& Name)
 {
 	if (m_Light->InsertInstance(Name, eType))
 	{
-		m_LightRep->InsertInstance(Name);
+		m_LightRep->InsertInstance(m_Light->GetInstanceName(m_Light->GetInstanceCount() - 1));
 		return true;
 	}
 	return false;
@@ -4273,6 +4355,8 @@ void CGame::Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight)
 
 void CGame::DrawCameraRep()
 {
+	if (!m_vCameras.size()) return;
+
 	m_DeviceContext->RSSetState(m_CommonStates->CullNone());
 	
 	UpdateCBSpace();
@@ -4281,13 +4365,10 @@ void CGame::DrawCameraRep()
 	m_CBCameraSelectionData.CurrentCameraID = m_CurrentCameraID;
 	m_CBCameraSelection->Update();
 
-	m_VSBase->Use();
+	m_VSInstance->Use();
 	m_PSCamera->Use();
 
-	if (m_vCameras.size())
-	{
-		m_CameraRep->Draw();
-	}
+	m_CameraRep->Draw();
 	
 	SetUniversalRSState();
 }
@@ -4296,8 +4377,7 @@ void CGame::DrawLightRep()
 {
 	if (!m_LightRep) return;
 
-	ID3D11SamplerState* Samplers[]{ m_CommonStates->LinearClamp(), m_CommonStates->PointClamp() };
-	
+	ID3D11SamplerState* const Samplers[]{ m_CommonStates->LinearClamp(), m_CommonStates->PointClamp() };
 	m_DeviceContext->PSSetSamplers(0, 2, Samplers);
 
 	UpdateCBBillboard(m_LightRep->GetCBBillboard());
@@ -4751,7 +4831,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 			{
 				MB_WARN("모델을 불러오세요.", "오류");
 			}
-			else if (strlen(NewObejctName) == 0)
+			else if (strlen(NewObejctName) == 0 && iSelectedOption != 4)
 			{
 				MB_WARN("이름을 정하세요.", "오류");
 			}

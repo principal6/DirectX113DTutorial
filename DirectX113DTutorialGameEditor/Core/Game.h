@@ -91,6 +91,19 @@ public:
 		PSCubemap2D
 	};
 
+	enum class EObjectType
+	{
+		NONE,
+
+		Object3D,
+		Object3DLine,
+		Object2D,
+		Camera,
+		Light,
+
+		Object3DInstance
+	};
+
 	struct SCBSpaceWVPData
 	{
 		XMMATRIX	World{};
@@ -442,6 +455,8 @@ public:
 
 // Object pool
 public:
+	void CopySelectedObject();
+	void PasteCopiedObject();
 	void DeleteSelectedObject();
 
 public:
@@ -695,6 +710,7 @@ private:
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
 
+// Shader
 private:
 	std::unique_ptr<CShader>	m_VSBase{};
 	std::unique_ptr<CShader>	m_VSInstance{};
@@ -755,51 +771,52 @@ private:
 	std::unique_ptr<CShader>	m_PSHeightMap2D{};
 	std::unique_ptr<CShader>	m_PSCubemap2D{};
 
+// Constant buffer
 private:
-	std::unique_ptr<CConstantBuffer> m_CBSpaceWVP{};
-	std::unique_ptr<CConstantBuffer> m_CBSpaceVP{};
-	std::unique_ptr<CConstantBuffer> m_CBSpace2D{};
-	std::unique_ptr<CConstantBuffer> m_CBAnimationBones{};
-	std::unique_ptr<CConstantBuffer> m_CBAnimation{};
-	std::unique_ptr<CConstantBuffer> m_CBTerrain{};
-	std::unique_ptr<CConstantBuffer> m_CBWind{};
-	std::unique_ptr<CConstantBuffer> m_CBTessFactor{};
-	std::unique_ptr<CConstantBuffer> m_CBDisplacement{};
-	std::unique_ptr<CConstantBuffer> m_CBLight{};
-	std::unique_ptr<CConstantBuffer> m_CBDirectionalLight{};
-	std::unique_ptr<CConstantBuffer> m_CBMaterial{};
-	std::unique_ptr<CConstantBuffer> m_CBPSFlags{}; // ...
-	std::unique_ptr<CConstantBuffer> m_CBGizmoColorFactor{};
-	std::unique_ptr<CConstantBuffer> m_CBPS2DFlags{}; // ...
-	std::unique_ptr<CConstantBuffer> m_CBTerrainMaskingSpace{};
-	std::unique_ptr<CConstantBuffer> m_CBTerrainSelection{};
-	std::unique_ptr<CConstantBuffer> m_CBSkyTime{};
-	std::unique_ptr<CConstantBuffer> m_CBWaterTime{};
-	std::unique_ptr<CConstantBuffer> m_CBEditorTime{};
-	std::unique_ptr<CConstantBuffer> m_CBCameraSelection{};
-	std::unique_ptr<CConstantBuffer> m_CBScreen{};
-	std::unique_ptr<CConstantBuffer> m_CBRadiancePrefiltering{};
-	std::unique_ptr<CConstantBuffer> m_CBIrradianceGenerator{};
-	std::unique_ptr<CConstantBuffer> m_CBBillboard{};
-	std::unique_ptr<CConstantBuffer> m_CBBillboardSelection{};
-	std::unique_ptr<CConstantBuffer> m_CBGBufferUnpacking{};
+	std::unique_ptr<CConstantBuffer>	m_CBSpaceWVP{};
+	std::unique_ptr<CConstantBuffer>	m_CBSpaceVP{};
+	std::unique_ptr<CConstantBuffer>	m_CBSpace2D{};
+	std::unique_ptr<CConstantBuffer>	m_CBAnimationBones{};
+	std::unique_ptr<CConstantBuffer>	m_CBAnimation{};
+	std::unique_ptr<CConstantBuffer>	m_CBTerrain{};
+	std::unique_ptr<CConstantBuffer>	m_CBWind{};
+	std::unique_ptr<CConstantBuffer>	m_CBTessFactor{};
+	std::unique_ptr<CConstantBuffer>	m_CBDisplacement{};
+	std::unique_ptr<CConstantBuffer>	m_CBLight{};
+	std::unique_ptr<CConstantBuffer>	m_CBDirectionalLight{};
+	std::unique_ptr<CConstantBuffer>	m_CBMaterial{};
+	std::unique_ptr<CConstantBuffer>	m_CBPSFlags{}; // ...
+	std::unique_ptr<CConstantBuffer>	m_CBGizmoColorFactor{};
+	std::unique_ptr<CConstantBuffer>	m_CBPS2DFlags{}; // ...
+	std::unique_ptr<CConstantBuffer>	m_CBTerrainMaskingSpace{};
+	std::unique_ptr<CConstantBuffer>	m_CBTerrainSelection{};
+	std::unique_ptr<CConstantBuffer>	m_CBSkyTime{};
+	std::unique_ptr<CConstantBuffer>	m_CBWaterTime{};
+	std::unique_ptr<CConstantBuffer>	m_CBEditorTime{};
+	std::unique_ptr<CConstantBuffer>	m_CBCameraSelection{};
+	std::unique_ptr<CConstantBuffer>	m_CBScreen{};
+	std::unique_ptr<CConstantBuffer>	m_CBRadiancePrefiltering{};
+	std::unique_ptr<CConstantBuffer>	m_CBIrradianceGenerator{};
+	std::unique_ptr<CConstantBuffer>	m_CBBillboard{};
+	std::unique_ptr<CConstantBuffer>	m_CBBillboardSelection{};
+	std::unique_ptr<CConstantBuffer>	m_CBGBufferUnpacking{};
 
-	SCBSpaceWVPData				m_CBSpaceWVPData{};
-	SCBSpaceVPData				m_CBSpaceVPData{};
-	SCBSpace2DData				m_CBSpace2DData{};
-	SCBAnimationBonesData		m_CBAnimationBonesData{};
-	CObject3D::SCBAnimationData	m_CBAnimationData{};
-	CTerrain::SCBTerrainData	m_CBTerrainData{};
-	CTerrain::SCBWindData		m_CBWindData{};
+	SCBSpaceWVPData						m_CBSpaceWVPData{};
+	SCBSpaceVPData						m_CBSpaceVPData{};
+	SCBSpace2DData						m_CBSpace2DData{};
+	SCBAnimationBonesData				m_CBAnimationBonesData{};
+	CObject3D::SCBAnimationData			m_CBAnimationData{};
+	CTerrain::SCBTerrainData			m_CBTerrainData{};
+	CTerrain::SCBWindData				m_CBWindData{};
 
-	CObject3D::SCBTessFactorData	m_CBTessFactorData{};
-	CObject3D::SCBDisplacementData	m_CBDisplacementData{};
+	CObject3D::SCBTessFactorData		m_CBTessFactorData{};
+	CObject3D::SCBDisplacementData		m_CBDisplacementData{};
 
-	SCBLightData					m_CBLightData{};
-	SCBDirectionalLightData			m_CBDirectionalLightData{};
-	SCBMaterialData					m_CBMaterialData{};
-	SCBPSFlagsData					m_CBPSFlagsData{};
-	SCBGizmoColorFactorData			m_CBGizmoColorFactorData{};
+	SCBLightData						m_CBLightData{};
+	SCBDirectionalLightData				m_CBDirectionalLightData{};
+	SCBMaterialData						m_CBMaterialData{};
+	SCBPSFlagsData						m_CBPSFlagsData{};
+	SCBGizmoColorFactorData				m_CBGizmoColorFactorData{};
 
 	SCBPS2DFlagsData					m_CBPS2DFlagsData{};
 	SCBTerrainMaskingSpaceData			m_CBTerrainMaskingSpaceData{};
@@ -903,6 +920,7 @@ private:
 	CObject3D*	m_PtrPickedObject3D{};
 	CObject3D*	m_PtrSelectedObject3D{};
 	CObject2D*	m_PtrSelectedObject2D{};
+	
 	int			m_PickedCameraID{ -1 };
 	int			m_PickedLightID{ -1 };
 	int			m_SelectedLightID{ -1 };
@@ -913,6 +931,17 @@ private:
 	XMVECTOR	m_PickedTriangleV2{};
 	EMode		m_eMode{};
 	EEditMode	m_eEditMode{};
+
+private:
+	CObject3D*						m_PtrInstanceCopiedObject3D{};
+	SInstanceCPUData				m_CopiedObject3DInstanceData{};
+	size_t							m_CopyCounterObject3DInstance{};
+
+	CLight::SLightInstanceCPUData	m_CopiedLightCPUData{};
+	CLight::SLightInstanceGPUData	m_CopiedLightGPUData{};
+	size_t							m_CopyCounterLight{};
+
+	EObjectType						m_CopiedObjectType{};
 
 private:
 	std::unique_ptr<CTerrain>	m_Terrain{};

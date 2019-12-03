@@ -1,27 +1,28 @@
 #include "Light.h"
 
 using std::string;
+using std::to_string;
 
 bool CLight::InsertInstance(const std::string& InstanceName, EType eType)
 {
-	if (m_mapInstanceNameToIndex.find(InstanceName) != m_mapInstanceNameToIndex.end())
+	static size_t StaticInstanceCounter{};
+
+	string Name{ InstanceName };
+	if (m_mapInstanceNameToIndex.find(Name) != m_mapInstanceNameToIndex.end())
 	{
 		MB_WARN("이미 존재하는 이름입니다.", "인스턴스 생성 실패");
 		return false;
 	}
-	if (InstanceName.empty())
-	{
-		MB_WARN("이름은 공백일 수 없습니다.", "인스턴스 생성 실패");
-		return false;
-	}
+	if (Name.empty()) Name = "light" + to_string(StaticInstanceCounter); // @important: auto-generated name
 
 	bool bShouldRecreateInstanceBuffer{ m_vInstanceCPUData.size() == m_vInstanceCPUData.capacity() };
 
-	m_vInstanceCPUData.emplace_back(InstanceName, eType); // @important
+	m_vInstanceCPUData.emplace_back(Name, eType); // @important
 	m_vInstanceGPUData.emplace_back();
-	m_mapInstanceNameToIndex[InstanceName] = m_vInstanceCPUData.size() - 1;
+	m_mapInstanceNameToIndex[Name] = m_vInstanceCPUData.size() - 1;
 
 	(bShouldRecreateInstanceBuffer == true) ? CreateInstanceBuffer() : UpdateInstanceBuffer();
+	++StaticInstanceCounter;
 
 	return true;
 }
