@@ -490,23 +490,7 @@ void CObject3D::InsertInstance(bool bShouldCreateInstanceBuffers)
 		return;
 	}
 
-	bool bShouldRecreateInstanceBuffer{ m_vInstanceCPUData.size() == m_vInstanceCPUData.capacity() };
-
-	m_vInstanceCPUData.emplace_back();
-	m_vInstanceCPUData.back().Name = Name;
-	m_vInstanceCPUData.back().Scaling = ComponentTransform.Scaling;
-	m_vInstanceCPUData.back().BoundingSphere = ComponentPhysics.BoundingSphere; // @important
-	m_mapInstanceNameToIndex[Name] = m_vInstanceCPUData.size() - 1;
-
-	m_vInstanceGPUData.emplace_back();
-	
-	if (bShouldCreateInstanceBuffers)
-	{
-		if (m_vInstanceCPUData.size() == 1) CreateInstanceBuffers();
-		if (bShouldRecreateInstanceBuffer) CreateInstanceBuffers();
-	}
-
-	UpdateInstanceWorldMatrix(static_cast<int>(m_vInstanceCPUData.size() - 1));
+	InsertInstance(Name);
 }
 
 void CObject3D::InsertInstance(const string& Name)
@@ -524,7 +508,12 @@ void CObject3D::InsertInstance(const string& Name)
 
 	m_vInstanceCPUData.emplace_back();
 	m_vInstanceCPUData.back().Name = LimitedName;
+	m_vInstanceCPUData.back().Translation = ComponentTransform.Translation;
 	m_vInstanceCPUData.back().Scaling = ComponentTransform.Scaling;
+	m_vInstanceCPUData.back().Pitch = ComponentTransform.Pitch;
+	m_vInstanceCPUData.back().Yaw = ComponentTransform.Yaw;
+	m_vInstanceCPUData.back().Roll = ComponentTransform.Roll;
+	m_vInstanceCPUData.back().BoundingSphere = ComponentPhysics.BoundingSphere; // @important
 	m_mapInstanceNameToIndex[LimitedName] = m_vInstanceCPUData.size() - 1;
 
 	m_vInstanceGPUData.emplace_back();

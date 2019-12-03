@@ -1903,6 +1903,29 @@ void CGame::SaveTerrain(const string& TerrainFileName)
 	m_Terrain->Save(TerrainFileName);
 }
 
+void CGame::DeleteSelectedObject()
+{
+	// Object3D
+	if (IsAnyObject3DSelected())
+	{
+		if (m_CapturedKeyboardState.LeftShift || m_CapturedKeyboardState.RightShift || !GetSelectedObject3D()->IsInstanced())
+		{
+			DeleteObject3D(GetSelectedObject3DName());
+			DeselectObject3D();
+			DeselectInstance();
+		}
+		else
+		{
+			if (IsAnyInstanceSelected())
+			{
+				string InstanceName{ GetSelectedObject3D()->GetInstanceCPUData(GetSelectedInstanceID()).Name };
+				GetSelectedObject3D()->DeleteInstance(InstanceName);
+				SelectInstance(GetSelectedObject3D()->GetInstanceCount() - 1);
+			}
+		}
+	}
+}
+
 bool CGame::InsertCamera(const string& Name)
 {
 	if (Name == m_EditorCamera->GetName())
@@ -3483,36 +3506,6 @@ void CGame::Update()
 		{
 			Set3DGizmoMode(E3DGizmoMode::Scaling);
 		}
-		if (m_CapturedKeyboardState.Delete)
-		{
-			// Object3D
-			if (IsAnyObject3DSelected())
-			{
-				if (GetSelectedObject3D()->IsInstanced())
-				{
-					if (IsAnyInstanceSelected())
-					{
-						string InstanceName{ GetSelectedObject3D()->GetInstanceCPUData(GetSelectedInstanceID()).Name };
-						GetSelectedObject3D()->DeleteInstance(InstanceName);
-						DeselectInstance();
-
-						if (GetSelectedObject3D()->GetInstanceCount() == 0) DeselectObject3D();
-					}
-					else
-					{
-						DeselectInstance();
-
-						DeleteObject3D(GetSelectedObject3DName());
-						DeselectObject3D();
-					}
-				}
-				else
-				{
-					DeleteObject3D(GetSelectedObject3DName());
-					DeselectObject3D();
-				}
-			}
-		}
 	}
 
 	// Process moue inputs
@@ -3735,6 +3728,32 @@ void CGame::Draw()
 			DrawCameraRep();
 
 			DrawObject3DLines();
+
+			if (m_Terrain)
+			{
+				if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainHeightMapTexture))
+				{
+					m_DeviceContext->RSSetViewports(1, &m_vViewports[2]);
+					UpdateCBSpace();
+					m_Terrain->DrawHeightMapTexture();
+				}
+
+				if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainMaskingTexture))
+				{
+					m_DeviceContext->RSSetViewports(1, &m_vViewports[3]);
+					UpdateCBSpace();
+					m_Terrain->DrawMaskingTexture();
+				}
+
+				if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainFoliagePlacingTexture))
+				{
+					m_DeviceContext->RSSetViewports(1, &m_vViewports[4]);
+					UpdateCBSpace();
+					m_Terrain->DrawFoliagePlacingTexture();
+				}
+
+				m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
+			}
 		}
 
 		if (m_SkyData.bIsDataSet)
@@ -4114,32 +4133,6 @@ void CGame::DrawTerrain(float DeltaTime)
 	{
 		UpdateCBSpace(m_Terrain->GetWindRepresentationWorldMatrix());
 		m_Terrain->DrawWindRepresentation();
-	}
-
-	if (m_eMode == EMode::Edit)
-	{
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainHeightMapTexture))
-		{
-			m_DeviceContext->RSSetViewports(1, &m_vViewports[2]);
-			UpdateCBSpace();
-			m_Terrain->DrawHeightMapTexture();
-		}
-
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainMaskingTexture))
-		{
-			m_DeviceContext->RSSetViewports(1, &m_vViewports[3]);
-			UpdateCBSpace();
-			m_Terrain->DrawMaskingTexture();
-		}
-
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainFoliagePlacingTexture))
-		{
-			m_DeviceContext->RSSetViewports(1, &m_vViewports[4]);
-			UpdateCBSpace();
-			m_Terrain->DrawFoliagePlacingTexture();
-		}
-
-		m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 	}
 }
 
@@ -6890,6 +6883,8 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 						if (ImGui::Button(u8"Ãß°¡"))
 						{
 							Object3D->InsertInstance();
+							
+							SelectInstance(Object3D->GetInstanceCount() - 1);
 						}
 						ImGui::PopID();
 
@@ -6903,6 +6898,8 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 							{
 								const SInstanceCPUData& InstanceCPUData{ Object3D->GetInstanceCPUData(GetSelectedInstanceID()) };
 								Object3D->DeleteInstance(InstanceCPUData.Name);
+
+								SelectInstance(Object3D->GetInstanceCount() - 1);
 							}
 							ImGui::PopID();
 

@@ -440,7 +440,10 @@ public:
 	void SaveTerrain(const std::string& TerrainFileName);
 	CTerrain* GetTerrain() const { return m_Terrain.get(); }
 
-	// Object pool
+// Object pool
+public:
+	void DeleteSelectedObject();
+
 public:
 	bool InsertCamera(const std::string& Name);
 	void DeleteCamera(const std::string& Name);
