@@ -1,7 +1,6 @@
 #include "Core/Game.h"
 
 // @TODO
-// implement deferred shading!
 // update scene loading/saving (save editor camera state into the scene) => BINARY ??
 // implement shadow mapping
 // improve terrain tessellation using quad patch? or is it good with the current Bezier triangles?

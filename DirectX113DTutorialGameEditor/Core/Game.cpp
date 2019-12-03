@@ -891,9 +891,9 @@ void CGame::CreateBaseShaders()
 
 void CGame::CreateMiniAxes()
 {
-	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>("AxisX", m_Device.Get(), m_DeviceContext.Get(), this));
-	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>("AxisY", m_Device.Get(), m_DeviceContext.Get(), this));
-	m_vObject3DMiniAxes.emplace_back(make_unique<CObject3D>("AxisZ", m_Device.Get(), m_DeviceContext.Get(), this));
+	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisX", m_Device.Get(), m_DeviceContext.Get(), this));
+	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisY", m_Device.Get(), m_DeviceContext.Get(), this));
+	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisZ", m_Device.Get(), m_DeviceContext.Get(), this));
 
 	const SMesh KAxisCone{ GenerateCone(0, 1.0f, 1.0f, 16) };
 	vector<CMaterialData> vMaterialData{};
@@ -901,44 +901,44 @@ void CGame::CreateMiniAxes()
 	vMaterialData[0].SetUniformColor(XMFLOAT3(1, 0, 0));
 	vMaterialData[1].SetUniformColor(XMFLOAT3(0, 1, 0));
 	vMaterialData[2].SetUniformColor(XMFLOAT3(0, 0, 1));
-	m_vObject3DMiniAxes[0]->Create(KAxisCone, vMaterialData[0]);
-	m_vObject3DMiniAxes[0]->ComponentTransform.Roll = -XM_PIDIV2;
+	m_vMiniAxes[0]->Create(KAxisCone, vMaterialData[0]);
+	m_vMiniAxes[0]->ComponentTransform.Roll = -XM_PIDIV2;
 	
-	m_vObject3DMiniAxes[1]->Create(KAxisCone, vMaterialData[1]);
+	m_vMiniAxes[1]->Create(KAxisCone, vMaterialData[1]);
 	
-	m_vObject3DMiniAxes[2]->Create(KAxisCone, vMaterialData[2]);
-	m_vObject3DMiniAxes[2]->ComponentTransform.Yaw = -XM_PIDIV2;
-	m_vObject3DMiniAxes[2]->ComponentTransform.Roll = -XM_PIDIV2;
+	m_vMiniAxes[2]->Create(KAxisCone, vMaterialData[2]);
+	m_vMiniAxes[2]->ComponentTransform.Yaw = -XM_PIDIV2;
+	m_vMiniAxes[2]->ComponentTransform.Roll = -XM_PIDIV2;
 	
-	m_vObject3DMiniAxes[0]->ComponentTransform.Scaling =
-		m_vObject3DMiniAxes[1]->ComponentTransform.Scaling =
-		m_vObject3DMiniAxes[2]->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.8f, 0.1f, 0);
+	m_vMiniAxes[0]->ComponentTransform.Scaling =
+		m_vMiniAxes[1]->ComponentTransform.Scaling =
+		m_vMiniAxes[2]->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.8f, 0.1f, 0);
 }
 
 void CGame::CreatePickingRay()
 {
-	m_Object3DLinePickingRay = make_unique<CObject3DLine>("PickingRay", m_Device.Get(), m_DeviceContext.Get());
+	m_PickingRayRep = make_unique<CObject3DLine>("PickingRay", m_Device.Get(), m_DeviceContext.Get());
 
 	vector<SVertex3DLine> Vertices{};
 	Vertices.emplace_back(XMVectorSet(0, 0, 0, 1), XMVectorSet(1, 0, 0, 1));
 	Vertices.emplace_back(XMVectorSet(10.0f, 10.0f, 0, 1), XMVectorSet(0, 1, 0, 1));
 
-	m_Object3DLinePickingRay->Create(Vertices);
+	m_PickingRayRep->Create(Vertices);
 }
 
 void CGame::CreatePickedTriangle()
 {
-	m_Object3DPickedTriangle = make_unique<CObject3D>("PickedTriangle", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_PickedTriangleRep = make_unique<CObject3D>("PickedTriangle", m_Device.Get(), m_DeviceContext.Get(), this);
 
-	m_Object3DPickedTriangle->Create(GenerateTriangle(XMVectorSet(0, 0, 1.5f, 1), XMVectorSet(+1.0f, 0, 0, 1), XMVectorSet(-1.0f, 0, 0, 1),
+	m_PickedTriangleRep->Create(GenerateTriangle(XMVectorSet(0, 0, 1.5f, 1), XMVectorSet(+1.0f, 0, 0, 1), XMVectorSet(-1.0f, 0, 0, 1),
 		XMVectorSet(1.0f, 1.0f, 0.0f, 1.0f)));
 }
 
 void CGame::CreateBoundingSphere()
 {
-	m_Object3DBoundingSphere = make_unique<CObject3D>("BoundingSphere", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_BoundingSphereRep = make_unique<CObject3D>("BoundingSphere", m_Device.Get(), m_DeviceContext.Get(), this);
 
-	m_Object3DBoundingSphere->Create(GenerateSphere(16));
+	m_BoundingSphereRep->Create(GenerateSphere(16));
 }
 
 void CGame::Create3DGizmos()
@@ -2095,14 +2095,14 @@ CCamera* CGame::GetCamera(const string& Name, bool bShowWarning)
 
 CShader* CGame::AddCustomShader()
 {
-	m_vShaders.emplace_back(make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get()));
-	return m_vShaders.back().get();
+	m_vCustomShaders.emplace_back(make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get()));
+	return m_vCustomShaders.back().get();
 }
 
 CShader* CGame::GetCustomShader(size_t Index) const
 {
-	assert(Index < m_vShaders.size());
-	return m_vShaders[Index].get();
+	assert(Index < m_vCustomShaders.size());
+	return m_vCustomShaders[Index].get();
 }
 
 CShader* CGame::GetBaseShader(EBaseShader eShader) const
@@ -2698,9 +2698,9 @@ void CGame::CastPickingRay()
 
 void CGame::UpdatePickingRay()
 {
-	m_Object3DLinePickingRay->GetVertices().at(0).Position = m_PickingRayWorldSpaceOrigin;
-	m_Object3DLinePickingRay->GetVertices().at(1).Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
-	m_Object3DLinePickingRay->UpdateVertexBuffer();
+	m_PickingRayRep->GetVertices().at(0).Position = m_PickingRayWorldSpaceOrigin;
+	m_PickingRayRep->GetVertices().at(1).Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
+	m_PickingRayRep->UpdateVertexBuffer();
 }
 
 void CGame::PickBoundingSphere()
@@ -3949,7 +3949,7 @@ void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
 
 	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
 
-	m_Object3DBoundingSphere->Draw();
+	m_BoundingSphereRep->Draw();
 
 	SetUniversalRSState();
 }
@@ -4008,7 +4008,7 @@ void CGame::DrawMiniAxes()
 	m_CBPSFlagsData.bUseTexture = false;
 	m_CBPSFlags->Update();
 
-	for (auto& Object3D : m_vObject3DMiniAxes)
+	for (auto& Object3D : m_vMiniAxes)
 	{
 		UpdateCBSpace(Object3D->ComponentTransform.MatrixWorld);
 
@@ -4032,7 +4032,7 @@ void CGame::DrawPickingRay()
 	
 	m_PSLine->Use();
 
-	m_Object3DLinePickingRay->Draw();
+	m_PickingRayRep->Draw();
 }
 
 void CGame::DrawPickedTriangle()
@@ -4045,12 +4045,12 @@ void CGame::DrawPickedTriangle()
 	
 	m_PSVertexColor->Use();
 
-	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[0].Position = m_PickedTriangleV0;
-	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[1].Position = m_PickedTriangleV1;
-	m_Object3DPickedTriangle->GetModel().vMeshes[0].vVertices[2].Position = m_PickedTriangleV2;
-	m_Object3DPickedTriangle->UpdateMeshBuffer();
+	m_PickedTriangleRep->GetModel().vMeshes[0].vVertices[0].Position = m_PickedTriangleV0;
+	m_PickedTriangleRep->GetModel().vMeshes[0].vVertices[1].Position = m_PickedTriangleV1;
+	m_PickedTriangleRep->GetModel().vMeshes[0].vVertices[2].Position = m_PickedTriangleV2;
+	m_PickedTriangleRep->UpdateMeshBuffer();
 
-	m_Object3DPickedTriangle->Draw();
+	m_PickedTriangleRep->Draw();
 }
 
 void CGame::DrawGrid()

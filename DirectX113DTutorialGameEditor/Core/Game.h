@@ -712,6 +712,8 @@ private:
 
 // Shader
 private:
+	std::vector<std::unique_ptr<CShader>>	m_vCustomShaders{};
+
 	std::unique_ptr<CShader>	m_VSBase{};
 	std::unique_ptr<CShader>	m_VSInstance{};
 	std::unique_ptr<CShader>	m_VSAnimation{};
@@ -808,16 +810,13 @@ private:
 	CObject3D::SCBAnimationData			m_CBAnimationData{};
 	CTerrain::SCBTerrainData			m_CBTerrainData{};
 	CTerrain::SCBWindData				m_CBWindData{};
-
 	CObject3D::SCBTessFactorData		m_CBTessFactorData{};
 	CObject3D::SCBDisplacementData		m_CBDisplacementData{};
-
 	SCBLightData						m_CBLightData{};
 	SCBDirectionalLightData				m_CBDirectionalLightData{};
 	SCBMaterialData						m_CBMaterialData{};
 	SCBPSFlagsData						m_CBPSFlagsData{};
 	SCBGizmoColorFactorData				m_CBGizmoColorFactorData{};
-
 	SCBPS2DFlagsData					m_CBPS2DFlagsData{};
 	SCBTerrainMaskingSpaceData			m_CBTerrainMaskingSpaceData{};
 	CTerrain::SCBTerrainSelectionData	m_CBTerrainSelectionData{};
@@ -832,23 +831,32 @@ private:
 	SCBBillboardSelectionData			m_CBBillboardSelectionData{};
 	SCBGBufferUnpackingData				m_CBGBufferUnpackingData{};
 
+// Object pool
 private:
-	std::vector<std::unique_ptr<CShader>>				m_vShaders{};
-	std::vector<std::unique_ptr<CObject3D>>				m_vObject3Ds{};
-	std::vector<std::unique_ptr<CObject3DLine>>			m_vObject3DLines{};
-	std::vector<std::unique_ptr<CObject2D>>				m_vObject2Ds{};
-	std::vector<CMaterialData>							m_vMaterialData{};
-	std::vector<std::unique_ptr<CMaterialTextureSet>>	m_vMaterialTextureSets{};
+	std::vector<std::unique_ptr<CObject3D>>		m_vObject3Ds{};
+	std::vector<std::unique_ptr<CObject3DLine>>	m_vObject3DLines{};
+	std::vector<std::unique_ptr<CObject2D>>		m_vObject2Ds{};
 
+	std::vector<std::unique_ptr<CObject3D>>		m_vMiniAxes{};
 	std::unique_ptr<CObject3DLine>				m_Grid{};
 
-	std::unique_ptr<CObject3DLine>				m_Object3DLinePickingRay{};
-	std::unique_ptr<CObject3D>					m_Object3DPickedTriangle{};
+	std::unique_ptr<CObject3D>					m_BoundingSphereRep{};
 
-	std::unique_ptr<CObject3D>					m_Object3DBoundingSphere{};
+	std::map<std::string, size_t>				m_mapObject3DNameToIndex{};
+	std::map<std::string, size_t>				m_mapObject3DLineNameToIndex{};
+	std::map<std::string, size_t>				m_mapObject2DNameToIndex{};
+	std::map<std::string, size_t>				m_mapCameraNameToIndex{};
+	size_t										m_PrimitiveCreationCounter{};
 
-	std::vector<std::unique_ptr<CObject3D>>		m_vObject3DMiniAxes{};
+// Light
+private:
+	std::unique_ptr<CLight>			m_Light{};
+	std::unique_ptr<CBillboard>		m_LightRep{};
+	int								m_PickedLightID{ -1 };
+	int								m_SelectedLightID{ -1 };
 
+// Sky
+private:
 	std::string						m_SkyFileName{};
 	float							m_SkyScalingFactor{};
 	SSkyData						m_SkyData{};
@@ -858,18 +866,7 @@ private:
 	std::unique_ptr<CObject3D>		m_Object3DMoon{};
 	std::unique_ptr<CObject3D>		m_Object3DCloud{};
 
-	std::map<std::string, size_t>	m_mapMaterialNameToIndex{};
-	std::map<std::string, size_t>	m_mapCameraNameToIndex{};
-	std::map<std::string, size_t>	m_mapObject3DNameToIndex{};
-	std::map<std::string, size_t>	m_mapObject3DLineNameToIndex{};
-	std::map<std::string, size_t>	m_mapObject2DNameToIndex{};
-
-	size_t							m_PrimitiveCreationCounter{};
-
-private:
-	std::unique_ptr<CBillboard>		m_LightRep{};
-	std::unique_ptr<CLight>			m_Light{};
-
+// 3D Gizmo
 private:
 	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationPitch{};
 	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationYaw{};
@@ -890,48 +887,33 @@ private:
 	float							m_3DGizmoDistanceScalar{};
 	XMVECTOR						m_CapturedGizmoTranslation{};
 
+// Camera
 private:
-	std::vector<D3D11_VIEWPORT>	m_vViewports{};
-
-private:
-	HWND			m_hWnd{};
-	HINSTANCE		m_hInstance{};
-	XMFLOAT2		m_WindowSize{};
-	char			m_WorkingDirectory[MAX_PATH]{};
-
-private:
-	XMMATRIX		m_MatrixProjection{};
-	XMMATRIX		m_MatrixProjection2D{};
-	float			m_NearZ{};
-	float			m_FarZ{};
-
-	XMMATRIX								m_MatrixView{};
 	std::unique_ptr<CCamera>				m_EditorCamera{};
 	std::vector<std::unique_ptr<CCamera>>	m_vCameras{};
 	CCamera*								m_PtrCurrentCamera{};
 	int										m_CurrentCameraID{ -1 };
+	int										m_PickedCameraID{ -1 };
 	int										m_SelectedCameraID{ -1 };
 	std::unique_ptr<CObject3D>				m_CameraRep{};
 
+// Picking
 private:
-	XMVECTOR	m_PickingRayWorldSpaceOrigin{};
-	XMVECTOR	m_PickingRayWorldSpaceDirection{};
+	std::unique_ptr<CObject3DLine>			m_PickingRayRep{};
+	std::unique_ptr<CObject3D>				m_PickedTriangleRep{};
+	XMVECTOR								m_PickingRayWorldSpaceOrigin{};
+	XMVECTOR								m_PickingRayWorldSpaceDirection{};
 	std::vector<SObject3DPickingCandiate>	m_vObject3DPickingCandidates{};
-	CObject3D*	m_PtrPickedObject3D{};
-	CObject3D*	m_PtrSelectedObject3D{};
-	CObject2D*	m_PtrSelectedObject2D{};
-	
-	int			m_PickedCameraID{ -1 };
-	int			m_PickedLightID{ -1 };
-	int			m_SelectedLightID{ -1 };
-	int			m_PickedInstanceID{ -1 };
-	int			m_SelectedInstanceID{ -1 };
-	XMVECTOR	m_PickedTriangleV0{};
-	XMVECTOR	m_PickedTriangleV1{};
-	XMVECTOR	m_PickedTriangleV2{};
-	EMode		m_eMode{};
-	EEditMode	m_eEditMode{};
+	CObject3D*								m_PtrPickedObject3D{};
+	CObject3D*								m_PtrSelectedObject3D{};
+	CObject2D*								m_PtrSelectedObject2D{};
+	int										m_PickedInstanceID{ -1 };
+	int										m_SelectedInstanceID{ -1 };
+	XMVECTOR								m_PickedTriangleV0{};
+	XMVECTOR								m_PickedTriangleV1{};
+	XMVECTOR								m_PickedTriangleV2{};
 
+// Copy & paste
 private:
 	CObject3D*						m_PtrInstanceCopiedObject3D{};
 	SInstanceCPUData				m_CopiedObject3DInstanceData{};
@@ -943,13 +925,14 @@ private:
 
 	EObjectType						m_CopiedObjectType{};
 
+// Terrain
 private:
-	std::unique_ptr<CTerrain>	m_Terrain{};
+	std::unique_ptr<CTerrain>							m_Terrain{};
+	std::vector<CMaterialData>							m_vMaterialData{};
+	std::vector<std::unique_ptr<CMaterialTextureSet>>	m_vMaterialTextureSets{};
+	std::map<std::string, size_t>						m_mapMaterialNameToIndex{};
 
-private:
-	ImFont*						m_EditorGUIFont{};
-	SEditorGUIBools				m_EditorGUIBools{};
-
+// Time
 private:
 	std::chrono::steady_clock	m_Clock{};
 	long long					m_TimeNow{};
@@ -959,10 +942,19 @@ private:
 	long long					m_FrameCount{};
 	float						m_DeltaTimeF{};
 
+// Editor
 private:
-	ERasterizerState	m_eRasterizerState{ ERasterizerState::CullCounterClockwise };
-	EFlagsRendering		m_eFlagsRendering{};
+	ERasterizerState			m_eRasterizerState{ ERasterizerState::CullCounterClockwise };
+	EFlagsRendering				m_eFlagsRendering{};
+	bool						m_bIsDeferredRenderTargetsSet{ false };
+	bool						m_IsDestroyed{ false };
+	CModelPorter				m_ModelPorter{};
+	ImFont*						m_EditorGUIFont{};
+	SEditorGUIBools				m_EditorGUIBools{};
+	EMode						m_eMode{};
+	EEditMode					m_eEditMode{};
 
+// Full-screen quad
 private:
 	std::vector<SScreenQuadVertex>		m_vScreenQuadVertices
 	{
@@ -977,14 +969,43 @@ private:
 	UINT								m_ScreenQuadVertexBufferStride{ sizeof(SScreenQuadVertex) };
 	UINT								m_ScreenQuadVertexBufferOffset{};
 
-	std::vector<SCubemapVertex>			m_vCubemapVertices{};
-	ComPtr<ID3D11Buffer>				m_CubemapVertexBuffer{};
-	UINT								m_CubemapVertexBufferStride{ sizeof(SCubemapVertex) };
-	UINT								m_CubemapVertexBufferOffset{};
-
+// IBL
 private:
-	CModelPorter						m_ModelPorter{};
+	std::vector<SCubemapVertex>					m_vCubemapVertices{};
+	ComPtr<ID3D11Buffer>						m_CubemapVertexBuffer{};
+	UINT										m_CubemapVertexBufferStride{ sizeof(SCubemapVertex) };
+	UINT										m_CubemapVertexBufferOffset{};
 
+	std::unique_ptr<CTexture>					m_EnvironmentTexture{};
+	std::unique_ptr<CTexture>					m_IrradianceTexture{};
+	std::unique_ptr<CTexture>					m_PrefilteredRadianceTexture{};
+	std::unique_ptr<CTexture>					m_IntegratedBRDFTexture{};
+
+	std::unique_ptr<CCubemapRep>				m_EnvironmentRep{};
+	std::unique_ptr<CCubemapRep>				m_IrradianceRep{};
+	std::unique_ptr<CCubemapRep>				m_PrefilteredRadianceRep{};
+
+	D3D11_TEXTURE2D_DESC						m_GeneratedIrradianceMapTextureDesc{};
+	ComPtr<ID3D11Texture2D>						m_GeneratedIrradianceMapTexture{};
+	ComPtr<ID3D11ShaderResourceView>			m_GeneratedIrradianceMapSRV{};
+	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedIrradianceMapRTV{};
+
+	D3D11_TEXTURE2D_DESC						m_GeneratedEnvironmentMapTextureDesc{};
+	ComPtr<ID3D11Texture2D>						m_GeneratedEnvironmentMapTexture{};
+	ComPtr<ID3D11ShaderResourceView>			m_GeneratedEnvironmentMapSRV{};
+	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedEnvironmentMapRTV{};
+
+	D3D11_TEXTURE2D_DESC						m_PrefilteredRadianceMapTextureDesc{};
+	ComPtr<ID3D11Texture2D>						m_PrefilteredRadianceMapTexture{};
+	ComPtr<ID3D11ShaderResourceView>			m_PrefilteredRadianceMapSRV{};
+	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vPrefilteredRadianceMapRTV{};
+
+	ComPtr<ID3D11Texture2D>						m_IntegratedBRDFTextureRaw{};
+	ComPtr<ID3D11RenderTargetView>				m_IntegratedBRDFRTV{};
+	ComPtr<ID3D11ShaderResourceView>			m_IntegratedBRDFSRV{};
+	D3D11_TEXTURE2D_DESC						m_IntegratedBRDFTextureDesc{};
+
+// DirectX
 private:
 	ComPtr<IDXGISwapChain>				m_SwapChain{};
 	ComPtr<ID3D11Device>				m_Device{};
@@ -1025,38 +1046,18 @@ private:
 
 	ComPtr<ID3D11RasterizerState>		m_RSCCWCullFront{};
 
-	bool								m_bIsDeferredRenderTargetsSet{ false };
+	std::unique_ptr<SpriteBatch>		m_SpriteBatch{};
+	std::unique_ptr<SpriteFont>			m_SpriteFont{};
+	std::unique_ptr<CommonStates>		m_CommonStates{};
 
-private:
-	std::unique_ptr<CTexture>					m_EnvironmentTexture{};
-	std::unique_ptr<CTexture>					m_IrradianceTexture{};
-	std::unique_ptr<CTexture>					m_PrefilteredRadianceTexture{};
-	std::unique_ptr<CTexture>					m_IntegratedBRDFTexture{};
+	std::vector<D3D11_VIEWPORT>			m_vViewports{};
+	XMMATRIX							m_MatrixProjection{};
+	XMMATRIX							m_MatrixProjection2D{};
+	float								m_NearZ{};
+	float								m_FarZ{};
+	XMMATRIX							m_MatrixView{};
 
-	std::unique_ptr<CCubemapRep>				m_EnvironmentRep{};
-	std::unique_ptr<CCubemapRep>				m_IrradianceRep{};
-	std::unique_ptr<CCubemapRep>				m_PrefilteredRadianceRep{};
-
-	D3D11_TEXTURE2D_DESC						m_GeneratedIrradianceMapTextureDesc{};
-	ComPtr<ID3D11Texture2D>						m_GeneratedIrradianceMapTexture{};
-	ComPtr<ID3D11ShaderResourceView>			m_GeneratedIrradianceMapSRV{};
-	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedIrradianceMapRTV{};
-
-	D3D11_TEXTURE2D_DESC						m_GeneratedEnvironmentMapTextureDesc{};
-	ComPtr<ID3D11Texture2D>						m_GeneratedEnvironmentMapTexture{};
-	ComPtr<ID3D11ShaderResourceView>			m_GeneratedEnvironmentMapSRV{};
-	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedEnvironmentMapRTV{};
-
-	D3D11_TEXTURE2D_DESC						m_PrefilteredRadianceMapTextureDesc{};
-	ComPtr<ID3D11Texture2D>						m_PrefilteredRadianceMapTexture{};
-	ComPtr<ID3D11ShaderResourceView>			m_PrefilteredRadianceMapSRV{};
-	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vPrefilteredRadianceMapRTV{};
-
-	ComPtr<ID3D11Texture2D>						m_IntegratedBRDFTextureRaw{};
-	ComPtr<ID3D11RenderTargetView>				m_IntegratedBRDFRTV{};
-	ComPtr<ID3D11ShaderResourceView>			m_IntegratedBRDFSRV{};
-	D3D11_TEXTURE2D_DESC						m_IntegratedBRDFTextureDesc{};
-
+// Input
 private:
 	std::unique_ptr<Keyboard>		m_Keyboard{};
 	std::unique_ptr<Mouse>			m_Mouse{};
@@ -1065,10 +1066,13 @@ private:
 	bool							m_bLeftButtonPressedOnce{ false };
 	int								m_PrevCapturedMouseX{};
 	int								m_PrevCapturedMouseY{};
-	std::unique_ptr<SpriteBatch>	m_SpriteBatch{};
-	std::unique_ptr<SpriteFont>		m_SpriteFont{};
-	std::unique_ptr<CommonStates>	m_CommonStates{};
-	bool							m_IsDestroyed{ false };
+
+// Windows
+private:
+	HWND			m_hWnd{};
+	HINSTANCE		m_hInstance{};
+	XMFLOAT2		m_WindowSize{};
+	char			m_WorkingDirectory[MAX_PATH]{};
 };
 
 ENUM_CLASS_FLAG(CGame::EFlagsRendering)
