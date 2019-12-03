@@ -356,6 +356,17 @@ public:
 		XMFLOAT3 TexCoord;
 	};
 
+	struct SRegionSelectionData
+	{
+		SRegionSelectionData() {}
+		SRegionSelectionData(EObjectType _eObjectType, const std::string& _Name, void* _PtrObject) :
+			eObjectType{ _eObjectType }, Name{ _Name }, PtrObject{ _PtrObject } {}
+
+		EObjectType	eObjectType{};
+		std::string	Name{};
+		void*		PtrObject{};
+	};
+
 public:
 	CGame(HINSTANCE hInstance, const XMFLOAT2& WindowSize) : m_hInstance{ hInstance }, m_WindowSize{ WindowSize } {}
 	~CGame() {}
@@ -550,8 +561,8 @@ private:
 	CObject2D* GetSelectedObject2D();
 	const std::string& GetSelectedObject2DName() const;
 
-	void SelectCamera(const std::string& Name);
 	void SelectCamera(int CameraID);
+	void SelectCamera(const std::string& Name);
 	void SelectPickedCamera();
 	void DeselectCamera();
 	CCamera* GetSelectedCamera();
@@ -560,6 +571,7 @@ private:
 	void UseEditorCamera();
 	void UseCamera(CCamera* const Camera);
 
+	void SelectLight(int LightID);
 	void SelectLight(const std::string& Name);
 	void SelectPickedLight();
 	void DeselectLight();
@@ -582,6 +594,9 @@ public:
 
 private:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
+
+public:
+	void CaptureCurrentProjectionSpace();
 
 public:
 	void BeginRendering(const FLOAT* ClearColor);
@@ -634,6 +649,7 @@ private:
 
 	void DrawCameraRep();
 	void DrawLightRep();
+	void DrawRegionSelectionRep();
 
 	void DrawEditorGUI();
 	void DrawEditorGUIMenuBar();
@@ -887,6 +903,7 @@ private:
 	E3DGizmoMode					m_e3DGizmoMode{};
 	float							m_3DGizmoDistanceScalar{};
 	XMVECTOR						m_CapturedGizmoTranslation{};
+	XMVECTOR						m_GizmoRecentTranslation{};
 
 // Camera
 private:
@@ -913,6 +930,17 @@ private:
 	XMVECTOR								m_PickedTriangleV0{};
 	XMVECTOR								m_PickedTriangleV1{};
 	XMVECTOR								m_PickedTriangleV2{};
+
+	// Region selection
+	std::unique_ptr<CObject2D>				m_RegionSelectionRep{};
+	XMFLOAT2								m_RegionSelectionTopLeft{};
+	XMFLOAT2								m_RegionSelectionBottomRight{};
+	bool									m_RegionSelectionChanging{ false };
+	XMFLOAT2								m_RegionSelectionXYNormalized{};
+	XMFLOAT2								m_RegionSelectionXYPrimeNormalized{};
+	XMFLOAT2								m_RegionSelectionSizeNormalized{};
+	std::vector<SRegionSelectionData>		m_vRegionSelectionData{};
+	XMVECTOR								m_RegionSelectionWorldCenter{};
 
 // Copy & paste
 private:

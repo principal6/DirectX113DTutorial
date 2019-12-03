@@ -25,10 +25,10 @@ public:
 
 	struct SComponentTransform
 	{
-		XMMATRIX	MatrixWorld{ XMMatrixIdentity() };
-		XMMATRIX	MatrixTranslation{};
-		XMMATRIX	MatrixRotation{};
-		XMMATRIX	MatrixScaling{};
+		XMMATRIX	MatrixWorld{ KMatrixIdentity };
+		XMMATRIX	MatrixTranslation{ KMatrixIdentity };
+		XMMATRIX	MatrixRotation{ KMatrixIdentity };
+		XMMATRIX	MatrixScaling{ KMatrixIdentity };
 		XMFLOAT2	Translation{};
 		XMFLOAT2	Scaling{ 1.0f, 1.0f };
 		float		RotationAngle{};

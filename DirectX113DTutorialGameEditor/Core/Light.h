@@ -57,10 +57,10 @@ public:
 	size_t GetInstanceCount() const;
 	const SLightInstanceCPUData& GetInstanceCPUData(size_t InstanceID) const;
 	const SLightInstanceGPUData& GetInstanceGPUData(size_t InstanceID) const;
-	SLightInstanceGPUData& GetInstanceGPUData(size_t InstanceID);
 	std::string GetInstanceName(size_t InstanceID) const;
 	size_t GetInstanceID(const std::string& InstanceName) const;
 	
+	void SetInstanceGPUData(size_t InstanceID, const SLightInstanceGPUData& Data);
 	void SetInstancePosition(size_t InstanceID, const XMVECTOR& Position);
 	void SetInstanceColor(size_t InstanceID, const XMVECTOR& Color);
 	void SetInstanceRange(size_t InstanceID, float Range);

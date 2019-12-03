@@ -112,7 +112,7 @@ public:
 
 	struct SComponentTransform
 	{
-		XMVECTOR	Translation{};
+		XMVECTOR	Translation{ 0, 0, 0, 1 };
 		XMVECTOR	Scaling{ XMVectorSet(1, 1, 1, 0) };
 		XMMATRIX	MatrixWorld{ XMMatrixIdentity() };
 

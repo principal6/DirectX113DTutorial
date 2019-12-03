@@ -91,11 +91,6 @@ const CLight::SLightInstanceGPUData& CLight::GetInstanceGPUData(size_t InstanceI
 	return m_vInstanceGPUData[InstanceID];
 }
 
-CLight::SLightInstanceGPUData& CLight::GetInstanceGPUData(size_t InstanceID)
-{
-	return m_vInstanceGPUData[InstanceID];
-}
-
 string CLight::GetInstanceName(size_t InstanceID) const
 {
 	return m_vInstanceCPUData[InstanceID].Name;
@@ -104,6 +99,13 @@ string CLight::GetInstanceName(size_t InstanceID) const
 size_t CLight::GetInstanceID(const std::string& InstanceName) const
 {
 	return m_mapInstanceNameToIndex.at(InstanceName);
+}
+
+void CLight::SetInstanceGPUData(size_t InstanceID, const SLightInstanceGPUData& Data)
+{
+	m_vInstanceGPUData[InstanceID] = Data;
+
+	UpdateInstanceBuffer();
 }
 
 void CLight::SetInstancePosition(size_t InstanceID, const XMVECTOR& Position)
