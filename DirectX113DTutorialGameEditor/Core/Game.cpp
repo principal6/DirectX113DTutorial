@@ -2664,7 +2664,7 @@ void CGame::NotifyMouseLeftDown()
 
 void CGame::NotifyMouseLeftUp()
 {
-	m_bLeftButtonPressedOnce = false;
+	m_bLeftButtonUpOnce = true;
 }
 
 bool CGame::Pick()
@@ -2865,16 +2865,6 @@ bool CGame::IsAnythingPicked() const
 	return (IsAnyCameraPicked() || IsAnyLightPicked() || IsAnyObject3DPicked());
 }
 
-bool CGame::IsAnyCameraPicked() const
-{
-	return (m_PickedCameraID == -1) ? false : true;
-}
-
-bool CGame::IsAnyLightPicked() const
-{
-	return (m_PickedLightID == -1) ? false : true;
-}
-
 bool CGame::IsAnyObject3DPicked() const
 {
 	return m_PtrPickedObject3D;
@@ -2883,6 +2873,16 @@ bool CGame::IsAnyObject3DPicked() const
 bool CGame::IsAnyInstancePicked() const
 {
 	return (m_PickedInstanceID != -1) ? true : false;
+}
+
+bool CGame::IsAnyCameraPicked() const
+{
+	return (m_PickedCameraID == -1) ? false : true;
+}
+
+bool CGame::IsAnyLightPicked() const
+{
+	return (m_PickedLightID == -1) ? false : true;
 }
 
 const string& CGame::GetPickedObject3DName() const
@@ -2899,6 +2899,31 @@ int CGame::GetPickedInstanceID() const
 bool CGame::IsAnythingSelected() const
 {
 	return (IsAnyCameraSelected() || IsAnyLightSelected() || IsAnyObject3DSelected() || IsAnyObject2DSelected());
+}
+
+bool CGame::IsAnyObject3DSelected() const
+{
+	return (m_PtrSelectedObject3D) ? true : false;
+}
+
+bool CGame::IsAnyInstanceSelected() const
+{
+	return (m_SelectedInstanceID != -1) ? true : false;
+}
+
+bool CGame::IsAnyObject2DSelected() const
+{
+	return (m_PtrSelectedObject2D) ? true : false;
+}
+
+bool CGame::IsAnyCameraSelected() const
+{
+	return (m_SelectedCameraID == -1) ? false : true;
+}
+
+bool CGame::IsAnyLightSelected() const
+{
+	return (m_SelectedLightID == -1) ? false : true;
 }
 
 void CGame::SelectObject3D(const string& Name)
@@ -2941,11 +2966,6 @@ void CGame::DeselectObject3D()
 	DeselectInstance();
 }
 
-bool CGame::IsAnyObject3DSelected() const
-{
-	return (m_PtrSelectedObject3D) ? true : false;
-}
-
 CObject3D* CGame::GetSelectedObject3D()
 {
 	return m_PtrSelectedObject3D;
@@ -2975,11 +2995,6 @@ void CGame::DeselectObject2D()
 {
 	m_PtrSelectedObject2D = nullptr;
 	DeselectInstance();
-}
-
-bool CGame::IsAnyObject2DSelected() const
-{
-	return (m_PtrSelectedObject2D) ? true : false;
 }
 
 CObject2D* CGame::GetSelectedObject2D()
@@ -3015,11 +3030,6 @@ void CGame::SelectPickedCamera()
 void CGame::DeselectCamera()
 {
 	m_SelectedCameraID = -1;
-}
-
-bool CGame::IsAnyCameraSelected() const
-{
-	return (m_SelectedCameraID == -1) ? false : true;
 }
 
 CCamera* CGame::GetSelectedCamera()
@@ -3070,11 +3080,6 @@ void CGame::DeselectLight()
 	m_SelectedLightID = -1;
 }
 
-bool CGame::IsAnyLightSelected() const
-{
-	return (m_SelectedLightID == -1) ? false : true;
-}
-
 void CGame::SelectInstance(int InstanceID)
 {
 	if (m_eEditMode != EEditMode::EditObject) return;
@@ -3108,11 +3113,6 @@ void CGame::SelectPickedInstance()
 void CGame::DeselectInstance()
 {
 	m_SelectedInstanceID = -1;
-}
-
-bool CGame::IsAnyInstanceSelected() const
-{
-	return (m_SelectedInstanceID != -1) ? true : false;
 }
 
 int CGame::GetSelectedInstanceID() const
@@ -3601,11 +3601,11 @@ void CGame::Update()
 		{
 			Select3DGizmos();
 			
-			if (m_bLeftButtonPressedOnce)
+			if (m_bLeftButtonUpOnce)
 			{
 				// @important
 				// When a Gizmo is selected, the interaction must be fixed to the attached object.
-				if (Pick() && !IsGizmoSelected())
+				if (!IsGizmoSelected() && Pick())
 				{
 					DeselectAll();
 
@@ -3615,7 +3615,6 @@ void CGame::Update()
 
 					if (IsAnyInstancePicked()) SelectPickedInstance();
 				}
-				m_bLeftButtonPressedOnce = false;
 			}
 
 			if (!m_CapturedMouseState.leftButton) Deselect3DGizmos();
@@ -3690,8 +3689,8 @@ void CGame::Draw()
 	// Deferred shading
 	{
 		// @important
-		SetForwardRenderTargets(true, true); // @important: just for clearing...
-		SetDeferredRenderTargets(true, true);
+		SetForwardRenderTargets(true); // @important: just for clearing...
+		SetDeferredRenderTargets(true);
 
 		m_DeviceContext->OMSetBlendState(m_CommonStates->Opaque(), nullptr, 0xFFFFFFFF);
 
@@ -7511,33 +7510,38 @@ void CGame::EndRendering()
 	}
 
 	m_SwapChain->Present(0, 0);
+
+	m_bLeftButtonPressedOnce = false;
+	m_bLeftButtonUpOnce = false;
 }
 
-void CGame::SetForwardRenderTargets(bool bClearRTV, bool bClearDSV)
+void CGame::SetForwardRenderTargets(bool bClearViews)
 {
 	m_DeviceContext->OMSetRenderTargets(1, m_BackBufferRTV.GetAddressOf(), m_DepthStencilDSV.Get());
 
-	if (bClearRTV) m_DeviceContext->ClearRenderTargetView(m_BackBufferRTV.Get(), Colors::CornflowerBlue);
-	if (bClearDSV) m_DeviceContext->ClearDepthStencilView(m_DepthStencilDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	if (bClearViews)
+	{
+		m_DeviceContext->ClearRenderTargetView(m_BackBufferRTV.Get(), Colors::CornflowerBlue);
+		m_DeviceContext->ClearDepthStencilView(m_DepthStencilDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	}
 
 	m_bIsDeferredRenderTargetsSet = false;
 }
 
-void CGame::SetDeferredRenderTargets(bool bClearRTV, bool bClearDSV)
+void CGame::SetDeferredRenderTargets(bool bClearViews)
 {
 	ID3D11RenderTargetView* RTVs[]{ m_BaseColorRoughRTV.Get(), m_NormalRTV.Get(), m_MetalAORTV.Get() };
 
 	m_DeviceContext->OMSetRenderTargets(ARRAYSIZE(RTVs), RTVs, m_DepthStencilDSV.Get());
 
-	if (bClearRTV)
+	if (bClearViews)
 	{
 		for (auto& RTV : RTVs)
 		{
 			m_DeviceContext->ClearRenderTargetView(RTV, Colors::Transparent); // @important
 		}
+		m_DeviceContext->ClearDepthStencilView(m_DepthStencilDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 	}
-
-	if (bClearDSV) m_DeviceContext->ClearDepthStencilView(m_DepthStencilDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	m_bIsDeferredRenderTargetsSet = true;
 }

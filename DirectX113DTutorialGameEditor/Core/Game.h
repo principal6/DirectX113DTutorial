@@ -525,25 +525,28 @@ private:
 
 private:
 	bool IsAnythingPicked() const;
-	bool IsAnyCameraPicked() const;
-	bool IsAnyLightPicked() const;
 	bool IsAnyObject3DPicked() const;
 	bool IsAnyInstancePicked() const;
+	bool IsAnyCameraPicked() const;
+	bool IsAnyLightPicked() const;
 	const std::string& GetPickedObject3DName() const;
 	int GetPickedInstanceID() const;
 
 	bool IsAnythingSelected() const;
+	bool IsAnyObject3DSelected() const;
+	bool IsAnyInstanceSelected() const;
+	bool IsAnyObject2DSelected() const;
+	bool IsAnyCameraSelected() const;
+	bool IsAnyLightSelected() const;
 
 	void SelectObject3D(const std::string& Name);
 	void SelectPickedObject3D();
 	void DeselectObject3D();
-	bool IsAnyObject3DSelected() const;
 	CObject3D* GetSelectedObject3D();
 	const std::string& GetSelectedObject3DName() const;
 
 	void SelectObject2D(const std::string& Name);
 	void DeselectObject2D();
-	bool IsAnyObject2DSelected() const;
 	CObject2D* GetSelectedObject2D();
 	const std::string& GetSelectedObject2DName() const;
 
@@ -551,7 +554,6 @@ private:
 	void SelectCamera(int CameraID);
 	void SelectPickedCamera();
 	void DeselectCamera();
-	bool IsAnyCameraSelected() const;
 	CCamera* GetSelectedCamera();
 	const std::string& GetSelectedCameraName() const;
 	CCamera* GetCurrentCamera();
@@ -561,8 +563,10 @@ private:
 	void SelectLight(const std::string& Name);
 	void SelectPickedLight();
 	void DeselectLight();
-	bool IsAnyLightSelected() const;
 
+	void DeselectAll();
+
+public:
 	void Select3DGizmos();
 	void Deselect3DGizmos();
 	bool IsGizmoHovered() const;
@@ -570,13 +574,10 @@ private:
 	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis, XMVECTOR* const OutPtrT);
 	bool ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
 
-	void DeselectAll();
-
 public:
 	void SelectInstance(int InstanceID);
 	void SelectPickedInstance();
 	void DeselectInstance();
-	bool IsAnyInstanceSelected() const;
 	int GetSelectedInstanceID() const;
 
 private:
@@ -589,8 +590,8 @@ public:
 	void EndRendering();
 
 private:
-	void SetForwardRenderTargets(bool bClearRTV = false, bool bClearDSV = false);
-	void SetDeferredRenderTargets(bool bClearRTV = false, bool bClearDSV = false);
+	void SetForwardRenderTargets(bool bClearViews = false);
+	void SetDeferredRenderTargets(bool bClearViews = false);
 	void DrawFullScreenQuad(CShader* const PixelShader, ID3D11ShaderResourceView** const SRVs, UINT NumSRVs);
 
 public:
@@ -1064,6 +1065,7 @@ private:
 	Keyboard::State					m_CapturedKeyboardState{};
 	Mouse::State					m_CapturedMouseState{};
 	bool							m_bLeftButtonPressedOnce{ false };
+	bool							m_bLeftButtonUpOnce{ false };
 	int								m_PrevCapturedMouseX{};
 	int								m_PrevCapturedMouseY{};
 
