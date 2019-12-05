@@ -2,6 +2,7 @@
 
 // @TODO
 // update scene loading/saving (save editor camera state into the scene) => BINARY ??
+// implement spot light
 // implement shadow mapping
 // improve terrain tessellation using quad patch? or is it good with the current Bezier triangles?
 
