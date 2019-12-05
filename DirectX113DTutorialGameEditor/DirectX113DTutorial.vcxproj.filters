@@ -78,12 +78,6 @@
     <ClCompile Include="Core\FileDialog.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Core\BinaryFile.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Core\ModelPorter.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Core\ConstantBuffer.cpp">
       <Filter>Core</Filter>
@@ -95,6 +89,12 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\Light.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\BinaryData.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\MeshPorter.cpp">
       <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
@@ -438,9 +438,6 @@
     <ClInclude Include="ImGui\imstb_truetype.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="Core\ModelPorter.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Core\Terrain.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -451,9 +448,6 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\FileDialog.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\BinaryFile.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\ConstantBuffer.h">
@@ -469,6 +463,12 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\Light.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\BinaryData.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\MeshPorter.h">
       <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>

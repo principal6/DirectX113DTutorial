@@ -88,6 +88,16 @@ void CBillboard::DeleteInstance(const std::string& InstanceName)
 	}
 }
 
+void CBillboard::ClearInstances()
+{
+	m_vInstanceCPUData.clear();
+	m_vInstanceCPUData.shrink_to_fit(); // @important
+	m_vInstanceGPUData.clear();
+	m_vInstanceGPUData.shrink_to_fit();
+
+	m_mapInstanceNameToIndex.clear();
+}
+
 void CBillboard::CreateInstanceBuffer()
 {
 	D3D11_BUFFER_DESC BufferDesc{};

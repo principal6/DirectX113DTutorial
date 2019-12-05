@@ -3,7 +3,7 @@
 #include "SharedHeader.h"
 #include "Material.h"
 #include "AssimpLoader.h"
-#include "ModelPorter.h"
+#include "MeshPorter.h"
 
 class CGame;
 class CShader;
@@ -11,7 +11,7 @@ class CShader;
 struct SModel
 {
 	SModel() {}
-	SModel(const CModelPorter::SSMODData& SMODFile) : vMeshes{ SMODFile.vMeshes }, vMaterialData{ SMODFile.vMaterialData } {}
+	SModel(const CMeshPorter::SMESHData& MESHFile) : vMeshes{ MESHFile.vMeshes }, vMaterialData{ MESHFile.vMaterialData } {}
 
 	struct SNode
 	{
@@ -190,6 +190,10 @@ private:
 	void CreateMaterialTexture(size_t Index);
 
 public:
+	void LoadOB3D(const std::string& OB3DFileName);
+	void SaveOB3D(const std::string& OB3DFileName);
+
+public:
 	bool HasAnimations();
 	void AddAnimationFromFile(const std::string& FileName, const std::string& AnimationName);
 	void SetAnimationID(int ID);
@@ -267,10 +271,11 @@ public:
 	bool IsInstanced() const { return (m_vInstanceCPUData.size() > 0) ? true : false; }
 	size_t GetInstanceCount() const { return m_vInstanceCPUData.size(); }
 	const SModel& GetModel() const { return m_Model; }
-	CModelPorter::SSMODData GetSMODData() const { return CModelPorter::SSMODData(m_Model.vMeshes, m_Model.vMaterialData); }
+	CMeshPorter::SMESHData GetMESHData() const { return CMeshPorter::SMESHData(m_Model.vMeshes, m_Model.vMaterialData); }
 	SModel& GetModel() { return m_Model; }
 	const std::string& GetName() const { return m_Name; }
 	const std::string& GetModelFileName() const { return m_ModelFileName; }
+	const std::string& GetOB3DFileName() const { return m_OB3DFileName; }
 	const std::map<std::string, size_t>& GetInstanceNameToIndexMap() const { return m_mapInstanceNameToIndex; }
 	CMaterialTextureSet* GetMaterialTextureSet(size_t iMaterial);
 
@@ -300,6 +305,7 @@ private:
 private:
 	std::string						m_Name{};
 	std::string						m_ModelFileName{};
+	std::string						m_OB3DFileName{};
 	bool							m_bIsCreated{ false };
 	SModel							m_Model{};
 	std::vector<std::unique_ptr<CMaterialTextureSet>> m_vMaterialTextureSets{};

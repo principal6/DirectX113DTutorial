@@ -17,7 +17,7 @@
 #include "PrimitiveGenerator.h"
 #include "Terrain.h"
 #include "CubemapRep.h"
-#include "ModelPorter.h"
+#include "MeshPorter.h"
 #include "Billboard.h"
 #include "Light.h"
 
@@ -375,18 +375,19 @@ public:
 	struct SCopyObject3D
 	{
 		SCopyObject3D() {}
-		SCopyObject3D(const std::string& _Name, const SModel& _Model, const std::vector<SInstanceCPUData> _vInstanceCPUData,
+		SCopyObject3D(const std::string& _Name, const SModel& _Model,
 			const CObject3D::SComponentTransform& _ComponentTransform, const CObject3D::SComponentPhysics& _ComponentPhysics,
-			const CObject3D::SComponentRender& _ComponentRender) :
-			Name{ _Name }, Model{ _Model }, vInstanceCPUData{ _vInstanceCPUData }, ComponentTransform{ _ComponentTransform },
-			ComponentPhysics{ _ComponentPhysics }, ComponentRender{ _ComponentRender } {}
+			const CObject3D::SComponentRender& _ComponentRender, const std::vector<SInstanceCPUData> _vInstanceCPUData) :
+			Name{ _Name }, Model{ _Model }, 
+			ComponentTransform{ _ComponentTransform }, ComponentPhysics{ _ComponentPhysics }, ComponentRender{ _ComponentRender },
+			vInstanceCPUData{ _vInstanceCPUData } {}
 
 		std::string						Name{};
 		SModel							Model{};
-		std::vector<SInstanceCPUData>	vInstanceCPUData{};
 		CObject3D::SComponentTransform	ComponentTransform{};
 		CObject3D::SComponentPhysics	ComponentPhysics{};
 		CObject3D::SComponentRender		ComponentRender{};
+		std::vector<SInstanceCPUData>	vInstanceCPUData{};
 
 		size_t							PasteCounter{};
 	};
@@ -447,8 +448,8 @@ private:
 	void CreateCubemapVertexBuffer();
 
 public:
-	void LoadScene(const std::string& FileName);
-	void SaveScene(const std::string& FileName);
+	void LoadScene(const std::string& FileName, const std::string& SceneDirectory);
+	void SaveScene(const std::string& FileName, const std::string& SceneDirectory);
 
 	// Advanced settings
 public:
@@ -564,6 +565,7 @@ public:
 public:
 	bool InsertLight(CLight::EType eType, const std::string& Name);
 	void DeleteLight(const std::string& Name);
+	void ClearLights();
 
 public:
 	void SetMode(EMode eMode);
@@ -986,7 +988,7 @@ private:
 	EFlagsRendering				m_eFlagsRendering{};
 	bool						m_bIsDeferredRenderTargetsSet{ false };
 	bool						m_IsDestroyed{ false };
-	CModelPorter				m_ModelPorter{};
+	CMeshPorter				m_MeshPorter{};
 	ImFont*						m_EditorGUIFont{};
 	SEditorGUIBools				m_EditorGUIBools{};
 	EMode						m_eMode{};

@@ -899,6 +899,7 @@ void CGame::CreateBaseShaders()
 
 void CGame::CreateMiniAxes()
 {
+	m_vMiniAxes.clear();
 	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisX", m_Device.Get(), m_DeviceContext.Get(), this));
 	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisY", m_Device.Get(), m_DeviceContext.Get(), this));
 	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisZ", m_Device.Get(), m_DeviceContext.Get(), this));
@@ -951,15 +952,15 @@ void CGame::CreateBoundingSphere()
 
 void CGame::Create3DGizmos()
 {
-	const static XMVECTOR ColorX{ XMVectorSet(1.00f, 0.25f, 0.25f, 1) };
-	const static XMVECTOR ColorY{ XMVectorSet(0.25f, 1.00f, 0.25f, 1) };
-	const static XMVECTOR ColorZ{ XMVectorSet(0.25f, 0.25f, 1.00f, 1) };
+	static constexpr XMVECTOR KColorX{ 1.00f, 0.25f, 0.25f, 1.0f };
+	static constexpr XMVECTOR KColorY{ 0.25f, 1.00f, 0.25f, 1.0f };
+	static constexpr XMVECTOR KColorZ{ 0.25f, 0.25f, 1.00f, 1.0f };
 
 	if (!m_Object3D_3DGizmoRotationPitch)
 	{
 		m_Object3D_3DGizmoRotationPitch = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorX) };
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorX) };
+		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, KColorX) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorX) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoRotationPitch->Create(MergeStaticMeshes(MeshRing, MeshAxis));
 		m_Object3D_3DGizmoRotationPitch->ComponentTransform.Roll = -XM_PIDIV2;
@@ -968,8 +969,8 @@ void CGame::Create3DGizmos()
 	if (!m_Object3D_3DGizmoRotationYaw)
 	{
 		m_Object3D_3DGizmoRotationYaw = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorY) };
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorY) };
+		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, KColorY) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorY) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoRotationYaw->Create(MergeStaticMeshes(MeshRing, MeshAxis));
 	}
@@ -977,8 +978,8 @@ void CGame::Create3DGizmos()
 	if (!m_Object3D_3DGizmoRotationRoll)
 	{
 		m_Object3D_3DGizmoRotationRoll = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, ColorZ) };
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorZ) };
+		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, KColorZ) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorZ) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_Object3D_3DGizmoRotationRoll->Create(MergeStaticMeshes(MeshRing, MeshAxis));
 		m_Object3D_3DGizmoRotationRoll->ComponentTransform.Pitch = XM_PIDIV2;
@@ -987,8 +988,8 @@ void CGame::Create3DGizmos()
 	if (!m_Object3D_3DGizmoTranslationX)
 	{
 		m_Object3D_3DGizmoTranslationX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorX) };
-		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorX) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorX) };
+		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, KColorX) };
 		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
@@ -999,8 +1000,8 @@ void CGame::Create3DGizmos()
 	if (!m_Object3D_3DGizmoTranslationY)
 	{
 		m_Object3D_3DGizmoTranslationY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorY) };
-		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorY) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorY) };
+		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, KColorY) };
 		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
@@ -1010,8 +1011,8 @@ void CGame::Create3DGizmos()
 	if (!m_Object3D_3DGizmoTranslationZ)
 	{
 		m_Object3D_3DGizmoTranslationZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorZ) };
-		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, ColorZ) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorZ) };
+		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, KColorZ) };
 		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
@@ -1022,8 +1023,8 @@ void CGame::Create3DGizmos()
 	if (!m_Object3D_3DGizmoScalingX)
 	{
 		m_Object3D_3DGizmoScalingX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorX) };
-		SMesh MeshCube{ GenerateCube(ColorX) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorX) };
+		SMesh MeshCube{ GenerateCube(KColorX) };
 		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
 		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
@@ -1035,8 +1036,8 @@ void CGame::Create3DGizmos()
 	if (!m_Object3D_3DGizmoScalingY)
 	{
 		m_Object3D_3DGizmoScalingY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorY) };
-		SMesh MeshCube{ GenerateCube(ColorY) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorY) };
+		SMesh MeshCube{ GenerateCube(KColorY) };
 		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
 		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
@@ -1047,8 +1048,8 @@ void CGame::Create3DGizmos()
 	if (!m_Object3D_3DGizmoScalingZ)
 	{
 		m_Object3D_3DGizmoScalingZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, ColorZ) };
-		SMesh MeshCube{ GenerateCube(ColorZ) };
+		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorZ) };
+		SMesh MeshCube{ GenerateCube(KColorZ) };
 		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
 		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
@@ -1138,391 +1139,145 @@ void CGame::CreateCubemapVertexBuffer()
 	m_Device->CreateBuffer(&BufferDesc, &SubresourceData, &m_CubemapVertexBuffer);
 }
 
-void CGame::LoadScene(const string& FileName)
+void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 {
-	using namespace tinyxml2;
+	CBinaryData SceneBinaryData{};
+	string ReadString{};
 
-	tinyxml2::XMLDocument xmlDocument{};
-	xmlDocument.LoadFile(FileName.c_str());
+	SceneBinaryData.LoadFromFile(FileName);
 
-	XMLElement* xmlScene{ xmlDocument.FirstChildElement() };
-	vector<XMLElement*> vxmlSceneChildren{};
-	XMLElement* xmlSceneChild{ xmlScene->FirstChildElement() };
-	while (xmlSceneChild)
+	// Terrain
 	{
-		vxmlSceneChildren.emplace_back(xmlSceneChild);
-		xmlSceneChild = xmlSceneChild->NextSiblingElement();
+		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+		LoadTerrain(ReadString);
+	}
+	
+	// Object3D
+	{
+		ClearObject3Ds();
+
+		uint32_t Object3DCount{ SceneBinaryData.ReadUint32() };
+		CBinaryData Object3DBinary{};
+		string Object3DName{};
+		for (uint32_t iObject3D = 0; iObject3D < Object3DCount; ++iObject3D)
+		{
+			SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+
+			Object3DBinary.LoadFromFile(ReadString);
+			Object3DBinary.ReadSkip(8);
+			Object3DBinary.ReadStringWithPrefixedLength(Object3DName);
+
+			InsertObject3D(Object3DName);
+			CObject3D* const Object3D{ GetObject3D(Object3DName) };
+			Object3D->LoadOB3D(ReadString);
+		}
 	}
 
-	for (const auto& xmlSceneChild : vxmlSceneChildren)
+	// Camera
 	{
-		const char* ID{ xmlSceneChild->Attribute("ID") };
+		ClearCameras();
 
-		if (strcmp(ID, "ObjectList") == 0)
+		uint32_t CameraCount{ SceneBinaryData.ReadUint32() };
+		for (uint32_t iCamera = 0; iCamera < CameraCount; ++iCamera)
 		{
-			vector<XMLElement*> vxmlObjects{};
-			XMLElement* xmlObject{ xmlSceneChild->FirstChildElement() };
-			while (xmlObject)
-			{
-				vxmlObjects.emplace_back(xmlObject);
-				xmlObject = xmlObject->NextSiblingElement();
-			}
+			/*
+			SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
 
-			ClearObject3Ds();
-			m_vObject3Ds.reserve(vxmlObjects.size());
-			vector<CObject3D*> vPtrObject3D{};
-			vector<std::pair<string, bool>> vModelDatas{};
-
-			for (const auto& xmlObject : vxmlObjects)
-			{
-				const char* ObjectName{ xmlObject->Attribute("Name") };
-
-				InsertObject3D(ObjectName);
-				vPtrObject3D.emplace_back(GetObject3D(ObjectName));
-				CObject3D* Object3D{ GetObject3D(ObjectName) };
-
-				vector<XMLElement*> vxmlObjectChildren{};
-				XMLElement* xmlObjectChild{ xmlObject->FirstChildElement() };
-				while (xmlObjectChild)
-				{
-					vxmlObjectChildren.emplace_back(xmlObjectChild);
-					xmlObjectChild = xmlObjectChild->NextSiblingElement();
-				}
-
-				for (const auto& xmlObjectChild : vxmlObjectChildren)
-				{
-					const char* ID{ xmlObjectChild->Attribute("ID") };
-
-					if (strcmp(ID, "Model") == 0)
-					{
-						const char* ModelFileName{ xmlObjectChild->Attribute("FileName") };
-						bool bIsRigged{ xmlObjectChild->BoolAttribute("IsRigged") };
-						vModelDatas.emplace_back(std::make_pair(ModelFileName, bIsRigged));
-					}
-
-					if (strcmp(ID, "Translation") == 0)
-					{
-						float x{ xmlObjectChild->FloatAttribute("x") };
-						float y{ xmlObjectChild->FloatAttribute("y") };
-						float z{ xmlObjectChild->FloatAttribute("z") };
-						Object3D->ComponentTransform.Translation = XMVectorSet(x, y, z, 1.0f);
-					}
-
-					if (strcmp(ID, "Rotation") == 0)
-					{
-						float Pitch{ xmlObjectChild->FloatAttribute("Pitch") };
-						float Yaw{ xmlObjectChild->FloatAttribute("Yaw") };
-						float Roll{ xmlObjectChild->FloatAttribute("Roll") };
-						Object3D->ComponentTransform.Pitch = Pitch;
-						Object3D->ComponentTransform.Yaw = Yaw;
-						Object3D->ComponentTransform.Roll = Roll;
-					}
-
-					if (strcmp(ID, "Scaling") == 0)
-					{
-						float x{ xmlObjectChild->FloatAttribute("x") };
-						float y{ xmlObjectChild->FloatAttribute("y") };
-						float z{ xmlObjectChild->FloatAttribute("z") };
-						Object3D->ComponentTransform.Scaling = XMVectorSet(x, y, z, 1.0f);
-					}
-
-					if (strcmp(ID, "BSCenterOffset") == 0)
-					{
-						float x{ xmlObjectChild->FloatAttribute("x") };
-						float y{ xmlObjectChild->FloatAttribute("y") };
-						float z{ xmlObjectChild->FloatAttribute("z") };
-						Object3D->ComponentPhysics.BoundingSphere.CenterOffset = XMVectorSet(x, y, z, 1.0f);
-					}
-
-					if (strcmp(ID, "BSRadius") == 0)
-					{
-						float Radius{ xmlObjectChild->FloatAttribute("Value") };
-						Object3D->ComponentPhysics.BoundingSphere.Radius = Radius;
-					}
-
-					if (strcmp(ID, "BSRadiusBias") == 0)
-					{
-						float RadiusBias{ xmlObjectChild->FloatAttribute("Value") };
-						Object3D->ComponentPhysics.BoundingSphere.RadiusBias = RadiusBias;
-					}
-
-					if (strcmp(ID, "InstanceList") == 0)
-					{
-						vector<XMLElement*> vxmlInstances{};
-						XMLElement* xmlInstance{ xmlObjectChild->FirstChildElement() };
-						while (xmlInstance)
-						{
-							vxmlInstances.emplace_back(xmlInstance);
-							xmlInstance = xmlInstance->NextSiblingElement();
-						}
-
-						int iInstance{};
-						for (auto& xmlInstance : vxmlInstances)
-						{
-							vector<XMLElement*> vxmlInstanceChildren{};
-							XMLElement* xmlInstanceChild{ xmlInstance->FirstChildElement() };
-							while (xmlInstanceChild)
-							{
-								vxmlInstanceChildren.emplace_back(xmlInstanceChild);
-								xmlInstanceChild = xmlInstanceChild->NextSiblingElement();
-							}
-
-							Object3D->InsertInstance();
-							auto& InstanceCPUData{ Object3D->GetLastInstanceCPUData() };
-							for (auto& xmlInstanceChild : vxmlInstanceChildren)
-							{
-								const char* ID{ xmlInstanceChild->Attribute("ID") };
-								if (strcmp(ID, "Translation") == 0)
-								{
-									float x{ xmlInstanceChild->FloatAttribute("x") };
-									float y{ xmlInstanceChild->FloatAttribute("y") };
-									float z{ xmlInstanceChild->FloatAttribute("z") };
-									InstanceCPUData.Translation = XMVectorSet(x, y, z, 1.0f);
-								}
-
-								if (strcmp(ID, "Rotation") == 0)
-								{
-									float Pitch{ xmlInstanceChild->FloatAttribute("Pitch") };
-									float Yaw{ xmlInstanceChild->FloatAttribute("Yaw") };
-									float Roll{ xmlInstanceChild->FloatAttribute("Roll") };
-									InstanceCPUData.Pitch = Pitch;
-									InstanceCPUData.Yaw = Yaw;
-									InstanceCPUData.Roll = Roll;
-								}
-
-								if (strcmp(ID, "Scaling") == 0)
-								{
-									float x{ xmlInstanceChild->FloatAttribute("x") };
-									float y{ xmlInstanceChild->FloatAttribute("y") };
-									float z{ xmlInstanceChild->FloatAttribute("z") };
-									InstanceCPUData.Scaling = XMVectorSet(x, y, z, 1.0f);
-								}
-							}
-							Object3D->UpdateInstanceWorldMatrix(InstanceCPUData.Name);
-
-							++iInstance;
-						}
-					}
-				}
-			}
-
-			// Create models using multiple threads
-			{
-				ULONGLONG StartTimePoint{ GetTickCount64() };
-				OutputDebugString((to_string(StartTimePoint) + " Loading models.\n").c_str());
-				vector<thread> vThreads{};
-				for (size_t iObject3D = 0; iObject3D < vPtrObject3D.size(); ++iObject3D)
-				{
-					vThreads.emplace_back
-					(
-						[](CObject3D* const P, const string& ModelFileName, bool bIsRigged)
-						{
-							P->CreateFromFile(ModelFileName, bIsRigged);
-							if (P->IsInstanced()) P->CreateInstanceBuffers();
-						}
-						, vPtrObject3D[iObject3D], vModelDatas[iObject3D].first, vModelDatas[iObject3D].second
-							);
-				}
-				for (auto& Thread : vThreads)
-				{
-					Thread.join();
-				}
-				OutputDebugString((to_string(GetTickCount64()) + " All models are loaded. ["
-					+ to_string(GetTickCount64() - StartTimePoint) + "] elapsed.\n").c_str());
-			}
+			InsertCamera(ReadString);
+			CCamera* Camera{ GetCamera(ReadString) };
+			Camera->SetData;
+			*/
 		}
+	}
 
-		if (strcmp(ID, "Terrain") == 0)
-		{
-			const char* TerrainFileName{ xmlSceneChild->Attribute("FileName") };
-			if (TerrainFileName) LoadTerrain(TerrainFileName);
-		}
+	// Light
+	{
+		ClearLights();
 
-		if (strcmp(ID, "Sky") == 0)
+		uint32_t LightCount{ SceneBinaryData.ReadUint32() };
+		for (uint32_t iLight = 0; iLight < LightCount; ++iLight)
 		{
-			const char* SkyFileName{ xmlSceneChild->Attribute("FileName") };
-			float ScalingFactor{ xmlSceneChild->FloatAttribute("ScalingFactor") };
-			if (SkyFileName) CreateDynamicSky(SkyFileName, ScalingFactor);
+			CLight::SLightInstanceCPUData InstanceCPUData{};
+			CLight::SLightInstanceGPUData InstanceGPUData{};
+
+			SceneBinaryData.ReadStringWithPrefixedLength(InstanceCPUData.Name);
+			InstanceCPUData.eType = (CLight::EType)SceneBinaryData.ReadUint32();
+
+			SceneBinaryData.ReadXMVECTOR(InstanceGPUData.Position);
+			SceneBinaryData.ReadXMVECTOR(InstanceGPUData.Color);
+			SceneBinaryData.ReadFloat(InstanceGPUData.Range);
+
+			InsertLight(InstanceCPUData.eType, InstanceCPUData.Name);
+
+			m_Light->SetInstanceGPUData(InstanceCPUData.Name, InstanceGPUData);
+			m_LightRep->SetInstancePosition(InstanceCPUData.Name, InstanceGPUData.Position);
 		}
 	}
 }
 
-void CGame::SaveScene(const string& FileName)
+void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 {
-	using namespace tinyxml2;
+	CBinaryData SceneBinaryData{};
 
+	// Terrain
 	if (m_Terrain)
 	{
-		if (m_Terrain->GetFileName().size() == 0)
+		if (m_Terrain->GetFileName().empty())
 		{
-			MB_WARN("지형이 존재하지만 저장되지 않았습니다.\n먼저 지형을 저장해 주세요.", "장면 저장 실패");
-			return;
+			m_Terrain->Save(SceneDirectory + "terrain.terr");
 		}
-		else
-		{
-			m_Terrain->Save(m_Terrain->GetFileName());
-		}
-	}
 
-	tinyxml2::XMLDocument xmlDocument{};
-	XMLElement* xmlRoot{ xmlDocument.NewElement("Scene") };
+		SceneBinaryData.WriteStringWithPrefixedLength(m_Terrain->GetFileName());
+	}
+	else
 	{
-		XMLElement* xmlObjectList{ xmlDocument.NewElement("ObjectList") };
-		xmlObjectList->SetAttribute("ID", "ObjectList");
+		SceneBinaryData.WriteUint32(0);
+	}
+
+	// Object3D
+	uint32_t Object3DCount{ (uint32_t)m_vObject3Ds.size() };
+	SceneBinaryData.WriteUint32(Object3DCount);
+	if (Object3DCount)
+	{
+		for (const auto& Object3D : m_vObject3Ds)
 		{
-			for (const auto& Object3D : m_vObject3Ds)
+			if (Object3D->GetOB3DFileName().empty())
 			{
-				XMLElement* xmlObject{ xmlDocument.NewElement("Object") };
-				xmlObject->SetAttribute("Name", Object3D->GetName().c_str());
-
-				XMLElement* xmlModelFileName{ xmlDocument.NewElement("Model") };
-				{
-					xmlModelFileName->SetAttribute("ID", "Model");
-					xmlModelFileName->SetAttribute("FileName", Object3D->GetModelFileName().c_str());
-					xmlModelFileName->SetAttribute("IsRigged", Object3D->IsRigged());
-					xmlObject->InsertEndChild(xmlModelFileName);
-				}
-
-				XMLElement* xmlTranslation{ xmlDocument.NewElement("Translation") };
-				{
-					xmlTranslation->SetAttribute("ID", "Translation");
-					XMFLOAT4 Translation{};
-					XMStoreFloat4(&Translation, Object3D->ComponentTransform.Translation);
-					xmlTranslation->SetAttribute("x", Translation.x);
-					xmlTranslation->SetAttribute("y", Translation.y);
-					xmlTranslation->SetAttribute("z", Translation.z);
-					xmlObject->InsertEndChild(xmlTranslation);
-				}
-
-				XMLElement* xmlRotation{ xmlDocument.NewElement("Rotation") };
-				{
-					xmlRotation->SetAttribute("ID", "Rotation");
-					xmlRotation->SetAttribute("Pitch", Object3D->ComponentTransform.Pitch);
-					xmlRotation->SetAttribute("Yaw", Object3D->ComponentTransform.Yaw);
-					xmlRotation->SetAttribute("Roll", Object3D->ComponentTransform.Roll);
-					xmlObject->InsertEndChild(xmlRotation);
-				}
-
-				XMLElement* xmlScaling{ xmlDocument.NewElement("Scaling") };
-				{
-					xmlScaling->SetAttribute("ID", "Scaling");
-					XMFLOAT4 Scaling{};
-					XMStoreFloat4(&Scaling, Object3D->ComponentTransform.Scaling);
-					xmlScaling->SetAttribute("x", Scaling.x);
-					xmlScaling->SetAttribute("y", Scaling.y);
-					xmlScaling->SetAttribute("z", Scaling.z);
-					xmlObject->InsertEndChild(xmlScaling);
-				}
-
-				XMLElement* xmlBSCenterOffset{ xmlDocument.NewElement("BSCenterOffset") };
-				{
-					xmlBSCenterOffset->SetAttribute("ID", "BSCenterOffset");
-					XMFLOAT4 BSCenterOffset{};
-					XMStoreFloat4(&BSCenterOffset, Object3D->ComponentPhysics.BoundingSphere.CenterOffset);
-					xmlBSCenterOffset->SetAttribute("x", BSCenterOffset.x);
-					xmlBSCenterOffset->SetAttribute("y", BSCenterOffset.y);
-					xmlBSCenterOffset->SetAttribute("z", BSCenterOffset.z);
-					xmlObject->InsertEndChild(xmlBSCenterOffset);
-				}
-
-				XMLElement* xmlBSRadius{ xmlDocument.NewElement("BSRadius") };
-				{
-					xmlBSRadius->SetAttribute("ID", "BSRadius");
-					xmlBSRadius->SetAttribute("Value", Object3D->ComponentPhysics.BoundingSphere.Radius);
-					xmlObject->InsertEndChild(xmlBSRadius);
-				}
-
-				XMLElement* xmlBSRadiusBias{ xmlDocument.NewElement("BSRadiusBias") };
-				{
-					xmlBSRadiusBias->SetAttribute("ID", "BSRadiusBias");
-					xmlBSRadiusBias->SetAttribute("Value", Object3D->ComponentPhysics.BoundingSphere.RadiusBias);
-					xmlObject->InsertEndChild(xmlBSRadiusBias);
-				}
-
-				if (Object3D->IsInstanced())
-				{
-					XMLElement* xmlInstanceList{ xmlDocument.NewElement("InstanceList") };
-					{
-						xmlInstanceList->SetAttribute("ID", "InstanceList");
-
-						for (const auto& InstancePair : Object3D->GetInstanceNameToIndexMap())
-						{
-							XMLElement* xmlInstance{ xmlDocument.NewElement("Instance") };
-							{
-								xmlInstance->SetAttribute("Name", InstancePair.first.c_str());
-
-								const auto& InstanceCPUData{ Object3D->GetInstanceCPUData(InstancePair.first) };
-
-								XMLElement* xmlTranslation{ xmlDocument.NewElement("Translation") };
-								{
-									xmlTranslation->SetAttribute("ID", "Translation");
-									XMFLOAT4 Translation{};
-									XMStoreFloat4(&Translation, InstanceCPUData.Translation);
-									xmlTranslation->SetAttribute("x", Translation.x);
-									xmlTranslation->SetAttribute("y", Translation.y);
-									xmlTranslation->SetAttribute("z", Translation.z);
-									xmlInstance->InsertEndChild(xmlTranslation);
-								}
-
-								XMLElement* xmlRotation{ xmlDocument.NewElement("Rotation") };
-								{
-									xmlRotation->SetAttribute("ID", "Rotation");
-									xmlRotation->SetAttribute("Pitch", InstanceCPUData.Pitch);
-									xmlRotation->SetAttribute("Yaw", InstanceCPUData.Yaw);
-									xmlRotation->SetAttribute("Roll", InstanceCPUData.Roll);
-									xmlInstance->InsertEndChild(xmlRotation);
-								}
-
-								XMLElement* xmlScaling{ xmlDocument.NewElement("Scaling") };
-								{
-									xmlScaling->SetAttribute("ID", "Scaling");
-									XMFLOAT4 Scaling{};
-									XMStoreFloat4(&Scaling, InstanceCPUData.Scaling);
-									xmlScaling->SetAttribute("x", Scaling.x);
-									xmlScaling->SetAttribute("y", Scaling.y);
-									xmlScaling->SetAttribute("z", Scaling.z);
-									xmlInstance->InsertEndChild(xmlScaling);
-								}
-
-								xmlInstanceList->InsertEndChild(xmlInstance);
-							}
-						}
-
-						xmlObject->InsertEndChild(xmlInstanceList);
-					}
-				}
-
-				xmlObjectList->InsertEndChild(xmlObject);
-			}
-			xmlRoot->InsertEndChild(xmlObjectList);
-		}
-
-		XMLElement* xmlTerrain{ xmlDocument.NewElement("Terrain") };
-		xmlTerrain->SetAttribute("ID", "Terrain");
-		{
-			if (m_Terrain)
-			{
-				xmlTerrain->SetAttribute("FileName", m_Terrain->GetFileName().c_str());
+				Object3D->SaveOB3D(SceneDirectory + Object3D->GetName() + ".ob3d");
 			}
 
-			xmlRoot->InsertEndChild(xmlTerrain);
-		}
-
-		XMLElement* xmlSky{ xmlDocument.NewElement("Sky") };
-		xmlSky->SetAttribute("ID", "Sky");
-		{
-			if (m_SkyData.bIsDataSet)
-			{
-				xmlSky->SetAttribute("FileName", m_SkyFileName.c_str());
-				xmlSky->SetAttribute("ScalingFactor", m_SkyScalingFactor);
-			}
-
-			xmlRoot->InsertEndChild(xmlSky);
+			SceneBinaryData.WriteStringWithPrefixedLength(Object3D->GetOB3DFileName());
 		}
 	}
-	xmlDocument.InsertEndChild(xmlRoot);
 
-	xmlDocument.SaveFile(FileName.c_str());
+	// Camera
+	uint32_t CameraCount{ (uint32_t)m_vCameras.size() };
+	SceneBinaryData.WriteUint32(CameraCount);
+	if (CameraCount)
+	{
+		
+	}
+
+	// Light
+	uint32_t LightCount{ (uint32_t)m_Light->GetInstanceCount() };
+	SceneBinaryData.WriteUint32(LightCount);
+	if (LightCount)
+	{
+		for (const auto& LightPair : m_Light->GetInstanceNameToIndexMap())
+		{
+			const auto& InstanceCPUData{ m_Light->GetInstanceCPUData(LightPair.first) };
+			const auto& InstanceGPUData{ m_Light->GetInstanceGPUData(LightPair.first) };
+
+			SceneBinaryData.WriteStringWithPrefixedLength(InstanceCPUData.Name);
+			SceneBinaryData.WriteUint32((uint32_t)InstanceCPUData.eType);
+
+			SceneBinaryData.WriteXMVECTOR(InstanceGPUData.Position);
+			SceneBinaryData.WriteXMVECTOR(InstanceGPUData.Color);
+			SceneBinaryData.WriteFloat(InstanceGPUData.Range);
+		}	
+	}
+	
+	SceneBinaryData.SaveToFile(FileName);
 }
 
 void CGame::SetProjectionMatrices(float FOV, float NearZ, float FarZ)
@@ -1942,8 +1697,9 @@ void CGame::CopySelectedObject()
 				}
 				else
 				{
-					m_vCopyObject3Ds.emplace_back(SelectionData.Name, Object3D->GetModel(), Object3D->GetInstanceCPUDataVector(),
-						Object3D->ComponentTransform, Object3D->ComponentPhysics, Object3D->ComponentRender);
+					m_vCopyObject3Ds.emplace_back(SelectionData.Name, Object3D->GetModel(),
+						Object3D->ComponentTransform, Object3D->ComponentPhysics, Object3D->ComponentRender,
+						Object3D->GetInstanceCPUDataVector());
 				}
 				break;
 			}
@@ -2686,6 +2442,12 @@ void CGame::DeleteLight(const std::string& Name)
 	{
 		m_LightRep->DeleteInstance(Name);
 	}
+}
+
+void CGame::ClearLights()
+{
+	m_Light->ClearInstances();
+	m_LightRep->ClearInstances();
 }
 
 void CGame::SetMode(EMode eMode)
@@ -4892,6 +4654,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 		static char NewObejctName[KAssetNameMaxLength]{};
 		static char ModelFileNameWithPath[MAX_PATH]{};
 		static char ModelFileNameWithoutPath[MAX_PATH]{};
+		static char ModelFileNameExtension[MAX_PATH]{};
 		static bool bIsModelRigged{ false };
 
 		static constexpr float KIndentPerDepth{ 12.0f };
@@ -5214,10 +4977,20 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 					{
 						InsertObject3D(NewObejctName);
 						CObject3D* const Object3D{ GetObject3D(NewObejctName) };
-						Object3D->CreateFromFile(ModelFileNameWithPath, bIsModelRigged);
+
+						string Extension{ ModelFileNameExtension };
+						if (Extension == "OB3D")
+						{
+							Object3D->LoadOB3D(ModelFileNameWithPath);
+						}
+						else
+						{
+							Object3D->CreateFromFile(ModelFileNameWithPath, bIsModelRigged);
+						}
 
 						memset(ModelFileNameWithPath, 0, MAX_PATH);
 						memset(ModelFileNameWithoutPath, 0, MAX_PATH);
+						memset(ModelFileNameExtension, 0, MAX_PATH);
 					}
 				}
 				else if (iSelectedOption == 2)
@@ -5293,6 +5066,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 			m_EditorGUIBools.bShowPopupObjectAdder = false;
 			memset(ModelFileNameWithPath, 0, MAX_PATH);
 			memset(ModelFileNameWithoutPath, 0, MAX_PATH);
+			memset(ModelFileNameExtension, 0, MAX_PATH);
 			memset(NewObejctName, 0, KAssetNameMaxLength);
 			ImGui::CloseCurrentPopup();
 		}
@@ -5300,10 +5074,11 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 		if (bShowDialogLoad3DModel)
 		{
 			static CFileDialog FileDialog{ GetWorkingDirectory() };
-			if (FileDialog.OpenFileDialog("FBX 파일\0*.fbx\0SMOD 파일\0*.smod\0모든 파일\0*.*\0", "모델 불러오기"))
+			if (FileDialog.OpenFileDialog("FBX 파일\0*.fbx\0MESH 파일\0*.mesh\0OB3D 파일\0*.ob3d\0모든 파일\0*.*\0", "모델 불러오기"))
 			{
 				strcpy_s(ModelFileNameWithPath, FileDialog.GetRelativeFileName().c_str());
 				strcpy_s(ModelFileNameWithoutPath, FileDialog.GetFileNameWithoutPath().c_str());
+				strcpy_s(ModelFileNameExtension, FileDialog.GetCapitalExtension().c_str());
 			}
 		}
 
@@ -7169,7 +6944,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				static CFileDialog FileDialog{ GetWorkingDirectory() };
 				if (FileDialog.SaveFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 내보내기", ".scene"))
 				{
-					SaveScene(FileDialog.GetRelativeFileName());
+					SaveScene(FileDialog.GetRelativeFileName(), FileDialog.GetDirectory());
 				}
 			}
 
@@ -7181,7 +6956,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				static CFileDialog FileDialog{ GetWorkingDirectory() };
 				if (FileDialog.OpenFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 불러오기"))
 				{
-					LoadScene(FileDialog.GetRelativeFileName());
+					LoadScene(FileDialog.GetRelativeFileName(), FileDialog.GetDirectory());
 				}
 			}
 
@@ -7202,10 +6977,17 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 					const SSelectionData& SelectionData{ m_vSelectionData.back() };
 					if (SelectionData.eObjectType == EObjectType::Object3D)
 					{
-						if (FileDialog.SaveFileDialog("smod 파일(*.smod)\0*.smod\0", "3D 오브젝트 저장하기", ".smod"))
+						if (FileDialog.SaveFileDialog("MESH 파일(*.mesh)\0*.mesh\0OB3D 파일(*.ob3d)\0*.ob3d\0", "3D 오브젝트 저장하기", ".mesh"))
 						{
 							CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-							m_ModelPorter.ExportStaticModel(FileDialog.GetFileName(), Object3D->GetSMODData());
+							if (FileDialog.GetCapitalExtension() == "MESH")
+							{
+								m_MeshPorter.ExportMesh(FileDialog.GetFileName(), Object3D->GetMESHData());
+							}
+							else
+							{
+								Object3D->SaveOB3D(FileDialog.GetFileName());
+							}
 						}
 					}
 				}

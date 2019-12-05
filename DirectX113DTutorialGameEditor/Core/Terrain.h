@@ -3,7 +3,7 @@
 #include "Object2D.h"
 #include "Object3D.h"
 #include "Material.h"
-#include "ModelPorter.h"
+#include "MeshPorter.h"
 
 class CGame;
 
@@ -65,7 +65,7 @@ public:
 public:
 	void Create(const XMFLOAT2& TerrainSize, const CMaterialData& MaterialData, uint32_t MaskingDetail, float UniformScaling = 1.0f);
 	void Load(const std::string& FileName);
-	void Save(const std::string& FileName);
+	bool Save(const std::string& FileName);
 
 private:
 	void Scale(const XMVECTOR& Scaling);
@@ -268,6 +268,6 @@ private:
 	EMaskingLayer			m_eMaskingLayer{};
 	float					m_MaskingAttenuation{ KMaskingMinAttenuation };
 
-	CModelPorter::STERRData	m_TerrainFileData{ KTessFactorMin, KTessFactorMin, KMaskingDefaultDetail, KDefaultFoliagePlacingDetail };
+	CMeshPorter::STERRData	m_TerrainFileData{ KTessFactorMin, KTessFactorMin, KMaskingDefaultDetail, KDefaultFoliagePlacingDetail };
 	SCBTerrainData					m_CBTerrainData{};
 };

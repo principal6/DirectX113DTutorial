@@ -4095,7 +4095,7 @@ static void ShowExampleAppLayout(bool* p_open)
                 {
                     if (ImGui::BeginTabItem("Description"))
                     {
-                        ImGui::TextWrapped("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ");
+                        ImGui::TextWrapped("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiumesh tempor incididunt ut labore et dolore magna aliqua. ");
                         ImGui::EndTabItem();
                     }
                     if (ImGui::BeginTabItem("Details"))
@@ -4564,7 +4564,7 @@ struct MyDocument
         ImGui::PushID(doc);
         ImGui::Text("Document \"%s\"", doc->Name);
         ImGui::PushStyleColor(ImGuiCol_Text, doc->Color);
-        ImGui::TextWrapped("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.");
+        ImGui::TextWrapped("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiumesh tempor incididunt ut labore et dolore magna aliqua.");
         ImGui::PopStyleColor();
         if (ImGui::Button("Modify", ImVec2(100, 0)))
             doc->Dirty = true;

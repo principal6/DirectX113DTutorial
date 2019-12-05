@@ -57,19 +57,19 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 		c = toupper(c);
 	}
 
-	if (Ext == ".SMOD")
+	if (Ext == ".MESH")
 	{
-		// SMOD file
-		CModelPorter ModelPorter{};
-		CModelPorter::SSMODData SMODData{};
-		ModelPorter.ImportStaticModel(m_ModelFileName, SMODData);
-		Create(SMODData);
+		// MESH file
+		CMeshPorter MeshPorter{};
+		CMeshPorter::SMESHData MESHData{};
+		MeshPorter.ImportMesh(m_ModelFileName, MESHData);
+		Create(MESHData);
 
 		m_bIsCreated = true;
 	}
 	else
 	{
-		// non-SMOD file
+		// non-MESH file
 		ULONGLONG StartTimePoint{ GetTickCount64() };
 		if (bIsModelRigged)
 		{
@@ -183,6 +183,183 @@ void CObject3D::CreateMaterialTexture(size_t Index)
 		m_vMaterialTextureSets[Index] = make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext);
 	}
 	m_vMaterialTextureSets[Index]->CreateTextures(m_Model.vMaterialData[Index]);
+}
+
+void CObject3D::LoadOB3D(const std::string& OB3DFileName)
+{
+	m_OB3DFileName = OB3DFileName;
+
+	CBinaryData Object3DBinary{};
+	string ReadString{};
+
+	Object3DBinary.LoadFromFile(OB3DFileName);
+
+	// 8B (string) Signature
+	Object3DBinary.ReadSkip(8);
+
+	// <@PrefString> Object3D name
+	Object3DBinary.ReadStringWithPrefixedLength(m_Name);
+
+	// 1B (bool) bContainMeshData
+	// <@PrefString> Model file name
+	bool bContainMeshData{ Object3DBinary.ReadBool() };
+	if (bContainMeshData)
+	{
+		// 4B (uint32_t) Mesh byte count
+		// ?? (byte) Mesh bytes
+
+		size_t MeshDataByteCount{ Object3DBinary.ReadUint32() };
+		vector<byte> MeshDataBinary{};
+		Object3DBinary.ReadBytes(MeshDataByteCount, MeshDataBinary);
+		
+		CMeshPorter MeshPorter{ MeshDataBinary };
+		CMeshPorter::SMESHData MeshData{};
+		MeshPorter.ReadMeshData(MeshData);
+
+		Create(MeshData);
+	}
+	else
+	{
+		Object3DBinary.ReadStringWithPrefixedLength(ReadString);
+		CreateFromFile(ReadString, false);
+	}
+	
+	// ### ComponentTransform ###
+	{
+		Object3DBinary.ReadXMVECTOR(ComponentTransform.Translation);
+
+		Object3DBinary.ReadFloat(ComponentTransform.Pitch);
+		Object3DBinary.ReadFloat(ComponentTransform.Yaw);
+		Object3DBinary.ReadFloat(ComponentTransform.Roll);
+
+		Object3DBinary.ReadXMVECTOR(ComponentTransform.Scaling);
+	}
+
+	// ### ComponentPhysics ###
+	{
+		Object3DBinary.ReadBool(ComponentPhysics.bIsPickable);
+
+		Object3DBinary.ReadXMVECTOR(ComponentPhysics.BoundingSphere.CenterOffset);
+
+		Object3DBinary.ReadFloat(ComponentPhysics.BoundingSphere.Radius);
+		Object3DBinary.ReadFloat(ComponentPhysics.BoundingSphere.RadiusBias);
+	}
+
+	// ### ComponentRender ###
+	{
+		Object3DBinary.ReadBool(ComponentRender.bIsTransparent);
+		Object3DBinary.ReadBool(ComponentRender.bShouldAnimate);
+	}
+
+	// ### Instance ###
+	{
+		size_t InstanceCount{ Object3DBinary.ReadUint32() };
+
+		vector<SInstanceCPUData> vInstanceCPUData{};
+		vInstanceCPUData.resize(InstanceCount);
+		for (size_t iInstance = 0; iInstance < InstanceCount; ++iInstance)
+		{
+			SInstanceCPUData& InstanceCPUData{ vInstanceCPUData[iInstance] };
+
+			Object3DBinary.ReadStringWithPrefixedLength(InstanceCPUData.Name);
+
+			Object3DBinary.ReadXMVECTOR(InstanceCPUData.Translation);
+			Object3DBinary.ReadFloat(InstanceCPUData.Pitch);
+			Object3DBinary.ReadFloat(InstanceCPUData.Yaw);
+			Object3DBinary.ReadFloat(InstanceCPUData.Roll);
+			Object3DBinary.ReadXMVECTOR(InstanceCPUData.Scaling);
+
+			Object3DBinary.ReadXMVECTOR(InstanceCPUData.BoundingSphere.CenterOffset);
+			Object3DBinary.ReadFloat(InstanceCPUData.BoundingSphere.Radius);
+			Object3DBinary.ReadFloat(InstanceCPUData.BoundingSphere.RadiusBias);
+		}
+
+		CreateInstances(vInstanceCPUData);
+	}
+}
+
+void CObject3D::SaveOB3D(const std::string& OB3DFileName)
+{
+	m_OB3DFileName = OB3DFileName;
+
+	CBinaryData Object3DBinary{};
+
+	// 8B (string) Signature
+	Object3DBinary.WriteString("KJW_OB3D", 8);
+
+	// <@PrefString> Object3D name
+	Object3DBinary.WriteStringWithPrefixedLength(m_Name);
+
+	// 1B (bool) bContainMeshData
+	// <@PrefString> Model file name
+	if (m_ModelFileName.empty())
+	{
+		Object3DBinary.WriteBool(true);
+
+		// 4B (uint32_t) Mesh byte count
+		// ?? (byte) Mesh bytes
+		CMeshPorter MeshPorter{};
+		MeshPorter.WriteMeshData(CMeshPorter::SMESHData(m_Model.vMeshes, m_Model.vMaterialData));
+		vector<byte> MeshBytes{ MeshPorter.GetBytes() };
+
+		Object3DBinary.WriteUint32((uint32_t)MeshBytes.size());
+		Object3DBinary.AppendBytes(MeshBytes);
+	}
+	else
+	{
+		Object3DBinary.WriteBool(false);
+
+		Object3DBinary.WriteStringWithPrefixedLength(m_ModelFileName);
+	}
+
+	// ### ComponentTransform ###
+	{
+		Object3DBinary.WriteXMVECTOR(ComponentTransform.Translation);
+
+		Object3DBinary.WriteFloat(ComponentTransform.Pitch);
+		Object3DBinary.WriteFloat(ComponentTransform.Yaw);
+		Object3DBinary.WriteFloat(ComponentTransform.Roll);
+
+		Object3DBinary.WriteXMVECTOR(ComponentTransform.Scaling);
+	}
+	
+	// ### ComponentPhysics ###
+	{
+		Object3DBinary.WriteBool(ComponentPhysics.bIsPickable);
+		
+		Object3DBinary.WriteXMVECTOR(ComponentPhysics.BoundingSphere.CenterOffset);
+		
+		Object3DBinary.WriteFloat(ComponentPhysics.BoundingSphere.Radius);
+		Object3DBinary.WriteFloat(ComponentPhysics.BoundingSphere.RadiusBias);
+	}
+
+	// ### ComponentRender ###
+	{
+		Object3DBinary.WriteBool(ComponentRender.bIsTransparent);
+		Object3DBinary.WriteBool(ComponentRender.bShouldAnimate);
+	}
+
+	// ### Instance ###
+	{
+		Object3DBinary.WriteUint32((uint32_t)m_vInstanceCPUData.size());
+
+		for (const auto& InstanceCPUData : m_vInstanceCPUData)
+		{
+			Object3DBinary.WriteStringWithPrefixedLength(InstanceCPUData.Name);
+			
+			Object3DBinary.WriteXMVECTOR(InstanceCPUData.Translation);
+			Object3DBinary.WriteFloat(InstanceCPUData.Pitch);
+			Object3DBinary.WriteFloat(InstanceCPUData.Yaw);
+			Object3DBinary.WriteFloat(InstanceCPUData.Roll);
+			Object3DBinary.WriteXMVECTOR(InstanceCPUData.Scaling);
+
+			Object3DBinary.WriteXMVECTOR(InstanceCPUData.BoundingSphere.CenterOffset);
+			Object3DBinary.WriteFloat(InstanceCPUData.BoundingSphere.Radius);
+			Object3DBinary.WriteFloat(InstanceCPUData.BoundingSphere.RadiusBias);
+		}
+	}
+
+	Object3DBinary.SaveToFile(OB3DFileName);
 }
 
 bool CObject3D::HasAnimations()

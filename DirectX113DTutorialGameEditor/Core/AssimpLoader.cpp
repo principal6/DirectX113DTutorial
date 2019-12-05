@@ -146,7 +146,7 @@ void CAssimpLoader::LoadMeshesFromFile(const aiScene* const Scene, vector<SMesh>
 	{
 		const aiMesh* const _aiMesh{ Scene->mMeshes[iMesh] };
 		SMesh& Mesh{ vMeshes[iMesh] };
-		Mesh.MaterialID = _aiMesh->mMaterialIndex;
+		Mesh.MaterialID = (uint8_t)_aiMesh->mMaterialIndex;
 
 		assert(_aiMesh->HasPositions());
 		{

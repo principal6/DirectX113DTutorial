@@ -75,6 +75,16 @@ bool CLight::DeleteInstance(const std::string& InstanceName)
 	return true;
 }
 
+void CLight::ClearInstances()
+{
+	m_vInstanceCPUData.clear();
+	m_vInstanceCPUData.shrink_to_fit();
+	m_vInstanceGPUData.clear();
+	m_vInstanceGPUData.shrink_to_fit();
+
+	m_mapInstanceNameToIndex.clear();
+}
+
 size_t CLight::GetInstanceCount() const
 {
 	return m_vInstanceCPUData.size();

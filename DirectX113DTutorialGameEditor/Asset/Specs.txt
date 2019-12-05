@@ -1,8 +1,8 @@
 // #########################
-// << SMOD FILE STRUCTURE >>
+// << MESH FILE STRUCTURE >>
 // @NameStructure@ == 2B(uint16_t)[String length] + ?B(string)[Non-zero-terminated string]
 // #########################
-// 8B (string) SMOD Signature (SMOD_KJW)
+// 8B (string) MESH Signature (MESH_KJW)
 // ##### MATERIAL #####
 // 1B (uint8_t) Material count
 // # 1B (uint8_t) Material index

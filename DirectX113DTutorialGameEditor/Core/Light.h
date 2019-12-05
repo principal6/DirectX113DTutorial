@@ -53,6 +53,7 @@ public:
 public:
 	bool InsertInstance(std::string& InstanceName, EType eType);
 	bool DeleteInstance(const std::string& InstanceName);
+	void ClearInstances();
 
 	size_t GetInstanceCount() const;
 	const SLightInstanceCPUData& GetInstanceCPUData(const std::string& InstanceName) const;

@@ -1,6 +1,6 @@
 #include "Terrain.h"
 #include "PrimitiveGenerator.h"
-#include "ModelPorter.h"
+#include "MeshPorter.h"
 #include "Math.h"
 #include "Game.h"
 
@@ -48,8 +48,8 @@ void CTerrain::Load(const string& FileName)
 
 	m_TerrainFileData.FileName = FileName;
 
-	CModelPorter ModelPorter{};
-	ModelPorter.ImportTerrain(FileName, m_TerrainFileData);
+	CMeshPorter MeshPorter{};
+	MeshPorter.ImportTerrain(FileName, m_TerrainFileData);
 
 	m_CBTerrainData.TerrainSizeX = m_TerrainFileData.SizeX;
 	m_CBTerrainData.TerrainSizeZ = m_TerrainFileData.SizeZ;
@@ -73,22 +73,24 @@ void CTerrain::Load(const string& FileName)
 	}
 }
 
-void CTerrain::Save(const string& FileName)
+bool CTerrain::Save(const string& FileName)
 {
-	if (!m_Object3DTerrain) return;
+	if (!m_Object3DTerrain) return false;
 
 	m_TerrainFileData.FileName = FileName;
 	m_TerrainFileData.vMaterialData = m_Object3DTerrain->GetModel().vMaterialData;
 
-	CModelPorter ModelPorter{};
+	CMeshPorter MeshPorter{};
 	for (size_t iFoliage = 0; iFoliage < m_vFoliages.size(); ++iFoliage)
 	{
 		m_TerrainFileData.vFoliageData[iFoliage].vInstanceData = m_vFoliages[iFoliage]->GetInstanceCPUDataVector();
 	}
 	
-	ModelPorter.ExportTerrain(FileName, m_TerrainFileData);
+	MeshPorter.ExportTerrain(FileName, m_TerrainFileData);
 
 	m_TerrainFileData.bShouldSave = false;
+
+	return true;
 }
 
 void CTerrain::Scale(const XMVECTOR& Scaling)

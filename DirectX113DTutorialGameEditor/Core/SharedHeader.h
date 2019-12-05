@@ -70,7 +70,7 @@ struct SMesh
 	std::vector<SVertexAnimation>	vVerticesAnimation{};
 	std::vector<STriangle>			vTriangles{};
 
-	size_t							MaterialID{};
+	uint8_t							MaterialID{};
 };
 
 struct SBoundingSphere

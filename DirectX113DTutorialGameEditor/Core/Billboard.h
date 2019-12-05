@@ -74,6 +74,7 @@ public:
 public:
 	void InsertInstance(const std::string& InstanceName);
 	void DeleteInstance(const std::string& InstanceName);
+	void ClearInstances();
 
 private:
 	void CreateInstanceBuffer();
