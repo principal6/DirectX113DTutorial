@@ -172,7 +172,7 @@ void CGame::InitializeEditorAssets()
 		CObject2D::SModel2D Model2D{ Generate2DRectangle(XMFLOAT2(1, 1)) };
 		for (auto& Vertex : Model2D.vVertices)
 		{
-			Vertex.Color = XMVectorSet(0, 0.25f, 1.0f, 0.5f);
+			Vertex.Color = XMVectorSet(0, 0.375f, 1.0f, 0.375f);
 		}
 		m_MultipleSelectionRep->Create(Model2D);
 	}
@@ -3889,7 +3889,7 @@ void CGame::Draw()
 
 		if (m_eMode == EMode::Edit)
 		{
-			DrawRegionSelectionRep();
+			DrawMultipleSelectionRep();
 
 			m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
 
@@ -4429,9 +4429,10 @@ void CGame::DrawLightRep()
 	m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
 }
 
-void CGame::DrawRegionSelectionRep()
+void CGame::DrawMultipleSelectionRep()
 {
 	if (!m_MultipleSelectionChanging) return;
+	if (m_eEditMode == EEditMode::EditTerrain) return;
 	
 	m_CBPS2DFlagsData.bUseTexture = FALSE;
 	m_CBPS2DFlags->Update();

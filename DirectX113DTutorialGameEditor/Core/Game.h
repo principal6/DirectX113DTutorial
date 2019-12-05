@@ -666,7 +666,7 @@ private:
 
 	void DrawCameraRep();
 	void DrawLightRep();
-	void DrawRegionSelectionRep();
+	void DrawMultipleSelectionRep();
 
 	void DrawEditorGUI();
 	void DrawEditorGUIMenuBar();
