@@ -19,8 +19,8 @@ VS_OUTPUT main(VS_INPUT Input)
 	Output.Color = Input.Color;
 	Output.TexCoord = Input.TexCoord;
 
-	Output.WorldNormal = normalize(mul(Input.Normal, World));
-	Output.WorldTangent = normalize(mul(Input.Tangent, World));
+	Output.WorldNormal = normalize(mul(Input.Normal, InstanceWorld));
+	Output.WorldTangent = normalize(mul(Input.Tangent, InstanceWorld));
 	Output.WorldBitangent = CalculateBitangent(Output.WorldNormal, Output.WorldTangent);
 
 	Output.bUseVertexColor = 0;
