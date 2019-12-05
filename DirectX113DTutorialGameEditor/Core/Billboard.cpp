@@ -106,6 +106,9 @@ void CBillboard::CreateInstanceBuffer()
 
 void CBillboard::UpdateInstanceBuffer()
 {
+	if (m_vInstanceGPUData.empty()) return;
+	if (!m_InstanceBuffer.Buffer) return;
+
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_InstanceBuffer.Buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
 	{
@@ -123,26 +126,42 @@ void CBillboard::SetInstancePosition(const std::string& InstanceName, const XMVE
 		return;
 	}
 
-	SetInstancePosition(m_mapInstanceNameToIndex.at(InstanceName), Position);
-}
-
-void CBillboard::SetInstancePosition(size_t InstanceID, const XMVECTOR& Position)
-{
-	if (InstanceID >= m_vInstanceGPUData.size()) return;
-
-	m_vInstanceGPUData[InstanceID].Position = Position;
+	m_vInstanceGPUData[GetInstanceID(InstanceName)].Position = Position;
 
 	UpdateInstanceBuffer();
 }
 
-const XMVECTOR& CBillboard::GetInstancePosition(size_t InstanceID) const
+const XMVECTOR& CBillboard::GetInstancePosition(const std::string& InstanceName) const
 {
-	return m_vInstanceGPUData[InstanceID].Position;
+	return m_vInstanceGPUData[GetInstanceID(InstanceName)].Position;
+}
+
+void CBillboard::SetInstanceHighlight(const std::string& InstanceName, bool bShouldHighlight)
+{
+	m_vInstanceGPUData[GetInstanceID(InstanceName)].IsHighlighted = (bShouldHighlight) ? 1.0f : 0.0f;
+}
+
+void CBillboard::SetAllInstancesHighlightOff()
+{
+	for (auto& InstanceGPUData : m_vInstanceGPUData)
+	{
+		InstanceGPUData.IsHighlighted = 0.0f;
+	}
+}
+
+size_t CBillboard::GetInstanceCount() const
+{
+	return m_vInstanceCPUData.size();
 }
 
 const CBillboard::SCBBillboardData& CBillboard::GetCBBillboard() const
 {
 	return m_CBBillboardData;
+}
+
+size_t CBillboard::GetInstanceID(const std::string& InstanceName) const
+{
+	return m_mapInstanceNameToIndex.at(InstanceName);
 }
 
 void CBillboard::Draw()

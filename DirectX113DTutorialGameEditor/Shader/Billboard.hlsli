@@ -3,9 +3,10 @@ static const float KPI = 3.14159;
 struct VS_BILLBOARD_INPUT
 {
 	uint	InstanceID			: SV_InstanceID;
-	float4	InstancePosition	: INSTANCE_POSITION;
-	float	InstanceRotation	: INSTANCE_ROTATION;
-	float3	InstanceScaling		: INSTANCE_SCALING;
+	float4	InstancePosition	: POSITION;
+	float	InstanceRotation	: ROTATION;
+	float2	InstanceScaling		: SCALING;
+	float	IsHighlighted		: IS_HIGHLIGHTED;
 };
 
 struct VS_BILLBOARD_OUTPUT
@@ -13,7 +14,8 @@ struct VS_BILLBOARD_OUTPUT
 	uint	InstanceID			: INSTANCE_ID;
 	float4	InstancePosition	: SV_Position;
 	float	InstanceRotation	: ROTATION;
-	float3	InstanceScaling		: SCALING;
+	float2	InstanceScaling		: SCALING;
+	float	IsHighlighted		: IS_HIGHLIGHTED;
 };
 
 #define HS_BILLBOARD_OUTPUT VS_BILLBOARD_OUTPUT
@@ -26,7 +28,8 @@ struct HS_CONSTANT_DATA_OUTPUT
 
 struct DS_BILLBOARD_OUTPUT
 {
-	float4	Position	: SV_Position;
-	float2	TexCoord	: TEXCOORD;
-	uint	InstanceID	: INSTANCE_ID;
+	float4	Position		: SV_Position;
+	float2	TexCoord		: TEXCOORD;
+	uint	InstanceID		: INSTANCE_ID;
+	float	IsHighlighted	: IS_HIGHLIGHTED;
 };

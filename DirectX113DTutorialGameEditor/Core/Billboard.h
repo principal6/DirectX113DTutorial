@@ -8,18 +8,19 @@ class CBillboard
 public:
 	static constexpr D3D11_INPUT_ELEMENT_DESC KInputElementDescs[]
 	{
-		{ "INSTANCE_POSITION"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0,  0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-		{ "INSTANCE_ROTATION"	, 0, DXGI_FORMAT_R32_FLOAT			, 0, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-		{ "INSTANCE_SCALING"	, 0, DXGI_FORMAT_R32G32B32_FLOAT	, 0, 20, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+		{ "POSITION"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0,  0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+		{ "ROTATION"		, 0, DXGI_FORMAT_R32_FLOAT			, 0, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+		{ "SCALING"			, 0, DXGI_FORMAT_R32G32_FLOAT		, 0, 20, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+		{ "IS_HIGHLIGHTED"	, 0, DXGI_FORMAT_R32_FLOAT			, 0, 28, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
 	};
 
 	struct SCBBillboardData
 	{
-		XMFLOAT2 PixelSize{};
-		XMFLOAT2 ScreenSize{}; // @important: this will be updated in CGame
-		XMFLOAT2 WorldSpaceSize{ 1.0f, 1.0f };
-		BOOL bIsScreenSpace{ FALSE };
-		float Reserved{};
+		XMFLOAT2	PixelSize{};
+		XMFLOAT2	ScreenSize{}; // @important: this will be updated in CGame
+		XMFLOAT2	WorldSpaceSize{ 1.0f, 1.0f };
+		BOOL		bIsScreenSpace{ FALSE };
+		float		Reserved{};
 	};
 
 private:
@@ -35,7 +36,8 @@ private:
 	{
 		XMVECTOR				Position{ 0, 0, 0, 1 }; // @important
 		float					Rotation{};
-		XMFLOAT3				Scaling{ 1, 1, 1 };
+		XMFLOAT2				Scaling{ 1, 1 };
+		float					IsHighlighted{ 0.0f };
 	};
 
 	struct SInstanceBuffer
@@ -75,14 +77,22 @@ public:
 
 private:
 	void CreateInstanceBuffer();
+
+public:
 	void UpdateInstanceBuffer();
 
 public:
 	void SetInstancePosition(const std::string& InstanceName, const XMVECTOR& Position);
-	void SetInstancePosition(size_t InstanceID, const XMVECTOR& Position);
-	const XMVECTOR& GetInstancePosition(size_t InstanceID) const;
+	const XMVECTOR& GetInstancePosition(const std::string& InstanceName) const;
 
+	void SetInstanceHighlight(const std::string& InstanceName, bool bShouldHighlight);
+	void SetAllInstancesHighlightOff();
+
+	size_t GetInstanceCount() const;
 	const CBillboard::SCBBillboardData& GetCBBillboard() const;
+
+private:
+	size_t GetInstanceID(const std::string& InstanceName) const;
 
 public:
 	void Draw();

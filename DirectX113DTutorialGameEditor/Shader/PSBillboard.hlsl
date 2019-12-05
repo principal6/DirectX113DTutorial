@@ -11,17 +11,10 @@ cbuffer cbEditorTime : register(b0)
 	float2 Reserved;
 }
 
-cbuffer cbBillboardSelection : register(b1)
-{
-	bool bUseBillboardSelection;
-	uint SelectedBillboardID;
-	float2 Pads;
-}
-
 float4 main(DS_BILLBOARD_OUTPUT Input) : SV_TARGET
 {
 	float4 Sampled = BillboardTexture.Sample(LinearClampSampler, Input.TexCoord);
-	if (bUseBillboardSelection && Input.InstanceID == SelectedBillboardID)
+	if (Input.IsHighlighted != 0.0f)
 	{
 		Sampled += float4(0.6, 0.3, 0.6, 0) * sin(NormalizedTime * KPI);
 	}

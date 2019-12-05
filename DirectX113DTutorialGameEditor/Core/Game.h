@@ -98,6 +98,7 @@ public:
 		Object3D,
 		Object3DLine,
 		Object2D,
+		EditorCamera,
 		Camera,
 		Light,
 
@@ -210,18 +211,10 @@ public:
 		float		Reserved[2]{};
 	};
 
-	struct SCBCameraSelectionData
+	struct SCBCameraData
 	{
-		uint32_t	SelectedCameraID{};
 		uint32_t	CurrentCameraID{};
-		float		Pads[2]{};
-	};
-
-	struct SCBBillboardSelectionData
-	{
-		BOOL		bUseBillboardSelection{ FALSE };
-		uint32_t	SelectedBillboardID{};
-		float		Pads[2]{};
+		float		Pads[3]{};
 	};
 
 	struct SCBScreenData
@@ -333,11 +326,12 @@ public:
 	struct SObject3DPickingCandiate
 	{
 		SObject3DPickingCandiate() {};
-		SObject3DPickingCandiate(CObject3D* _PtrObject3D, XMVECTOR _T) : PtrObject3D{ _PtrObject3D }, T{ _T } {}
-		SObject3DPickingCandiate(CObject3D* _PtrObject3D, int _InstanceID, XMVECTOR _T) : PtrObject3D{ _PtrObject3D }, InstanceID{ _InstanceID }, T{ _T } {}
+		SObject3DPickingCandiate(CObject3D* const _PtrObject3D, XMVECTOR _T) : PtrObject3D{ _PtrObject3D }, T{ _T } {}
+		SObject3DPickingCandiate(CObject3D* const _PtrObject3D, const std::string& _InstanceName, XMVECTOR _T) :
+			PtrObject3D{ _PtrObject3D }, InstanceName{ _InstanceName }, T{ _T } {}
 
-		CObject3D* PtrObject3D{};
-		int			InstanceID{ -1 };
+		CObject3D*	PtrObject3D{};
+		std::string	InstanceName{};
 		XMVECTOR	T{};
 		bool		bHasFailedPickingTest{ false };
 	};
@@ -356,15 +350,67 @@ public:
 		XMFLOAT3 TexCoord;
 	};
 
-	struct SRegionSelectionData
+	// EditorCamera
+	// Camera - Name
+	// Light - Name
+	// Object3D - Name, PtrObject3D
+	// Object3DInstance - Name, PtrObject3D
+	// Object3DLine - Name, PtrObject3DLine
+	// Object2D - Name, PtrObject2D
+	struct SSelectionData
 	{
-		SRegionSelectionData() {}
-		SRegionSelectionData(EObjectType _eObjectType, const std::string& _Name, void* _PtrObject) :
+		SSelectionData() {}
+		SSelectionData(EObjectType _eObjectType) :
+			eObjectType{ _eObjectType } {}
+		SSelectionData(EObjectType _eObjectType, const std::string& _Name) :
+			eObjectType{ _eObjectType }, Name{ _Name } {}
+		SSelectionData(EObjectType _eObjectType, const std::string& _Name, void* _PtrObject) :
 			eObjectType{ _eObjectType }, Name{ _Name }, PtrObject{ _PtrObject } {}
-
+		
 		EObjectType	eObjectType{};
 		std::string	Name{};
 		void*		PtrObject{};
+	};
+
+	struct SCopyObject3D
+	{
+		SCopyObject3D() {}
+		SCopyObject3D(const std::string& _Name, const SModel& _Model, const std::vector<SInstanceCPUData> _vInstanceCPUData,
+			const CObject3D::SComponentTransform& _ComponentTransform, const CObject3D::SComponentPhysics& _ComponentPhysics,
+			const CObject3D::SComponentRender& _ComponentRender) :
+			Name{ _Name }, Model{ _Model }, vInstanceCPUData{ _vInstanceCPUData }, ComponentTransform{ _ComponentTransform },
+			ComponentPhysics{ _ComponentPhysics }, ComponentRender{ _ComponentRender } {}
+
+		std::string						Name{};
+		SModel							Model{};
+		std::vector<SInstanceCPUData>	vInstanceCPUData{};
+		CObject3D::SComponentTransform	ComponentTransform{};
+		CObject3D::SComponentPhysics	ComponentPhysics{};
+		CObject3D::SComponentRender		ComponentRender{};
+
+		size_t							PasteCounter{};
+	};
+
+	struct SCopyObject3DInstance
+	{
+		SCopyObject3DInstance() {}
+		SCopyObject3DInstance(const SInstanceCPUData& _InstanceCPUData, CObject3D* const _PtrObject3D) :
+			InstanceCPUData{ _InstanceCPUData }, PtrObject3D{ _PtrObject3D } {}
+
+		SInstanceCPUData	InstanceCPUData{};
+		CObject3D* const	PtrObject3D{};
+		size_t				PasteCounter{};
+	};
+
+	struct SCopyLight
+	{
+		SCopyLight() {}
+		SCopyLight(const CLight::SLightInstanceCPUData& _InstanceCPUData, const CLight::SLightInstanceGPUData& _InstanceGPUData) :
+			InstanceCPUData{ _InstanceCPUData }, InstanceGPUData{ _InstanceGPUData } {}
+
+		CLight::SLightInstanceCPUData	InstanceCPUData{};
+		CLight::SLightInstanceGPUData	InstanceGPUData{};
+		size_t							PasteCounter{};
 	};
 
 public:
@@ -466,6 +512,7 @@ public:
 
 // Object pool
 public:
+	void ClearCopyList();
 	void CopySelectedObject();
 	void PasteCopiedObject();
 	void DeleteSelectedObject();
@@ -474,14 +521,18 @@ public:
 	bool InsertCamera(const std::string& Name);
 	void DeleteCamera(const std::string& Name);
 	void ClearCameras();
-	CCamera* GetCamera(const std::string& Name, bool bShowWarning = true);
+	CCamera* GetCamera(const std::string& Name, bool bShowWarning = true) const;
 	const std::map<std::string, size_t>& GetCameraMap() const { return m_mapCameraNameToIndex; }
+
+private:
+	size_t GetCameraID(const std::string Name) const;
 
 public:
 	CShader* AddCustomShader();
 	CShader* GetCustomShader(size_t Index) const;
 	CShader* GetBaseShader(EBaseShader eShader) const;
 
+	bool IsObject3DNameInsertable(const std::string& Name, bool bShowWarning = true);
 	bool InsertObject3D(const std::string& Name);
 	void DeleteObject3D(const std::string& Name);
 	void ClearObject3Ds();
@@ -526,7 +577,13 @@ public:
 	void NotifyMouseLeftUp();
 
 private:
-	bool Pick();
+	void Select();
+	void Select(const SSelectionData& SelectionData);
+	void SelectAdditional(const SSelectionData& SelectionData);
+	void Deselect(const SSelectionData& Data);
+	void Deselect(EObjectType eObjectType);
+	void DeselectAll();
+	bool IsAnythingSelected() const;
 
 private:
 	void CastPickingRay();
@@ -535,48 +592,9 @@ private:
 	bool PickObject3DTriangle();
 
 private:
-	bool IsAnythingPicked() const;
-	bool IsAnyObject3DPicked() const;
-	bool IsAnyInstancePicked() const;
-	bool IsAnyCameraPicked() const;
-	bool IsAnyLightPicked() const;
-	const std::string& GetPickedObject3DName() const;
-	int GetPickedInstanceID() const;
-
-	bool IsAnythingSelected() const;
-	bool IsAnyObject3DSelected() const;
-	bool IsAnyInstanceSelected() const;
-	bool IsAnyObject2DSelected() const;
-	bool IsAnyCameraSelected() const;
-	bool IsAnyLightSelected() const;
-
-	void SelectObject3D(const std::string& Name);
-	void SelectPickedObject3D();
-	void DeselectObject3D();
-	CObject3D* GetSelectedObject3D();
-	const std::string& GetSelectedObject3DName() const;
-
-	void SelectObject2D(const std::string& Name);
-	void DeselectObject2D();
-	CObject2D* GetSelectedObject2D();
-	const std::string& GetSelectedObject2DName() const;
-
-	void SelectCamera(int CameraID);
-	void SelectCamera(const std::string& Name);
-	void SelectPickedCamera();
-	void DeselectCamera();
-	CCamera* GetSelectedCamera();
-	const std::string& GetSelectedCameraName() const;
 	CCamera* GetCurrentCamera();
 	void UseEditorCamera();
 	void UseCamera(CCamera* const Camera);
-
-	void SelectLight(int LightID);
-	void SelectLight(const std::string& Name);
-	void SelectPickedLight();
-	void DeselectLight();
-
-	void DeselectAll();
 
 public:
 	void Select3DGizmos();
@@ -586,17 +604,14 @@ public:
 	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis, XMVECTOR* const OutPtrT);
 	bool ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
 
-public:
-	void SelectInstance(int InstanceID);
-	void SelectPickedInstance();
-	void DeselectInstance();
-	int GetSelectedInstanceID() const;
-
 private:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
 
 public:
-	void CaptureCurrentProjectionSpace();
+	void SelectMultipleObjects();
+
+private:
+	bool IsInsideSelectionRegion(const XMFLOAT2& ProjectionSpacePosition);
 
 public:
 	void BeginRendering(const FLOAT* ClearColor);
@@ -723,6 +738,7 @@ private:
 	static constexpr int KIntegratedBRDFTextureSlot{ 53 };
 	static constexpr int KEditorCameraID{ -999 };
 	static constexpr float KEditorCameraDefaultMovementFactor{ 3.0f };
+	static constexpr size_t KInvalidIndex{ SIZE_T_MAX };
 
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
@@ -812,12 +828,11 @@ private:
 	std::unique_ptr<CConstantBuffer>	m_CBSkyTime{};
 	std::unique_ptr<CConstantBuffer>	m_CBWaterTime{};
 	std::unique_ptr<CConstantBuffer>	m_CBEditorTime{};
-	std::unique_ptr<CConstantBuffer>	m_CBCameraSelection{};
+	std::unique_ptr<CConstantBuffer>	m_CBCamera{};
 	std::unique_ptr<CConstantBuffer>	m_CBScreen{};
 	std::unique_ptr<CConstantBuffer>	m_CBRadiancePrefiltering{};
 	std::unique_ptr<CConstantBuffer>	m_CBIrradianceGenerator{};
 	std::unique_ptr<CConstantBuffer>	m_CBBillboard{};
-	std::unique_ptr<CConstantBuffer>	m_CBBillboardSelection{};
 	std::unique_ptr<CConstantBuffer>	m_CBGBufferUnpacking{};
 
 	SCBSpaceWVPData						m_CBSpaceWVPData{};
@@ -840,12 +855,11 @@ private:
 	SCBSkyTimeData						m_CBSkyTimeData{};
 	SCBWaterTimeData					m_CBWaterTimeData{};
 	SCBEditorTimeData					m_CBEditorTimeData{};
-	SCBCameraSelectionData				m_CBCameraSelectionData{};
+	SCBCameraData						m_CBCameraData{};
 	SCBScreenData						m_CBScreenData{};
 	SCBRadiancePrefiltering				m_CBRadiancePrefilteringData{};
 	SCBIrradianceGenerator				m_CBIrradianceGeneratorData{};
 	CBillboard::SCBBillboardData		m_CBBillboardData{};
-	SCBBillboardSelectionData			m_CBBillboardSelectionData{};
 	SCBGBufferUnpackingData				m_CBGBufferUnpackingData{};
 
 // Object pool
@@ -869,8 +883,6 @@ private:
 private:
 	std::unique_ptr<CLight>			m_Light{};
 	std::unique_ptr<CBillboard>		m_LightRep{};
-	int								m_PickedLightID{ -1 };
-	int								m_SelectedLightID{ -1 };
 
 // Sky
 private:
@@ -911,8 +923,6 @@ private:
 	std::vector<std::unique_ptr<CCamera>>	m_vCameras{};
 	CCamera*								m_PtrCurrentCamera{};
 	int										m_CurrentCameraID{ -1 };
-	int										m_PickedCameraID{ -1 };
-	int										m_SelectedCameraID{ -1 };
 	std::unique_ptr<CObject3D>				m_CameraRep{};
 
 // Picking
@@ -922,38 +932,37 @@ private:
 	XMVECTOR								m_PickingRayWorldSpaceOrigin{};
 	XMVECTOR								m_PickingRayWorldSpaceDirection{};
 	std::vector<SObject3DPickingCandiate>	m_vObject3DPickingCandidates{};
-	CObject3D*								m_PtrPickedObject3D{};
-	CObject3D*								m_PtrSelectedObject3D{};
-	CObject2D*								m_PtrSelectedObject2D{};
-	int										m_PickedInstanceID{ -1 };
-	int										m_SelectedInstanceID{ -1 };
 	XMVECTOR								m_PickedTriangleV0{};
 	XMVECTOR								m_PickedTriangleV1{};
 	XMVECTOR								m_PickedTriangleV2{};
 
-	// Region selection
-	std::unique_ptr<CObject2D>				m_RegionSelectionRep{};
-	XMFLOAT2								m_RegionSelectionTopLeft{};
-	XMFLOAT2								m_RegionSelectionBottomRight{};
-	bool									m_RegionSelectionChanging{ false };
-	XMFLOAT2								m_RegionSelectionXYNormalized{};
-	XMFLOAT2								m_RegionSelectionXYPrimeNormalized{};
-	XMFLOAT2								m_RegionSelectionSizeNormalized{};
-	std::vector<SRegionSelectionData>		m_vRegionSelectionData{};
-	XMVECTOR								m_RegionSelectionWorldCenter{};
+	// Multiple selection
+	bool						m_MultipleSelectionChanging{ false };
+	std::unique_ptr<CObject2D>	m_MultipleSelectionRep{};
+	XMFLOAT2					m_MultipleSelectionTopLeft{};
+	XMFLOAT2					m_MultipleSelectionBottomRight{};
+	XMFLOAT2					m_MultipleSelectionXYNormalized{};
+	XMFLOAT2					m_MultipleSelectionXYPrimeNormalized{};
+	XMFLOAT2					m_MultipleSelectionSizeNormalized{};
+	XMVECTOR					m_MultipleSelectionWorldCenter{};
+
+	std::vector<SSelectionData>				m_vSelectionData{};
+	// @important: below are for faster search & display in Editor GUI!
+	// <Key | Index in m_vSelectionData>
+	size_t									m_EditorCameraSelectionIndex{ KInvalidIndex };
+	std::unordered_map<std::string, size_t>	m_umapSelectionObject3D{};
+	std::unordered_map<std::string, size_t>	m_umapSelectionObject3DInstance{};
+	std::unordered_map<std::string, size_t>	m_umapSelectionObject3DLine{};
+	std::unordered_map<std::string, size_t>	m_umapSelectionObject2D{};
+	std::unordered_map<std::string, size_t>	m_umapSelectionCamera{};
+	std::unordered_map<std::string, size_t>	m_umapSelectionLight{};
 
 // Copy & paste
 private:
-	CObject3D*						m_PtrInstanceCopiedObject3D{};
-	SInstanceCPUData				m_CopiedObject3DInstanceData{};
-	size_t							m_CopyCounterObject3DInstance{};
-
-	CLight::SLightInstanceCPUData	m_CopiedLightCPUData{};
-	CLight::SLightInstanceGPUData	m_CopiedLightGPUData{};
-	size_t							m_CopyCounterLight{};
-
-	EObjectType						m_CopiedObjectType{};
-
+	std::vector<SCopyObject3D>			m_vCopyObject3Ds{};
+	std::vector<SCopyObject3DInstance>	m_vCopyObject3DInstances{};
+	std::vector<SCopyLight>				m_vCopyLights{};
+	
 // Terrain
 private:
 	std::unique_ptr<CTerrain>							m_Terrain{};

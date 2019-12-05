@@ -212,17 +212,16 @@ public:
 	size_t GetMaterialCount() const;
 
 public:
-	void CreateInstances(int InstanceCount);
+	void CreateInstances(size_t InstanceCount);
 	void CreateInstances(const std::vector<SInstanceCPUData>& vInstanceData);
-	void InsertInstance(bool bShouldCreateInstanceBuffers = true);
-	void InsertInstance(const std::string& Name);
-	void DeleteInstance(const std::string& Name);
+	bool InsertInstance();
+	bool InsertInstance(const std::string& InstanceName);
+	void DeleteInstance(const std::string& InstanceName);
 	void ClearInstances();
-	SInstanceCPUData& GetInstanceCPUData(int InstanceID);
-	SInstanceCPUData& GetInstanceCPUData(const std::string& Name);
+	SInstanceCPUData& GetInstanceCPUData(const std::string& InstanceName);
+	SInstanceCPUData& GetLastInstanceCPUData();
 	const std::vector<SInstanceCPUData>& GetInstanceCPUDataVector() const;
-	SInstanceGPUData& GetInstanceGPUData(int InstanceID);
-	SInstanceGPUData& GetInstanceGPUData(const std::string& Name);
+	SInstanceGPUData& GetInstanceGPUData(const std::string& InstanceName);
 
 	void CreateInstanceBuffers();
 	void UpdateInstanceBuffers();
@@ -236,9 +235,14 @@ public:
 	void UpdateMeshBuffer(size_t MeshIndex = 0);
 
 	void UpdateWorldMatrix();
-	void UpdateInstanceWorldMatrix(uint32_t InstanceID);
-	void UpdateInstanceWorldMatrix(uint32_t InstanceID, const XMMATRIX& WorldMatrix);
+	void UpdateInstanceWorldMatrix(const std::string& InstanceName);
+	void UpdateInstanceWorldMatrix(const std::string& InstanceName, const XMMATRIX& WorldMatrix);
 	void UpdateAllInstancesWorldMatrix();
+	void SetInstanceHighlight(const std::string& InstanceName, bool bShouldHighlight);
+	void SetAllInstancesHighlightOff();
+
+private:
+	size_t GetInstanceID(const std::string& InstanceName) const;
 
 public:
 	void Animate(float DeltaTime);
@@ -261,13 +265,13 @@ public:
 	bool IsCreated() const { return m_bIsCreated; }
 	bool IsRigged() const { return m_Model.bIsModelRigged; }
 	bool IsInstanced() const { return (m_vInstanceCPUData.size() > 0) ? true : false; }
-	uint32_t GetInstanceCount() const { return (uint32_t)m_vInstanceCPUData.size(); }
+	size_t GetInstanceCount() const { return m_vInstanceCPUData.size(); }
 	const SModel& GetModel() const { return m_Model; }
 	CModelPorter::SSMODData GetSMODData() const { return CModelPorter::SSMODData(m_Model.vMeshes, m_Model.vMaterialData); }
 	SModel& GetModel() { return m_Model; }
 	const std::string& GetName() const { return m_Name; }
 	const std::string& GetModelFileName() const { return m_ModelFileName; }
-	const std::map<std::string, size_t>& GetInstanceMap() const { return m_mapInstanceNameToIndex; }
+	const std::map<std::string, size_t>& GetInstanceNameToIndexMap() const { return m_mapInstanceNameToIndex; }
 	CMaterialTextureSet* GetMaterialTextureSet(size_t iMaterial);
 
 private:

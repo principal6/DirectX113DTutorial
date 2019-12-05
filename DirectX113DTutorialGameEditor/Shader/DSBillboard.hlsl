@@ -49,6 +49,7 @@ DS_BILLBOARD_OUTPUT main(HS_CONSTANT_DATA_OUTPUT ConstantData, float2 Domain : S
 	Output.Position = ResultPosition;
 	Output.TexCoord = float2(Domain.x, 1.0 - Domain.y);
 	Output.InstanceID = ControlPoints[0].InstanceID;
+	Output.IsHighlighted = ControlPoints[0].IsHighlighted;
 
 	return Output;
 }

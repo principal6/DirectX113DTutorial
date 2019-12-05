@@ -98,6 +98,7 @@ struct SInstanceCPUData
 struct SInstanceGPUData
 {
 	XMMATRIX	WorldMatrix{ KMatrixIdentity };
+	float		IsHighlighted{};
 };
 
 #define ENUM_CLASS_FLAG(enum_type)\

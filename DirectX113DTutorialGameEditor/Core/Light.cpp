@@ -3,23 +3,22 @@
 using std::string;
 using std::to_string;
 
-bool CLight::InsertInstance(const std::string& InstanceName, EType eType)
+bool CLight::InsertInstance(std::string& InstanceName, EType eType)
 {
 	static size_t StaticInstanceCounter{};
 
-	string Name{ InstanceName };
-	if (m_mapInstanceNameToIndex.find(Name) != m_mapInstanceNameToIndex.end())
+	if (m_mapInstanceNameToIndex.find(InstanceName) != m_mapInstanceNameToIndex.end())
 	{
 		MB_WARN("이미 존재하는 이름입니다.", "인스턴스 생성 실패");
 		return false;
 	}
-	if (Name.empty()) Name = "light" + to_string(StaticInstanceCounter); // @important: auto-generated name
+	if (InstanceName.empty()) InstanceName = "light" + to_string(StaticInstanceCounter); // @important: auto-generated name
 
 	bool bShouldRecreateInstanceBuffer{ m_vInstanceCPUData.size() == m_vInstanceCPUData.capacity() };
 
-	m_vInstanceCPUData.emplace_back(Name, eType); // @important
+	m_vInstanceCPUData.emplace_back(InstanceName, eType); // @important
 	m_vInstanceGPUData.emplace_back();
-	m_mapInstanceNameToIndex[Name] = m_vInstanceCPUData.size() - 1;
+	m_mapInstanceNameToIndex[InstanceName] = m_vInstanceCPUData.size() - 1;
 
 	(bShouldRecreateInstanceBuffer == true) ? CreateInstanceBuffer() : UpdateInstanceBuffer();
 	++StaticInstanceCounter;
@@ -81,52 +80,47 @@ size_t CLight::GetInstanceCount() const
 	return m_vInstanceCPUData.size();
 }
 
-const CLight::SLightInstanceCPUData& CLight::GetInstanceCPUData(size_t InstanceID) const
+const CLight::SLightInstanceCPUData& CLight::GetInstanceCPUData(const std::string& InstanceName) const
 {
-	return m_vInstanceCPUData[InstanceID];
+	return m_vInstanceCPUData[GetInstanceID(InstanceName)];
 }
 
-const CLight::SLightInstanceGPUData& CLight::GetInstanceGPUData(size_t InstanceID) const
+const CLight::SLightInstanceGPUData& CLight::GetInstanceGPUData(const std::string& InstanceName) const
 {
-	return m_vInstanceGPUData[InstanceID];
+	return m_vInstanceGPUData[GetInstanceID(InstanceName)];
 }
 
-string CLight::GetInstanceName(size_t InstanceID) const
+void CLight::SetInstanceGPUData(const std::string& InstanceName, const SLightInstanceGPUData& Data)
 {
-	return m_vInstanceCPUData[InstanceID].Name;
+	m_vInstanceGPUData[GetInstanceID(InstanceName)] = Data;
+
+	UpdateInstanceBuffer();
+}
+
+void CLight::SetInstancePosition(const std::string& InstanceName, const XMVECTOR& Position)
+{
+	m_vInstanceGPUData[GetInstanceID(InstanceName)].Position = Position;
+
+	UpdateInstanceBuffer();
+}
+
+void CLight::SetInstanceColor(const std::string& InstanceName, const XMVECTOR& Color)
+{
+	m_vInstanceGPUData[GetInstanceID(InstanceName)].Color = Color;
+
+	UpdateInstanceBuffer();
+}
+
+void CLight::SetInstanceRange(const std::string& InstanceName, float Range)
+{
+	m_vInstanceGPUData[GetInstanceID(InstanceName)].Range = Range;
+
+	UpdateInstanceBuffer();
 }
 
 size_t CLight::GetInstanceID(const std::string& InstanceName) const
 {
 	return m_mapInstanceNameToIndex.at(InstanceName);
-}
-
-void CLight::SetInstanceGPUData(size_t InstanceID, const SLightInstanceGPUData& Data)
-{
-	m_vInstanceGPUData[InstanceID] = Data;
-
-	UpdateInstanceBuffer();
-}
-
-void CLight::SetInstancePosition(size_t InstanceID, const XMVECTOR& Position)
-{
-	m_vInstanceGPUData[InstanceID].Position = Position;
-
-	UpdateInstanceBuffer();
-}
-
-void CLight::SetInstanceColor(size_t InstanceID, const XMVECTOR& Color)
-{
-	m_vInstanceGPUData[InstanceID].Color = Color;
-
-	UpdateInstanceBuffer();
-}
-
-void CLight::SetInstanceRange(size_t InstanceID, float Range)
-{
-	m_vInstanceGPUData[InstanceID].Range = Range;
-
-	UpdateInstanceBuffer();
 }
 
 void CLight::CreateInstanceBuffer()
@@ -166,4 +160,9 @@ void CLight::Light()
 float CLight::GetBoundingSphereRadius() const
 {
 	return m_BoundingSphereRadius;
+}
+
+const std::map<std::string, size_t>& CLight::GetInstanceNameToIndexMap() const
+{
+	return m_mapInstanceNameToIndex;
 }

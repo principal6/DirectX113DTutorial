@@ -52,6 +52,7 @@ VS_OUTPUT main(VS_INPUT Input)
 	Output.WorldBitangent = normalize(mul(ResultBitangent, World));
 
 	Output.bUseVertexColor = 0;
+	Output.IsHighlighted = Input.IsHighlighted;
 
 #ifndef DEBUG_SHADER
 	Output.InstanceID = Input.InstanceID;

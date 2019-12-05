@@ -60,22 +60,18 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			{
 				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawBoundingSphere);
 			}
-			if (KeyDown == VK_F5)
-			{
-				Game.CaptureCurrentProjectionSpace();
-			}
 
 			if (KeyDown == VK_DELETE)
 			{
 				Game.DeleteSelectedObject();
 			}
 
-			if (KeyDown == 'c' || KeyDown == 'C')
+			if (GetKeyState(VK_CONTROL) && (KeyDown == 'c' || KeyDown == 'C'))
 			{
 				Game.CopySelectedObject();
 			}
 
-			if (KeyDown == 'v' || KeyDown == 'V')
+			if (GetKeyState(VK_CONTROL) && (KeyDown == 'v' || KeyDown == 'V'))
 			{
 				Game.PasteCopiedObject();
 			}

@@ -23,11 +23,10 @@ cbuffer cbEditorTime : register(b1)
 	float2 Reserved;
 }
 
-cbuffer cbCameraSelection : register(b2)
+cbuffer cbCameraInfo : register(b2)
 {
-	uint SelectedCameraID;
 	uint CurrentCameraID;
-	float2 Pads;
+	float3 Pads;
 }
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
@@ -42,9 +41,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 	float4 OutputColor = DiffuseColor;
 
-#ifndef DEBUG_SHADER
-	if (Input.InstanceID == SelectedCameraID)
-#endif
+	if (Input.IsHighlighted != 0.0)
 	{
 		OutputColor += float4(0.6, 0.3, 0.6, 0) * sin(NormalizedTime * KPI);
 	}

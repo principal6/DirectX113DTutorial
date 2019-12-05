@@ -51,19 +51,20 @@ public:
 	~CLight() {}
 
 public:
-	bool InsertInstance(const std::string& InstanceName, EType eType);
+	bool InsertInstance(std::string& InstanceName, EType eType);
 	bool DeleteInstance(const std::string& InstanceName);
 
 	size_t GetInstanceCount() const;
-	const SLightInstanceCPUData& GetInstanceCPUData(size_t InstanceID) const;
-	const SLightInstanceGPUData& GetInstanceGPUData(size_t InstanceID) const;
-	std::string GetInstanceName(size_t InstanceID) const;
-	size_t GetInstanceID(const std::string& InstanceName) const;
+	const SLightInstanceCPUData& GetInstanceCPUData(const std::string& InstanceName) const;
+	const SLightInstanceGPUData& GetInstanceGPUData(const std::string& InstanceName) const;
 	
-	void SetInstanceGPUData(size_t InstanceID, const SLightInstanceGPUData& Data);
-	void SetInstancePosition(size_t InstanceID, const XMVECTOR& Position);
-	void SetInstanceColor(size_t InstanceID, const XMVECTOR& Color);
-	void SetInstanceRange(size_t InstanceID, float Range);
+	void SetInstanceGPUData(const std::string& InstanceName, const SLightInstanceGPUData& Data);
+	void SetInstancePosition(const std::string& InstanceName, const XMVECTOR& Position);
+	void SetInstanceColor(const std::string& InstanceName, const XMVECTOR& Color);
+	void SetInstanceRange(const std::string& InstanceName, float Range);
+
+private:
+	size_t GetInstanceID(const std::string& InstanceName) const;
 
 private:
 	void CreateInstanceBuffer();
@@ -74,6 +75,9 @@ public:
 
 public:
 	float GetBoundingSphereRadius() const;
+
+public:
+	const std::map<std::string, size_t>& GetInstanceNameToIndexMap() const;
 
 private:
 	ID3D11Device* const					m_PtrDevice{};

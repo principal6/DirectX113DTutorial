@@ -614,9 +614,7 @@ void CTerrain::UpdateFoliagePlacing(bool bErase)
 					for (auto& Foliage : m_vFoliages)
 					{
 						Foliage->InsertInstance(KInstanceName);
-
-						uint32_t iInstance{ Foliage->GetInstanceCount() - 1 };
-						auto& Instance{ Foliage->GetInstanceCPUData(iInstance) };
+						auto& Instance{ Foliage->GetLastInstanceCPUData() };
 
 						float XDisplacement{ GetRandom(-0.2f, +0.2f) };
 						float YDisplacement{ GetRandom(-0.1f, 0.0f) };
@@ -633,7 +631,7 @@ void CTerrain::UpdateFoliagePlacing(bool bErase)
 						float YRotationAngle{ GetRandom(0.0f, XM_2PI) };
 						Instance.Yaw = YRotationAngle;
 
-						Foliage->UpdateInstanceWorldMatrix(iInstance);
+						Foliage->UpdateInstanceWorldMatrix(Instance.Name);
 					}
 				}
 			}
