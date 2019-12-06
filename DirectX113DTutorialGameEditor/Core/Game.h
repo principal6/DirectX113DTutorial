@@ -582,8 +582,8 @@ public:
 
 private:
 	void Select();
-	void Select(const SSelectionData& SelectionData);
-	void SelectAdditional(const SSelectionData& SelectionData);
+	void SelectMultipleObjects(bool bUseAdditiveSelection);
+	void SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveSelection = false);
 	void Deselect(const SSelectionData& Data);
 	void Deselect(EObjectType eObjectType);
 	void DeselectAll();
@@ -592,8 +592,8 @@ private:
 private:
 	void CastPickingRay();
 	void UpdatePickingRay();
-	void PickBoundingSphere();
-	bool PickObject3DTriangle();
+	void PickBoundingSphere(bool bUseAdditiveSelection = false);
+	bool PickObject3DTriangle(bool bUseAdditiveSelection = false);
 
 private:
 	CCamera* GetCurrentCamera();
@@ -610,9 +610,6 @@ public:
 
 private:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
-
-public:
-	void SelectMultipleObjects();
 
 private:
 	bool IsInsideSelectionRegion(const XMFLOAT2& ProjectionSpacePosition);
@@ -692,12 +689,25 @@ private:
 	void GenerateIntegratedBRDFMap();
 
 public:
+	static constexpr float K3DGizmoRadius{ 0.05f };
+	static constexpr float K3DGizmoSelectionRadius{ 1.1f };
+	static constexpr float K3DGizmoSelectionLowBoundary{ 0.8f };
+	static constexpr float K3DGizmoSelectionHighBoundary{ 1.2f };
+	static constexpr float K3DGizmoMovementFactorBase{ 0.0625f };
+	static constexpr float K3DGizmoCameraDistanceThreshold0{ 2.0f };
+	static constexpr float K3DGizmoCameraDistanceThreshold1{ 4.0f };
+	static constexpr float K3DGizmoCameraDistanceThreshold2{ 8.0f };
+	static constexpr float K3DGizmoCameraDistanceThreshold3{ 16.0f };
+	static constexpr float K3DGizmoCameraDistanceThreshold4{ 32.0f };
+	static constexpr float K3DGizmoDistanceFactorExponent{ 0.75f };
+	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
+
 	static constexpr float KTranslationMinLimit{ -1000.0f };
 	static constexpr float KTranslationMaxLimit{ +1000.0f };
-	static constexpr float KTranslationDelta{ +0.0078125f };
+	static constexpr float KTranslationDelta{ K3DGizmoMovementFactorBase };
 	static constexpr float KRotationMaxLimit{ +XM_2PI };
 	static constexpr float KRotationMinLimit{ -XM_2PI };
-	static constexpr float KRotationDelta{ +0.25f };
+	static constexpr float KRotationDelta{ 22.5f };
 	static constexpr int KRotation360MaxLimit{ 360 };
 	static constexpr int KRotation360MinLimit{ 360 };
 	static constexpr int KRotation360Unit{ 1 };
@@ -705,7 +715,7 @@ public:
 	static constexpr float KRotation2PITo360{ 1.0f / XM_2PI * 360.0f };
 	static constexpr float KScalingMaxLimit{ +100.0f };
 	static constexpr float KScalingMinLimit{ +0.001f };
-	static constexpr float KScalingDelta{ +0.0078125f };
+	static constexpr float KScalingDelta{ K3DGizmoMovementFactorBase };
 	static constexpr float KBSCenterOffsetMinLimit{ -10.0f };
 	static constexpr float KBSCenterOffsetMaxLimit{ +10.0f };
 	static constexpr float KBSCenterOffsetDelta{ +0.01f };
@@ -729,14 +739,6 @@ private:
 	static constexpr XMVECTOR KColorWhite{ 1.0f, 1.0f, 1.0f, 1.0f };
 	static constexpr XMVECTOR KSkySphereColorUp{ 0.1f, 0.5f, 1.0f, 1.0f };
 	static constexpr XMVECTOR KSkySphereColorBottom{ 1.2f, 1.2f, 1.2f, 1.0f };
-	static constexpr float K3DGizmoRadius{ 0.05f };
-	static constexpr float K3DGizmoSelectionRadius{ 1.1f };
-	static constexpr float K3DGizmoSelectionLowBoundary{ 0.8f };
-	static constexpr float K3DGizmoSelectionHighBoundary{ 1.2f };
-	static constexpr float K3DGizmoMovementFactor{ 0.01f };
-	static constexpr float K3DGizmoCameraDistanceThreshold{ 0.03125f };
-	static constexpr float K3DGizmoDistanceFactorExponent{ 0.75f };
-	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
 	static constexpr int KEnvironmentTextureSlot{ 50 };
 	static constexpr int KIrradianceTextureSlot{ 51 };
 	static constexpr int KPrefilteredRadianceTextureSlot{ 52 };
@@ -956,7 +958,7 @@ private:
 	// <Key | Index in m_vSelectionData>
 	size_t									m_EditorCameraSelectionIndex{ KInvalidIndex };
 	std::unordered_map<std::string, size_t>	m_umapSelectionObject3D{};
-	std::unordered_map<std::string, size_t>	m_umapSelectionObject3DInstance{};
+	std::unordered_map<std::string, size_t>	m_umapSelectionObject3DInstance{}; // @important: Object3DName + IntanceName
 	std::unordered_map<std::string, size_t>	m_umapSelectionObject3DLine{};
 	std::unordered_map<std::string, size_t>	m_umapSelectionObject2D{};
 	std::unordered_map<std::string, size_t>	m_umapSelectionCamera{};
