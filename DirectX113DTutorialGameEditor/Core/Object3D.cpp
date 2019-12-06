@@ -46,6 +46,19 @@ void CObject3D::Create(const SModel& Model)
 	m_bIsCreated = true;
 }
 
+void CObject3D::Create(const CMeshPorter::SMESHData& MESHData)
+{
+	m_Model.vMeshes = MESHData.vMeshes;
+	m_Model.vMaterialData = MESHData.vMaterialData;
+
+	ComponentPhysics.BoundingSphere = MESHData.BoundingSphereData;
+
+	CreateMeshBuffers();
+	CreateMaterialTextures();
+
+	m_bIsCreated = true;
+}
+
 void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 {
 	m_ModelFileName = FileName;
@@ -633,7 +646,7 @@ void CObject3D::CreateInstances(const std::vector<SInstanceCPUData>& vInstanceDa
 	size_t iInstance{};
 	for (auto& InstanceCPUData : m_vInstanceCPUData)
 	{
-		InstanceCPUData.Scaling = ComponentTransform.Scaling;
+		//InstanceCPUData.Scaling = ComponentTransform.Scaling;
 
 		m_mapInstanceNameToIndex[InstanceCPUData.Name] = iInstance;
 		++iInstance;
@@ -1038,6 +1051,11 @@ void CObject3D::SetDisplacementData(const CObject3D::SCBDisplacementData& Data)
 const CObject3D::SCBDisplacementData& CObject3D::GetDisplacementData() const
 {
 	return m_CBDisplacementData;
+}
+
+CMeshPorter::SMESHData CObject3D::GetMESHData() const
+{
+	return CMeshPorter::SMESHData(m_Model.vMeshes, m_Model.vMaterialData, ComponentPhysics.BoundingSphere);
 }
 
 void CObject3D::SetName(const std::string& Name)

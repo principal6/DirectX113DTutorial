@@ -10,9 +10,6 @@ class CShader;
 
 struct SModel
 {
-	SModel() {}
-	SModel(const CMeshPorter::SMESHData& MESHFile) : vMeshes{ MESHFile.vMeshes }, vMaterialData{ MESHFile.vMaterialData } {}
-
 	struct SNode
 	{
 		struct SBlendWeight
@@ -179,6 +176,7 @@ public:
 	void Create(const SMesh& Mesh);
 	void Create(const SMesh& Mesh, const CMaterialData& MaterialData);
 	void Create(const SModel& Model);
+	void Create(const CMeshPorter::SMESHData& MESHData);
 
 	void CreateFromFile(const std::string& FileName, bool bIsModelRigged);
 
@@ -272,7 +270,7 @@ public:
 	bool IsInstanced() const { return (m_vInstanceCPUData.size() > 0) ? true : false; }
 	size_t GetInstanceCount() const { return m_vInstanceCPUData.size(); }
 	const SModel& GetModel() const { return m_Model; }
-	CMeshPorter::SMESHData GetMESHData() const { return CMeshPorter::SMESHData(m_Model.vMeshes, m_Model.vMaterialData); }
+	CMeshPorter::SMESHData GetMESHData() const;
 	SModel& GetModel() { return m_Model; }
 	void SetName(const std::string& Name);
 	const std::string& GetName() const { return m_Name; }

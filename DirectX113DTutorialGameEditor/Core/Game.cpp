@@ -875,7 +875,7 @@ void CGame::CreateBaseShaders()
 	m_PSBillboard->AttachConstantBuffer(m_CBEditorTime.get());
 
 	m_PSDirectionalLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSDirectionalLight->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "main");
+	m_PSDirectionalLight->Create(EShaderType::PixelShader, true, L"Shader\\PSDirectionalLight.hlsl", "main");
 	m_PSDirectionalLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 	m_PSDirectionalLight->AttachConstantBuffer(m_CBDirectionalLight.get());
 	
@@ -1457,13 +1457,18 @@ void CGame::UpdateCBBillboard(const CBillboard::SCBBillboardData& Data)
 	m_CBBillboard->Update();
 }
 
-void CGame::UpdateCBDirectionalLight()
+void CGame::UpdateCBDirectionalLight(bool bUseIBL)
 {
 	m_CBDirectionalLightData.LightDirection = m_CBLightData.DirectionalLightDirection;
 	m_CBDirectionalLightData.LightColor = m_CBLightData.DirectionalLightColor;
 	m_CBDirectionalLightData.Exposure = m_CBLightData.Exposure;
 	m_CBDirectionalLightData.EnvironmentTextureMipLevels = m_CBPSFlagsData.EnvironmentTextureMipLevels;
 	m_CBDirectionalLightData.PrefilteredRadianceTextureMipLevels = m_CBPSFlagsData.PrefilteredRadianceTextureMipLevels;
+
+	m_CBDirectionalLightData.bUseIBL = (BOOL)bUseIBL; // @@@@
+
+	m_CBDirectionalLightData.AmbientLightColor = m_CBLightData.AmbientLightColor;
+	m_CBDirectionalLightData.AmbientLightIntensity = m_CBLightData.AmbientLightIntensity;
 
 	m_CBDirectionalLight->Update();
 }
@@ -2431,12 +2436,11 @@ bool CGame::ChangeMaterialName(const string& OldName, const string& NewName)
 		return false;
 	}
 
-	size_t iMaterial{ m_mapMaterialNameToIndex[OldName] };
+	size_t iMaterial{ m_mapMaterialNameToIndex.at(OldName) };
 	CMaterialData* Material{ GetMaterial(OldName) };
-	auto a =m_mapMaterialNameToIndex.find(OldName);
 	
 	m_mapMaterialNameToIndex.erase(OldName);
-	m_mapMaterialNameToIndex.insert(make_pair(NewName, iMaterial));
+	m_mapMaterialNameToIndex[NewName] = iMaterial;
 
 	Material->Name(NewName);
 
@@ -3383,11 +3387,13 @@ void CGame::Select3DGizmos()
 	{
 		XMVECTOR GizmoTranslation{ m_GizmoRecentTranslation };
 		EObjectType eObjectType{ m_vSelectionData.back().eObjectType };
+		/*
 		if (eObjectType == EObjectType::Object3D || eObjectType == EObjectType::Object3DInstance)
 		{
 			CObject3D* const Object3D{ (CObject3D*)m_vSelectionData.back().PtrObject };
 			GizmoTranslation += Object3D->ComponentPhysics.BoundingSphere.CenterOffset;
 		}
+		*/
 		m_Object3D_3DGizmoTranslationX->ComponentTransform.Translation =
 			m_Object3D_3DGizmoTranslationY->ComponentTransform.Translation = m_Object3D_3DGizmoTranslationZ->ComponentTransform.Translation =
 			m_Object3D_3DGizmoRotationPitch->ComponentTransform.Translation =
@@ -3769,7 +3775,7 @@ void CGame::Draw()
 		// Directional light
 		{
 			// @important
-			UpdateCBDirectionalLight();
+			UpdateCBDirectionalLight(false);
 
 			DrawFullScreenQuad(m_PSDirectionalLight.get(), SRVs, ARRAYSIZE(SRVs));
 		}
@@ -5402,7 +5408,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									}
 
 									DrawEditorGUIPopupMaterialTextureExplorer(capturedMaterialData, capturedMaterialTextureSet, ecapturedTextureType);
-									DrawEditorGUIPopupMaterialNameChanger(capturedMaterialData, true);
+									DrawEditorGUIPopupMaterialNameChanger(capturedMaterialData, false);
 								}
 
 								// Rigged model

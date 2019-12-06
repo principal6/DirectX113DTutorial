@@ -1,0 +1,73 @@
+// #########################
+// << .TERR FILE STRUCTURE >>
+// @SYNTAX
+//  <@PrefString>: 4B(uint32_t)[String length] + ??(string)[Non-zero-terminated string]
+// #########################
+// 8B (string) TERR Signature (KJW_TERR)
+
+// ##### Terrain #####
+// 4B (float) Terrain size x
+// 4B (float) Terrain size z
+// 4B (float) Terrain height range
+// 4B (float) Terrain tessellation factor
+// 4B (float) Uniform scaling factor
+
+// ##### HeightMap texture #####
+// 4B (uint32_t) HeightMap texture raw data size
+// # ### HeightMap texture raw data ###
+// # 1B (uint8_t) R (UNORM)
+
+// ##### Water #####
+// 1B (bool) bShouldDrawWater
+// 4B (float) Water height
+// 4B (float) Water tessellation factor
+
+// ##### Masking #####
+// 4B (uint32_t) Masking detail
+// # ### Masking texture ###
+// # 4B (uint32_t) Masking texture raw data size
+// ## ## Masking texture raw data ##
+// ## 4B (uint8_t * 4) RGBA (UNORM)
+
+// ##### FoliageCluster #####
+// 1B (bool) bHasFoliageCluster
+// 4B (uint32_t) Foliage placing detail
+// 4B (float) Foliage density
+// # ### Foliage placing texture ###
+// # 4B (uint32_t) Foliage placing texture raw data size
+// ## ## Foliage placing texture raw data ##
+// ## 1B (uint8_t) R (UNORM)
+// # 1B (uint8_t) Foliage count
+// # ### Foliage data ###
+// # <@PrefString> File name
+// # 4B (uint32_t) Foliage instance count
+// ## ## Instance data ##
+// ## 32B (string, KInstanceNameMaxLength) Instance name
+// ## 16B (XMVECTOR) Instance translation
+// ## 4B (float) Instance pitch
+// ## 4B (float) Instance yaw
+// ## 4B (float) Instance roll
+// ## 16B (XMVECTOR) Instance scaling
+
+// ##### MATERIAL #####
+// 1B (uint8_t) Material count
+// # 1B (uint8_t) Material index
+// # <@PrefString> Material name
+// # 1B (bool) bHasTexture
+// # 12B (XMFLOAT3) Diffuse color (Classical) == Base color (PBR)
+// # 12B (XMFLOAT3) Ambient color (Classical only)
+// # 12B (XMFLOAT3) Specular color (Classical only)
+// # 4B (float) Specular exponent (Classical)
+// # 4B (float) Specular intensity
+// # 4B (float) Roughness (PBR only)
+// # 4B (float) Metalness (PBR only)
+// # 1B (bool) bShouldGenerateAutoMipMap
+// # <@PrefString> Diffuse texture file name (Classical) // BaseColor texture file name (PBR)
+// # <@PrefString> Normal texture file name
+// # <@PrefString> Opacity texture file name
+// # <@PrefString> Specular intensity texture file name
+// # <@PrefString> Roughness texture file name (PBR only)
+// # <@PrefString> Metalness texture file name (PBR only)
+// # <@PrefString> Ambient occlusion texture file name (PBR only)
+// # <@PrefString> Displacement texture file name
+// #########################

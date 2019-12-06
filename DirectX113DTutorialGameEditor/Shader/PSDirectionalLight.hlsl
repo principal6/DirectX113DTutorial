@@ -28,7 +28,10 @@ cbuffer cbDirectionalLight : register(b1)
 	float	Exposure;
 	uint	EnvironmentTextureMipLevels;
 	uint	PrefilteredRadianceTextureMipLevels;
-	float2	Reserved;
+	bool	bUseIBL;
+	float	AmbientLightIntensity;
+	float3	AmbientLightColor;
+	float	Reserved;
 }
 
 #define UV Input.TexCoord.xy
@@ -79,10 +82,11 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			OutputColor.xyz += Lo_diff + Lo_spec;
 		}
 
+
 		// Indirect light
-		if (Metalness <= 0.52 && Metalness >= 0.48) // @important: Terrain Metalness 0.5
+		if (!bUseIBL || (Metalness <= 0.52 && Metalness >= 0.48)) // @important: Terrain Metalness 0.5
 		{
-			OutputColor.xyz += CalculateClassicalAmbient(BaseColor, float3(1.0, 1.0, 1.0), 0.125);
+			OutputColor.xyz += CalculateClassicalAmbient(BaseColor, AmbientLightColor, AmbientLightIntensity);
 		}
 		else
 		{

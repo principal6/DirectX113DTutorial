@@ -158,7 +158,10 @@ public:
 		float		Exposure{ 1.0 };
 		uint32_t	EnvironmentTextureMipLevels{};
 		uint32_t	PrefilteredRadianceTextureMipLevels{};
-		float		Reserved[2]{};
+		BOOL		bUseIBL{ TRUE };
+		float		AmbientLightIntensity{ 0.5f };
+		XMFLOAT3	AmbientLightColor{ 1, 1, 1 };
+		float		Reserved{};
 	};
 
 	struct SCBMaterialData
@@ -483,7 +486,7 @@ private:
 	void UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection);
 
 	void UpdateCBBillboard(const CBillboard::SCBBillboardData& Data);
-	void UpdateCBDirectionalLight();
+	void UpdateCBDirectionalLight(bool bUseIBL);
 
 public:
 	void CreateDynamicSky(const std::string& SkyDataFileName, float ScalingFactor);

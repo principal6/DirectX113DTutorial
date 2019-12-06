@@ -1,5 +1,6 @@
 #pragma once
 
+#include "SharedHeader.h"
 #include "BinaryData.h"
 #include "Material.h"
 
@@ -11,9 +12,13 @@ public:
 		SMESHData() {}
 		SMESHData(const std::vector<SMesh>& _vMeshes, const std::vector<CMaterialData>& _vMaterialData) :
 			vMeshes{ _vMeshes }, vMaterialData{ _vMaterialData} {}
+		SMESHData(const std::vector<SMesh>& _vMeshes, const std::vector<CMaterialData>& _vMaterialData,
+			const SBoundingSphere& _BoundingSphereData) :
+			vMeshes{ _vMeshes }, vMaterialData{ _vMaterialData }, BoundingSphereData{ _BoundingSphereData } {}
 
 		std::vector<SMesh>			vMeshes{};
 		std::vector<CMaterialData>	vMaterialData{};
+		SBoundingSphere				BoundingSphereData{};
 	};
 
 	struct STERRData

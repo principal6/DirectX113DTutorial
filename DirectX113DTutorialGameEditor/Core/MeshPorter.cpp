@@ -161,7 +161,7 @@ void CMeshPorter::ExportTerrain(const std::string& FileName, const CMeshPorter::
 	m_BinaryData.Clear();
 
 	// 8B Signature
-	m_BinaryData.WriteString("TERR_KJW", 8);
+	m_BinaryData.WriteString("KJW_TERR", 8);
 
 
 	// 4B (float) Terrain size x
@@ -278,8 +278,14 @@ void CMeshPorter::ExportTerrain(const std::string& FileName, const CMeshPorter::
 
 void CMeshPorter::ReadMeshData(CMeshPorter::SMESHData& MESHData)
 {
-	// 8B Signature (MESH_KJW)
+	// 8B Signature (KJW_MESH)
 	m_BinaryData.ReadSkip(8);
+
+	// 4B (in total) Version
+	uint16_t VersionMajor{ m_BinaryData.ReadUint16() };
+	uint8_t VersionMinor{ m_BinaryData.ReadUint8() };
+	uint8_t VersionSubminor{ m_BinaryData.ReadUint8() };
+	uint32_t VesionCmp{ (uint32_t)(VersionSubminor | (VersionMinor << 8) | (VersionMajor << 16)) };
 
 	// ##### MATERIAL #####
 	// 1B (uint8_t) Material count
@@ -339,6 +345,15 @@ void CMeshPorter::ReadMeshData(CMeshPorter::SMESHData& MESHData)
 			// # 4B (uint32_t) Vertex ID 2
 			m_BinaryData.ReadUint32(Triangle.I2);
 		}
+	}
+
+	if (VesionCmp >= 0x10001)
+	{
+		// # 16B (XMVECTOR) Bounding sphere center offset
+		m_BinaryData.ReadXMVECTOR(MESHData.BoundingSphereData.CenterOffset);
+
+		// # 4B (float) Bounding sphere radius bias
+		m_BinaryData.ReadFloat(MESHData.BoundingSphereData.RadiusBias);
 	}
 }
 
@@ -425,8 +440,17 @@ void CMeshPorter::ReadModelMaterials(std::vector<CMaterialData>& vMaterialData)
 
 void CMeshPorter::WriteMeshData(const CMeshPorter::SMESHData& MESHData)
 {
+	static uint16_t KVersionMajor{ 0x0001 };
+	static uint8_t KVersionMinor{ 0x00 };
+	static uint8_t KVersionSubminor{ 0x01 };
+
 	// 8B Signature
-	m_BinaryData.WriteString("MESH_KJW", 8);
+	m_BinaryData.WriteString("KJW_MESH", 8);
+
+	// 4B (in total) Version
+	m_BinaryData.WriteUint16(KVersionMajor);
+	m_BinaryData.WriteUint8(KVersionMinor);
+	m_BinaryData.WriteUint8(KVersionSubminor);
 
 	WriteModelMaterials(MESHData.vMaterialData);
 
@@ -488,6 +512,12 @@ void CMeshPorter::WriteMeshData(const CMeshPorter::SMESHData& MESHData)
 			m_BinaryData.WriteUint32(Triangle.I2);
 		}
 	}
+
+	// # 16B (XMVECTOR) Bounding sphere center offset
+	m_BinaryData.WriteXMVECTOR(MESHData.BoundingSphereData.CenterOffset);
+	
+	// # 4B (float) Bounding sphere radius bias
+	m_BinaryData.WriteFloat(MESHData.BoundingSphereData.RadiusBias);
 }
 
 void CMeshPorter::WriteModelMaterials(const std::vector<CMaterialData>& vMaterialData)

@@ -1,0 +1,58 @@
+// #########################
+// << .MESH FILE STRUCTURE >>
+// @SYNTAX
+//  <@PrefString>: 4B(uint32_t)[String length] + ??(string)[Non-zero-terminated string]
+// #########################
+// 8B (string) MESH Signature "KJW_MESH"
+// 2B (uint16_t) Version Major "0x0001"
+// 1B (uint8_t) Version Minor "0x00"
+********** BEGIN NEW **********
+// 1B (uint8_t) Version Sub-minor "0x01"
+**********  END NEW  **********
+// ##### MATERIAL DATA #####
+// 1B (uint8_t) Material count
+// # 1B (uint8_t) Material index
+// # <@PrefString> Material name
+// # 1B (bool) bHasTexture
+// # 12B (XMFLOAT3) Diffuse color (Classical) == Base color (PBR)
+// # 12B (XMFLOAT3) Ambient color (Classical only)
+// # 12B (XMFLOAT3) Specular color (Classical only)
+// # 4B (float) Specular exponent (Classical)
+// # 4B (float) Specular intensity
+// # 4B (float) Roughness (PBR only)
+// # 4B (float) Metalness (PBR only)
+// # 1B (bool) bShouldGenerateAutoMipMap
+// # <@PrefString> Diffuse texture file name (Classical) // BaseColor texture file name (PBR)
+// # <@PrefString> Normal texture file name
+// # <@PrefString> Opacity texture file name
+// # <@PrefString> Specular intensity texture file name
+// # <@PrefString> Roughness texture file name (PBR only)
+// # <@PrefString> Metalness texture file name (PBR only)
+// # <@PrefString> Ambient occlusion texture file name (PBR only)
+// # <@PrefString> Displacement texture file name
+// ##### MESH DATA #####
+// 1B (uint8_t) Mesh count
+// # 1B (uint8_t) Mesh index
+// # ### MATERIAL ID ###
+// # 1B (uint8_t) Material ID
+// # ### VERTEX ###
+// 4B (uint32_t) Vertex count
+// # 4B (uint32_t) Vertex index
+// # 16B (XMVECTOR) Position
+// # 16B (XMVECTOR) Color
+// # 16B (XMVECTOR) TexCoord
+// # 16B (XMVECTOR) Normal
+// # 16B (XMVECTOR) Tangent
+// # ### TRIANGLE ###
+// 4B (uint32_t) Triangle count
+// # 4B (uint32_t) Triangle index
+// # 4B (uint32_t) Vertex ID 0
+// # 4B (uint32_t) Vertex ID 1
+// # 4B (uint32_t) Vertex ID 2
+********** BEGIN NEW **********
+** These ease selection of the MESH in the GameEditor
+// ##### BOUNDING SPHERE DATA #####
+// # 16B (XMVECTOR) Bounding sphere center offset
+// # 4B (float) Bounding sphere radius bias
+**********  END NEW  **********
+// #########################
