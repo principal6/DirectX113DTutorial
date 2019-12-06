@@ -220,6 +220,7 @@ public:
 	void CreateInstances(const std::vector<SInstanceCPUData>& vInstanceData);
 	bool InsertInstance();
 	bool InsertInstance(const std::string& InstanceName);
+	bool ChangeInstanceName(const std::string& OldName, const std::string& NewName);
 	void DeleteInstance(const std::string& InstanceName);
 	void ClearInstances();
 	SInstanceCPUData& GetInstanceCPUData(const std::string& InstanceName);
@@ -273,6 +274,7 @@ public:
 	const SModel& GetModel() const { return m_Model; }
 	CMeshPorter::SMESHData GetMESHData() const { return CMeshPorter::SMESHData(m_Model.vMeshes, m_Model.vMaterialData); }
 	SModel& GetModel() { return m_Model; }
+	void SetName(const std::string& Name);
 	const std::string& GetName() const { return m_Name; }
 	const std::string& GetModelFileName() const { return m_ModelFileName; }
 	const std::string& GetOB3DFileName() const { return m_OB3DFileName; }

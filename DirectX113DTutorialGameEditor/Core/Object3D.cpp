@@ -710,6 +710,28 @@ bool CObject3D::InsertInstance(const string& InstanceName)
 	return true;
 }
 
+bool CObject3D::ChangeInstanceName(const std::string& OldName, const std::string& NewName)
+{
+	if (m_mapInstanceNameToIndex.find(OldName) == m_mapInstanceNameToIndex.end())
+	{
+		MB_WARN(("기존 이름 (" + OldName + ")의 인스턴스가 존재하지 않습니다.").c_str(), "이름 변경 실패");
+		return false;
+	}
+	if (m_mapInstanceNameToIndex.find(NewName) != m_mapInstanceNameToIndex.end())
+	{
+		MB_WARN(("새 이름 (" + NewName + ")의 인스턴스가 이미 존재합니다.").c_str(), "이름 변경 실패");
+		return false;
+	}
+
+	string SavedOldName{ OldName };
+	size_t iInstance{ m_mapInstanceNameToIndex.at(OldName) };
+	m_vInstanceCPUData[iInstance].Name = NewName;
+	m_mapInstanceNameToIndex.erase(OldName);
+	m_mapInstanceNameToIndex[NewName] = iInstance;
+
+	return true;
+}
+
 void CObject3D::DeleteInstance(const string& InstanceName)
 {
 	if (m_vInstanceCPUData.empty()) return;
@@ -1016,6 +1038,11 @@ void CObject3D::SetDisplacementData(const CObject3D::SCBDisplacementData& Data)
 const CObject3D::SCBDisplacementData& CObject3D::GetDisplacementData() const
 {
 	return m_CBDisplacementData;
+}
+
+void CObject3D::SetName(const std::string& Name)
+{
+	m_Name = Name;
 }
 
 CMaterialTextureSet* CObject3D::GetMaterialTextureSet(size_t iMaterial)

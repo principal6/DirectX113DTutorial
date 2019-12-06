@@ -2141,6 +2141,28 @@ bool CGame::InsertObject3D(const string& Name)
 	return false;
 }
 
+bool CGame::ChangeObject3DName(const std::string& OldName, const std::string& NewName)
+{
+	if (m_mapObject3DNameToIndex.find(OldName) == m_mapObject3DNameToIndex.end())
+	{
+		MB_WARN(("기존 이름 (" + OldName + ")의 오브젝트가 존재하지 않습니다.").c_str(), "이름 변경 실패");
+		return false;
+	}
+	if (m_mapObject3DNameToIndex.find(NewName) != m_mapObject3DNameToIndex.end())
+	{
+		MB_WARN(("새 이름 (" + NewName + ")의 오브젝트가 이미 존재합니다.").c_str(), "이름 변경 실패");
+		return false;
+	}
+
+	string SavedOldName{ OldName };
+	GetObject3D(SavedOldName)->SetName(NewName);
+	size_t iObject3D{ m_mapObject3DNameToIndex.at(SavedOldName) };
+	m_mapObject3DNameToIndex.erase(SavedOldName);
+	m_mapObject3DNameToIndex[NewName] = iObject3D;
+
+	return true;
+}
+
 void CGame::DeleteObject3D(const string& Name)
 {
 	if (!m_vObject3Ds.size()) return;
@@ -4689,8 +4711,8 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 
 		bool bShowDialogLoad3DModel{};
 
-		ImGui::SetItemDefaultFocus();
 		ImGui::SetNextItemWidth(140);
+		if (!ImGui::IsAnyItemActive()) ImGui::SetKeyboardFocusHere();
 		ImGui::InputText(u8"오브젝트 이름", NewObejctName, KAssetNameMaxLength);
 
 		for (int iOption = 0; iOption < ARRAYSIZE(KOptions); ++iOption)
@@ -6936,7 +6958,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 		const auto& mapCamera{ GetCameraMap() };
 
 		ImGui::SetNextWindowPos(ImVec2(0, 122), ImGuiCond_Appearing);
-		ImGui::SetNextWindowSizeConstraints(ImVec2(300, 60), ImVec2(400, 600));
+		ImGui::SetNextWindowSizeConstraints(ImVec2(400, 60), ImVec2(500, 600));
 		if (ImGui::Begin(u8"장면 편집기", &m_EditorGUIBools.bShowWindowSceneEditor, ImGuiWindowFlags_AlwaysAutoResize))
 		{
 			// 장면 내보내기
@@ -7007,6 +7029,8 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 			ImGui::Text(u8"인스턴스 관리"); ImGui::NextColumn();
 			ImGui::Separator();
 
+			static CObject3D* CapturedObject3D{};
+			static string CapturedInstanceName{};
 			if (ImGui::TreeNodeEx(u8"3D 오브젝트", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				// 3D 오브젝트 목록
@@ -7044,7 +7068,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 							// 인스턴스 추가
 
 							ImGui::PushID(iObject3DPair * 2 + 0);
-							if (ImGui::Button(u8"추가"))
+							if (ImGui::Button(u8"+Inst"))
 							{
 								Object3D->InsertInstance();
 
@@ -7059,7 +7083,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 
 							ImGui::SameLine();
 							ImGui::PushID(iObject3DPair * 2 + 1);
-							if (ImGui::Button(u8"제거"))
+							if (ImGui::Button(u8"-Inst"))
 							{
 								const SInstanceCPUData& InstanceCPUData{ Object3D->GetInstanceCPUData(SelectionData.Name) };
 								Object3D->DeleteInstance(InstanceCPUData.Name);
@@ -7074,6 +7098,24 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 							}
 							ImGui::PopID();
 						}
+
+						ImGui::SameLine();
+						ImGui::PushID(iObject3DPair * 2 + 2);
+						if (ImGui::Button(u8"이름 변경"))
+						{
+							if (SelectionData.eObjectType == EObjectType::Object3DInstance)
+							{
+								CapturedInstanceName = SelectionData.Name;
+							}
+							else
+							{
+								CapturedInstanceName.clear();
+							}
+							
+							m_EditorGUIBools.bShowPopupObjectRenamer = true;
+							CapturedObject3D = Object3D;
+						}
+						ImGui::PopID();
 					}
 
 					ImGui::NextColumn();
@@ -7106,6 +7148,56 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				}
 
 				ImGui::TreePop();
+			}
+
+			if (m_EditorGUIBools.bShowPopupObjectRenamer) ImGui::OpenPopup(u8"오브젝트/인스턴스 이름 변경");
+			ImGui::SetNextWindowSize(ImVec2(240, 60), ImGuiCond_Always);
+			if (ImGui::BeginPopupModal(u8"오브젝트/인스턴스 이름 변경", nullptr, ImGuiWindowFlags_NoResize))
+			{
+				static char NewName[KAssetNameMaxLength]{};
+				static bool bOK{ false };
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"새 이름: ");
+				ImGui::SameLine(80);
+				if (!ImGui::IsAnyItemActive()) ImGui::SetKeyboardFocusHere();
+				bOK = ImGui::InputText(u8"##이름", NewName, KAssetNameMaxLength, ImGuiInputTextFlags_EnterReturnsTrue);
+				
+				if (bOK && NewName[0] != '\0')
+				{
+					if (CapturedInstanceName.empty())
+					{
+						if (ChangeObject3DName(CapturedObject3D->GetName(), NewName))
+						{
+							DeselectAll();
+
+							m_EditorGUIBools.bShowPopupObjectRenamer = false;
+							memset(NewName, 0, KAssetNameMaxLength);
+							ImGui::CloseCurrentPopup();
+						}
+					}
+					else
+					{
+						if (CapturedObject3D->ChangeInstanceName(CapturedInstanceName, NewName))
+						{
+							DeselectAll();
+
+							m_EditorGUIBools.bShowPopupObjectRenamer = false;
+							memset(NewName, 0, KAssetNameMaxLength);
+							ImGui::CloseCurrentPopup();
+						}
+					}
+					
+					bOK = false;
+				}
+				
+				if (m_CapturedKeyboardState.Escape)
+				{
+					m_EditorGUIBools.bShowPopupObjectRenamer = false;
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
 			}
 			
 			if (ImGui::TreeNodeEx(u8"2D 오브젝트", ImGuiTreeNodeFlags_DefaultOpen))

@@ -319,6 +319,7 @@ public:
 		bool bShowWindowSceneEditor{ true };
 		bool bShowPopupTerrainGenerator{ false };
 		bool bShowPopupObjectAdder{ false };
+		bool bShowPopupObjectRenamer{ false };
 		bool bShowPopupMaterialNameChanger{ false };
 		bool bShowPopupMaterialTextureExplorer{ false };
 	};
@@ -535,6 +536,7 @@ public:
 
 	bool IsObject3DNameInsertable(const std::string& Name, bool bShowWarning = true);
 	bool InsertObject3D(const std::string& Name);
+	bool ChangeObject3DName(const std::string& OldName, const std::string& NewName);
 	void DeleteObject3D(const std::string& Name);
 	void ClearObject3Ds();
 	CObject3D* GetObject3D(const std::string& Name, bool bShowWarning = true) const;
