@@ -3728,7 +3728,7 @@ void CGame::Draw()
 		m_DeviceContext->OMSetBlendState(m_CommonStates->Opaque(), nullptr, 0xFFFFFFFF);
 
 		// Terrain
-		DrawTerrain(m_DeltaTimeF);
+		DrawTerrainOpaqueParts(m_DeltaTimeF);
 
 		// Opaque Object3Ds
 		for (auto& Object3D : m_vObject3Ds)
@@ -3883,6 +3883,9 @@ void CGame::Draw()
 				m_GSNormal->Use();
 			}
 		}
+
+		// Terrain
+		DrawTerrainTransparentParts();
 
 		m_DeviceContext->OMSetBlendState(m_CommonStates->NonPremultiplied(), nullptr, 0xFFFFFFFF);
 
@@ -4192,7 +4195,7 @@ void CGame::DrawSky(float DeltaTime)
 	m_CBSkyTime->Update();
 }
 
-void CGame::DrawTerrain(float DeltaTime)
+void CGame::DrawTerrainOpaqueParts(float DeltaTime)
 {
 	if (!m_Terrain) return;
 	
@@ -4236,10 +4239,20 @@ void CGame::DrawTerrain(float DeltaTime)
 		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
 	}
 
+	if (false)
+	{
+		UpdateCBSpace(m_Terrain->GetWindRepresentationWorldMatrix());
+		m_Terrain->DrawWindRepresentation();
+	}
+}
+
+void CGame::DrawTerrainTransparentParts()
+{
+	if (!m_Terrain) return;
+
 	if (m_Terrain->ShouldDrawWater())
 	{
 		UpdateCBSpace(m_Terrain->GetWaterWorldMatrix());
-
 		UpdateCBTessFactorData(m_Terrain->GetWaterTessFactorData());
 		UpdateCBDisplacementData(m_Terrain->GetWaterDisplacementData());
 
@@ -4248,14 +4261,12 @@ void CGame::DrawTerrain(float DeltaTime)
 
 	if (m_Terrain->HasFoliageCluster())
 	{
-		UpdateCBSpace();
-		m_Terrain->DrawFoliageCluster();
-	}
+		m_CBPSFlagsData.bUseTexture = TRUE;
+		m_CBPSFlags->Update();
 
-	if (false)
-	{
-		UpdateCBSpace(m_Terrain->GetWindRepresentationWorldMatrix());
-		m_Terrain->DrawWindRepresentation();
+		UpdateCBSpace();
+
+		m_Terrain->DrawFoliageCluster();
 	}
 }
 
@@ -4712,7 +4723,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 		bool bShowDialogLoad3DModel{};
 
 		ImGui::SetNextItemWidth(140);
-		if (!ImGui::IsAnyItemActive()) ImGui::SetKeyboardFocusHere();
+		if (ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
 		ImGui::InputText(u8"오브젝트 이름", NewObejctName, KAssetNameMaxLength);
 
 		for (int iOption = 0; iOption < ARRAYSIZE(KOptions); ++iOption)
@@ -7160,7 +7171,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text(u8"새 이름: ");
 				ImGui::SameLine(80);
-				if (!ImGui::IsAnyItemActive()) ImGui::SetKeyboardFocusHere();
+				if (!ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
 				bOK = ImGui::InputText(u8"##이름", NewName, KAssetNameMaxLength, ImGuiInputTextFlags_EnterReturnsTrue);
 				
 				if (bOK && NewName[0] != '\0')

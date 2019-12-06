@@ -9,10 +9,11 @@ struct VS_FOLIAGE_INPUT
 	float4 Tangent		: TANGENT;
 
 	// Instance
-	float4 InstanceWorld0	: INSTANCEWORLD0;
-	float4 InstanceWorld1	: INSTANCEWORLD1;
-	float4 InstanceWorld2	: INSTANCEWORLD2;
-	float4 InstanceWorld3	: INSTANCEWORLD3;
+	float4	InstanceWorld0	: INSTANCE_WORLD0;
+	float4	InstanceWorld1	: INSTANCE_WORLD1;
+	float4	InstanceWorld2	: INSTANCE_WORLD2;
+	float4	InstanceWorld3	: INSTANCE_WORLD3;
+	float	IsHighlighted	: IS_HIGHLIGHTED;
 };
 
 struct VS_FOLIAGE_OUTPUT

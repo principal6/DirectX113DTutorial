@@ -658,7 +658,8 @@ private:
 	void DrawGrid();
 
 	void DrawSky(float DeltaTime);
-	void DrawTerrain(float DeltaTime);
+	void DrawTerrainOpaqueParts(float DeltaTime);
+	void DrawTerrainTransparentParts();
 
 	void Draw3DGizmos();
 	void Draw3DGizmoTranslations(E3DGizmoAxis Axis);
