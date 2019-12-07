@@ -875,7 +875,7 @@ void CGame::CreateBaseShaders()
 	m_PSBillboard->AttachConstantBuffer(m_CBEditorTime.get());
 
 	m_PSDirectionalLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSDirectionalLight->Create(EShaderType::PixelShader, true, L"Shader\\PSDirectionalLight.hlsl", "main");
+	m_PSDirectionalLight->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "main");
 	m_PSDirectionalLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 	m_PSDirectionalLight->AttachConstantBuffer(m_CBDirectionalLight.get());
 	
@@ -1159,17 +1159,20 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 		uint32_t Object3DCount{ SceneBinaryData.ReadUint32() };
 		CBinaryData Object3DBinary{};
 		string Object3DName{};
+		bool bIsRigged{};
 		for (uint32_t iObject3D = 0; iObject3D < Object3DCount; ++iObject3D)
 		{
 			SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+			SceneBinaryData.ReadBool(bIsRigged);
 
 			Object3DBinary.LoadFromFile(ReadString);
-			Object3DBinary.ReadSkip(8);
+			Object3DBinary.ReadSkip(8 + 4); // @important: Signature + Version
+
 			Object3DBinary.ReadStringWithPrefixedLength(Object3DName);
 
 			InsertObject3D(Object3DName);
 			CObject3D* const Object3D{ GetObject3D(Object3DName) };
-			Object3D->LoadOB3D(ReadString);
+			Object3D->LoadOB3D(ReadString, bIsRigged);
 		}
 	}
 
@@ -1219,6 +1222,8 @@ void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 {
 	CBinaryData SceneBinaryData{};
 
+	CreateDirectoryA(SceneDirectory.c_str(), nullptr);
+
 	// Terrain
 	if (m_Terrain)
 	{
@@ -1242,12 +1247,14 @@ void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 		for (const auto& Object3D : m_vObject3Ds)
 		{
 			// @important: always save OB3D
-			//if (Object3D->GetOB3DFileName().empty())
 			{
 				Object3D->SaveOB3D(SceneDirectory + Object3D->GetName() + ".ob3d");
 			}
 
 			SceneBinaryData.WriteStringWithPrefixedLength(Object3D->GetOB3DFileName());
+
+			// @important
+			SceneBinaryData.WriteBool(Object3D->IsRigged());
 		}
 	}
 
@@ -5017,7 +5024,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 						string Extension{ ModelFileNameExtension };
 						if (Extension == "OB3D")
 						{
-							Object3D->LoadOB3D(ModelFileNameWithPath);
+							Object3D->LoadOB3D(ModelFileNameWithPath, bIsModelRigged);
 						}
 						else
 						{
@@ -5128,7 +5135,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 	if (m_EditorGUIBools.bShowWindowPropertyEditor)
 	{
 		static constexpr float KInitialWindowWidth{ 400 };
-		ImGui::SetNextWindowPos(ImVec2(m_WindowSize.x - KInitialWindowWidth, 21), ImGuiCond_Appearing);
+		ImGui::SetNextWindowPos(ImVec2(m_WindowSize.x - KInitialWindowWidth + 6, 21), ImGuiCond_Appearing);
 		ImGui::SetNextWindowSize(ImVec2(KInitialWindowWidth, 0), ImGuiCond_Appearing);
 		ImGui::SetNextWindowSizeConstraints(
 			ImVec2(m_WindowSize.x * 0.25f, m_WindowSize.y), ImVec2(m_WindowSize.x * 0.5f, m_WindowSize.y));

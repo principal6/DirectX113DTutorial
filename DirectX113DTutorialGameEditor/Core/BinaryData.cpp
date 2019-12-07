@@ -149,6 +149,16 @@ void CBinaryData::WriteXMVECTOR(const XMVECTOR& Value)
 	}
 }
 
+void CBinaryData::WriteXMMATRIX(const XMMATRIX& Value)
+{
+	byte Bytes[KXMMATRIXByteCount]{};
+	memcpy(Bytes, &Value, KXMMATRIXByteCount);
+	for (const byte& Byte : Bytes)
+	{
+		m_vBytes.emplace_back(Byte);
+	}
+}
+
 void CBinaryData::WriteString(const std::string& String)
 {
 	m_vBytes.reserve(m_vBytes.size() + String.size());
@@ -318,6 +328,16 @@ bool CBinaryData::ReadXMVECTOR(XMVECTOR& Out)
 	memcpy(&Out, &m_vBytes[m_ReadByteOffset], KXMVECTORByteCount);
 
 	m_ReadByteOffset += KXMVECTORByteCount;
+	return true;
+}
+
+bool CBinaryData::ReadXMMATRIX(XMMATRIX& Out)
+{
+	if (m_ReadByteOffset + KXMMATRIXByteCount - 1 >= m_vBytes.size()) return false;
+
+	memcpy(&Out, &m_vBytes[m_ReadByteOffset], KXMMATRIXByteCount);
+
+	m_ReadByteOffset += KXMMATRIXByteCount;
 	return true;
 }
 

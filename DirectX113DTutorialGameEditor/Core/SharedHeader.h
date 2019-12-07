@@ -56,7 +56,7 @@ struct STriangle
 	uint32_t I2{};
 };
 
-struct SVertexAnimation
+struct SAnimationVertex
 {
 	static constexpr uint32_t KMaxWeightCount{ 4 };
 
@@ -67,7 +67,7 @@ struct SVertexAnimation
 struct SMesh
 {
 	std::vector<SVertex3D>			vVertices{};
-	std::vector<SVertexAnimation>	vVerticesAnimation{};
+	std::vector<SAnimationVertex>	vAnimationVertices{};
 	std::vector<STriangle>			vTriangles{};
 
 	uint8_t							MaterialID{};

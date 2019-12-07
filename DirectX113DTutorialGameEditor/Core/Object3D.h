@@ -10,7 +10,7 @@ class CShader;
 
 struct SModel
 {
-	struct SNode
+	struct STreeNode
 	{
 		struct SBlendWeight
 		{
@@ -43,7 +43,7 @@ struct SModel
 			};
 
 			uint32_t			Index{};
-			std::string			NodeName{};
+			std::string			Name{};
 			std::vector<SKey>	vPositionKeys{};
 			std::vector<SKey>	vRotationKeys{};
 			std::vector<SKey>	vScalingKeys{};
@@ -54,7 +54,7 @@ struct SModel
 		float									Duration{};
 		float									TicksPerSecond{};
 
-		std::unordered_map<std::string, size_t>	mapNodeAnimationNameToIndex{};
+		std::unordered_map<std::string, size_t>	umapNodeAnimationNameToIndex{};
 
 		std::string								Name{};
 	};
@@ -63,8 +63,8 @@ struct SModel
 	std::vector<CMaterialData>				vMaterialData{};
 
 	bool									bIsModelRigged{};
-	std::vector<SNode>						vNodes{};
-	std::unordered_map<std::string, size_t>	umapNodeNameToIndex{};
+	std::vector<STreeNode>					vTreeNodes{};
+	std::unordered_map<std::string, size_t>	umapTreeNodeNameToIndex{};
 	uint32_t								ModelBoneCount{};
 	std::vector<SAnimation>					vAnimations{};
 
@@ -138,7 +138,7 @@ private:
 		UINT					VertexBufferOffset{};
 
 		ComPtr<ID3D11Buffer>	VertexBufferAnimation{};
-		UINT					VertexBufferAnimationStride{ sizeof(SVertexAnimation) };
+		UINT					VertexBufferAnimationStride{ sizeof(SAnimationVertex) };
 		UINT					VertexBufferAnimationOffset{};
 
 		ComPtr<ID3D11Buffer>	IndexBuffer{};
@@ -188,7 +188,7 @@ private:
 	void CreateMaterialTexture(size_t Index);
 
 public:
-	void LoadOB3D(const std::string& OB3DFileName);
+	void LoadOB3D(const std::string& OB3DFileName, bool bIsRigged);
 	void SaveOB3D(const std::string& OB3DFileName);
 
 public:
@@ -252,7 +252,7 @@ public:
 	void Draw(bool bIgnoreOwnTexture = false, bool bIgnoreInstances = false) const;
 
 private:
-	void CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick, const SModel::SNode& Node, XMMATRIX ParentTransform);
+	void CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick, const SModel::STreeNode& Node, XMMATRIX ParentTransform);
 
 public:
 	bool ShouldTessellate() const { return m_bShouldTesselate; }

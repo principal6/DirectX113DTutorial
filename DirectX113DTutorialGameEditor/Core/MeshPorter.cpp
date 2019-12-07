@@ -328,6 +328,35 @@ void CMeshPorter::ReadMeshData(CMeshPorter::SMESHData& MESHData)
 			m_BinaryData.ReadXMVECTOR(Vertex.Tangent);
 		}
 
+		if (Version >= 0x10002)
+		{
+			// 4B (uint32_t) Max weight count per animation vertex
+			assert(m_BinaryData.ReadUint32() == SAnimationVertex::KMaxWeightCount);
+
+			// 4B (uint32_t) Animation vertex count
+			Mesh.vAnimationVertices.resize(m_BinaryData.ReadUint32());
+
+			for (uint32_t iAnimationVertex = 0; iAnimationVertex < (uint32_t)Mesh.vAnimationVertices.size(); ++iAnimationVertex)
+			{
+				// 4B (uint32_t) Animation vertex index
+				m_BinaryData.ReadUint32();
+
+				SAnimationVertex& AnimationVertex{ Mesh.vAnimationVertices[iAnimationVertex] };
+
+				// 4B * ?? (uint32_t) Bone IDs
+				for (auto& BoneID : AnimationVertex.BoneIDs)
+				{
+					m_BinaryData.ReadUint32(BoneID);
+				}
+
+				// 4B * ?? (float) Weights
+				for (auto& Weight : AnimationVertex.Weights)
+				{
+					m_BinaryData.ReadFloat(Weight);
+				}
+			}
+		}
+
 		// # ### TRIANGLE ###
 		// 4B (uint32_t) Triangle count
 		Mesh.vTriangles.resize(m_BinaryData.ReadUint32());
@@ -442,7 +471,7 @@ void CMeshPorter::WriteMeshData(const CMeshPorter::SMESHData& MESHData)
 {
 	static uint16_t KVersionMajor{ 0x0001 };
 	static uint8_t KVersionMinor{ 0x00 };
-	static uint8_t KVersionSubminor{ 0x01 };
+	static uint8_t KVersionSubminor{ 0x02 };
 
 	// 8B Signature
 	m_BinaryData.WriteString("KJW_MESH", 8);
@@ -491,6 +520,32 @@ void CMeshPorter::WriteMeshData(const CMeshPorter::SMESHData& MESHData)
 
 			// 16B (XMVECTOR) Tangent
 			m_BinaryData.WriteXMVECTOR(Vertex.Tangent);
+		}
+
+		// 4B (uint32_t) Max weight count per animation vertex
+		m_BinaryData.WriteUint32(SAnimationVertex::KMaxWeightCount);
+
+		// 4B (uint32_t) Animation vertex count
+		m_BinaryData.WriteUint32((uint32_t)Mesh.vAnimationVertices.size());
+
+		for (uint32_t iAnimationVertex = 0; iAnimationVertex < (uint32_t)Mesh.vAnimationVertices.size(); ++iAnimationVertex)
+		{
+			// 4B (uint32_t) Animation vertex index
+			m_BinaryData.WriteUint32(iAnimationVertex);
+
+			const SAnimationVertex& AnimationVertex{ Mesh.vAnimationVertices[iAnimationVertex] };
+
+			// 4B * ?? (uint32_t) Bone IDs
+			for (const auto& BoneID : AnimationVertex.BoneIDs)
+			{
+				m_BinaryData.WriteUint32(BoneID);
+			}
+
+			// 4B * ?? (float) Weights
+			for (const auto& Weight : AnimationVertex.Weights)
+			{
+				m_BinaryData.WriteFloat(Weight);
+			}
 		}
 
 		// 4B (uint32_t) Triangle count

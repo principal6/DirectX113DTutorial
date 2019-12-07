@@ -77,7 +77,7 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel* co
 
 	for (auto& Mesh : Model->vMeshes)
 	{
-		Mesh.vVerticesAnimation.resize(Mesh.vVertices.size());
+		Mesh.vAnimationVertices.resize(Mesh.vVertices.size());
 	}
 
 	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model->vMaterialData);
@@ -86,9 +86,9 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel* co
 	LoadNodes(m_Scene, m_Scene->mRootNode, -1, Model);
 	
 	// Node의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다.
-	for (auto& Node : Model->vNodes)
+	for (const auto& Node : Model->vTreeNodes)
 	{
-		Model->umapNodeNameToIndex[Node.Name] = Node.Index;
+		Model->umapTreeNodeNameToIndex[Node.Name] = Node.Index;
 	}
 
 	// Scene에서 각 Mesh에 연결된 Bone들을 불러온다.
@@ -105,7 +105,7 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel* co
 	{
 		for (auto& NodeAnimation : Animation.vNodeAnimations)
 		{
-			Animation.mapNodeAnimationNameToIndex[NodeAnimation.NodeName] = NodeAnimation.Index;
+			Animation.umapNodeAnimationNameToIndex[NodeAnimation.Name] = NodeAnimation.Index;
 		}
 	}
 
@@ -133,7 +133,7 @@ void CAssimpLoader::AddAnimationFromFile(const string& FileName, SModel* const M
 	{
 		for (auto& NodeAnimation : Animation.vNodeAnimations)
 		{
-			Animation.mapNodeAnimationNameToIndex[NodeAnimation.NodeName] = NodeAnimation.Index;
+			Animation.umapNodeAnimationNameToIndex[NodeAnimation.Name] = NodeAnimation.Index;
 		}
 	}
 }
@@ -285,10 +285,10 @@ void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString* 
 
 void CAssimpLoader::LoadNodes(const aiScene* const Scene, aiNode* const aiCurrentNode, int32_t ParentNodeIndex, SModel* const Model)
 {
-	Model->vNodes.emplace_back();
-	SModel::SNode& Node{ Model->vNodes.back() };
+	Model->vTreeNodes.emplace_back();
+	SModel::STreeNode& Node{ Model->vTreeNodes.back() };
 
-	int32_t NodeIndex{ static_cast<int32_t>(Model->vNodes.size() - 1) };
+	int32_t NodeIndex{ static_cast<int32_t>(Model->vTreeNodes.size() - 1) };
 
 	Node.Index = NodeIndex;
 	Node.Name = aiCurrentNode->mName.C_Str();
@@ -298,7 +298,7 @@ void CAssimpLoader::LoadNodes(const aiScene* const Scene, aiNode* const aiCurren
 	if (Node.ParentNodeIndex != -1)
 	{
 		// 부모 Node에 현재 Node를 Child로 등록한다.
-		Model->vNodes[Node.ParentNodeIndex].vChildNodeIndices.emplace_back(NodeIndex);
+		Model->vTreeNodes[Node.ParentNodeIndex].vChildNodeIndices.emplace_back(NodeIndex);
 	}
 
 	if (aiCurrentNode->mNumChildren)
@@ -326,8 +326,8 @@ void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel* const Model)
 				const aiBone* const _aiBone{ _aiMesh->mBones[iBone] };
 
 				string BoneName{ _aiBone->mName.C_Str() };
-				size_t BoneNodeIndex{ Model->umapNodeNameToIndex[BoneName] };
-				SModel::SNode& BoneNode{ Model->vNodes[BoneNodeIndex] };
+				size_t BoneNodeIndex{ Model->umapTreeNodeNameToIndex[BoneName] };
+				SModel::STreeNode& BoneNode{ Model->vTreeNodes[BoneNodeIndex] };
 
 				// BoneCount는 현재 Bone이 처음 나온 경우에만 증가시켜야 한다! (동일한 Bone이 서로 다른 Mesh에서 참조될 수 있기 때문)
 				if (mapBones[BoneName] == 0)
@@ -342,7 +342,7 @@ void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel* const Model)
 				// 여러 Mesh가 같은 Bone을 참조할 수 있으므로 아래 코드는 매번 실행되어야 한다.
 				for (unsigned int iWeight = 0; iWeight < _aiBone->mNumWeights; ++iWeight)
 				{
-					SModel::SNode::SBlendWeight BlendWeight{ iMesh, _aiBone->mWeights[iWeight].mVertexId, _aiBone->mWeights[iWeight].mWeight };
+					SModel::STreeNode::SBlendWeight BlendWeight{ iMesh, _aiBone->mWeights[iWeight].mVertexId, _aiBone->mWeights[iWeight].mWeight };
 
 					BoneNode.vBlendWeights.emplace_back(BlendWeight);
 				}
@@ -360,11 +360,11 @@ void CAssimpLoader::MatchWeightsAndVertices(SModel* const Model)
 	vector<unordered_map<uint32_t, uint32_t>> mapBlendCountPerVertexPerMesh{};
 	mapBlendCountPerVertexPerMesh.resize(Model->vMeshes.size());
 
-	for (auto& BoneNode : Model->vNodes)
+	for (auto& BoneNode : Model->vTreeNodes)
 	{
 		for (size_t iBlendWeight = 0; iBlendWeight < BoneNode.vBlendWeights.size(); ++iBlendWeight)
 		{
-			const SModel::SNode::SBlendWeight& BlendWeight{ BoneNode.vBlendWeights[iBlendWeight] };
+			const SModel::STreeNode::SBlendWeight& BlendWeight{ BoneNode.vBlendWeights[iBlendWeight] };
 			const uint32_t& MeshID{ BlendWeight.MeshIndex };
 			const uint32_t& VertexID{ BlendWeight.VertexID };
 			const uint32_t& BlendIndexPerVertex{ mapBlendCountPerVertexPerMesh[MeshID][VertexID] };
@@ -374,11 +374,11 @@ void CAssimpLoader::MatchWeightsAndVertices(SModel* const Model)
 				int deb{};
 			}
 
-			if (mapBlendCountPerVertexPerMesh[MeshID][VertexID] >= SVertexAnimation::KMaxWeightCount) continue;
+			if (mapBlendCountPerVertexPerMesh[MeshID][VertexID] >= SAnimationVertex::KMaxWeightCount) continue;
 
 			SMesh& Mesh{ Model->vMeshes[BlendWeight.MeshIndex] };
-			Mesh.vVerticesAnimation[VertexID].BoneIDs[BlendIndexPerVertex] = BoneNode.BoneIndex;
-			Mesh.vVerticesAnimation[VertexID].Weights[BlendIndexPerVertex] = BlendWeight.Weight;
+			Mesh.vAnimationVertices[VertexID].BoneIDs[BlendIndexPerVertex] = BoneNode.BoneIndex;
+			Mesh.vAnimationVertices[VertexID].Weights[BlendIndexPerVertex] = BlendWeight.Weight;
 
 			++mapBlendCountPerVertexPerMesh[MeshID][VertexID];
 		}
@@ -397,6 +397,8 @@ void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel* const Mod
 
 			Model->vAnimations.emplace_back();
 			SModel::SAnimation& Animation{ Model->vAnimations.back() };
+
+			Animation.Name = "animation";
 			Animation.TicksPerSecond = static_cast<float>(_aiAnimation->mTicksPerSecond);
 			Animation.Duration = static_cast<float>(_aiAnimation->mDuration);
 			Animation.vNodeAnimations.resize(ChannelCount);
@@ -406,7 +408,7 @@ void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel* const Mod
 				SModel::SAnimation::SNodeAnimation& NodeAnimation{ Animation.vNodeAnimations[iChannel] };
 
 				NodeAnimation.Index = iChannel;
-				NodeAnimation.NodeName = aiChannel->mNodeName.C_Str();
+				NodeAnimation.Name = aiChannel->mNodeName.C_Str();
 
 				unsigned int PositionKeyCount{ aiChannel->mNumPositionKeys };
 				NodeAnimation.vPositionKeys.resize(PositionKeyCount);

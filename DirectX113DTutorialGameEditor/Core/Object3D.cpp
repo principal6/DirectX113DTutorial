@@ -143,14 +143,14 @@ void CObject3D::CreateMeshBuffer(size_t MeshIndex, bool IsAnimated)
 	{
 		D3D11_BUFFER_DESC BufferDesc{};
 		BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SVertexAnimation) * Mesh.vVerticesAnimation.size());
+		BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SAnimationVertex) * Mesh.vAnimationVertices.size());
 		BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 		BufferDesc.MiscFlags = 0;
 		BufferDesc.StructureByteStride = 0;
 		BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 
 		D3D11_SUBRESOURCE_DATA SubresourceData{};
-		SubresourceData.pSysMem = &Mesh.vVerticesAnimation[0];
+		SubresourceData.pSysMem = &Mesh.vAnimationVertices[0];
 		m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, &m_vMeshBuffers[MeshIndex].VertexBufferAnimation);
 	}
 
@@ -198,7 +198,7 @@ void CObject3D::CreateMaterialTexture(size_t Index)
 	m_vMaterialTextureSets[Index]->CreateTextures(m_Model.vMaterialData[Index]);
 }
 
-void CObject3D::LoadOB3D(const std::string& OB3DFileName)
+void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
 {
 	m_OB3DFileName = OB3DFileName;
 
@@ -240,7 +240,7 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName)
 	{
 		// <@PrefString> Model file name
 		Object3DBinary.ReadStringWithPrefixedLength(ReadString);
-		CreateFromFile(ReadString, false);
+		CreateFromFile(ReadString, bIsRigged);
 	}
 	
 	// ### ComponentTransform ###
@@ -266,6 +266,134 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName)
 	{
 		Object3DBinary.ReadBool(ComponentRender.bIsTransparent);
 		Object3DBinary.ReadBool(ComponentRender.bShouldAnimate);
+	}
+
+	// ##### Animation data #####
+	if (Version >= 0x10001)
+	{
+		// 1B (bool) bIsModelRigged
+		Object3DBinary.ReadBool(m_Model.bIsModelRigged);
+
+		// 4B (uint32_t) Tree node count
+		m_Model.vTreeNodes.resize(Object3DBinary.ReadUint32());
+		for (auto& Node : m_Model.vTreeNodes)
+		{
+			// <@PrefString> Node name
+			Object3DBinary.ReadStringWithPrefixedLength(Node.Name);
+
+			// 4B (int32_t) Node index
+			Object3DBinary.ReadInt32(Node.Index);
+
+			// 1B (bool) bIsBone
+			Object3DBinary.ReadBool(Node.bIsBone);
+
+			// 4B (uint32_t) Bone index
+			Object3DBinary.ReadUint32(Node.BoneIndex);
+
+			// 64B (XMMATRIX) Bone offset matrix
+			Object3DBinary.ReadXMMATRIX(Node.MatrixBoneOffset);
+
+			// 64B (XMMATRIX) Transformation matrix
+			Object3DBinary.ReadXMMATRIX(Node.MatrixTransformation);
+
+			// 4B (int32_t) Parent node index
+			Object3DBinary.ReadInt32(Node.ParentNodeIndex);
+
+			// 4B (uint32_t) Blend weight count
+			Node.vBlendWeights.resize(Object3DBinary.ReadUint32());
+			for (auto& BlendWeight : Node.vBlendWeights)
+			{
+				// 4B (uint32_t) Mesh index
+				Object3DBinary.ReadUint32(BlendWeight.MeshIndex);
+
+				// 4B (uint32_t) Vertex ID
+				Object3DBinary.ReadUint32(BlendWeight.VertexID);
+
+				// 4B (float) Weight
+				Object3DBinary.ReadFloat(BlendWeight.Weight);
+			}
+
+			// 4B (uint32_t) Child node count
+			Node.vChildNodeIndices.resize(Object3DBinary.ReadUint32());
+			for (auto& ChildNodeIndex : Node.vChildNodeIndices)
+			{
+				// 4B (int32_t) Child node index
+				Object3DBinary.ReadInt32(ChildNodeIndex);
+			}
+		}
+
+		// @important
+		for (const auto& Node : m_Model.vTreeNodes) 
+		{
+			m_Model.umapTreeNodeNameToIndex[Node.Name] = Node.Index;
+		}
+
+		// 4B (uint32_t) Model bone count
+		Object3DBinary.ReadUint32(m_Model.ModelBoneCount);
+
+		// 4B (uint32_t) Animation count
+		m_Model.vAnimations.resize(Object3DBinary.ReadUint32());
+		for (auto& Animation : m_Model.vAnimations)
+		{
+			// <@PrefString> Animation name
+			Object3DBinary.ReadStringWithPrefixedLength(Animation.Name);
+
+			// 4B (float) Duration
+			Object3DBinary.ReadFloat(Animation.Duration);
+
+			// 4B (float) Ticks per second
+			Object3DBinary.ReadFloat(Animation.TicksPerSecond);
+
+			// 4B (uint32_t) Node animation count
+			Animation.vNodeAnimations.resize(Object3DBinary.ReadUint32());
+			for (auto& NodeAnimation : Animation.vNodeAnimations)
+			{
+				// 4B (uint32_t) Node animation index
+				Object3DBinary.ReadUint32(NodeAnimation.Index);
+
+				// <@PrefString> Node animation name
+				Object3DBinary.ReadStringWithPrefixedLength(NodeAnimation.Name);
+
+				// 4B (uint32_t) Position key count
+				NodeAnimation.vPositionKeys.resize(Object3DBinary.ReadUint32());
+				for (auto& PositionKey : NodeAnimation.vPositionKeys)
+				{
+					// 4B (float) Time
+					Object3DBinary.ReadFloat(PositionKey.Time);
+
+					// 16B (XMVECTOR) Value
+					Object3DBinary.ReadXMVECTOR(PositionKey.Value);
+				}
+
+				// 4B (uint32_t) Rotation key count
+				NodeAnimation.vRotationKeys.resize(Object3DBinary.ReadUint32());
+				for (auto& RotationKey : NodeAnimation.vRotationKeys)
+				{
+					// 4B (float) Time
+					Object3DBinary.ReadFloat(RotationKey.Time);
+
+					// 16B (XMVECTOR) Value
+					Object3DBinary.ReadXMVECTOR(RotationKey.Value);
+				}
+
+				// 4B (uint32_t) Scaling key count
+				NodeAnimation.vScalingKeys.resize(Object3DBinary.ReadUint32());
+				for (auto& ScalingKey : NodeAnimation.vScalingKeys)
+				{
+					// 4B (float) Time
+					Object3DBinary.ReadFloat(ScalingKey.Time);
+
+					// 16B (XMVECTOR) Value
+					Object3DBinary.ReadXMVECTOR(ScalingKey.Value);
+				}
+			}
+
+			// @important
+			for (const auto& NodeAnimation : Animation.vNodeAnimations)
+			{
+				Animation.umapNodeAnimationNameToIndex[NodeAnimation.Name] = NodeAnimation.Index;
+			}
+		}
 	}
 
 	// ### Instance ###
@@ -298,7 +426,7 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 {
 	static uint16_t KVersionMajor{ 0x0001 };
 	static uint8_t KVersionMinor{ 0x00 };
-	static uint8_t KVersionSubminor{ 0x00 };
+	static uint8_t KVersionSubminor{ 0x01 };
 
 	m_OB3DFileName = OB3DFileName;
 
@@ -362,6 +490,121 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 		Object3DBinary.WriteBool(ComponentRender.bShouldAnimate);
 	}
 
+	// ##### Animation data #####
+	{
+		// 1B (bool) bIsModelRigged
+		Object3DBinary.WriteBool(m_Model.bIsModelRigged);
+
+		// 4B (uint32_t) Tree node count
+		Object3DBinary.WriteUint32((uint32_t)m_Model.vTreeNodes.size());
+		for (const auto& Node : m_Model.vTreeNodes)
+		{
+			// <@PrefString> Node name
+			Object3DBinary.WriteStringWithPrefixedLength(Node.Name);
+
+			// 4B (int32_t) Node index
+			Object3DBinary.WriteInt32(Node.Index);
+
+			// 1B (bool) bIsBone
+			Object3DBinary.WriteBool(Node.bIsBone);
+
+			// 4B (uint32_t) Bone index
+			Object3DBinary.WriteUint32(Node.BoneIndex);
+
+			// 64B (XMMATRIX) Bone offset matrix
+			Object3DBinary.WriteXMMATRIX(Node.MatrixBoneOffset);
+
+			// 64B (XMMATRIX) Transformation matrix
+			Object3DBinary.WriteXMMATRIX(Node.MatrixTransformation);
+
+			// 4B (int32_t) Parent node index
+			Object3DBinary.WriteInt32(Node.ParentNodeIndex);
+
+			// 4B (uint32_t) Blend weight count
+			Object3DBinary.WriteUint32((uint32_t)Node.vBlendWeights.size());
+			for (const auto& BlendWeight : Node.vBlendWeights)
+			{
+				// 4B (uint32_t) Mesh index
+				Object3DBinary.WriteUint32(BlendWeight.MeshIndex);
+				
+				// 4B (uint32_t) Vertex ID
+				Object3DBinary.WriteUint32(BlendWeight.VertexID);
+
+				// 4B (float) Weight
+				Object3DBinary.WriteFloat(BlendWeight.Weight);
+			}
+
+			// 4B (uint32_t) Child node count
+			Object3DBinary.WriteUint32((uint32_t)Node.vChildNodeIndices.size());
+			for (const auto& ChildNodeIndex : Node.vChildNodeIndices)
+			{
+				// 4B (int32_t) Child node index
+				Object3DBinary.WriteInt32(ChildNodeIndex);
+			}
+		}
+
+		// 4B (uint32_t) Model bone count
+		Object3DBinary.WriteUint32(m_Model.ModelBoneCount);
+
+		// 4B (uint32_t) Animation count
+		Object3DBinary.WriteUint32((uint32_t)m_Model.vAnimations.size());
+		for (const auto& Animation : m_Model.vAnimations)
+		{
+			// <@PrefString> Animation name
+			Object3DBinary.WriteStringWithPrefixedLength(Animation.Name);
+
+			// 4B (float) Duration
+			Object3DBinary.WriteFloat(Animation.Duration);
+
+			// 4B (float) Ticks per second
+			Object3DBinary.WriteFloat(Animation.TicksPerSecond);
+			
+			// 4B (uint32_t) Node animation count
+			Object3DBinary.WriteUint32((uint32_t)Animation.vNodeAnimations.size());
+			for (const auto& NodeAnimation : Animation.vNodeAnimations)
+			{
+				// 4B (uint32_t) Node animation index
+				Object3DBinary.WriteUint32(NodeAnimation.Index);
+
+				// <@PrefString> Node name
+				Object3DBinary.WriteStringWithPrefixedLength(NodeAnimation.Name);
+
+				// 4B (uint32_t) Position key count
+				Object3DBinary.WriteUint32((uint32_t)NodeAnimation.vPositionKeys.size());
+				for (const auto& PositionKey : NodeAnimation.vPositionKeys)
+				{
+					// 4B (float) Time
+					Object3DBinary.WriteFloat(PositionKey.Time);
+
+					// 16B (XMVECTOR) Value
+					Object3DBinary.WriteXMVECTOR(PositionKey.Value);
+				}
+
+				// 4B (uint32_t) Rotation key count
+				Object3DBinary.WriteUint32((uint32_t)NodeAnimation.vRotationKeys.size());
+				for (const auto& RotationKey : NodeAnimation.vRotationKeys)
+				{
+					// 4B (float) Time
+					Object3DBinary.WriteFloat(RotationKey.Time);
+
+					// 16B (XMVECTOR) Value
+					Object3DBinary.WriteXMVECTOR(RotationKey.Value);
+				}
+
+				// 4B (uint32_t) Scaling key count
+				Object3DBinary.WriteUint32((uint32_t)NodeAnimation.vScalingKeys.size());
+				for (const auto& ScalingKey : NodeAnimation.vScalingKeys)
+				{
+					// 4B (float) Time
+					Object3DBinary.WriteFloat(ScalingKey.Time);
+
+					// 16B (XMVECTOR) Value
+					Object3DBinary.WriteXMVECTOR(ScalingKey.Value);
+				}
+			}
+		}
+	}
+
 	// ### Instance ###
 	{
 		Object3DBinary.WriteUint32((uint32_t)m_vInstanceCPUData.size());
@@ -380,7 +623,6 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 			Object3DBinary.WriteFloat(InstanceCPUData.BoundingSphere.RadiusBias);
 		}
 	}
-
 
 	Object3DBinary.SaveToFile(OB3DFileName);
 }
@@ -517,7 +759,7 @@ void CObject3D::BakeAnimationTexture()
 		for (int32_t iTime = 0; iTime < Duration; ++iTime)
 		{
 			const int32_t KTimeOffset{ (int32_t)((int64_t)iTime * KAnimationTextureWidth) };
-			CalculateAnimatedBoneMatrices(Animation, (float)iTime, m_Model.vNodes[0], XMMatrixIdentity());
+			CalculateAnimatedBoneMatrices(Animation, (float)iTime, m_Model.vTreeNodes[0], XMMatrixIdentity());
 
 			for (int32_t iBoneMatrix = 0; iBoneMatrix < (int32_t)KMaxBoneMatrixCount; ++iBoneMatrix)
 			{
@@ -984,6 +1226,8 @@ void CObject3D::UpdateInstanceWorldMatrix(const std::string& InstanceName)
 
 void CObject3D::UpdateInstanceWorldMatrix(const std::string& InstanceName, const XMMATRIX& WorldMatrix)
 {
+	if (InstanceName.empty()) return;
+
 	m_vInstanceGPUData[GetInstanceID(InstanceName)].WorldMatrix = WorldMatrix;
 
 	UpdateInstanceBuffers();
@@ -1098,7 +1342,7 @@ void CObject3D::Animate(float DeltaTime)
 	}
 	else
 	{
-		CalculateAnimatedBoneMatrices(m_Model.vAnimations[m_CurrentAnimationID], m_CurrentAnimationTick, m_Model.vNodes[0], XMMatrixIdentity());
+		CalculateAnimatedBoneMatrices(m_Model.vAnimations[m_CurrentAnimationID], m_CurrentAnimationTick, m_Model.vTreeNodes[0], XMMatrixIdentity());
 	}
 }
 
@@ -1166,7 +1410,7 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 }
 
 void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick,
-	const SModel::SNode& Node, XMMATRIX ParentTransform)
+	const SModel::STreeNode& Node, XMMATRIX ParentTransform)
 {
 	XMMATRIX MatrixTransformation{ Node.MatrixTransformation * ParentTransform };
 
@@ -1174,9 +1418,9 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentA
 	{
 		if (CurrentAnimation.vNodeAnimations.size())
 		{
-			if (CurrentAnimation.mapNodeAnimationNameToIndex.find(Node.Name) != CurrentAnimation.mapNodeAnimationNameToIndex.end())
+			if (CurrentAnimation.umapNodeAnimationNameToIndex.find(Node.Name) != CurrentAnimation.umapNodeAnimationNameToIndex.end())
 			{
-				size_t NodeAnimationIndex{ CurrentAnimation.mapNodeAnimationNameToIndex.at(Node.Name) };
+				size_t NodeAnimationIndex{ CurrentAnimation.umapNodeAnimationNameToIndex.at(Node.Name) };
 
 				const SModel::SAnimation::SNodeAnimation& NodeAnimation{ CurrentAnimation.vNodeAnimations[NodeAnimationIndex] };
 
@@ -1244,7 +1488,7 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentA
 	{
 		for (auto iChild : Node.vChildNodeIndices)
 		{
-			CalculateAnimatedBoneMatrices(CurrentAnimation, AnimationTick, m_Model.vNodes[iChild], MatrixTransformation);
+			CalculateAnimatedBoneMatrices(CurrentAnimation, AnimationTick, m_Model.vTreeNodes[iChild], MatrixTransformation);
 		}
 	}
 }

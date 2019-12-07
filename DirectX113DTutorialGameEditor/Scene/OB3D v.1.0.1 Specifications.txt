@@ -1,0 +1,86 @@
+// #########################
+// << .OB3D FILE STRUCTURE >>
+// @@@ SYNTAX @@@
+//  - <@PrefString>: 4B(uint32_t)[String length] + ??(string)[Non-zero-terminated string]
+// #########################
+// 8B (string) Signature "KJW-OB3D"
+/********** BEGIN NEW **********/
+// 4B (in total) Version
+//  = 2B (uint16_t) Version major "0x0001"
+//  + 1B (uint8_t) Version minor "0x00"
+//  + 1B (uint8_t) Version sub-minor "0x01"
+/**********  END NEW  **********/
+// ##### Mesh data #####
+// 1B (bool) bContainMeshData
+// - (TRUE) ?
+//   - 4B (uint32_t) Mesh byte count
+//   - ?? (byte) Mesh bytes
+// - (FALSE) ?
+//   - <@PrefString> Object3D name
+// ##### ComponentTransform #####
+// 16B (XMVECTOR) Transform
+// 4B (float) Pitch
+// 4B (float) Yaw
+// 4B (float) Roll
+// 16B (XMVECTOR) Scaling
+// ##### ComponentPhysics #####
+// 1B (bool) bIsPickable
+// 16B (XMVECTOR) BoundingSphere CenterOffset
+// 4B (float) BoundingSphere RadiusBias
+// ##### ComponentRender #####
+// 1B (bool) bIsTransparent
+// 1B (bool) bShouldAnimate
+/********** BEGIN NEW **********/
+// ##### Model animation data #####
+// 1B (bool) bIsModelRigged
+// 4B (uint32_t) Tree node count
+// - #### Node data ####
+// - <@PrefString> Node name
+// - 4B (int32_t) Node index
+// - 1B (bool) bIsBone
+// - 4B (uint32_t) Bone index
+// - 64B (XMMATRIX) Bone offset matrix
+// - 64B (XMMATRIX) Transformation matrix
+// - 4B (int32_t) Parent node index
+// - 4B (uint32_t) Blend weight count
+//   - ### Blend weight ###
+//   - 4B (uint32_t) Mesh index
+//   - 4B (uint32_t) Vertex ID
+//   - 4B (float) Weight
+// - 4B (uint32_t) Child node count
+//   - ### Child node ###
+//   - 4B (int32_t) Child node index
+// 4B (uint32_t) Model bone count
+// 4B (uint32_t) Animation count
+// - #### Animation ###
+// - <@PrefString> Animation name
+// - 4B (float) Duration
+// - 4B (float) Ticks per second
+// - 4B (uint32_t) Node animation count
+//   - ### Node animation ###
+//   - 4B (uint32_t) Node animation index
+//   - <@PrefString> Node animation name
+//   - 4B (uint32_t) Position key count
+//     - ## Position key ##
+//     - 4B (float) Time
+//     - 16B (XMVECTOR) Value
+//   - 4B (uint32_t) Rotation key count
+//     - ## Rotation key ##
+//     - 4B (float) Time
+//     - 16B (XMVECTOR) Value
+//   - 4B (uint32_t) Scaling key count
+//     - ## Scaling key ##
+//     - 4B (float) Time
+//     - 16B (XMVECTOR) Value
+/**********  END NEW  **********/
+// ##### Instance #####
+// 4B (uint32_t) Instance count
+// - #### per-instance ####
+// - <@PrefString> Instance name
+// - 16B (XMVECTOR) Translation
+// - 4B (float) Pitch
+// - 4B (float) Yaw
+// - 4B (float) Roll
+// - 16B (XMVECTOR) Scaling
+// - 16B (XMVECTOR) BoundingSphere CenterOffset
+// - 4B (float) BoundingSphere RadiusBias
