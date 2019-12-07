@@ -1176,6 +1176,15 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 		}
 	}
 
+	// Editor camera
+	XMVECTOR ReadXMVECTOR{};
+	m_EditorCamera->SetType((CCamera::EType)SceneBinaryData.ReadUint32());
+	SceneBinaryData.ReadXMVECTOR(ReadXMVECTOR);
+	m_EditorCamera->SetEyePosition(ReadXMVECTOR);
+	m_EditorCamera->SetPitch(SceneBinaryData.ReadFloat());
+	m_EditorCamera->SetYaw(SceneBinaryData.ReadFloat());
+	m_EditorCamera->SetMovementFactor(SceneBinaryData.ReadFloat());
+
 	// Camera
 	{
 		ClearCameras();
@@ -1183,13 +1192,21 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 		uint32_t CameraCount{ SceneBinaryData.ReadUint32() };
 		for (uint32_t iCamera = 0; iCamera < CameraCount; ++iCamera)
 		{
-			/*
 			SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
 
 			InsertCamera(ReadString);
-			CCamera* Camera{ GetCamera(ReadString) };
-			Camera->SetData;
-			*/
+			CCamera* const Camera{ GetCamera(ReadString) };
+			Camera->SetType((CCamera::EType)SceneBinaryData.ReadUint32());
+
+			SceneBinaryData.ReadXMVECTOR(ReadXMVECTOR);
+			Camera->SetEyePosition(ReadXMVECTOR);
+			Camera->SetPitch(SceneBinaryData.ReadFloat());
+			Camera->SetYaw(SceneBinaryData.ReadFloat());
+			Camera->SetMovementFactor(SceneBinaryData.ReadFloat());
+
+			auto& CameraRepInstance{ m_CameraRep->GetInstanceCPUData(ReadString) };
+			CameraRepInstance.Translation = Camera->GetEyePosition();
+			m_CameraRep->UpdateInstanceWorldMatrix(ReadString);
 		}
 	}
 
@@ -1258,12 +1275,24 @@ void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 		}
 	}
 
+	// Editor camera
+	SceneBinaryData.WriteUint32((uint32_t)m_EditorCamera->GetType());
+	SceneBinaryData.WriteXMVECTOR(m_EditorCamera->GetEyePosition());
+	SceneBinaryData.WriteFloat(m_EditorCamera->GetPitch());
+	SceneBinaryData.WriteFloat(m_EditorCamera->GetYaw());
+	SceneBinaryData.WriteFloat(m_EditorCamera->GetMovementFactor());
+
 	// Camera
 	uint32_t CameraCount{ (uint32_t)m_vCameras.size() };
 	SceneBinaryData.WriteUint32(CameraCount);
-	if (CameraCount)
+	for (const auto& Camera : m_vCameras)
 	{
-		
+		SceneBinaryData.WriteStringWithPrefixedLength(Camera->GetName());
+		SceneBinaryData.WriteUint32((uint32_t)Camera->GetType());
+		SceneBinaryData.WriteXMVECTOR(Camera->GetEyePosition());
+		SceneBinaryData.WriteFloat(Camera->GetPitch());
+		SceneBinaryData.WriteFloat(Camera->GetYaw());
+		SceneBinaryData.WriteFloat(Camera->GetMovementFactor());
 	}
 
 	// Light
@@ -2917,7 +2946,6 @@ void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
 			}
 		}
 	}
-	if (m_vObject3DPickingCandidates.size()) return;
 }
 
 bool CGame::PickObject3DTriangle(bool bUseAdditiveSelection)
@@ -2988,6 +3016,7 @@ bool CGame::PickObject3DTriangle(bool bUseAdditiveSelection)
 		{
 			if (XMVector3Less(FilteredCandidate.T, TCmp))
 			{
+				TCmp = FilteredCandidate.T;
 				Closest = &FilteredCandidate;
 			}
 		}
@@ -3259,7 +3288,7 @@ void CGame::Select3DGizmos()
 				{
 					const XMVECTOR& KTranslation{ m_Light->GetInstanceGPUData(SelectionData.Name).Position };
 					m_Light->SetInstancePosition(SelectionData.Name, KTranslation + DeltaTranslation);
-					m_LightRep->SetInstancePosition(SelectionData.Name, KTranslation + DeltaTranslation);
+					m_LightRep->SetInstancePosition(SelectionData.Name, KTranslation);
 					break;
 				}
 				case CGame::EObjectType::Object3D:
@@ -3782,7 +3811,8 @@ void CGame::Draw()
 		// Directional light
 		{
 			// @important
-			UpdateCBDirectionalLight(false); // @important: IBL turned off for performance issue in my laptop...
+			UpdateCBDirectionalLight(true);
+			//UpdateCBDirectionalLight(false); // @important: IBL turned off for performance issue in my laptop...
 
 			DrawFullScreenQuad(m_PSDirectionalLight.get(), SRVs, ARRAYSIZE(SRVs));
 		}
@@ -6732,15 +6762,15 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 			{
 				MaterialData.SpecularExponent(SpecularExponent);
 			}
-		}
 
-		ImGui::AlignTextToFramePadding();
-		ImGui::Text(u8"Specular 강도");
-		ImGui::SameLine(ItemsOffsetX);
-		float SpecularIntensity{ MaterialData.SpecularIntensity() };
-		if (ImGui::DragFloat(u8"##Specular 강도", &SpecularIntensity, 0.01f, 0.0f, 1.0f, "%.2f"))
-		{
-			MaterialData.SpecularIntensity(SpecularIntensity);
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text(u8"Specular 강도");
+			ImGui::SameLine(ItemsOffsetX);
+			float SpecularIntensity{ MaterialData.SpecularIntensity() };
+			if (ImGui::DragFloat(u8"##Specular 강도", &SpecularIntensity, 0.01f, 0.0f, 1.0f, "%.2f"))
+			{
+				MaterialData.SpecularIntensity(SpecularIntensity);
+			}
 		}
 
 		if (bUsePhysicallyBasedRendering)
@@ -7413,7 +7443,7 @@ void CGame::GenerateCubemapFromHDRi()
 
 void CGame::GenerateIrradianceMap(float RangeFactor)
 {
-	const uint32_t KMipLevelBias{ 4 }; // @important: Maybe becuase of my poor hardware...???
+	const uint32_t KMipLevelBias{ 3 }; // @important: Maybe becuase of my poor hardware...???
 
 	m_EnvironmentTexture->GetTexture2DPtr()->GetDesc(&m_GeneratedIrradianceMapTextureDesc);
 
@@ -7586,8 +7616,10 @@ void CGame::GeneratePrefilteredRadianceMap(float RangeFactor)
 void CGame::GenerateIntegratedBRDFMap()
 {
 	// @important
-	m_IntegratedBRDFTextureDesc.Width = 512;
-	m_IntegratedBRDFTextureDesc.Height = 512;
+	//m_IntegratedBRDFTextureDesc.Width = 512;
+	//m_IntegratedBRDFTextureDesc.Height = 512;
+	m_IntegratedBRDFTextureDesc.Width = 128;
+	m_IntegratedBRDFTextureDesc.Height = 128;
 	m_IntegratedBRDFTextureDesc.ArraySize = 1;
 	m_IntegratedBRDFTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	m_IntegratedBRDFTextureDesc.CPUAccessFlags = 0;

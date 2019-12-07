@@ -1,7 +1,6 @@
 #include "Core/Game.h"
 
 // @TODO
-// update scene loading/saving (save editor camera state into the scene) => BINARY ??
 // implement spot light
 // implement shadow mapping
 // improve terrain tessellation using quad patch? or is it good with the current Bezier triangles?
@@ -45,6 +44,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		}
 		else
 		{
+			/*
 			if (KeyDown == VK_F1)
 			{
 				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawWireFrame);
@@ -61,6 +61,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			{
 				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawBoundingSphere);
 			}
+			*/
 
 			if (KeyDown == VK_DELETE)
 			{
