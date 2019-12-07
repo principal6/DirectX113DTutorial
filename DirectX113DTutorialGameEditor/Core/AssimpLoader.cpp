@@ -88,7 +88,7 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel* co
 	// Node의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다.
 	for (auto& Node : Model->vNodes)
 	{
-		Model->mapNodeNameToIndex[Node.Name] = Node.Index;
+		Model->umapNodeNameToIndex[Node.Name] = Node.Index;
 	}
 
 	// Scene에서 각 Mesh에 연결된 Bone들을 불러온다.
@@ -326,7 +326,7 @@ void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel* const Model)
 				const aiBone* const _aiBone{ _aiMesh->mBones[iBone] };
 
 				string BoneName{ _aiBone->mName.C_Str() };
-				size_t BoneNodeIndex{ Model->mapNodeNameToIndex[BoneName] };
+				size_t BoneNodeIndex{ Model->umapNodeNameToIndex[BoneName] };
 				SModel::SNode& BoneNode{ Model->vNodes[BoneNodeIndex] };
 
 				// BoneCount는 현재 Bone이 처음 나온 경우에만 증가시켜야 한다! (동일한 Bone이 서로 다른 Mesh에서 참조될 수 있기 때문)

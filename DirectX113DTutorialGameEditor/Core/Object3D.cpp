@@ -210,11 +210,16 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName)
 	// 8B (string) Signature
 	Object3DBinary.ReadSkip(8);
 
+	// 4B (in total) Version
+	uint16_t VersionMajor{ Object3DBinary.ReadUint16() };
+	uint8_t VersionMinor{ Object3DBinary.ReadUint8() };
+	uint8_t VersionSubminor{ Object3DBinary.ReadUint8() };
+	uint32_t Version{ (uint32_t)(VersionSubminor | (VersionMinor << 8) | (VersionMajor << 16)) };
+
 	// <@PrefString> Object3D name
 	Object3DBinary.ReadStringWithPrefixedLength(m_Name);
 
 	// 1B (bool) bContainMeshData
-	// <@PrefString> Model file name
 	bool bContainMeshData{ Object3DBinary.ReadBool() };
 	if (bContainMeshData)
 	{
@@ -233,6 +238,7 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName)
 	}
 	else
 	{
+		// <@PrefString> Model file name
 		Object3DBinary.ReadStringWithPrefixedLength(ReadString);
 		CreateFromFile(ReadString, false);
 	}
@@ -253,8 +259,6 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName)
 		Object3DBinary.ReadBool(ComponentPhysics.bIsPickable);
 
 		Object3DBinary.ReadXMVECTOR(ComponentPhysics.BoundingSphere.CenterOffset);
-
-		Object3DBinary.ReadFloat(ComponentPhysics.BoundingSphere.Radius);
 		Object3DBinary.ReadFloat(ComponentPhysics.BoundingSphere.RadiusBias);
 	}
 
@@ -283,7 +287,6 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName)
 			Object3DBinary.ReadXMVECTOR(InstanceCPUData.Scaling);
 
 			Object3DBinary.ReadXMVECTOR(InstanceCPUData.BoundingSphere.CenterOffset);
-			Object3DBinary.ReadFloat(InstanceCPUData.BoundingSphere.Radius);
 			Object3DBinary.ReadFloat(InstanceCPUData.BoundingSphere.RadiusBias);
 		}
 
@@ -293,12 +296,21 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName)
 
 void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 {
+	static uint16_t KVersionMajor{ 0x0001 };
+	static uint8_t KVersionMinor{ 0x00 };
+	static uint8_t KVersionSubminor{ 0x00 };
+
 	m_OB3DFileName = OB3DFileName;
 
 	CBinaryData Object3DBinary{};
 
 	// 8B (string) Signature
 	Object3DBinary.WriteString("KJW_OB3D", 8);
+
+	// 4B (in total) Version
+	Object3DBinary.WriteUint16(KVersionMajor);
+	Object3DBinary.WriteUint8(KVersionMinor);
+	Object3DBinary.WriteUint8(KVersionSubminor);
 
 	// <@PrefString> Object3D name
 	Object3DBinary.WriteStringWithPrefixedLength(m_Name);
@@ -341,8 +353,6 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 		Object3DBinary.WriteBool(ComponentPhysics.bIsPickable);
 		
 		Object3DBinary.WriteXMVECTOR(ComponentPhysics.BoundingSphere.CenterOffset);
-		
-		Object3DBinary.WriteFloat(ComponentPhysics.BoundingSphere.Radius);
 		Object3DBinary.WriteFloat(ComponentPhysics.BoundingSphere.RadiusBias);
 	}
 
@@ -367,10 +377,10 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 			Object3DBinary.WriteXMVECTOR(InstanceCPUData.Scaling);
 
 			Object3DBinary.WriteXMVECTOR(InstanceCPUData.BoundingSphere.CenterOffset);
-			Object3DBinary.WriteFloat(InstanceCPUData.BoundingSphere.Radius);
 			Object3DBinary.WriteFloat(InstanceCPUData.BoundingSphere.RadiusBias);
 		}
 	}
+
 
 	Object3DBinary.SaveToFile(OB3DFileName);
 }

@@ -1,0 +1,36 @@
+// 8B (string) Signature
+// 4B (in total) Version
+//  - 2B Version major
+//  - 1B Version minor
+//  - 1B Version sub-minor
+// ##### Mesh data #####
+// 1B (bool) bContainMeshData
+// - (TRUE) ?
+//   - 4B (uint32_t) Mesh byte count
+//   - ?? (byte) Mesh bytes
+// - (FALSE) ?
+//   - <@PrefString> Object3D name
+// ##### ComponentTransform #####
+// 16B (XMVECTOR) Transform
+// 4B (float) Pitch
+// 4B (float) Yaw
+// 4B (float) Roll
+// 16B (XMVECTOR) Scaling
+// ##### ComponentPhysics #####
+// 1B (bool) bIsPickable
+// 16B (XMVECTOR) BoundingSphere CenterOffset
+// 4B (float) BoundingSphere RadiusBias
+// ##### ComponentRender #####
+// 1B (bool) bIsTransparent
+// 1B (bool) bShouldAnimate
+// ##### Instance #####
+// 4B (uint32_t) Instance count
+// - ### per-instance ###
+// - <@PrefString> Instance name
+// - 16B (XMVECTOR) Translation
+// - 4B (float) Pitch
+// - 4B (float) Yaw
+// - 4B (float) Roll
+// - 16B (XMVECTOR) Scaling
+// - 16B (XMVECTOR) BoundingSphere CenterOffset
+// - 4B (float) BoundingSphere RadiusBias

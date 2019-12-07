@@ -62,12 +62,12 @@ struct SModel
 	std::vector<SMesh>						vMeshes{};
 	std::vector<CMaterialData>				vMaterialData{};
 
-	std::vector<SNode>						vNodes{};
-	std::unordered_map<std::string, size_t>	mapNodeNameToIndex{};
-	uint32_t								ModelBoneCount{};
-
-	std::vector<SAnimation>					vAnimations{};
 	bool									bIsModelRigged{};
+	std::vector<SNode>						vNodes{};
+	std::unordered_map<std::string, size_t>	umapNodeNameToIndex{};
+	uint32_t								ModelBoneCount{};
+	std::vector<SAnimation>					vAnimations{};
+
 	bool									bUseMultipleTexturesInSingleMesh{ false };
 };
 

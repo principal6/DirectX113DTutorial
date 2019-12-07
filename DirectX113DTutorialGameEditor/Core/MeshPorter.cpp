@@ -285,7 +285,7 @@ void CMeshPorter::ReadMeshData(CMeshPorter::SMESHData& MESHData)
 	uint16_t VersionMajor{ m_BinaryData.ReadUint16() };
 	uint8_t VersionMinor{ m_BinaryData.ReadUint8() };
 	uint8_t VersionSubminor{ m_BinaryData.ReadUint8() };
-	uint32_t VesionCmp{ (uint32_t)(VersionSubminor | (VersionMinor << 8) | (VersionMajor << 16)) };
+	uint32_t Version{ (uint32_t)(VersionSubminor | (VersionMinor << 8) | (VersionMajor << 16)) };
 
 	// ##### MATERIAL #####
 	// 1B (uint8_t) Material count
@@ -347,7 +347,7 @@ void CMeshPorter::ReadMeshData(CMeshPorter::SMESHData& MESHData)
 		}
 	}
 
-	if (VesionCmp >= 0x10001)
+	if (Version >= 0x10001)
 	{
 		// # 16B (XMVECTOR) Bounding sphere center offset
 		m_BinaryData.ReadXMVECTOR(MESHData.BoundingSphereData.CenterOffset);

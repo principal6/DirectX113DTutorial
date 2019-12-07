@@ -55,17 +55,18 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 Metal_AO = GBuffer_Metal_AO.SampleLevel(PointClampSampler, UV, 0);
 
 	float4 OutputColor = float4(0, 0, 0, 1);
+
 	{
 		float3 Wo = normalize(EyePosition - WorldPosition.xyz);
 		float3 F0 = lerp(KFresnel_dielectric, BaseColor, Metalness);
-		float NdotWo = max(dot(N, Wo), 0.001); // NaN
-
+		float NdotWo = max(dot(N, Wo), 0.001);
+		
 		// Direct light
 		{
 			float3 Wi = LightDirection.xyz;
 			float3 M = normalize(Wi + Wo);
 
-			float NdotWi = max(dot(N, Wi), 0.001); // NaN
+			float NdotWi = max(dot(N, Wi), 0.001);
 			float NdotM = saturate(dot(N, M));
 			float MdotWi = saturate(dot(M, Wi));
 
@@ -82,7 +83,6 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			OutputColor.xyz += Lo_diff + Lo_spec;
 		}
 
-
 		// Indirect light
 		if (!bUseIBL || (Metalness <= 0.52 && Metalness >= 0.48)) // @important: Terrain Metalness 0.5
 		{
@@ -97,9 +97,9 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			}
 			else
 			{
-				float3 Wi = normalize(-Wo + (2.0 * dot(N, Wo) * N)); // @important: do not clamp dot product...!!!!
+				float3 Wi = normalize(-Wo + (2.0 * NdotWo * N));
 				float NdotWi = dot(N, Wi);
-
+				
 				float3 PrefilteredRadiance = PrefilteredRadianceTexture.SampleLevel(LinearWrapSampler, Wi,
 					Roughness * (float)(PrefilteredRadianceTextureMipLevels - 1)).rgb;
 				float2 IntegratedBRDF = IntegratedBRDFTexture.SampleLevel(LinearClampSampler, float2(NdotWo, 1 - Roughness), 0).rg;

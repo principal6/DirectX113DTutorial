@@ -2864,6 +2864,22 @@ void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
 	}
 	if (bIsSelectionAdded) return;
 
+	// Pick Light
+	for (const auto& LightPair : m_Light->GetInstanceNameToIndexMap())
+	{
+		const auto& Instance{ m_Light->GetInstanceGPUData(LightPair.first) };
+
+		XMVECTOR NewT{ KVectorGreatest };
+		if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
+			m_Light->GetBoundingSphereRadius(), Instance.Position, &NewT))
+		{
+			SelectObject(SSelectionData(EObjectType::Light, LightPair.first), bUseAdditiveSelection);
+			bIsSelectionAdded = true;
+			break;
+		}
+	}
+	if (bIsSelectionAdded) return;
+
 	// Pick Object3D
 	XMVECTOR T{ KVectorGreatest };
 	for (const auto& Object3D : m_vObject3Ds)
@@ -2895,22 +2911,6 @@ void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
 		}
 	}
 	if (m_vObject3DPickingCandidates.size()) return;
-
-	// Pick Light
-	for (const auto& LightPair : m_Light->GetInstanceNameToIndexMap())
-	{
-		const auto& Instance{ m_Light->GetInstanceGPUData(LightPair.first) };
-
-		XMVECTOR NewT{ KVectorGreatest };
-		if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-			m_Light->GetBoundingSphereRadius(), Instance.Position, &NewT))
-		{
-			SelectObject(SSelectionData(EObjectType::Light, LightPair.first), bUseAdditiveSelection);
-			bIsSelectionAdded = true;
-			break;
-		}
-	}
-	if (bIsSelectionAdded) return;
 }
 
 bool CGame::PickObject3DTriangle(bool bUseAdditiveSelection)
@@ -3775,7 +3775,7 @@ void CGame::Draw()
 		// Directional light
 		{
 			// @important
-			UpdateCBDirectionalLight(false);
+			UpdateCBDirectionalLight(false); // @important: IBL turned off for performance issue in my laptop...
 
 			DrawFullScreenQuad(m_PSDirectionalLight.get(), SRVs, ARRAYSIZE(SRVs));
 		}
@@ -6980,7 +6980,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				static CFileDialog FileDialog{ GetWorkingDirectory() };
 				if (FileDialog.SaveFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 내보내기", ".scene"))
 				{
-					SaveScene(FileDialog.GetRelativeFileName(), FileDialog.GetDirectory());
+					SaveScene(FileDialog.GetRelativeFileName(), "Scene\\" + FileDialog.GetFileNameOnly() + '\\');
 				}
 			}
 
@@ -6992,7 +6992,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				static CFileDialog FileDialog{ GetWorkingDirectory() };
 				if (FileDialog.OpenFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 불러오기"))
 				{
-					LoadScene(FileDialog.GetRelativeFileName(), FileDialog.GetDirectory());
+					LoadScene(FileDialog.GetRelativeFileName(), "Scene\\" + FileDialog.GetFileNameOnly() + '\\');
 				}
 			}
 

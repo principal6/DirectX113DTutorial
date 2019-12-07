@@ -90,5 +90,5 @@ private:
 	std::vector<SLightInstanceGPUData>	m_vInstanceGPUData{};
 	std::map<std::string, size_t>		m_mapInstanceNameToIndex{};
 
-	float								m_BoundingSphereRadius{ 1.0f };
+	float								m_BoundingSphereRadius{ 0.25f };
 };

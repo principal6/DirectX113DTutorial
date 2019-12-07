@@ -13,6 +13,7 @@ public:
 
 	const std::string& GetFileName() const { return m_FileName; }
 	const std::string& GetFileNameWithoutPath() const { return m_FileNameWithoutPath; }
+	const std::string& GetFileNameOnly() const { return m_FileNameOnly; }
 	const std::string& GetDirectory() const { return m_Directory; }
 	const std::string& GetRelativeFileName() const { return m_RelativeFileName; }
 	const std::string& GetCapitalExtension() const { return m_CapitalExtension; }
@@ -23,6 +24,7 @@ private:
 private:
 	std::string			m_FileName{};
 	std::string			m_FileNameWithoutPath{};
+	std::string			m_FileNameOnly{};
 	std::string			m_Directory{};
 	std::string			m_RelativeFileName{};
 	std::string			m_CapitalExtension{};

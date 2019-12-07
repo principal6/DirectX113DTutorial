@@ -18,6 +18,7 @@ bool CFileDialog::OpenFileDialog(const char* const Filter, const char* const Tit
 	{
 		size_t Found{ m_FileNameWithoutPath.find_last_of('\\') };
 		m_FileNameWithoutPath = m_FileNameWithoutPath.substr(Found + 1);
+		m_FileNameOnly = m_FileNameWithoutPath.substr(0, m_FileNameWithoutPath.find_last_of('.'));
 		m_Directory = m_FileName.substr(0, Found + 1);
 	}
 
@@ -56,6 +57,7 @@ bool CFileDialog::SaveFileDialog(const char* const Filter, const char* const Tit
 	{
 		size_t Found{ m_FileNameWithoutPath.find_last_of('\\') };
 		m_FileNameWithoutPath = m_FileNameWithoutPath.substr(Found + 1);
+		m_FileNameOnly = m_FileNameWithoutPath.substr(0, m_FileNameWithoutPath.find_last_of('.'));
 		m_Directory = m_FileName.substr(0, Found + 1);
 	}
 
