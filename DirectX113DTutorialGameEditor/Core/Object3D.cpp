@@ -898,7 +898,11 @@ void CObject3D::CreateInstances(const std::vector<SInstanceCPUData>& vInstanceDa
 	size_t iInstance{};
 	for (auto& InstanceCPUData : m_vInstanceCPUData)
 	{
-		//InstanceCPUData.Scaling = ComponentTransform.Scaling;
+		float ScalingX{ XMVectorGetX(InstanceCPUData.Scaling) };
+		float ScalingY{ XMVectorGetY(InstanceCPUData.Scaling) };
+		float ScalingZ{ XMVectorGetZ(InstanceCPUData.Scaling) };
+		float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
+		InstanceCPUData.BoundingSphere.Radius = InstanceCPUData.BoundingSphere.RadiusBias * MaxScaling; // @important
 
 		m_mapInstanceNameToIndex[InstanceCPUData.Name] = iInstance;
 		++iInstance;
