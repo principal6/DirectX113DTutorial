@@ -74,3 +74,8 @@ float4 main(DS_OUTPUT Input) : SV_TARGET
 	OutputColor = pow(OutputColor, 0.4545);
 	return OutputColor;
 }
+
+float4 Volume(DS_OUTPUT Input) : SV_TARGET
+{
+	return float4(1.0, 1.0, 1.0, 0.2);
+}

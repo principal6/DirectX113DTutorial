@@ -85,6 +85,7 @@ public:
 		PSDirectionalLight,
 		PSDirectionalLight_NonIBL,
 		PSPointLight,
+		PSPointLight_Volume,
 
 		PSBase2D,
 		PSMasking2D,
@@ -262,7 +263,8 @@ public:
 		DrawGrid = 0x0200,
 		TessellateTerrain = 0x0400, // 내부적으로만 사용하는 플래그!
 		UseLighting = 0x0800,
-		UsePhysicallyBasedRendering = 0x1000
+		UsePhysicallyBasedRendering = 0x1000,
+		DrawLightVolumes = 0x2000,
 	};
 
 	enum class ERasterizerState
@@ -814,6 +816,7 @@ private:
 	std::unique_ptr<CShader>	m_PSDirectionalLight{};
 	std::unique_ptr<CShader>	m_PSDirectionalLight_NonIBL{};
 	std::unique_ptr<CShader>	m_PSPointLight{};
+	std::unique_ptr<CShader>	m_PSPointLight_Volume{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};

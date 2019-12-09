@@ -888,6 +888,10 @@ void CGame::CreateBaseShaders()
 	m_PSPointLight->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSPointLight.hlsl", "main");
 	m_PSPointLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 
+	m_PSPointLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSPointLight_Volume->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSPointLight.hlsl", "Volume");
+	m_PSPointLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get());
+
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBase2D.hlsl", "main");
 	m_PSBase2D->AttachConstantBuffer(m_CBPS2DFlags.get());
@@ -2146,6 +2150,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSPointLight:
 		Result = m_PSPointLight.get();
+		break;
+	case EBaseShader::PSPointLight_Volume:
+		Result = m_PSPointLight_Volume.get();
 		break;
 	case EBaseShader::PSBase2D:
 		Result = m_PSBase2D.get();
@@ -3891,7 +3898,7 @@ void CGame::Draw()
 
 			m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
 			m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
-
+			
 			m_DeviceContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
 			SetUniversalRSState();
 		}
@@ -3997,7 +4004,7 @@ void CGame::Draw()
 			}
 		}
 	}
-	
+
 	// 2D
 	{
 		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
@@ -4017,6 +4024,29 @@ void CGame::Draw()
 		else
 		{
 			m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
+		}
+	}
+
+	// Drawing light volumes
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawLightVolumes))
+	{
+		if (m_Light->GetInstanceCount() > 0)
+		{
+			m_DeviceContext->RSSetState(m_CommonStates->CullCounterClockwise());
+
+			UpdateCBSpace();
+
+			m_VSLight->Use();
+			m_HSPointLight->Use();
+			m_DSPointLight->Use();
+			m_PSPointLight_Volume->Use();
+
+			m_Light->Light();
+
+			m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
+			m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
+
+			SetUniversalRSState();
 		}
 	}
 }
@@ -6639,6 +6669,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ToggleGameRenderingFlags(EFlagsRendering::DrawWireFrame);
 						}
 
+						/*
 						ImGui::AlignTextToFramePadding();
 						ImGui::Text(u8"법선 표시");
 						ImGui::SameLine(ItemsOffsetX);
@@ -6647,6 +6678,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						{
 							ToggleGameRenderingFlags(EFlagsRendering::DrawNormals);
 						}
+						*/
 
 						ImGui::AlignTextToFramePadding();
 						ImGui::Text(u8"화면 상단에 좌표축 표시");
@@ -6700,6 +6732,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						ImGui::AlignTextToFramePadding();
 						ImGui::Text(u8"엔진 플래그");
 
+						/*
 						ImGui::AlignTextToFramePadding();
 						ImGui::Text(u8"조명 적용");
 						ImGui::SameLine(ItemsOffsetX);
@@ -6716,6 +6749,16 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						if (ImGui::Checkbox(u8"##물리 기반 렌더링 사용", &bUsePhysicallyBasedRendering))
 						{
 							ToggleGameRenderingFlags(EFlagsRendering::UsePhysicallyBasedRendering);
+						}
+						*/
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"광원 볼륨 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawLightVolumes{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawLightVolumes) };
+						if (ImGui::Checkbox(u8"##광원 볼륨 표시", &bDrawLightVolumes))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::DrawLightVolumes);
 						}
 
 						ImGui::AlignTextToFramePadding();
