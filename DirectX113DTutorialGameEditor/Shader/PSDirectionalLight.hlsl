@@ -26,12 +26,11 @@ cbuffer cbDirectionalLight : register(b1)
 	float4	LightDirection;
 	float3	LightColor;
 	float	Exposure;
+	float3	AmbientLightColor;
+	float	AmbientLightIntensity;
 	uint	EnvironmentTextureMipLevels;
 	uint	PrefilteredRadianceTextureMipLevels;
-	bool	bUseIBL;
-	float	AmbientLightIntensity;
-	float3	AmbientLightColor;
-	float	Reserved;
+	float2	Reserved;
 }
 
 #define UV Input.TexCoord.xy
@@ -44,7 +43,7 @@ cbuffer cbDirectionalLight : register(b1)
 #define Li LightColor
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
-{;
+{
 	float ProjectionSpaceDepth = GBuffer_DepthStencil.SampleLevel(PointClampSampler, UV, 0).x;
 	if (ProjectionSpaceDepth == 1.0) discard; // @important: early out
 	float ViewSpaceDepth = PerspectiveValues.z / (ProjectionSpaceDepth + PerspectiveValues.w);
@@ -84,36 +83,74 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		}
 
 		// Indirect light
-		if (!bUseIBL || (Metalness <= 0.52 && Metalness >= 0.48)) // @important: Terrain Metalness 0.5
+		float3 Ei = IrradianceTexture.SampleBias(LinearWrapSampler, N, Roughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
+		if (Metalness == 0.0)
 		{
-			OutputColor.xyz += CalculateClassicalAmbient(BaseColor, AmbientLightColor, AmbientLightIntensity);
+			OutputColor.xyz += Ei * BaseColor * K1DIVPI;
 		}
 		else
 		{
-			float3 Ei = IrradianceTexture.SampleBias(LinearWrapSampler, N, Roughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
-			if (Metalness == 0.0)
-			{
-				OutputColor.xyz += Ei * BaseColor * K1DIVPI;
-			}
-			else
-			{
-				float3 Wi = normalize(-Wo + (2.0 * NdotWo * N));
-				float NdotWi = dot(N, Wi);
-				
-				float3 PrefilteredRadiance = PrefilteredRadianceTexture.SampleLevel(LinearWrapSampler, Wi,
-					Roughness * (float)(PrefilteredRadianceTextureMipLevels - 1)).rgb;
-				float2 IntegratedBRDF = IntegratedBRDFTexture.SampleLevel(LinearClampSampler, float2(NdotWo, 1 - Roughness), 0).rg;
+			float3 Wi = normalize(-Wo + (2.0 * NdotWo * N));
+			float NdotWi = dot(N, Wi);
 
-				float3 F_Macrosurface = Fresnel_Schlick(F0, NdotWi);
-				float Ks = dot(KMonochromatic, F_Macrosurface);
-				float Kd = 1.0 - Ks;
+			float3 PrefilteredRadiance = PrefilteredRadianceTexture.SampleLevel(LinearWrapSampler, Wi,
+				Roughness * (float)(PrefilteredRadianceTextureMipLevels - 1)).rgb;
+			float2 IntegratedBRDF = IntegratedBRDFTexture.SampleLevel(LinearClampSampler, float2(NdotWo, 1 - Roughness), 0).rg;
 
-				float3 Lo_diff = Kd * Ei * BaseColor * K1DIVPI;
-				float3 Lo_spec = Ks * PrefilteredRadiance * (BaseColor * IntegratedBRDF.x + IntegratedBRDF.y);
+			float3 F_Macrosurface = Fresnel_Schlick(F0, NdotWi);
+			float Ks = dot(KMonochromatic, F_Macrosurface);
+			float Kd = 1.0 - Ks;
 
-				OutputColor.xyz += (Lo_diff + Lo_spec) * AmbientOcclusion;
-			}
+			float3 Lo_diff = Kd * Ei * BaseColor * K1DIVPI;
+			float3 Lo_spec = Ks * PrefilteredRadiance * (BaseColor * IntegratedBRDF.x + IntegratedBRDF.y);
+
+			OutputColor.xyz += (Lo_diff + Lo_spec) * AmbientOcclusion;
 		}
+	}
+	OutputColor = pow(OutputColor, 0.4545);
+
+	return OutputColor;
+}
+
+float4 NonIBL(VS_OUTPUT Input) : SV_TARGET
+{
+	float ProjectionSpaceDepth = GBuffer_DepthStencil.SampleLevel(PointClampSampler, UV, 0).x;
+	if (ProjectionSpaceDepth == 1.0) discard; // @important: early out
+	float ViewSpaceDepth = PerspectiveValues.z / (ProjectionSpaceDepth + PerspectiveValues.w);
+	float4 WorldPosition = mul(float4(Input.ProjectionSpacePosition * PerspectiveValues.xy * ViewSpaceDepth, ViewSpaceDepth, 1.0), InverseViewMatrix);
+
+	float4 BaseColor_Rough = GBuffer_BaseColor_Rough.SampleLevel(PointClampSampler, UV, 0);
+	float3 WorldNormal = normalize((GBuffer_Normal.SampleLevel(PointClampSampler, UV, 0).xyz * 2.0) - 1.0);
+	float4 Metal_AO = GBuffer_Metal_AO.SampleLevel(PointClampSampler, UV, 0);
+
+	float4 OutputColor = float4(0, 0, 0, 1);
+
+	{
+		float3 Wo = normalize(EyePosition - WorldPosition.xyz);
+		float3 F0 = lerp(KFresnel_dielectric, BaseColor, Metalness);
+		float NdotWo = max(dot(N, Wo), 0.001);
+
+		// Direct light
+		{
+			float3 Wi = LightDirection.xyz;
+			float3 M = normalize(Wi + Wo);
+
+			float NdotWi = max(dot(N, Wi), 0.001);
+			float NdotM = saturate(dot(N, M));
+			float MdotWi = saturate(dot(M, Wi));
+
+			float3 DiffuseBRDF = DiffuseBRDF_Lambertian(BaseColor);
+			float3 SpecularBRDF = SpecularBRDF_GGX(F0, NdotWi, NdotWo, NdotM, MdotWi, Roughness);
+
+			float3 F_Macrosurface = Fresnel_Schlick(F0, NdotWi);
+			float Ks = dot(KMonochromatic, F_Macrosurface);
+			float Kd = 1.0 - Ks;
+
+			OutputColor.xyz += (Kd * DiffuseBRDF + Ks * SpecularBRDF) * Li * NdotWi;
+		}
+
+		// Indirect light
+		OutputColor.xyz += CalculateHemisphericalAmbient(BaseColor, N, AmbientLightColor, AmbientLightColor * 0.5, AmbientLightIntensity);
 	}
 	OutputColor = pow(OutputColor, 0.4545);
 

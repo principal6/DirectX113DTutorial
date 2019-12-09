@@ -878,6 +878,11 @@ void CGame::CreateBaseShaders()
 	m_PSDirectionalLight->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "main");
 	m_PSDirectionalLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 	m_PSDirectionalLight->AttachConstantBuffer(m_CBDirectionalLight.get());
+
+	m_PSDirectionalLight_NonIBL = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSDirectionalLight_NonIBL->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "NonIBL");
+	m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBGBufferUnpacking.get());
+	m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBDirectionalLight.get());
 	
 	m_PSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSPointLight->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSPointLight.hlsl", "main");
@@ -1493,15 +1498,13 @@ void CGame::UpdateCBBillboard(const CBillboard::SCBBillboardData& Data)
 	m_CBBillboard->Update();
 }
 
-void CGame::UpdateCBDirectionalLight(bool bUseIBL)
+void CGame::UpdateCBDirectionalLight()
 {
 	m_CBDirectionalLightData.LightDirection = m_CBLightData.DirectionalLightDirection;
 	m_CBDirectionalLightData.LightColor = m_CBLightData.DirectionalLightColor;
 	m_CBDirectionalLightData.Exposure = m_CBLightData.Exposure;
 	m_CBDirectionalLightData.EnvironmentTextureMipLevels = m_CBPSFlagsData.EnvironmentTextureMipLevels;
 	m_CBDirectionalLightData.PrefilteredRadianceTextureMipLevels = m_CBPSFlagsData.PrefilteredRadianceTextureMipLevels;
-
-	m_CBDirectionalLightData.bUseIBL = (BOOL)bUseIBL; // @@@@
 
 	m_CBDirectionalLightData.AmbientLightColor = m_CBLightData.AmbientLightColor;
 	m_CBDirectionalLightData.AmbientLightIntensity = m_CBLightData.AmbientLightIntensity;
@@ -2128,6 +2131,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSDirectionalLight:
 		Result = m_PSDirectionalLight.get();
+		break;
+	case EBaseShader::PSDirectionalLight_NonIBL:
+		Result = m_PSDirectionalLight_NonIBL.get();
 		break;
 	case EBaseShader::PSPointLight:
 		Result = m_PSPointLight.get();
@@ -3810,11 +3816,11 @@ void CGame::Draw()
 
 		// Directional light
 		{
-			// @important
-			UpdateCBDirectionalLight(true);
-			//UpdateCBDirectionalLight(false); // @important: IBL turned off for performance issue in my laptop...
-
+			UpdateCBDirectionalLight();
+			
+			// @important: IBL turned off for performance issue in my laptop...
 			DrawFullScreenQuad(m_PSDirectionalLight.get(), SRVs, ARRAYSIZE(SRVs));
+			//DrawFullScreenQuad(m_PSDirectionalLight_NonIBL.get(), SRVs, ARRAYSIZE(SRVs));
 		}
 
 		// Point light

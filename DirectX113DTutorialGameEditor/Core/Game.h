@@ -83,6 +83,7 @@ public:
 		PSBRDFIntegrator,
 		PSBillboard,
 		PSDirectionalLight,
+		PSDirectionalLight_NonIBL,
 		PSPointLight,
 
 		PSBase2D,
@@ -156,12 +157,11 @@ public:
 		XMVECTOR	LightDirection{ XMVectorSet(0, 1, 0, 0) };
 		XMFLOAT3	LightColor{ 1, 1, 1 };
 		float		Exposure{ 1.0 };
+		XMFLOAT3	AmbientLightColor{ 1, 1, 1 };
+		float		AmbientLightIntensity{ 0.5f };
 		uint32_t	EnvironmentTextureMipLevels{};
 		uint32_t	PrefilteredRadianceTextureMipLevels{};
-		BOOL		bUseIBL{ TRUE };
-		float		AmbientLightIntensity{ 0.5f };
-		XMFLOAT3	AmbientLightColor{ 1, 1, 1 };
-		float		Reserved{};
+		float		Reserved[2]{};
 	};
 
 	struct SCBMaterialData
@@ -486,7 +486,7 @@ private:
 	void UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection);
 
 	void UpdateCBBillboard(const CBillboard::SCBBillboardData& Data);
-	void UpdateCBDirectionalLight(bool bUseIBL);
+	void UpdateCBDirectionalLight();
 
 public:
 	void CreateDynamicSky(const std::string& SkyDataFileName, float ScalingFactor);
@@ -809,6 +809,7 @@ private:
 	std::unique_ptr<CShader>	m_PSBRDFIntegrator{};
 	std::unique_ptr<CShader>	m_PSBillboard{};
 	std::unique_ptr<CShader>	m_PSDirectionalLight{};
+	std::unique_ptr<CShader>	m_PSDirectionalLight_NonIBL{};
 	std::unique_ptr<CShader>	m_PSPointLight{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};

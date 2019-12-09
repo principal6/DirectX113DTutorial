@@ -82,6 +82,13 @@ static float3 CalculateClassicalAmbient(float3 AmbientColor, float3 AmbientLight
 	return AmbientColor * AmbientLightColor * AmbientLightIntensity;
 }
 
+static float3 CalculateHemisphericalAmbient(float3 AmbientColor, float3 Normal,
+	float3 AmbientLightColorUp, float3 AmbientLightColorDown, float AmbientLightIntensity)
+{
+	float3 Up = Normal * 0.5 + 0.5;
+	return AmbientColor * AmbientLightIntensity * (AmbientLightColorDown + Up * AmbientLightColorUp);
+}
+
 static float3 CalculateClassicalDirectional(float3 DiffuseColor, float3 SpecularColor, float SpecularExponent, float SpecularIntensity,
 	float3 LightColor, float3 L, float3 V, float3 Normal)
 {
