@@ -1,0 +1,105 @@
+// #########################
+// << .MESH FILE STRUCTURE >>
+// @@@ SYNTAX @@@
+//  - <@PrefString>: 4B(uint32_t)[String length] + ??(string)[Non-zero-terminated string]
+// #########################
+// 8B (string) MESH Signature "KJW_MESH"
+/********** BEGIN NEW **********/
+// 4B (in total) Version
+//  = 2B (uint16_t) Version major "0x0001"
+//  + 1B (uint8_t) Version minor "0x00"
+//  + 1B (uint8_t) Version sub-minor "0x03"
+/**********  END NEW  **********/
+// ##### MATERIAL DATA #####
+// 1B (uint8_t) Material count
+// # 1B (uint8_t) Material index
+// # <@PrefString> Material name
+// # 1B (bool) bHasTexture
+// # 12B (XMFLOAT3) Diffuse color (Classical) == Base color (PBR)
+// # 12B (XMFLOAT3) Ambient color (Classical only)
+// # 12B (XMFLOAT3) Specular color (Classical only)
+// # 4B (float) Specular exponent (Classical)
+// # 4B (float) Specular intensity
+// # 4B (float) Roughness (PBR only)
+// # 4B (float) Metalness (PBR only)
+// # 1B (bool) bShouldGenerateAutoMipMap
+// # <@PrefString> Diffuse texture file name (Classical) // BaseColor texture file name (PBR)
+// # <@PrefString> Normal texture file name
+// # <@PrefString> Opacity texture file name
+// # <@PrefString> Specular intensity texture file name
+// # <@PrefString> Roughness texture file name (PBR only)
+// # <@PrefString> Metalness texture file name (PBR only)
+// # <@PrefString> Ambient occlusion texture file name (PBR only)
+// # <@PrefString> Displacement texture file name
+// ##### MESH DATA #####
+// 1B (uint8_t) Mesh count
+// # 1B (uint8_t) Mesh index
+// # ### MATERIAL ID ###
+// # 1B (uint8_t) Material ID
+// # ### VERTEX ###
+// 4B (uint32_t) Vertex count
+// # 4B (uint32_t) Vertex index
+// # 16B (XMVECTOR) Position
+// # 16B (XMVECTOR) Color
+// # 16B (XMVECTOR) TexCoord
+// # 16B (XMVECTOR) Normal
+// # 16B (XMVECTOR) Tangent
+// # ### ANIMATION VERTEX ###
+// 4B (uint32_t) Max weight count per animation vertex
+// 4B (uint32_t) Animation vertex count
+// 4B (uint32_t) Animation vertex index
+// 4B * ?? (uint32_t) Bone IDs
+// 4B * ?? (float) Weights
+// # ### TRIANGLE ###
+// 4B (uint32_t) Triangle count
+// # 4B (uint32_t) Triangle index
+// # 4B (uint32_t) Vertex ID 0
+// # 4B (uint32_t) Vertex ID 1
+// # 4B (uint32_t) Vertex ID 2
+// ##### BOUNDING SPHERE DATA #####
+// # 16B (XMVECTOR) Bounding sphere center offset
+// # 4B (float) Bounding sphere radius bias
+/********** BEGIN NEW **********/
+// ##### ANIMATION DATA #####
+// 1B (bool) bIsModelRigged
+// 4B (uint32_t) Tree node count
+// - #### Node data ####
+// - <@PrefString> Node name
+// - 4B (int32_t) Node index
+// - 1B (bool) bIsBone
+// - 4B (uint32_t) Bone index
+// - 64B (XMMATRIX) Bone offset matrix
+// - 64B (XMMATRIX) Transformation matrix
+// - 4B (int32_t) Parent node index
+// - 4B (uint32_t) Blend weight count
+//   - ### Blend weight ###
+//   - 4B (uint32_t) Mesh index
+//   - 4B (uint32_t) Vertex ID
+//   - 4B (float) Weight
+// - 4B (uint32_t) Child node count
+//   - ### Child node ###
+//   - 4B (int32_t) Child node index
+// 4B (uint32_t) Model bone count
+// 4B (uint32_t) Animation count
+// - #### Animation ###
+// - <@PrefString> Animation name
+// - 4B (float) Duration
+// - 4B (float) Ticks per second
+// - 4B (uint32_t) Node animation count
+//   - ### Node animation ###
+//   - 4B (uint32_t) Node animation index
+//   - <@PrefString> Node animation name
+//   - 4B (uint32_t) Position key count
+//     - ## Position key ##
+//     - 4B (float) Time
+//     - 16B (XMVECTOR) Value
+//   - 4B (uint32_t) Rotation key count
+//     - ## Rotation key ##
+//     - 4B (float) Time
+//     - 16B (XMVECTOR) Value
+//   - 4B (uint32_t) Scaling key count
+//     - ## Scaling key ##
+//     - 4B (float) Time
+//     - 16B (XMVECTOR) Value
+/**********  END NEW  **********/
+// #########################

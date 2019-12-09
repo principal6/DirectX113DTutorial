@@ -146,7 +146,7 @@ public:
 	~CTexture() {}
 
 public:
-	void CreateTextureFromFile(const std::string& FileName, bool bShouldGenerateMipMap);
+	bool CreateTextureFromFile(const std::string& FileName, bool bShouldGenerateMipMap);
 	void CreateTextureFromMemory(const std::vector<uint8_t>& RawData, bool bShouldGenerateMipMap);
 	void CreateBlankTexture(EFormat Format, const XMFLOAT2& TextureSize);
 	

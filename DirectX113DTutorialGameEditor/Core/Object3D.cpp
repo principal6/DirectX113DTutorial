@@ -36,20 +36,9 @@ void CObject3D::Create(const SMesh& Mesh, const CMaterialData& MaterialData)
 	m_bIsCreated = true;
 }
 
-void CObject3D::Create(const SModel& Model)
+void CObject3D::Create(const SMESHData& MESHData)
 {
-	m_Model = Model;
-
-	CreateMeshBuffers();
-	CreateMaterialTextures();
-
-	m_bIsCreated = true;
-}
-
-void CObject3D::Create(const CMeshPorter::SMESHData& MESHData)
-{
-	m_Model.vMeshes = MESHData.vMeshes;
-	m_Model.vMaterialData = MESHData.vMaterialData;
+	m_Model = MESHData;
 
 	ComponentPhysics.BoundingSphere = MESHData.BoundingSphereData;
 
@@ -74,11 +63,12 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 	{
 		// MESH file
 		CMeshPorter MeshPorter{};
-		CMeshPorter::SMESHData MESHData{};
-		MeshPorter.ImportMesh(m_ModelFileName, MESHData);
+		SMESHData MESHData{};
+		MeshPorter.ImportMESH(m_ModelFileName, MESHData);
 		Create(MESHData);
 
 		m_bIsCreated = true;
+		m_Model.bIsModelRigged = bIsModelRigged;
 	}
 	else
 	{
@@ -231,8 +221,8 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
 		Object3DBinary.ReadBytes(MeshDataByteCount, MeshDataBinary);
 		
 		CMeshPorter MeshPorter{ MeshDataBinary };
-		CMeshPorter::SMESHData MeshData{};
-		MeshPorter.ReadMeshData(MeshData);
+		SMESHData MeshData{};
+		MeshPorter.ReadMESHData(MeshData);
 
 		Create(MeshData);
 	}
@@ -268,134 +258,6 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
 		Object3DBinary.ReadBool(ComponentRender.bShouldAnimate);
 	}
 
-	// ##### Animation data #####
-	if (Version >= 0x10001)
-	{
-		// 1B (bool) bIsModelRigged
-		Object3DBinary.ReadBool(m_Model.bIsModelRigged);
-
-		// 4B (uint32_t) Tree node count
-		m_Model.vTreeNodes.resize(Object3DBinary.ReadUint32());
-		for (auto& Node : m_Model.vTreeNodes)
-		{
-			// <@PrefString> Node name
-			Object3DBinary.ReadStringWithPrefixedLength(Node.Name);
-
-			// 4B (int32_t) Node index
-			Object3DBinary.ReadInt32(Node.Index);
-
-			// 1B (bool) bIsBone
-			Object3DBinary.ReadBool(Node.bIsBone);
-
-			// 4B (uint32_t) Bone index
-			Object3DBinary.ReadUint32(Node.BoneIndex);
-
-			// 64B (XMMATRIX) Bone offset matrix
-			Object3DBinary.ReadXMMATRIX(Node.MatrixBoneOffset);
-
-			// 64B (XMMATRIX) Transformation matrix
-			Object3DBinary.ReadXMMATRIX(Node.MatrixTransformation);
-
-			// 4B (int32_t) Parent node index
-			Object3DBinary.ReadInt32(Node.ParentNodeIndex);
-
-			// 4B (uint32_t) Blend weight count
-			Node.vBlendWeights.resize(Object3DBinary.ReadUint32());
-			for (auto& BlendWeight : Node.vBlendWeights)
-			{
-				// 4B (uint32_t) Mesh index
-				Object3DBinary.ReadUint32(BlendWeight.MeshIndex);
-
-				// 4B (uint32_t) Vertex ID
-				Object3DBinary.ReadUint32(BlendWeight.VertexID);
-
-				// 4B (float) Weight
-				Object3DBinary.ReadFloat(BlendWeight.Weight);
-			}
-
-			// 4B (uint32_t) Child node count
-			Node.vChildNodeIndices.resize(Object3DBinary.ReadUint32());
-			for (auto& ChildNodeIndex : Node.vChildNodeIndices)
-			{
-				// 4B (int32_t) Child node index
-				Object3DBinary.ReadInt32(ChildNodeIndex);
-			}
-		}
-
-		// @important
-		for (const auto& Node : m_Model.vTreeNodes) 
-		{
-			m_Model.umapTreeNodeNameToIndex[Node.Name] = Node.Index;
-		}
-
-		// 4B (uint32_t) Model bone count
-		Object3DBinary.ReadUint32(m_Model.ModelBoneCount);
-
-		// 4B (uint32_t) Animation count
-		m_Model.vAnimations.resize(Object3DBinary.ReadUint32());
-		for (auto& Animation : m_Model.vAnimations)
-		{
-			// <@PrefString> Animation name
-			Object3DBinary.ReadStringWithPrefixedLength(Animation.Name);
-
-			// 4B (float) Duration
-			Object3DBinary.ReadFloat(Animation.Duration);
-
-			// 4B (float) Ticks per second
-			Object3DBinary.ReadFloat(Animation.TicksPerSecond);
-
-			// 4B (uint32_t) Node animation count
-			Animation.vNodeAnimations.resize(Object3DBinary.ReadUint32());
-			for (auto& NodeAnimation : Animation.vNodeAnimations)
-			{
-				// 4B (uint32_t) Node animation index
-				Object3DBinary.ReadUint32(NodeAnimation.Index);
-
-				// <@PrefString> Node animation name
-				Object3DBinary.ReadStringWithPrefixedLength(NodeAnimation.Name);
-
-				// 4B (uint32_t) Position key count
-				NodeAnimation.vPositionKeys.resize(Object3DBinary.ReadUint32());
-				for (auto& PositionKey : NodeAnimation.vPositionKeys)
-				{
-					// 4B (float) Time
-					Object3DBinary.ReadFloat(PositionKey.Time);
-
-					// 16B (XMVECTOR) Value
-					Object3DBinary.ReadXMVECTOR(PositionKey.Value);
-				}
-
-				// 4B (uint32_t) Rotation key count
-				NodeAnimation.vRotationKeys.resize(Object3DBinary.ReadUint32());
-				for (auto& RotationKey : NodeAnimation.vRotationKeys)
-				{
-					// 4B (float) Time
-					Object3DBinary.ReadFloat(RotationKey.Time);
-
-					// 16B (XMVECTOR) Value
-					Object3DBinary.ReadXMVECTOR(RotationKey.Value);
-				}
-
-				// 4B (uint32_t) Scaling key count
-				NodeAnimation.vScalingKeys.resize(Object3DBinary.ReadUint32());
-				for (auto& ScalingKey : NodeAnimation.vScalingKeys)
-				{
-					// 4B (float) Time
-					Object3DBinary.ReadFloat(ScalingKey.Time);
-
-					// 16B (XMVECTOR) Value
-					Object3DBinary.ReadXMVECTOR(ScalingKey.Value);
-				}
-			}
-
-			// @important
-			for (const auto& NodeAnimation : Animation.vNodeAnimations)
-			{
-				Animation.umapNodeAnimationNameToIndex[NodeAnimation.Name] = NodeAnimation.Index;
-			}
-		}
-	}
-
 	// ### Instance ###
 	{
 		size_t InstanceCount{ Object3DBinary.ReadUint32() };
@@ -426,7 +288,7 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 {
 	static uint16_t KVersionMajor{ 0x0001 };
 	static uint8_t KVersionMinor{ 0x00 };
-	static uint8_t KVersionSubminor{ 0x01 };
+	static uint8_t KVersionSubminor{ 0x00 };
 
 	m_OB3DFileName = OB3DFileName;
 
@@ -445,24 +307,32 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 
 	// 1B (bool) bContainMeshData
 	// <@PrefString> Model file name
-	if (m_ModelFileName.empty())
 	{
-		Object3DBinary.WriteBool(true);
+		size_t ExtensionDot{ m_ModelFileName.find_last_of('.') };
+		string Extension{ m_ModelFileName.substr(ExtensionDot + 1) };
+		for (char& ch : Extension)
+		{
+			ch = toupper(ch);
+		}
+		if (m_ModelFileName.empty())
+		{
+			Object3DBinary.WriteBool(true);
 
-		// 4B (uint32_t) Mesh byte count
-		// ?? (byte) Mesh bytes
-		CMeshPorter MeshPorter{};
-		MeshPorter.WriteMeshData(CMeshPorter::SMESHData(m_Model.vMeshes, m_Model.vMaterialData));
-		vector<byte> MeshBytes{ MeshPorter.GetBytes() };
+			// 4B (uint32_t) Mesh byte count
+			// ?? (byte) Mesh bytes
+			CMeshPorter MeshPorter{};
+			MeshPorter.WriteMESHData(m_Model);
+			vector<byte> MeshBytes{ MeshPorter.GetBytes() };
 
-		Object3DBinary.WriteUint32((uint32_t)MeshBytes.size());
-		Object3DBinary.AppendBytes(MeshBytes);
-	}
-	else
-	{
-		Object3DBinary.WriteBool(false);
+			Object3DBinary.WriteUint32((uint32_t)MeshBytes.size());
+			Object3DBinary.AppendBytes(MeshBytes);
+		}
+		else
+		{
+			Object3DBinary.WriteBool(false);
 
-		Object3DBinary.WriteStringWithPrefixedLength(m_ModelFileName);
+			Object3DBinary.WriteStringWithPrefixedLength(m_ModelFileName);
+		}
 	}
 
 	// ### ComponentTransform ###
@@ -488,121 +358,6 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 	{
 		Object3DBinary.WriteBool(ComponentRender.bIsTransparent);
 		Object3DBinary.WriteBool(ComponentRender.bShouldAnimate);
-	}
-
-	// ##### Animation data #####
-	{
-		// 1B (bool) bIsModelRigged
-		Object3DBinary.WriteBool(m_Model.bIsModelRigged);
-
-		// 4B (uint32_t) Tree node count
-		Object3DBinary.WriteUint32((uint32_t)m_Model.vTreeNodes.size());
-		for (const auto& Node : m_Model.vTreeNodes)
-		{
-			// <@PrefString> Node name
-			Object3DBinary.WriteStringWithPrefixedLength(Node.Name);
-
-			// 4B (int32_t) Node index
-			Object3DBinary.WriteInt32(Node.Index);
-
-			// 1B (bool) bIsBone
-			Object3DBinary.WriteBool(Node.bIsBone);
-
-			// 4B (uint32_t) Bone index
-			Object3DBinary.WriteUint32(Node.BoneIndex);
-
-			// 64B (XMMATRIX) Bone offset matrix
-			Object3DBinary.WriteXMMATRIX(Node.MatrixBoneOffset);
-
-			// 64B (XMMATRIX) Transformation matrix
-			Object3DBinary.WriteXMMATRIX(Node.MatrixTransformation);
-
-			// 4B (int32_t) Parent node index
-			Object3DBinary.WriteInt32(Node.ParentNodeIndex);
-
-			// 4B (uint32_t) Blend weight count
-			Object3DBinary.WriteUint32((uint32_t)Node.vBlendWeights.size());
-			for (const auto& BlendWeight : Node.vBlendWeights)
-			{
-				// 4B (uint32_t) Mesh index
-				Object3DBinary.WriteUint32(BlendWeight.MeshIndex);
-				
-				// 4B (uint32_t) Vertex ID
-				Object3DBinary.WriteUint32(BlendWeight.VertexID);
-
-				// 4B (float) Weight
-				Object3DBinary.WriteFloat(BlendWeight.Weight);
-			}
-
-			// 4B (uint32_t) Child node count
-			Object3DBinary.WriteUint32((uint32_t)Node.vChildNodeIndices.size());
-			for (const auto& ChildNodeIndex : Node.vChildNodeIndices)
-			{
-				// 4B (int32_t) Child node index
-				Object3DBinary.WriteInt32(ChildNodeIndex);
-			}
-		}
-
-		// 4B (uint32_t) Model bone count
-		Object3DBinary.WriteUint32(m_Model.ModelBoneCount);
-
-		// 4B (uint32_t) Animation count
-		Object3DBinary.WriteUint32((uint32_t)m_Model.vAnimations.size());
-		for (const auto& Animation : m_Model.vAnimations)
-		{
-			// <@PrefString> Animation name
-			Object3DBinary.WriteStringWithPrefixedLength(Animation.Name);
-
-			// 4B (float) Duration
-			Object3DBinary.WriteFloat(Animation.Duration);
-
-			// 4B (float) Ticks per second
-			Object3DBinary.WriteFloat(Animation.TicksPerSecond);
-			
-			// 4B (uint32_t) Node animation count
-			Object3DBinary.WriteUint32((uint32_t)Animation.vNodeAnimations.size());
-			for (const auto& NodeAnimation : Animation.vNodeAnimations)
-			{
-				// 4B (uint32_t) Node animation index
-				Object3DBinary.WriteUint32(NodeAnimation.Index);
-
-				// <@PrefString> Node name
-				Object3DBinary.WriteStringWithPrefixedLength(NodeAnimation.Name);
-
-				// 4B (uint32_t) Position key count
-				Object3DBinary.WriteUint32((uint32_t)NodeAnimation.vPositionKeys.size());
-				for (const auto& PositionKey : NodeAnimation.vPositionKeys)
-				{
-					// 4B (float) Time
-					Object3DBinary.WriteFloat(PositionKey.Time);
-
-					// 16B (XMVECTOR) Value
-					Object3DBinary.WriteXMVECTOR(PositionKey.Value);
-				}
-
-				// 4B (uint32_t) Rotation key count
-				Object3DBinary.WriteUint32((uint32_t)NodeAnimation.vRotationKeys.size());
-				for (const auto& RotationKey : NodeAnimation.vRotationKeys)
-				{
-					// 4B (float) Time
-					Object3DBinary.WriteFloat(RotationKey.Time);
-
-					// 16B (XMVECTOR) Value
-					Object3DBinary.WriteXMVECTOR(RotationKey.Value);
-				}
-
-				// 4B (uint32_t) Scaling key count
-				Object3DBinary.WriteUint32((uint32_t)NodeAnimation.vScalingKeys.size());
-				for (const auto& ScalingKey : NodeAnimation.vScalingKeys)
-				{
-					// 4B (float) Time
-					Object3DBinary.WriteFloat(ScalingKey.Time);
-
-					// 16B (XMVECTOR) Value
-					Object3DBinary.WriteXMVECTOR(ScalingKey.Value);
-				}
-			}
-		}
 	}
 
 	// ### Instance ###
@@ -753,7 +508,7 @@ void CObject3D::BakeAnimationTexture()
 
 		const int32_t KAnimationYOffset{ (int32_t)fAnimationOffset };
 		const int32_t KAnimationOffset{ (int32_t)((int64_t)KAnimationYOffset * KAnimationTextureWidth) };
-		const SModel::SAnimation& Animation{ m_Model.vAnimations[iAnimation] };
+		const SMESHData::SAnimation& Animation{ m_Model.vAnimations[iAnimation] };
 		
 		int32_t Duration{ (int32_t)Animation.Duration + 1 };
 		for (int32_t iTime = 0; iTime < Duration; ++iTime)
@@ -1311,11 +1066,6 @@ const CObject3D::SCBDisplacementData& CObject3D::GetDisplacementData() const
 	return m_CBDisplacementData;
 }
 
-CMeshPorter::SMESHData CObject3D::GetMESHData() const
-{
-	return CMeshPorter::SMESHData(m_Model.vMeshes, m_Model.vMaterialData, ComponentPhysics.BoundingSphere);
-}
-
 void CObject3D::SetName(const std::string& Name)
 {
 	m_Name = Name;
@@ -1331,7 +1081,7 @@ void CObject3D::Animate(float DeltaTime)
 {
 	if (!m_Model.vAnimations.size()) return;
 
-	SModel::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationID] };
+	SMESHData::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationID] };
 	m_CurrentAnimationTick += CurrentAnimation.TicksPerSecond * DeltaTime;
 	if (m_CurrentAnimationTick > CurrentAnimation.Duration)
 	{
@@ -1413,8 +1163,8 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 	}
 }
 
-void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick,
-	const SModel::STreeNode& Node, XMMATRIX ParentTransform)
+void CObject3D::CalculateAnimatedBoneMatrices(const SMESHData::SAnimation& CurrentAnimation, float AnimationTick,
+	const SMESHData::STreeNode& Node, XMMATRIX ParentTransform)
 {
 	XMMATRIX MatrixTransformation{ Node.MatrixTransformation * ParentTransform };
 
@@ -1426,16 +1176,16 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentA
 			{
 				size_t NodeAnimationIndex{ CurrentAnimation.umapNodeAnimationNameToIndex.at(Node.Name) };
 
-				const SModel::SAnimation::SNodeAnimation& NodeAnimation{ CurrentAnimation.vNodeAnimations[NodeAnimationIndex] };
+				const SMESHData::SAnimation::SNodeAnimation& NodeAnimation{ CurrentAnimation.vNodeAnimations[NodeAnimationIndex] };
 
 				XMMATRIX MatrixPosition{ XMMatrixIdentity() };
 				XMMATRIX MatrixRotation{ XMMatrixIdentity() };
 				XMMATRIX MatrixScaling{ XMMatrixIdentity() };
 
 				{
-					const vector<SModel::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vPositionKeys };
-					SModel::SAnimation::SNodeAnimation::SKey KeyA{};
-					SModel::SAnimation::SNodeAnimation::SKey KeyB{};
+					const vector<SMESHData::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vPositionKeys };
+					SMESHData::SAnimation::SNodeAnimation::SKey KeyA{};
+					SMESHData::SAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
 						if (vKeys[iKey].Time <= AnimationTick)
@@ -1449,9 +1199,9 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentA
 				}
 
 				{
-					const vector<SModel::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vRotationKeys };
-					SModel::SAnimation::SNodeAnimation::SKey KeyA{};
-					SModel::SAnimation::SNodeAnimation::SKey KeyB{};
+					const vector<SMESHData::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vRotationKeys };
+					SMESHData::SAnimation::SNodeAnimation::SKey KeyA{};
+					SMESHData::SAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
 						if (vKeys[iKey].Time <= AnimationTick)
@@ -1465,9 +1215,9 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentA
 				}
 
 				{
-					const vector<SModel::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vScalingKeys };
-					SModel::SAnimation::SNodeAnimation::SKey KeyA{};
-					SModel::SAnimation::SNodeAnimation::SKey KeyB{};
+					const vector<SMESHData::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vScalingKeys };
+					SMESHData::SAnimation::SNodeAnimation::SKey KeyA{};
+					SMESHData::SAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
 						if (vKeys[iKey].Time <= AnimationTick)

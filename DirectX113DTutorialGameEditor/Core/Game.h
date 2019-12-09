@@ -379,7 +379,7 @@ public:
 	struct SCopyObject3D
 	{
 		SCopyObject3D() {}
-		SCopyObject3D(const std::string& _Name, const SModel& _Model,
+		SCopyObject3D(const std::string& _Name, const SMESHData& _Model,
 			const CObject3D::SComponentTransform& _ComponentTransform, const CObject3D::SComponentPhysics& _ComponentPhysics,
 			const CObject3D::SComponentRender& _ComponentRender, const std::vector<SInstanceCPUData> _vInstanceCPUData) :
 			Name{ _Name }, Model{ _Model }, 
@@ -387,7 +387,7 @@ public:
 			vInstanceCPUData{ _vInstanceCPUData } {}
 
 		std::string						Name{};
-		SModel							Model{};
+		SMESHData							Model{};
 		CObject3D::SComponentTransform	ComponentTransform{};
 		CObject3D::SComponentPhysics	ComponentPhysics{};
 		CObject3D::SComponentRender		ComponentRender{};

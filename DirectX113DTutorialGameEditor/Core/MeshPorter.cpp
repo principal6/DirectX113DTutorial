@@ -6,19 +6,19 @@ using std::unique_ptr;
 using std::make_unique;
 using std::string;
 
-void CMeshPorter::ImportMesh(const std::string& FileName, CMeshPorter::SMESHData& MESHFile)
+void CMeshPorter::ImportMESH(const std::string& FileName, SMESHData& MESHFile)
 {
 	m_BinaryData.Clear();
 	
 	m_BinaryData.LoadFromFile(FileName);
-	ReadMeshData(MESHFile);
+	ReadMESHData(MESHFile);
 }
 
-void CMeshPorter::ExportMesh(const std::string& FileName, const CMeshPorter::SMESHData& MESHFile)
+void CMeshPorter::ExportMESH(const std::string& FileName, const SMESHData& MESHFile)
 {
 	m_BinaryData.Clear();
 
-	WriteMeshData(MESHFile);
+	WriteMESHData(MESHFile);
 	m_BinaryData.SaveToFile(FileName);
 }
 
@@ -276,7 +276,7 @@ void CMeshPorter::ExportTerrain(const std::string& FileName, const CMeshPorter::
 	m_BinaryData.SaveToFile(FileName);
 }
 
-void CMeshPorter::ReadMeshData(CMeshPorter::SMESHData& MESHData)
+void CMeshPorter::ReadMESHData(SMESHData& MESHData)
 {
 	// 8B Signature (KJW_MESH)
 	m_BinaryData.ReadSkip(8);
@@ -384,6 +384,134 @@ void CMeshPorter::ReadMeshData(CMeshPorter::SMESHData& MESHData)
 		// # 4B (float) Bounding sphere radius bias
 		m_BinaryData.ReadFloat(MESHData.BoundingSphereData.RadiusBias);
 	}
+
+	// ##### Animation data #####
+	if (Version >= 0x10003)
+	{
+		// 1B (bool) bIsModelRigged
+		m_BinaryData.ReadBool(MESHData.bIsModelRigged);
+
+		// 4B (uint32_t) Tree node count
+		MESHData.vTreeNodes.resize(m_BinaryData.ReadUint32());
+		for (auto& Node : MESHData.vTreeNodes)
+		{
+			// <@PrefString> Node name
+			m_BinaryData.ReadStringWithPrefixedLength(Node.Name);
+
+			// 4B (int32_t) Node index
+			m_BinaryData.ReadInt32(Node.Index);
+
+			// 1B (bool) bIsBone
+			m_BinaryData.ReadBool(Node.bIsBone);
+
+			// 4B (uint32_t) Bone index
+			m_BinaryData.ReadUint32(Node.BoneIndex);
+
+			// 64B (XMMATRIX) Bone offset matrix
+			m_BinaryData.ReadXMMATRIX(Node.MatrixBoneOffset);
+
+			// 64B (XMMATRIX) Transformation matrix
+			m_BinaryData.ReadXMMATRIX(Node.MatrixTransformation);
+
+			// 4B (int32_t) Parent node index
+			m_BinaryData.ReadInt32(Node.ParentNodeIndex);
+
+			// 4B (uint32_t) Blend weight count
+			Node.vBlendWeights.resize(m_BinaryData.ReadUint32());
+			for (auto& BlendWeight : Node.vBlendWeights)
+			{
+				// 4B (uint32_t) Mesh index
+				m_BinaryData.ReadUint32(BlendWeight.MeshIndex);
+
+				// 4B (uint32_t) Vertex ID
+				m_BinaryData.ReadUint32(BlendWeight.VertexID);
+
+				// 4B (float) Weight
+				m_BinaryData.ReadFloat(BlendWeight.Weight);
+			}
+
+			// 4B (uint32_t) Child node count
+			Node.vChildNodeIndices.resize(m_BinaryData.ReadUint32());
+			for (auto& ChildNodeIndex : Node.vChildNodeIndices)
+			{
+				// 4B (int32_t) Child node index
+				m_BinaryData.ReadInt32(ChildNodeIndex);
+			}
+		}
+
+		// @important
+		for (const auto& Node : MESHData.vTreeNodes)
+		{
+			MESHData.umapTreeNodeNameToIndex[Node.Name] = Node.Index;
+		}
+
+		// 4B (uint32_t) Model bone count
+		m_BinaryData.ReadUint32(MESHData.ModelBoneCount);
+
+		// 4B (uint32_t) Animation count
+		MESHData.vAnimations.resize(m_BinaryData.ReadUint32());
+		for (auto& Animation : MESHData.vAnimations)
+		{
+			// <@PrefString> Animation name
+			m_BinaryData.ReadStringWithPrefixedLength(Animation.Name);
+
+			// 4B (float) Duration
+			m_BinaryData.ReadFloat(Animation.Duration);
+
+			// 4B (float) Ticks per second
+			m_BinaryData.ReadFloat(Animation.TicksPerSecond);
+
+			// 4B (uint32_t) Node animation count
+			Animation.vNodeAnimations.resize(m_BinaryData.ReadUint32());
+			for (auto& NodeAnimation : Animation.vNodeAnimations)
+			{
+				// 4B (uint32_t) Node animation index
+				m_BinaryData.ReadUint32(NodeAnimation.Index);
+
+				// <@PrefString> Node animation name
+				m_BinaryData.ReadStringWithPrefixedLength(NodeAnimation.Name);
+
+				// 4B (uint32_t) Position key count
+				NodeAnimation.vPositionKeys.resize(m_BinaryData.ReadUint32());
+				for (auto& PositionKey : NodeAnimation.vPositionKeys)
+				{
+					// 4B (float) Time
+					m_BinaryData.ReadFloat(PositionKey.Time);
+
+					// 16B (XMVECTOR) Value
+					m_BinaryData.ReadXMVECTOR(PositionKey.Value);
+				}
+
+				// 4B (uint32_t) Rotation key count
+				NodeAnimation.vRotationKeys.resize(m_BinaryData.ReadUint32());
+				for (auto& RotationKey : NodeAnimation.vRotationKeys)
+				{
+					// 4B (float) Time
+					m_BinaryData.ReadFloat(RotationKey.Time);
+
+					// 16B (XMVECTOR) Value
+					m_BinaryData.ReadXMVECTOR(RotationKey.Value);
+				}
+
+				// 4B (uint32_t) Scaling key count
+				NodeAnimation.vScalingKeys.resize(m_BinaryData.ReadUint32());
+				for (auto& ScalingKey : NodeAnimation.vScalingKeys)
+				{
+					// 4B (float) Time
+					m_BinaryData.ReadFloat(ScalingKey.Time);
+
+					// 16B (XMVECTOR) Value
+					m_BinaryData.ReadXMVECTOR(ScalingKey.Value);
+				}
+			}
+
+			// @important
+			for (const auto& NodeAnimation : Animation.vNodeAnimations)
+			{
+				Animation.umapNodeAnimationNameToIndex[NodeAnimation.Name] = NodeAnimation.Index;
+			}
+		}
+	}
 }
 
 void CMeshPorter::ReadModelMaterials(std::vector<CMaterialData>& vMaterialData)
@@ -467,11 +595,11 @@ void CMeshPorter::ReadModelMaterials(std::vector<CMaterialData>& vMaterialData)
 	}
 }
 
-void CMeshPorter::WriteMeshData(const CMeshPorter::SMESHData& MESHData)
+void CMeshPorter::WriteMESHData(const SMESHData& MESHData)
 {
 	static uint16_t KVersionMajor{ 0x0001 };
 	static uint8_t KVersionMinor{ 0x00 };
-	static uint8_t KVersionSubminor{ 0x02 };
+	static uint8_t KVersionSubminor{ 0x03 };
 
 	// 8B Signature
 	m_BinaryData.WriteString("KJW_MESH", 8);
@@ -573,6 +701,122 @@ void CMeshPorter::WriteMeshData(const CMeshPorter::SMESHData& MESHData)
 	
 	// # 4B (float) Bounding sphere radius bias
 	m_BinaryData.WriteFloat(MESHData.BoundingSphereData.RadiusBias);
+
+
+	// ##### Animation data #####
+	{
+		// 1B (bool) bIsModelRigged
+		m_BinaryData.WriteBool(MESHData.bIsModelRigged);
+
+		// 4B (uint32_t) Tree node count
+		m_BinaryData.WriteUint32((uint32_t)MESHData.vTreeNodes.size());
+		for (const auto& Node : MESHData.vTreeNodes)
+		{
+			// <@PrefString> Node name
+			m_BinaryData.WriteStringWithPrefixedLength(Node.Name);
+
+			// 4B (int32_t) Node index
+			m_BinaryData.WriteInt32(Node.Index);
+
+			// 1B (bool) bIsBone
+			m_BinaryData.WriteBool(Node.bIsBone);
+
+			// 4B (uint32_t) Bone index
+			m_BinaryData.WriteUint32(Node.BoneIndex);
+
+			// 64B (XMMATRIX) Bone offset matrix
+			m_BinaryData.WriteXMMATRIX(Node.MatrixBoneOffset);
+
+			// 64B (XMMATRIX) Transformation matrix
+			m_BinaryData.WriteXMMATRIX(Node.MatrixTransformation);
+
+			// 4B (int32_t) Parent node index
+			m_BinaryData.WriteInt32(Node.ParentNodeIndex);
+
+			// 4B (uint32_t) Blend weight count
+			m_BinaryData.WriteUint32((uint32_t)Node.vBlendWeights.size());
+			for (const auto& BlendWeight : Node.vBlendWeights)
+			{
+				// 4B (uint32_t) Mesh index
+				m_BinaryData.WriteUint32(BlendWeight.MeshIndex);
+
+				// 4B (uint32_t) Vertex ID
+				m_BinaryData.WriteUint32(BlendWeight.VertexID);
+
+				// 4B (float) Weight
+				m_BinaryData.WriteFloat(BlendWeight.Weight);
+			}
+
+			// 4B (uint32_t) Child node count
+			m_BinaryData.WriteUint32((uint32_t)Node.vChildNodeIndices.size());
+			for (const auto& ChildNodeIndex : Node.vChildNodeIndices)
+			{
+				// 4B (int32_t) Child node index
+				m_BinaryData.WriteInt32(ChildNodeIndex);
+			}
+		}
+
+		// 4B (uint32_t) Model bone count
+		m_BinaryData.WriteUint32(MESHData.ModelBoneCount);
+
+		// 4B (uint32_t) Animation count
+		m_BinaryData.WriteUint32((uint32_t)MESHData.vAnimations.size());
+		for (const auto& Animation : MESHData.vAnimations)
+		{
+			// <@PrefString> Animation name
+			m_BinaryData.WriteStringWithPrefixedLength(Animation.Name);
+
+			// 4B (float) Duration
+			m_BinaryData.WriteFloat(Animation.Duration);
+
+			// 4B (float) Ticks per second
+			m_BinaryData.WriteFloat(Animation.TicksPerSecond);
+
+			// 4B (uint32_t) Node animation count
+			m_BinaryData.WriteUint32((uint32_t)Animation.vNodeAnimations.size());
+			for (const auto& NodeAnimation : Animation.vNodeAnimations)
+			{
+				// 4B (uint32_t) Node animation index
+				m_BinaryData.WriteUint32(NodeAnimation.Index);
+
+				// <@PrefString> Node name
+				m_BinaryData.WriteStringWithPrefixedLength(NodeAnimation.Name);
+
+				// 4B (uint32_t) Position key count
+				m_BinaryData.WriteUint32((uint32_t)NodeAnimation.vPositionKeys.size());
+				for (const auto& PositionKey : NodeAnimation.vPositionKeys)
+				{
+					// 4B (float) Time
+					m_BinaryData.WriteFloat(PositionKey.Time);
+
+					// 16B (XMVECTOR) Value
+					m_BinaryData.WriteXMVECTOR(PositionKey.Value);
+				}
+
+				// 4B (uint32_t) Rotation key count
+				m_BinaryData.WriteUint32((uint32_t)NodeAnimation.vRotationKeys.size());
+				for (const auto& RotationKey : NodeAnimation.vRotationKeys)
+				{
+					// 4B (float) Time
+					m_BinaryData.WriteFloat(RotationKey.Time);
+
+					// 16B (XMVECTOR) Value
+					m_BinaryData.WriteXMVECTOR(RotationKey.Value);
+				}
+
+				// 4B (uint32_t) Scaling key count
+				m_BinaryData.WriteUint32((uint32_t)NodeAnimation.vScalingKeys.size());
+				for (const auto& ScalingKey : NodeAnimation.vScalingKeys)
+				{
+					// 4B (float) Time
+					m_BinaryData.WriteFloat(ScalingKey.Time);
+
+					// 16B (XMVECTOR) Value
+					m_BinaryData.WriteXMVECTOR(ScalingKey.Value);
+				}
+			}
+		}
+	}
 }
 
 void CMeshPorter::WriteModelMaterials(const std::vector<CMaterialData>& vMaterialData)

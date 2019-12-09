@@ -3617,7 +3617,8 @@ void CGame::Update()
 		Destroy();
 		return;
 	}
-	if (m_CapturedKeyboardState.Escape)
+	
+	if (!ImGui::IsAnyItemActive() && !ImGui::IsAnyWindowFocused() && m_CapturedKeyboardState.Escape)
 	{
 		DeselectAll();
 	}
@@ -5535,7 +5536,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::Text(u8"애니메이션 이름");
 								ImGui::SameLine(150);
 								static char Name[16]{};
-								ImGui::InputText(u8"##애니메이션 이름", Name, 16);
+								bool bOK{ ImGui::InputText(u8"##애니메이션 이름", Name, 16, ImGuiInputTextFlags_EnterReturnsTrue) };
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"파일 이름");
@@ -5555,7 +5556,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 								ImGui::SameLine();
 
-								if (ImGui::Button(u8"결정"))
+								if (ImGui::Button(u8"결정") || bOK)
 								{
 									if (FileName[0] == '\0')
 									{
@@ -5573,7 +5574,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 								ImGui::SameLine();
 
-								if (ImGui::Button(u8"취소"))
+								if (ImGui::Button(u8"취소") || m_CapturedKeyboardState.Escape)
 								{
 									bShowAnimationAdder = false;
 									ImGui::CloseCurrentPopup();
@@ -5597,9 +5598,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									strcpy_s(AnimationName, Object3D->GetAnimationName(iSelectedAnimationID).c_str());
 									bFirstTime = false;
 								}
-								ImGui::InputText(u8"##애니메이션 이름", AnimationName, CObject3D::KMaxAnimationNameLength);
+								bool bOK{ ImGui::InputText(u8"##애니메이션 이름", AnimationName, 
+									CObject3D::KMaxAnimationNameLength, ImGuiInputTextFlags_EnterReturnsTrue) };
 
-								if (ImGui::Button(u8"결정"))
+								if (ImGui::Button(u8"결정") | bOK)
 								{
 									Object3D->SetAnimationName(iSelectedAnimationID, AnimationName);
 
@@ -5610,7 +5612,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 								ImGui::SameLine();
 
-								if (ImGui::Button(u8"취소"))
+								if (ImGui::Button(u8"취소") || m_CapturedKeyboardState.Escape)
 								{
 									bFirstTime = true;
 									bShowAnimationEditor = false;
@@ -7061,7 +7063,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 							CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
 							if (FileDialog.GetCapitalExtension() == "MESH")
 							{
-								m_MeshPorter.ExportMesh(FileDialog.GetFileName(), Object3D->GetMESHData());
+								m_MeshPorter.ExportMESH(FileDialog.GetFileName(), Object3D->GetModel());
 							}
 							else
 							{

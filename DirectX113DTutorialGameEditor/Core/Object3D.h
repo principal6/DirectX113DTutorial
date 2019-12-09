@@ -8,69 +8,6 @@
 class CGame;
 class CShader;
 
-struct SModel
-{
-	struct STreeNode
-	{
-		struct SBlendWeight
-		{
-			uint32_t	MeshIndex{};
-			uint32_t	VertexID{};
-			float		Weight{};
-		};
-
-		int32_t					Index{};
-		std::string				Name{};
-
-		int32_t					ParentNodeIndex{};
-		std::vector<int32_t>	vChildNodeIndices{};
-		XMMATRIX				MatrixTransformation{};
-
-		bool						bIsBone{ false };
-		uint32_t					BoneIndex{};
-		std::vector<SBlendWeight>	vBlendWeights{};
-		XMMATRIX					MatrixBoneOffset{};
-	};
-
-	struct SAnimation
-	{
-		struct SNodeAnimation
-		{
-			struct SKey
-			{
-				float		Time{};
-				XMVECTOR	Value{};
-			};
-
-			uint32_t			Index{};
-			std::string			Name{};
-			std::vector<SKey>	vPositionKeys{};
-			std::vector<SKey>	vRotationKeys{};
-			std::vector<SKey>	vScalingKeys{};
-		};
-
-		std::vector<SNodeAnimation>				vNodeAnimations{};
-
-		float									Duration{};
-		float									TicksPerSecond{};
-
-		std::unordered_map<std::string, size_t>	umapNodeAnimationNameToIndex{};
-
-		std::string								Name{};
-	};
-
-	std::vector<SMesh>						vMeshes{};
-	std::vector<CMaterialData>				vMaterialData{};
-
-	bool									bIsModelRigged{};
-	std::vector<STreeNode>					vTreeNodes{};
-	std::unordered_map<std::string, size_t>	umapTreeNodeNameToIndex{};
-	uint32_t								ModelBoneCount{};
-	std::vector<SAnimation>					vAnimations{};
-
-	bool									bUseMultipleTexturesInSingleMesh{ false };
-};
-
 class CObject3D
 {
 public:
@@ -175,8 +112,7 @@ public:
 public:
 	void Create(const SMesh& Mesh);
 	void Create(const SMesh& Mesh, const CMaterialData& MaterialData);
-	void Create(const SModel& Model);
-	void Create(const CMeshPorter::SMESHData& MESHData);
+	void Create(const SMESHData& MESHData);
 
 	void CreateFromFile(const std::string& FileName, bool bIsModelRigged);
 
@@ -252,7 +188,7 @@ public:
 	void Draw(bool bIgnoreOwnTexture = false, bool bIgnoreInstances = false) const;
 
 private:
-	void CalculateAnimatedBoneMatrices(const SModel::SAnimation& CurrentAnimation, float AnimationTick, const SModel::STreeNode& Node, XMMATRIX ParentTransform);
+	void CalculateAnimatedBoneMatrices(const SMESHData::SAnimation& CurrentAnimation, float AnimationTick, const SMESHData::STreeNode& Node, XMMATRIX ParentTransform);
 
 public:
 	bool ShouldTessellate() const { return m_bShouldTesselate; }
@@ -269,9 +205,8 @@ public:
 	bool IsRigged() const { return m_Model.bIsModelRigged; }
 	bool IsInstanced() const { return (m_vInstanceCPUData.size() > 0) ? true : false; }
 	size_t GetInstanceCount() const { return m_vInstanceCPUData.size(); }
-	const SModel& GetModel() const { return m_Model; }
-	CMeshPorter::SMESHData GetMESHData() const;
-	SModel& GetModel() { return m_Model; }
+	const SMESHData& GetModel() const { return m_Model; }
+	SMESHData& GetModel() { return m_Model; }
 	void SetName(const std::string& Name);
 	const std::string& GetName() const { return m_Name; }
 	const std::string& GetModelFileName() const { return m_ModelFileName; }
@@ -307,7 +242,7 @@ private:
 	std::string						m_ModelFileName{};
 	std::string						m_OB3DFileName{};
 	bool							m_bIsCreated{ false };
-	SModel							m_Model{};
+	SMESHData						m_Model{};
 	std::vector<std::unique_ptr<CMaterialTextureSet>> m_vMaterialTextureSets{};
 	std::vector<SMeshBuffers>		m_vMeshBuffers{};
 	std::vector<SInstanceBuffer>	m_vInstanceBuffers{};

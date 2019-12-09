@@ -32,7 +32,7 @@ static XMMATRIX ConvertaiMatrix4x4ToXMMATRIX(const aiMatrix4x4& Matrix)
 	));
 }
 
-void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel* const Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
+void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SMESHData* const Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
 {
 	Assimp::Importer AssimpImporter{};
 	m_Scene = AssimpImporter.ReadFile(FileName, aiProcess_ConvertToLeftHanded |
@@ -54,7 +54,7 @@ void CAssimpLoader::LoadStaticModelFromFile(const string& FileName, SModel* cons
 	LoadMaterialsFromFile(m_Scene, Device, DeviceContext, Model->vMaterialData);
 }
 
-void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel* const Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
+void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SMESHData* const Model, ID3D11Device* Device, ID3D11DeviceContext* DeviceContext)
 {
 	Assimp::Importer AssimpImporter{};
 	AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
@@ -112,7 +112,7 @@ void CAssimpLoader::LoadAnimatedModelFromFile(const string& FileName, SModel* co
 	Model->bIsModelRigged = true;
 }
 
-void CAssimpLoader::AddAnimationFromFile(const string& FileName, SModel* const Model)
+void CAssimpLoader::AddAnimationFromFile(const string& FileName, SMESHData* const Model)
 {
 	Assimp::Importer AssimpImporter{};
 	AssimpImporter.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, aiComponent_NORMALS);
@@ -283,10 +283,10 @@ void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString* 
 	}
 }
 
-void CAssimpLoader::LoadNodes(const aiScene* const Scene, aiNode* const aiCurrentNode, int32_t ParentNodeIndex, SModel* const Model)
+void CAssimpLoader::LoadNodes(const aiScene* const Scene, aiNode* const aiCurrentNode, int32_t ParentNodeIndex, SMESHData* const Model)
 {
 	Model->vTreeNodes.emplace_back();
-	SModel::STreeNode& Node{ Model->vTreeNodes.back() };
+	SMESHData::STreeNode& Node{ Model->vTreeNodes.back() };
 
 	int32_t NodeIndex{ static_cast<int32_t>(Model->vTreeNodes.size() - 1) };
 
@@ -311,7 +311,7 @@ void CAssimpLoader::LoadNodes(const aiScene* const Scene, aiNode* const aiCurren
 	}
 }
 
-void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel* const Model)
+void CAssimpLoader::LoadBones(const aiScene* const Scene, SMESHData* const Model)
 {
 	unordered_map<string, uint32_t> mapBones{};
 
@@ -327,7 +327,7 @@ void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel* const Model)
 
 				string BoneName{ _aiBone->mName.C_Str() };
 				size_t BoneNodeIndex{ Model->umapTreeNodeNameToIndex[BoneName] };
-				SModel::STreeNode& BoneNode{ Model->vTreeNodes[BoneNodeIndex] };
+				SMESHData::STreeNode& BoneNode{ Model->vTreeNodes[BoneNodeIndex] };
 
 				// BoneCount는 현재 Bone이 처음 나온 경우에만 증가시켜야 한다! (동일한 Bone이 서로 다른 Mesh에서 참조될 수 있기 때문)
 				if (mapBones[BoneName] == 0)
@@ -342,7 +342,7 @@ void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel* const Model)
 				// 여러 Mesh가 같은 Bone을 참조할 수 있으므로 아래 코드는 매번 실행되어야 한다.
 				for (unsigned int iWeight = 0; iWeight < _aiBone->mNumWeights; ++iWeight)
 				{
-					SModel::STreeNode::SBlendWeight BlendWeight{ iMesh, _aiBone->mWeights[iWeight].mVertexId, _aiBone->mWeights[iWeight].mWeight };
+					SMESHData::STreeNode::SBlendWeight BlendWeight{ iMesh, _aiBone->mWeights[iWeight].mVertexId, _aiBone->mWeights[iWeight].mWeight };
 
 					BoneNode.vBlendWeights.emplace_back(BlendWeight);
 				}
@@ -355,7 +355,7 @@ void CAssimpLoader::LoadBones(const aiScene* const Scene, SModel* const Model)
 	Model->ModelBoneCount = TotalBoneCount;
 }
 
-void CAssimpLoader::MatchWeightsAndVertices(SModel* const Model)
+void CAssimpLoader::MatchWeightsAndVertices(SMESHData* const Model)
 {
 	vector<unordered_map<uint32_t, uint32_t>> mapBlendCountPerVertexPerMesh{};
 	mapBlendCountPerVertexPerMesh.resize(Model->vMeshes.size());
@@ -364,7 +364,7 @@ void CAssimpLoader::MatchWeightsAndVertices(SModel* const Model)
 	{
 		for (size_t iBlendWeight = 0; iBlendWeight < BoneNode.vBlendWeights.size(); ++iBlendWeight)
 		{
-			const SModel::STreeNode::SBlendWeight& BlendWeight{ BoneNode.vBlendWeights[iBlendWeight] };
+			const SMESHData::STreeNode::SBlendWeight& BlendWeight{ BoneNode.vBlendWeights[iBlendWeight] };
 			const uint32_t& MeshID{ BlendWeight.MeshIndex };
 			const uint32_t& VertexID{ BlendWeight.VertexID };
 			const uint32_t& BlendIndexPerVertex{ mapBlendCountPerVertexPerMesh[MeshID][VertexID] };
@@ -385,7 +385,7 @@ void CAssimpLoader::MatchWeightsAndVertices(SModel* const Model)
 	}
 }
 
-void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel* const Model)
+void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SMESHData* const Model)
 {
 	if (Scene->mNumAnimations)
 	{
@@ -396,7 +396,7 @@ void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel* const Mod
 			const unsigned int& ChannelCount{ _aiAnimation->mNumChannels };
 
 			Model->vAnimations.emplace_back();
-			SModel::SAnimation& Animation{ Model->vAnimations.back() };
+			SMESHData::SAnimation& Animation{ Model->vAnimations.back() };
 
 			Animation.Name = "animation";
 			Animation.TicksPerSecond = static_cast<float>(_aiAnimation->mTicksPerSecond);
@@ -405,7 +405,7 @@ void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel* const Mod
 			for (unsigned int iChannel = 0; iChannel < ChannelCount; ++iChannel)
 			{
 				const aiNodeAnim* const aiChannel{ _aiAnimation->mChannels[iChannel] };
-				SModel::SAnimation::SNodeAnimation& NodeAnimation{ Animation.vNodeAnimations[iChannel] };
+				SMESHData::SAnimation::SNodeAnimation& NodeAnimation{ Animation.vNodeAnimations[iChannel] };
 
 				NodeAnimation.Index = iChannel;
 				NodeAnimation.Name = aiChannel->mNodeName.C_Str();
@@ -415,7 +415,7 @@ void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel* const Mod
 				for (unsigned int iPositionKey = 0; iPositionKey < PositionKeyCount; ++iPositionKey)
 				{
 					const aiVectorKey& aiKey{ aiChannel->mPositionKeys[iPositionKey] };
-					SModel::SAnimation::SNodeAnimation::SKey& Key{ NodeAnimation.vPositionKeys[iPositionKey] };
+					SMESHData::SAnimation::SNodeAnimation::SKey& Key{ NodeAnimation.vPositionKeys[iPositionKey] };
 					Key.Time = static_cast<float>(aiKey.mTime);
 					Key.Value = ConvertaiVector3DToXMVECTOR(aiKey.mValue, 0);
 				}
@@ -425,7 +425,7 @@ void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel* const Mod
 				for (unsigned int iRotationKey = 0; iRotationKey < RotationKeyCount; ++iRotationKey)
 				{
 					const aiQuatKey& aiKey{ aiChannel->mRotationKeys[iRotationKey] };
-					SModel::SAnimation::SNodeAnimation::SKey& Key{ NodeAnimation.vRotationKeys[iRotationKey] };
+					SMESHData::SAnimation::SNodeAnimation::SKey& Key{ NodeAnimation.vRotationKeys[iRotationKey] };
 					Key.Time = static_cast<float>(aiKey.mTime);
 					Key.Value = ConvertaiQuaternionToXMVECTOR(aiKey.mValue);
 				}
@@ -435,7 +435,7 @@ void CAssimpLoader::LoadAnimations(const aiScene* const Scene, SModel* const Mod
 				for (unsigned int iScalingKey = 0; iScalingKey < ScalingKeyCount; ++iScalingKey)
 				{
 					const aiVectorKey& aiKey{ aiChannel->mScalingKeys[iScalingKey] };
-					SModel::SAnimation::SNodeAnimation::SKey& Key{ NodeAnimation.vScalingKeys[iScalingKey] };
+					SMESHData::SAnimation::SNodeAnimation::SKey& Key{ NodeAnimation.vScalingKeys[iScalingKey] };
 					Key.Time = static_cast<float>(aiKey.mTime);
 					Key.Value = ConvertaiVector3DToXMVECTOR(aiKey.mValue, 0);
 				}

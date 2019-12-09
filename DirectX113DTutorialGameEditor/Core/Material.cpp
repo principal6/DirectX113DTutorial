@@ -6,7 +6,7 @@ using std::string;
 using std::wstring;
 using std::make_unique;
 
-void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerateMipMap)
+bool CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerateMipMap)
 {
 	m_FileName = FileName;
 
@@ -25,7 +25,7 @@ void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerat
 		if (!m_Texture2D)
 		{
 			MB_WARN(("텍스처를 찾을 수 없습니다. (" + m_FileName + ")").c_str(), "텍스처 생성 실패");
-			return;
+			return false;
 		}
 	}
 	else
@@ -40,7 +40,7 @@ void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerat
 			if (!NonMipMappedTexture)
 			{
 				MB_WARN(("텍스처를 찾을 수 없습니다. (" + m_FileName + ")").c_str(), "텍스처 생성 실패");
-				return;
+				return false;
 			}
 
 			NonMipMappedTexture->GetDesc(&m_Texture2DDesc);
@@ -68,6 +68,8 @@ void CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerat
 	UpdateTextureInfo();
 
 	m_bIsCreated = true;
+
+	return true;
 }
 
 void CTexture::CreateTextureFromMemory(const vector<uint8_t>& RawData, bool bShouldGenerateMipMap)
@@ -371,7 +373,13 @@ void CMaterialTextureSet::CreateTexture(STextureData::EType eType, CMaterialData
 		STextureData& TextureData{ MaterialData.GetTextureData(eType) };
 		if (TextureData.vRawData.empty())
 		{
-			m_Textures[iTexture].CreateTextureFromFile(TextureData.FileName, true);
+			if (!m_Textures[iTexture].CreateTextureFromFile(TextureData.FileName, true))
+			{
+				// @important: failed to load texture
+
+				TextureData.bHasTexture = false;
+				TextureData.FileName.clear();
+			}
 		}
 		else
 		{

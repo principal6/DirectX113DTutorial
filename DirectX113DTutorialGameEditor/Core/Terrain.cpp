@@ -213,7 +213,7 @@ float CTerrain::GetWindRadius() const
 
 void CTerrain::CreateTerrainObject3D(const std::vector<CMaterialData>& vMaterialData)
 {
-	SModel Model{};
+	SMESHData Model{};
 
 	Model.vMeshes.clear();
 	Model.vMeshes.emplace_back(GenerateTerrainBase(XMFLOAT2(m_TerrainFileData.SizeX, m_TerrainFileData.SizeZ), KTextureSubdivisionDetail)); // @important
