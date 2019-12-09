@@ -174,8 +174,11 @@ public:
 	void UpdateMeshBuffer(size_t MeshIndex = 0);
 
 	void UpdateWorldMatrix();
+
 	void UpdateInstanceWorldMatrix(const std::string& InstanceName);
+	// @warning: this function doesn't update internal InstanceCPUData
 	void UpdateInstanceWorldMatrix(const std::string& InstanceName, const XMMATRIX& WorldMatrix);
+
 	void UpdateAllInstancesWorldMatrix();
 	void SetInstanceHighlight(const std::string& InstanceName, bool bShouldHighlight);
 	void SetAllInstancesHighlightOff();

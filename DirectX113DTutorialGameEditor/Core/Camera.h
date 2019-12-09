@@ -52,6 +52,7 @@ public:
 		float		MovementFactor{ 1.0f };
 
 		XMMATRIX	WorldMatrix{};
+		XMMATRIX	ViewMatrix{};
 	};
 
 public:
@@ -60,40 +61,45 @@ public:
 
 public:
 	void Move(EMovementDirection Direction, float DeltaTime);
-	void Rotate(int DeltaX, int DeltaY, float DeltaTime);
+	void Rotate(int dMouseX, int dMouseY, float DeltaTime);
 	void Zoom(int DeltaWheel, float ZoomFactor = 1.0f);
 
-	void SetEyePosition(const XMVECTOR& Position);
-	void SetPitch(float Value);
-	void SetYaw(float Value);
-	void SetMovementFactor(float MovementFactor);
+	void Translate(const XMVECTOR& Delta);
+	void TranslateTo(const XMVECTOR& Prime);
+	void Rotate(float dPitch, float dYaw);
 
+public:
 	void SetType(EType eType);
 	EType GetType() const { return m_CameraData.eType; }
 
 	void SetData(const SCameraData& Data);
 	const SCameraData& GetData() const { return m_CameraData; }
 
-	XMVECTOR& GetEyePosition() { return m_CameraData.EyePosition; }
-	float& GetPitch() { return m_CameraData.Pitch; }
-	float& GetYaw() { return m_CameraData.Yaw; }
-
-	const XMVECTOR& GetEyePosition() const { return m_CameraData.EyePosition; }
-	const XMVECTOR& GetFocusPosition() const { return m_CameraData.FocusPosition; }
-	const XMVECTOR& GetUpDirection() const { return m_CameraData.UpDirection; }
-	const XMVECTOR& GetForward() const { return m_CameraData.Forward; }
+	void SetPitch(float Pitch);
 	float GetPitch() const { return m_CameraData.Pitch; }
+
+	void SetYaw(float Yaw);
 	float GetYaw() const { return m_CameraData.Yaw; }
-	float GetZoomDistance() const { return m_CameraData.ZoomDistance; }
-	const std::string& GetName() const { return m_Name; }
+
+	void SetMovementFactor(float MovementFactor);
 	float GetMovementFactor() const { return m_CameraData.MovementFactor; }
+
+public:
+	const std::string& GetName() const { return m_Name; }
+	float GetZoomDistance() const { return m_CameraData.ZoomDistance; }
+	const XMVECTOR& GetTranslation() const;
+	const XMVECTOR& GetEyePosition() const;
+	const XMVECTOR& GetForward() const { return m_CameraData.Forward; }
 	const XMMATRIX& GetWorldMatrix() const { return m_CameraData.WorldMatrix; }
+	const XMMATRIX& GetViewMatrix() const;
 
 public:
 	void Update();
 
 private:
+	void LimitRotationBoundary();
 	void UpdateWorldMatrix();
+	void UpdateViewMatrix();
 
 private:
 	static constexpr float KPitchLimit{ XM_PIDIV2 - 0.01f };

@@ -523,7 +523,7 @@ public:
 	void DeleteSelectedObject();
 
 public:
-	bool InsertCamera(const std::string& Name);
+	bool InsertCamera(const std::string& Name, CCamera::EType eType);
 	void DeleteCamera(const std::string& Name);
 	void ClearCameras();
 	CCamera* GetCamera(const std::string& Name, bool bShowWarning = true) const;
@@ -604,6 +604,7 @@ private:
 	void UseCamera(CCamera* const Camera);
 
 public:
+	void Capture3DGizmoTranslation();
 	void Select3DGizmos();
 	void Deselect3DGizmos();
 	bool IsGizmoHovered() const;
@@ -925,8 +926,8 @@ private:
 	E3DGizmoAxis					m_e3DGizmoSelectedAxis{};
 	E3DGizmoMode					m_e3DGizmoMode{};
 	float							m_3DGizmoDistanceScalar{};
-	XMVECTOR						m_CapturedGizmoTranslation{};
-	XMVECTOR						m_GizmoRecentTranslation{};
+	XMVECTOR						m_Captured3DGizmoTranslation{};
+	XMVECTOR						m_Current3DGizmoTranslation{};
 
 // Camera
 private:
