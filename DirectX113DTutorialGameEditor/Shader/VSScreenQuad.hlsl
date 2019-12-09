@@ -25,7 +25,7 @@ VS_OUTPUT main(VS_INPUT Input)
 {
 	VS_OUTPUT Output;
 	Output.Position = Input.Position;
-	Output.ProjectionSpacePosition = Input.Position.xy;
+	Output.ScreenPosition = Input.Position.xy;
 	Output.TexCoord = Input.TexCoord;
 	return Output;
 }

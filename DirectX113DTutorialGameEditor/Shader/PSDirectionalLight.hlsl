@@ -19,6 +19,8 @@ cbuffer cbGBufferUnpacking : register(b0)
 {
 	float4 PerspectiveValues;
 	float4x4 InverseViewMatrix;
+	float2 ScreenSize;
+	float2 Reserved2;
 }
 
 cbuffer cbDirectionalLight : register(b1)
@@ -47,7 +49,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float ProjectionSpaceDepth = GBuffer_DepthStencil.SampleLevel(PointClampSampler, UV, 0).x;
 	if (ProjectionSpaceDepth == 1.0) discard; // @important: early out
 	float ViewSpaceDepth = PerspectiveValues.z / (ProjectionSpaceDepth + PerspectiveValues.w);
-	float4 WorldPosition = mul(float4(Input.ProjectionSpacePosition * PerspectiveValues.xy * ViewSpaceDepth, ViewSpaceDepth, 1.0), InverseViewMatrix);
+	float4 ObjectWorldPosition = mul(float4(Input.ScreenPosition * PerspectiveValues.xy * ViewSpaceDepth, ViewSpaceDepth, 1.0), InverseViewMatrix);
 
 	float4 BaseColor_Rough = GBuffer_BaseColor_Rough.SampleLevel(PointClampSampler, UV, 0);
 	float3 WorldNormal = normalize((GBuffer_Normal.SampleLevel(PointClampSampler, UV, 0).xyz * 2.0) - 1.0);
@@ -56,7 +58,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 OutputColor = float4(0, 0, 0, 1);
 
 	{
-		float3 Wo = normalize(EyePosition - WorldPosition.xyz);
+		float3 Wo = normalize(EyePosition - ObjectWorldPosition.xyz);
 		float3 F0 = lerp(KFresnel_dielectric, BaseColor, Metalness);
 		float NdotWo = max(dot(N, Wo), 0.001);
 		
@@ -117,7 +119,7 @@ float4 NonIBL(VS_OUTPUT Input) : SV_TARGET
 	float ProjectionSpaceDepth = GBuffer_DepthStencil.SampleLevel(PointClampSampler, UV, 0).x;
 	if (ProjectionSpaceDepth == 1.0) discard; // @important: early out
 	float ViewSpaceDepth = PerspectiveValues.z / (ProjectionSpaceDepth + PerspectiveValues.w);
-	float4 WorldPosition = mul(float4(Input.ProjectionSpacePosition * PerspectiveValues.xy * ViewSpaceDepth, ViewSpaceDepth, 1.0), InverseViewMatrix);
+	float4 ObjectWorldPosition = mul(float4(Input.ScreenPosition * PerspectiveValues.xy * ViewSpaceDepth, ViewSpaceDepth, 1.0), InverseViewMatrix);
 
 	float4 BaseColor_Rough = GBuffer_BaseColor_Rough.SampleLevel(PointClampSampler, UV, 0);
 	float3 WorldNormal = normalize((GBuffer_Normal.SampleLevel(PointClampSampler, UV, 0).xyz * 2.0) - 1.0);
@@ -126,7 +128,7 @@ float4 NonIBL(VS_OUTPUT Input) : SV_TARGET
 	float4 OutputColor = float4(0, 0, 0, 1);
 
 	{
-		float3 Wo = normalize(EyePosition - WorldPosition.xyz);
+		float3 Wo = normalize(EyePosition - ObjectWorldPosition.xyz);
 		float3 F0 = lerp(KFresnel_dielectric, BaseColor, Metalness);
 		float NdotWo = max(dot(N, Wo), 0.001);
 

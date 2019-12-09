@@ -12,6 +12,8 @@ cbuffer cbGBufferUnpacking : register(b0)
 {
 	float4 PerspectiveValues;
 	float4x4 InverseViewMatrix;
+	float2 ScreenSize;
+	float2 Reserved;
 }
 
 #define N WorldNormal
@@ -23,12 +25,13 @@ cbuffer cbGBufferUnpacking : register(b0)
 
 float4 main(DS_OUTPUT Input) : SV_TARGET
 {
-	float2 UV = float2(Input.ProjectionPosition.x * 0.5 + 0.5, 0.5 - Input.ProjectionPosition.y * 0.5);
+	float2 ScreenPosition = float2(Input.Position.x / ScreenSize.x, 1.0 - (Input.Position.y / ScreenSize.y)) * 2.0 - 1.0;
+	float2 UV = float2(ScreenPosition.x * 0.5 + 0.5, 0.5 - ScreenPosition.y * 0.5);
 
-	float ProjectionSpaceDepth = GBuffer_DepthStencil.SampleLevel(PointClampSampler, UV, 0).x;
-	if (ProjectionSpaceDepth == 1.0) discard; // @important: early out
-	float ViewSpaceDepth = PerspectiveValues.z / (ProjectionSpaceDepth + PerspectiveValues.w);
-	float4 ObjectWorldPosition = mul(float4(Input.ProjectionPosition.xy * PerspectiveValues.xy * ViewSpaceDepth, ViewSpaceDepth, 1.0), InverseViewMatrix);
+	float ObjectProjectionDepth = GBuffer_DepthStencil.SampleLevel(PointClampSampler, UV, 0).x;
+	if (ObjectProjectionDepth == 1.0) discard; // @important: early out
+	float ObjectViewDepth = PerspectiveValues.z / (ObjectProjectionDepth + PerspectiveValues.w);
+	float4 ObjectWorldPosition = mul(float4(ScreenPosition * PerspectiveValues.xy * ObjectViewDepth, ObjectViewDepth, 1.0), InverseViewMatrix);
 
 	float4 BaseColor_Rough = GBuffer_BaseColor_Rough.SampleLevel(PointClampSampler, UV, 0);
 	float3 WorldNormal = normalize((GBuffer_Normal.SampleLevel(PointClampSampler, UV, 0).xyz * 2.0) - 1.0);

@@ -241,8 +241,10 @@ public:
 
 	struct SCBGBufferUnpackingData
 	{
-		XMFLOAT4 PerspectiveValues;
-		XMMATRIX InverseViewMatrix;
+		XMFLOAT4	PerspectiveValues{};
+		XMMATRIX	InverseViewMatrix{};
+		XMFLOAT2	ScreenSize{};
+		float		Reserved[2]{};
 	};
 
 	enum class EFlagsRendering

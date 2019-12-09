@@ -32,7 +32,7 @@ struct VS_INPUT
 struct VS_OUTPUT
 {
 	float4 Position : SV_POSITION;
-	float2 ProjectionSpacePosition : PROJ_POSITION;
+	float2 ScreenPosition : SCREEN_POSITION;
 	float3 TexCoord : TEXCOORD;
 };
 

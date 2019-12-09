@@ -1587,7 +1587,8 @@ void CGame::CreateStaticSky(float ScalingFactor)
 
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
 	//m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
-	m_Object3DSkySphere->Create(GenerateCubemapSphere(KSkySphereSegmentCount));
+	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, XMVectorSet(0.5f, 1.0f, 1.5f, 1), XMVectorSet(-0.5f, -0.5f, -0.5f, 1)));
+	//m_Object3DSkySphere->Create(GenerateCubemapSphere(KSkySphereSegmentCount));
 	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
 	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
 
@@ -3859,13 +3860,13 @@ void CGame::Draw()
 			XMFLOAT4(1.0f / XMVectorGetX(m_MatrixProjection.r[0]), 1.0f / XMVectorGetY(m_MatrixProjection.r[1]), 
 				XMVectorGetZ(m_MatrixProjection.r[3]), -XMVectorGetZ(m_MatrixProjection.r[2]));
 		m_CBGBufferUnpackingData.InverseViewMatrix = XMMatrixTranspose(XMMatrixInverse(nullptr, m_MatrixView));
+		m_CBGBufferUnpackingData.ScreenSize = m_WindowSize;
 		m_CBGBufferUnpacking->Update();
 
 		// Directional light
 		{
 			UpdateCBDirectionalLight();
 			
-			// @important: IBL turned off for performance issue in my laptop...
 			DrawFullScreenQuad(m_PSDirectionalLight.get(), SRVs, ARRAYSIZE(SRVs));
 			//DrawFullScreenQuad(m_PSDirectionalLight_NonIBL.get(), SRVs, ARRAYSIZE(SRVs));
 		}
@@ -5826,7 +5827,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"색상");
 								ImGui::SameLine(ItemsOffsetX);
-								if (ImGui::ColorEdit3(u8"##색상", Color, ImGuiColorEditFlags_RGB))
+								if (ImGui::ColorEdit3(u8"##색상", Color, ImGuiColorEditFlags_RGB | ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR))
 								{
 									m_Light->SetInstanceColor(SelectionData.Name, XMVectorSet(Color[0], Color[1], Color[2], 1.0f));
 								}
