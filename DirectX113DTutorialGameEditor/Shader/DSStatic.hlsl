@@ -42,7 +42,7 @@ DS_OUTPUT main(HS_CONSTANT_DATA_OUTPUT TessFactors, float3 Domain : SV_DomainLoc
 	float4 N2 = normalize(Patch[1].WorldNormal);
 	float4 N3 = normalize(Patch[2].WorldNormal);
 
-	float4 Bezier = GetBezier(P1, P2, P3, N1, N2, N3, Domain);
+	float4 Bezier = GetBezierPosition(P1, P2, P3, N1, N2, N3, Domain);
 
 	if (UseDisplacement)
 	{

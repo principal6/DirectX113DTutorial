@@ -1150,9 +1150,10 @@ void CGame::CreateCubemapVertexBuffer()
 
 void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 {
-	CBinaryData SceneBinaryData{};
 	string ReadString{};
+	XMVECTOR ReadXMVECTOR{};
 
+	CBinaryData SceneBinaryData{};
 	SceneBinaryData.LoadFromFile(FileName);
 
 	// Terrain
@@ -1186,13 +1187,14 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 	}
 
 	// Editor camera
-	XMVECTOR ReadXMVECTOR{};
-	m_EditorCamera->SetType((CCamera::EType)SceneBinaryData.ReadUint32());
-	SceneBinaryData.ReadXMVECTOR(ReadXMVECTOR);
-	m_EditorCamera->TranslateTo(ReadXMVECTOR);
-	m_EditorCamera->SetPitch(SceneBinaryData.ReadFloat());
-	m_EditorCamera->SetYaw(SceneBinaryData.ReadFloat());
-	m_EditorCamera->SetMovementFactor(SceneBinaryData.ReadFloat());
+	{
+		m_EditorCamera->SetType((CCamera::EType)SceneBinaryData.ReadUint32());
+		SceneBinaryData.ReadXMVECTOR(ReadXMVECTOR);
+		m_EditorCamera->TranslateTo(ReadXMVECTOR);
+		m_EditorCamera->SetPitch(SceneBinaryData.ReadFloat());
+		m_EditorCamera->SetYaw(SceneBinaryData.ReadFloat());
+		m_EditorCamera->SetMovementFactor(SceneBinaryData.ReadFloat());
+	}
 
 	// Camera
 	{
@@ -1243,85 +1245,122 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 			m_LightRep->SetInstancePosition(InstanceCPUData.Name, InstanceGPUData.Position);
 		}
 	}
+
+	// Light probe
+	{
+		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+		m_EnvironmentTexture->CreateCubeMapFromFile(ReadString);
+		m_EnvironmentTexture->SetSlot(KEnvironmentTextureSlot);
+
+		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+		m_IrradianceTexture->CreateCubeMapFromFile(ReadString);
+		m_IrradianceTexture->SetSlot(KIrradianceTextureSlot);
+
+		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+		m_PrefilteredRadianceTexture->CreateCubeMapFromFile(ReadString);
+		m_PrefilteredRadianceTexture->SetSlot(KPrefilteredRadianceTextureSlot);
+
+		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+		m_IntegratedBRDFTexture->CreateCubeMapFromFile(ReadString);
+		m_IntegratedBRDFTexture->SetSlot(KIntegratedBRDFTextureSlot);
+	}
 }
 
 void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 {
-	CBinaryData SceneBinaryData{};
-
 	CreateDirectoryA(SceneDirectory.c_str(), nullptr);
 
+	CBinaryData SceneBinaryData{};
+	
 	// Terrain
-	if (m_Terrain)
 	{
-		if (m_Terrain->GetFileName().empty())
+		if (m_Terrain)
 		{
-			m_Terrain->Save(SceneDirectory + "terrain.terr");
-		}
+			if (m_Terrain->GetFileName().empty())
+			{
+				m_Terrain->Save(SceneDirectory + "terrain.terr");
+			}
 
-		SceneBinaryData.WriteStringWithPrefixedLength(m_Terrain->GetFileName());
-	}
-	else
-	{
-		SceneBinaryData.WriteUint32(0);
+			SceneBinaryData.WriteStringWithPrefixedLength(m_Terrain->GetFileName());
+		}
+		else
+		{
+			SceneBinaryData.WriteUint32(0);
+		}
 	}
 
 	// Object3D
-	uint32_t Object3DCount{ (uint32_t)m_vObject3Ds.size() };
-	SceneBinaryData.WriteUint32(Object3DCount);
-	if (Object3DCount)
 	{
-		for (const auto& Object3D : m_vObject3Ds)
+		uint32_t Object3DCount{ (uint32_t)m_vObject3Ds.size() };
+		SceneBinaryData.WriteUint32(Object3DCount);
+		if (Object3DCount)
 		{
-			// @important: always save OB3D
+			for (const auto& Object3D : m_vObject3Ds)
 			{
-				Object3D->SaveOB3D(SceneDirectory + Object3D->GetName() + ".ob3d");
+				// @important: always save OB3D
+				{
+					Object3D->SaveOB3D(SceneDirectory + Object3D->GetName() + ".ob3d");
+				}
+
+				SceneBinaryData.WriteStringWithPrefixedLength(Object3D->GetOB3DFileName());
+
+				// @important
+				SceneBinaryData.WriteBool(Object3D->IsRigged());
 			}
-
-			SceneBinaryData.WriteStringWithPrefixedLength(Object3D->GetOB3DFileName());
-
-			// @important
-			SceneBinaryData.WriteBool(Object3D->IsRigged());
 		}
 	}
 
 	// Editor camera
-	SceneBinaryData.WriteUint32((uint32_t)m_EditorCamera->GetType());
-	SceneBinaryData.WriteXMVECTOR(m_EditorCamera->GetTranslation());
-	SceneBinaryData.WriteFloat(m_EditorCamera->GetPitch());
-	SceneBinaryData.WriteFloat(m_EditorCamera->GetYaw());
-	SceneBinaryData.WriteFloat(m_EditorCamera->GetMovementFactor());
+	{
+		SceneBinaryData.WriteUint32((uint32_t)m_EditorCamera->GetType());
+		SceneBinaryData.WriteXMVECTOR(m_EditorCamera->GetTranslation());
+		SceneBinaryData.WriteFloat(m_EditorCamera->GetPitch());
+		SceneBinaryData.WriteFloat(m_EditorCamera->GetYaw());
+		SceneBinaryData.WriteFloat(m_EditorCamera->GetMovementFactor());
+	}
 
 	// Camera
-	uint32_t CameraCount{ (uint32_t)m_vCameras.size() };
-	SceneBinaryData.WriteUint32(CameraCount);
-	for (const auto& Camera : m_vCameras)
 	{
-		SceneBinaryData.WriteStringWithPrefixedLength(Camera->GetName());
-		SceneBinaryData.WriteUint32((uint32_t)Camera->GetType());
-		SceneBinaryData.WriteXMVECTOR(Camera->GetTranslation());
-		SceneBinaryData.WriteFloat(Camera->GetPitch());
-		SceneBinaryData.WriteFloat(Camera->GetYaw());
-		SceneBinaryData.WriteFloat(Camera->GetMovementFactor());
+		uint32_t CameraCount{ (uint32_t)m_vCameras.size() };
+		SceneBinaryData.WriteUint32(CameraCount);
+		for (const auto& Camera : m_vCameras)
+		{
+			SceneBinaryData.WriteStringWithPrefixedLength(Camera->GetName());
+			SceneBinaryData.WriteUint32((uint32_t)Camera->GetType());
+			SceneBinaryData.WriteXMVECTOR(Camera->GetTranslation());
+			SceneBinaryData.WriteFloat(Camera->GetPitch());
+			SceneBinaryData.WriteFloat(Camera->GetYaw());
+			SceneBinaryData.WriteFloat(Camera->GetMovementFactor());
+		}
 	}
 
 	// Light
-	uint32_t LightCount{ (uint32_t)m_Light->GetInstanceCount() };
-	SceneBinaryData.WriteUint32(LightCount);
-	if (LightCount)
 	{
-		for (const auto& LightPair : m_Light->GetInstanceNameToIndexMap())
+		uint32_t LightCount{ (uint32_t)m_Light->GetInstanceCount() };
+		SceneBinaryData.WriteUint32(LightCount);
+		if (LightCount)
 		{
-			const auto& InstanceCPUData{ m_Light->GetInstanceCPUData(LightPair.first) };
-			const auto& InstanceGPUData{ m_Light->GetInstanceGPUData(LightPair.first) };
+			for (const auto& LightPair : m_Light->GetInstanceNameToIndexMap())
+			{
+				const auto& InstanceCPUData{ m_Light->GetInstanceCPUData(LightPair.first) };
+				const auto& InstanceGPUData{ m_Light->GetInstanceGPUData(LightPair.first) };
 
-			SceneBinaryData.WriteStringWithPrefixedLength(InstanceCPUData.Name);
-			SceneBinaryData.WriteUint32((uint32_t)InstanceCPUData.eType);
+				SceneBinaryData.WriteStringWithPrefixedLength(InstanceCPUData.Name);
+				SceneBinaryData.WriteUint32((uint32_t)InstanceCPUData.eType);
 
-			SceneBinaryData.WriteXMVECTOR(InstanceGPUData.Position);
-			SceneBinaryData.WriteXMVECTOR(InstanceGPUData.Color);
-			SceneBinaryData.WriteFloat(InstanceGPUData.Range);
-		}	
+				SceneBinaryData.WriteXMVECTOR(InstanceGPUData.Position);
+				SceneBinaryData.WriteXMVECTOR(InstanceGPUData.Color);
+				SceneBinaryData.WriteFloat(InstanceGPUData.Range);
+			}
+		}
+	}
+
+	// Light probe
+	{
+		SceneBinaryData.WriteStringWithPrefixedLength(m_EnvironmentTexture->GetFileName());
+		SceneBinaryData.WriteStringWithPrefixedLength(m_IrradianceTexture->GetFileName());
+		SceneBinaryData.WriteStringWithPrefixedLength(m_PrefilteredRadianceTexture->GetFileName());
+		SceneBinaryData.WriteStringWithPrefixedLength(m_IntegratedBRDFTexture->GetFileName());
 	}
 	
 	SceneBinaryData.SaveToFile(FileName);
@@ -1591,8 +1630,7 @@ void CGame::CreateStaticSky(float ScalingFactor)
 
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
 	//m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
-	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, XMVectorSet(0.5f, 1.0f, 1.5f, 1), XMVectorSet(-0.5f, -0.5f, -0.5f, 1)));
-	//m_Object3DSkySphere->Create(GenerateCubemapSphere(KSkySphereSegmentCount));
+	m_Object3DSkySphere->Create(GenerateCubemapSphere(KSkySphereSegmentCount));
 	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
 	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
 
@@ -4032,7 +4070,8 @@ void CGame::Draw()
 	{
 		if (m_Light->GetInstanceCount() > 0)
 		{
-			m_DeviceContext->RSSetState(m_CommonStates->CullCounterClockwise());
+			m_DeviceContext->RSSetState(m_CommonStates->CullClockwise());
+			//m_DeviceContext->RSSetState(m_CommonStates->CullCounterClockwise());
 
 			UpdateCBSpace();
 
@@ -6372,7 +6411,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							{
 								m_EnvironmentTexture->CreateCubeMapFromFile(FileDialog.GetFileName());
 
-								if (m_EnvironmentTexture->IsHDR())
+								if (m_EnvironmentTexture->IsHDRi())
 								{
 									GenerateCubemapFromHDRi();
 								}
@@ -6384,7 +6423,6 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8"현재 Environment map");
 
-							ImGui::SameLine(ItemsOffsetX);
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8" : %s", m_EnvironmentTexture->GetFileName().c_str());
 
@@ -6445,7 +6483,6 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8"현재 Irradiance map");
 
-							ImGui::SameLine(ItemsOffsetX);
 							ImGui::AlignTextToFramePadding();
 							ImGui::Text(u8" : %s", m_IrradianceTexture->GetFileName().c_str());
 
@@ -7629,7 +7666,7 @@ void CGame::GeneratePrefilteredRadianceMap(float RangeFactor)
 {
 	m_EnvironmentTexture->GetTexture2DPtr()->GetDesc(&m_PrefilteredRadianceMapTextureDesc);
 
-	const uint32_t KMipLevelBias{ 2 }; // @important: Maybe becuase of my poor hardware...???
+	const uint32_t KMipLevelBias{ 3 }; // @important: Maybe becuase of my poor hardware...???
 	const uint32_t BiasedMipMax{ m_PrefilteredRadianceMapTextureDesc.MipLevels - KMipLevelBias };
 
 	// @important
