@@ -9,6 +9,7 @@ Texture2D GBuffer_DepthStencil : register(t0);
 Texture2D GBuffer_BaseColor_Rough : register(t1);
 Texture2D GBuffer_Normal : register(t2);
 Texture2D GBuffer_Metal_AO : register(t3);
+Texture2D ShadowMap : register(t4);
 
 TextureCube EnvironmentTexture : register(t50);
 TextureCube IrradianceTexture : register(t51);
@@ -25,14 +26,15 @@ cbuffer cbGBufferUnpacking : register(b0)
 
 cbuffer cbDirectionalLight : register(b1)
 {
-	float4	LightDirection;
-	float3	LightColor;
-	float	Exposure;
-	float3	AmbientLightColor;
-	float	AmbientLightIntensity;
-	uint	EnvironmentTextureMipLevels;
-	uint	PrefilteredRadianceTextureMipLevels;
-	float2	Reserved;
+	float4		LightDirection;
+	float3		LightColor;
+	float		Exposure;
+	float3		AmbientLightColor;
+	float		AmbientLightIntensity;
+	float4x4	LightSpaceMatrix;
+	uint		EnvironmentTextureMipLevels;
+	uint		PrefilteredRadianceTextureMipLevels;
+	float2		Reserved;
 }
 
 #define UV Input.TexCoord.xy
@@ -61,8 +63,21 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		float3 Wo = normalize(EyePosition - ObjectWorldPosition.xyz);
 		float3 F0 = lerp(KFresnel_dielectric, BaseColor, Metalness);
 		float NdotWo = max(dot(N, Wo), 0.001);
+
+		float Shadow = 1.0; // 1 for "not in shadow", 0 for "in shadow"
+		// Shadow
+		{
+			float4 LightSpacePosition = mul(ObjectWorldPosition, LightSpaceMatrix);
+			LightSpacePosition /= LightSpacePosition.w;
+
+			float2 ShadowMapUV = float2(LightSpacePosition.x * 0.5 + 0.5, -LightSpacePosition.y * 0.5 + 0.5);
+			float ShadowMapDepth = ShadowMap.SampleLevel(PointClampSampler, ShadowMapUV, 0).x;
+
+			if (LightSpacePosition.z > ShadowMapDepth + 0.001) Shadow = 0;
+		}
 		
 		// Direct light
+		float3 DirectLight = float3(0, 0, 0);
 		{
 			float3 Wi = LightDirection.xyz;
 			float3 M = normalize(Wi + Wo);
@@ -81,14 +96,15 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			float3 Lo_diff = (Kd * DiffuseBRDF) * Li * NdotWi;
 			float3 Lo_spec = (Ks * SpecularBRDF) * Li * NdotWi;
 
-			OutputColor.xyz += Lo_diff + Lo_spec;
+			DirectLight = (Lo_diff + Lo_spec);
 		}
 
 		// Indirect light
+		float3 IndirectLight = float3(0, 0, 0);
 		float3 Ei = IrradianceTexture.SampleBias(LinearWrapSampler, N, Roughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
 		if (Metalness == 0.0)
 		{
-			OutputColor.xyz += Ei * BaseColor * K1DIVPI;
+			IndirectLight = Ei * BaseColor * K1DIVPI;
 		}
 		else
 		{
@@ -106,8 +122,10 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			float3 Lo_diff = Kd * Ei * BaseColor * K1DIVPI;
 			float3 Lo_spec = Ks * PrefilteredRadiance * (BaseColor * IntegratedBRDF.x + IntegratedBRDF.y);
 
-			OutputColor.xyz += (Lo_diff + Lo_spec) * AmbientOcclusion;
+			IndirectLight = (Lo_diff + Lo_spec) * AmbientOcclusion;
 		}
+
+		OutputColor.xyz = DirectLight * Shadow + IndirectLight; // @important
 	}
 	OutputColor = pow(OutputColor, 0.4545);
 

@@ -253,7 +253,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	return OutputColor;
 }
 
-GBufferOutput gbuffer(VS_OUTPUT Input)
+GBufferOutput GBuffer(VS_OUTPUT Input)
 {
 	float3 DiffuseColor = MaterialDiffuseColor;
 	float4 WorldNormal = normalize(Input.WorldNormal);
@@ -298,4 +298,9 @@ GBufferOutput gbuffer(VS_OUTPUT Input)
 	Output.Normal = float4(N * 0.5 + 0.5, 0);
 	Output.MetalAO = float4(Metalness, AmbientOcclusion, 0, 0);
 	return Output;
+}
+
+float4 Void() : SV_TARGET
+{
+	return float4(1, 1, 1, 1);
 }

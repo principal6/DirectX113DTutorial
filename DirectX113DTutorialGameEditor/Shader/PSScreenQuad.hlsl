@@ -8,7 +8,12 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	return DeferredTexture.Sample(PointClampSampler, Input.TexCoord.xy);
 }
 
-float4 opaque(VS_OUTPUT Input) : SV_TARGET
+float4 Opaque(VS_OUTPUT Input) : SV_TARGET
 {
 	return float4(DeferredTexture.Sample(PointClampSampler, Input.TexCoord.xy).xyz, 1);
+}
+
+float4 Depth(VS_OUTPUT Input) : SV_TARGET
+{
+	return float4(DeferredTexture.Sample(PointClampSampler, Input.TexCoord.xy).xxx, 1);
 }

@@ -64,6 +64,7 @@ public:
 
 		PSBase,
 		PSBase_GBuffer,
+		PSBase_Void,
 		PSVertexColor,
 		PSDynamicSky,
 		PSCloud,
@@ -77,6 +78,7 @@ public:
 		PSCamera,
 		PSScreenQuad,
 		PSScreenQuad_Opaque,
+		PSScreenQuad_Depth,
 		PSEdgeDetector,
 		PSSky,
 		PSIrradianceGenerator,
@@ -164,6 +166,7 @@ public:
 		float		Exposure{ 1.0 };
 		XMFLOAT3	AmbientLightColor{ 1, 1, 1 };
 		float		AmbientLightIntensity{ 0.5f };
+		XMMATRIX	LightSpaceMatrix{ KMatrixIdentity };
 		uint32_t	EnvironmentTextureMipLevels{};
 		uint32_t	PrefilteredRadianceTextureMipLevels{};
 		float		Reserved[2]{};
@@ -431,6 +434,29 @@ public:
 		size_t						PasteCounter{};
 	};
 
+	struct SGeometryBuffers
+	{
+		// GBuffer #0 - Depth 24 Stencil 8
+		ComPtr<ID3D11Texture2D>				DepthStencilBuffer{};
+		ComPtr<ID3D11DepthStencilView>		DepthStencilDSV{};
+		ComPtr<ID3D11ShaderResourceView>	DepthStencilSRV{};
+
+		// GBuffer #1 - Base color 24 & Roughness 8
+		ComPtr<ID3D11Texture2D>				BaseColorRoughBuffer{};
+		ComPtr<ID3D11RenderTargetView>		BaseColorRoughRTV{};
+		ComPtr<ID3D11ShaderResourceView>	BaseColorRoughSRV{};
+
+		// GBuffer #2 - Normal 32
+		ComPtr<ID3D11Texture2D>				NormalBuffer{};
+		ComPtr<ID3D11RenderTargetView>		NormalRTV{};
+		ComPtr<ID3D11ShaderResourceView>	NormalSRV{};
+
+		// GBuffer #3 - Metalness 8 & AmbientOcclusion 8
+		ComPtr<ID3D11Texture2D>				MetalAOBuffer{};
+		ComPtr<ID3D11RenderTargetView>		MetalAORTV{};
+		ComPtr<ID3D11ShaderResourceView>	MetalAOSRV{};
+	};
+
 public:
 	CGame(HINSTANCE hInstance, const XMFLOAT2& WindowSize) : m_hInstance{ hInstance }, m_WindowSize{ WindowSize } {}
 	~CGame() {}
@@ -657,7 +683,7 @@ public:
 	auto GetDeltaTime() const->float { return m_DeltaTimeF; }
 
 private:
-	void DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances = false, bool bIgnoreOwnTexture = false);
+	void DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances = false, bool bIgnoreOwnTexture = false, bool bUseVoidPS = false);
 	void DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D);
 
 	void DrawObject3DLines();
@@ -749,7 +775,7 @@ private:
 	static constexpr float KDefaultFOV{ 50.0f / 360.0f * XM_2PI };
 	static constexpr float KDefaultNearZ{ 0.1f };
 	static constexpr float KDefaultFarZ{ 1000.0f };
-	static constexpr float KSkyDistance{ 100.0f };
+	static constexpr float KSkyDistance{ 30.0f };
 	static constexpr float KSkyTimeFactorAbsolute{ 0.04f };
 	static constexpr float KPickingRayLength{ 1000.0f };
 	static constexpr uint32_t KSkySphereSegmentCount{ 32 };
@@ -763,6 +789,7 @@ private:
 	static constexpr int KEditorCameraID{ -999 };
 	static constexpr float KEditorCameraDefaultMovementFactor{ 3.0f };
 	static constexpr size_t KInvalidIndex{ SIZE_T_MAX };
+	static constexpr float KDirectionalLightShadowMapSize{ 2048.0f };
 
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
@@ -803,7 +830,8 @@ private:
 	std::unique_ptr<CShader>	m_GSParticle{};
 
 	std::unique_ptr<CShader>	m_PSBase{};
-	std::unique_ptr<CShader>	m_PSBase_gbuffer{};
+	std::unique_ptr<CShader>	m_PSBase_GBuffer{};
+	std::unique_ptr<CShader>	m_PSBase_Void{};
 	std::unique_ptr<CShader>	m_PSVertexColor{};
 	std::unique_ptr<CShader>	m_PSDynamicSky{};
 	std::unique_ptr<CShader>	m_PSCloud{};
@@ -816,7 +844,8 @@ private:
 	std::unique_ptr<CShader>	m_PSParticle{};
 	std::unique_ptr<CShader>	m_PSCamera{};
 	std::unique_ptr<CShader>	m_PSScreenQuad{};
-	std::unique_ptr<CShader>	m_PSScreenQuad_opaque{};
+	std::unique_ptr<CShader>	m_PSScreenQuad_Opaque{};
+	std::unique_ptr<CShader>	m_PSScreenQuad_Depth{};
 	std::unique_ptr<CShader>	m_PSEdgeDetector{};
 	std::unique_ptr<CShader>	m_PSSky{};
 	std::unique_ptr<CShader>	m_PSIrradianceGenerator{};
@@ -1088,25 +1117,12 @@ private:
 	ComPtr<ID3D11RenderTargetView>		m_ScreenQuadRTV{};
 	ComPtr<ID3D11ShaderResourceView>	m_ScreenQuadSRV{};
 
-	// GBuffer #0 - Depth 24 Stencil 8
-	ComPtr<ID3D11Texture2D>				m_DepthStencilBuffer{};
-	ComPtr<ID3D11DepthStencilView>		m_DepthStencilDSV{};
-	ComPtr<ID3D11ShaderResourceView>	m_DepthStencilSRV{};
+	SGeometryBuffers					m_GBuffers{};
 
-	// GBuffer #1 - Base color 24 & Roughness 8
-	ComPtr<ID3D11Texture2D>				m_BaseColorRoughBuffer{};
-	ComPtr<ID3D11RenderTargetView>		m_BaseColorRoughRTV{};
-	ComPtr<ID3D11ShaderResourceView>	m_BaseColorRoughSRV{};
-
-	// GBuffer #2 - Normal 32
-	ComPtr<ID3D11Texture2D>				m_NormalBuffer{};
-	ComPtr<ID3D11RenderTargetView>		m_NormalRTV{};
-	ComPtr<ID3D11ShaderResourceView>	m_NormalSRV{};
-
-	// GBuffer #3 - Metalness 8 & AmbientOcclusion 8
-	ComPtr<ID3D11Texture2D>				m_MetalAOBuffer{};
-	ComPtr<ID3D11RenderTargetView>		m_MetalAORTV{};
-	ComPtr<ID3D11ShaderResourceView>	m_MetalAOSRV{};
+	ComPtr<ID3D11Texture2D>				m_DirectionalLightShadowMap{};
+	ComPtr<ID3D11DepthStencilView>		m_DirectionalLightShadowMapDSV{};
+	ComPtr<ID3D11ShaderResourceView>	m_DirectionalLightShadowMapSRV{};
+	D3D11_VIEWPORT						m_DirectionalLightShadowMapViewport{};
 
 	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateLessEqualNoWrite{};
 	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateGreaterEqual{};
