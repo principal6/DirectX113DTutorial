@@ -3,16 +3,15 @@
 using std::string;
 using std::to_string;
 
-bool CLight::InsertInstance(std::string& InstanceName, EType eType)
+bool CLight::_InsertInstance(const std::string& InstanceName, EType eType)
 {
 	static size_t StaticInstanceCounter{};
 
 	if (m_mapInstanceNameToIndex.find(InstanceName) != m_mapInstanceNameToIndex.end())
 	{
-		MB_WARN("이미 존재하는 이름입니다.", "인스턴스 생성 실패");
+		MB_WARN(("해당 이름 (" + InstanceName + ") 을 사용할 수 없습니다.").c_str(), "인스턴스 생성 실패");
 		return false;
 	}
-	if (InstanceName.empty()) InstanceName = "light" + to_string(StaticInstanceCounter); // @important: auto-generated name
 
 	bool bShouldRecreateInstanceBuffer{ m_vInstanceCPUData.size() == m_vInstanceCPUData.capacity() };
 
@@ -85,22 +84,34 @@ void CLight::ClearInstances()
 	m_mapInstanceNameToIndex.clear();
 }
 
-size_t CLight::GetInstanceCount() const
+void CLight::CreateInstanceBuffer()
 {
-	return m_vInstanceCPUData.size();
+	D3D11_BUFFER_DESC BufferDesc{};
+	BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SInstanceGPUData) * m_vInstanceGPUData.capacity()); // @important
+	BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	BufferDesc.MiscFlags = 0;
+	BufferDesc.StructureByteStride = 0;
+	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+
+	D3D11_SUBRESOURCE_DATA SubresourceData{};
+	SubresourceData.pSysMem = &m_vInstanceGPUData[0];
+
+	m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, m_InstanceBuffer.Buffer.ReleaseAndGetAddressOf());
 }
 
-const CLight::SLightInstanceCPUData& CLight::GetInstanceCPUData(const std::string& InstanceName) const
+void CLight::UpdateInstanceBuffer()
 {
-	return m_vInstanceCPUData[GetInstanceID(InstanceName)];
+	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
+	if (SUCCEEDED(m_PtrDeviceContext->Map(m_InstanceBuffer.Buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
+	{
+		memcpy(MappedSubresource.pData, &m_vInstanceGPUData[0], sizeof(SInstanceGPUData) * m_vInstanceGPUData.size());
+
+		m_PtrDeviceContext->Unmap(m_InstanceBuffer.Buffer.Get(), 0);
+	}
 }
 
-const CLight::SLightInstanceGPUData& CLight::GetInstanceGPUData(const std::string& InstanceName) const
-{
-	return m_vInstanceGPUData[GetInstanceID(InstanceName)];
-}
-
-void CLight::SetInstanceGPUData(const std::string& InstanceName, const SLightInstanceGPUData& Data)
+void CLight::SetInstanceGPUData(const std::string& InstanceName, const SInstanceGPUData& Data)
 {
 	m_vInstanceGPUData[GetInstanceID(InstanceName)] = Data;
 
@@ -128,38 +139,6 @@ void CLight::SetInstanceRange(const std::string& InstanceName, float Range)
 	UpdateInstanceBuffer();
 }
 
-size_t CLight::GetInstanceID(const std::string& InstanceName) const
-{
-	return m_mapInstanceNameToIndex.at(InstanceName);
-}
-
-void CLight::CreateInstanceBuffer()
-{
-	D3D11_BUFFER_DESC BufferDesc{};
-	BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SLightInstanceGPUData) * m_vInstanceGPUData.capacity()); // @important
-	BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	BufferDesc.MiscFlags = 0;
-	BufferDesc.StructureByteStride = 0;
-	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-
-	D3D11_SUBRESOURCE_DATA SubresourceData{};
-	SubresourceData.pSysMem = &m_vInstanceGPUData[0];
-
-	m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, m_InstanceBuffer.Buffer.ReleaseAndGetAddressOf());
-}
-
-void CLight::UpdateInstanceBuffer()
-{
-	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
-	if (SUCCEEDED(m_PtrDeviceContext->Map(m_InstanceBuffer.Buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
-	{
-		memcpy(MappedSubresource.pData, &m_vInstanceGPUData[0], sizeof(SLightInstanceGPUData) * m_vInstanceGPUData.size());
-
-		m_PtrDeviceContext->Unmap(m_InstanceBuffer.Buffer.Get(), 0);
-	}
-}
-
 void CLight::Light()
 {
 	m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST);
@@ -167,12 +146,66 @@ void CLight::Light()
 	m_PtrDeviceContext->DrawInstanced(2, (UINT)m_vInstanceCPUData.size(), 0, 0);
 }
 
-float CLight::GetBoundingSphereRadius() const
+size_t CLight::GetInstanceCount() const
 {
-	return m_BoundingSphereRadius;
+	return m_vInstanceCPUData.size();
+}
+
+const CLight::SInstanceCPUData& CLight::GetInstanceCPUData(const std::string& InstanceName) const
+{
+	return m_vInstanceCPUData[GetInstanceID(InstanceName)];
+}
+
+const CLight::SInstanceGPUData& CLight::GetInstanceGPUData(const std::string& InstanceName) const
+{
+	return m_vInstanceGPUData[GetInstanceID(InstanceName)];
+}
+
+size_t CLight::GetInstanceID(const std::string& InstanceName) const
+{
+	return m_mapInstanceNameToIndex.at(InstanceName);
 }
 
 const std::map<std::string, size_t>& CLight::GetInstanceNameToIndexMap() const
 {
 	return m_mapInstanceNameToIndex;
+}
+
+float CLight::GetBoundingSphereRadius() const
+{
+	return m_BoundingSphereRadius;
+}
+
+bool CPointLight::InsertInstance(const std::string& InstanceName)
+{
+	return _InsertInstance(InstanceName, EType::PointLight);
+}
+
+CLight::EType CPointLight::GetType() const
+{
+	return EType::PointLight;
+}
+
+bool CSpotLight::InsertInstance(const std::string& InstanceName)
+{
+	return _InsertInstance(InstanceName, EType::SpotLight);
+}
+
+void CSpotLight::SetInstanceDirection(const std::string& InstanceName, const XMVECTOR& Direction)
+{
+	m_vInstanceGPUData[GetInstanceID(InstanceName)].Direction = XMVector3Normalize(Direction);
+
+	UpdateInstanceBuffer();
+}
+
+void CSpotLight::SetInstanceTheta(const std::string& InstanceName, float Theta)
+{
+	m_vInstanceGPUData[GetInstanceID(InstanceName)].Theta = Theta;
+
+	UpdateInstanceBuffer();
+}
+
+CLight::EType CSpotLight::GetType() const
+{
+	return EType::SpotLight;
 }

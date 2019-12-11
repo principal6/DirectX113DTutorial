@@ -145,9 +145,10 @@ void CGame::InitializeEditorAssets()
 		m_CameraRep->CreateFromFile("Asset\\camera_repr.fbx", false);
 	}
 
-	if (!m_Light)
+	if (!m_LightArray[0])
 	{
-		m_Light = make_unique<CLight>(m_Device.Get(), m_DeviceContext.Get());
+		m_LightArray[0] = make_unique<CPointLight>(m_Device.Get(), m_DeviceContext.Get());
+		m_LightArray[1] = make_unique<CSpotLight>(m_Device.Get(), m_DeviceContext.Get());
 	}
 
 	if (!m_LightRep)
@@ -502,6 +503,11 @@ void CGame::CreateDepthStencilStates()
 
 	assert(SUCCEEDED(m_Device->CreateDepthStencilState(&DepthStencilDesc, m_DepthStencilStateLessEqualNoWrite.ReleaseAndGetAddressOf())));
 
+	DepthStencilDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
+	DepthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+
+	assert(SUCCEEDED(m_Device->CreateDepthStencilState(&DepthStencilDesc, m_DepthStencilStateGreaterEqual.ReleaseAndGetAddressOf())));
+
 	DepthStencilDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
 	DepthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 
@@ -740,6 +746,9 @@ void CGame::CreateBaseShaders()
 	m_HSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_HSPointLight->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSPointLight.hlsl", "main");
 
+	m_HSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_HSSpotLight->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSSpotLight.hlsl", "main");
+
 	m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSTerrain->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSTerrain.hlsl", "main");
 	m_DSTerrain->AttachConstantBuffer(m_CBSpaceVP.get());
@@ -763,6 +772,10 @@ void CGame::CreateBaseShaders()
 	m_DSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_DSPointLight->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSPointLight.hlsl", "main");
 	m_DSPointLight->AttachConstantBuffer(m_CBSpaceVP.get());
+
+	m_DSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_DSSpotLight->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSSpotLight.hlsl", "main");
+	m_DSSpotLight->AttachConstantBuffer(m_CBSpaceVP.get());
 
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_GSNormal->Create(EShaderType::GeometryShader, bShouldCompile, L"Shader\\GSNormal.hlsl", "main");
@@ -891,6 +904,14 @@ void CGame::CreateBaseShaders()
 	m_PSPointLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSPointLight_Volume->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSPointLight.hlsl", "Volume");
 	m_PSPointLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get());
+
+	m_PSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSSpotLight->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "main");
+	m_PSSpotLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
+
+	m_PSSpotLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+	m_PSSpotLight_Volume->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "Volume");
+	m_PSSpotLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 	m_PSBase2D->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBase2D.hlsl", "main");
@@ -1150,6 +1171,8 @@ void CGame::CreateCubemapVertexBuffer()
 
 void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 {
+	DeselectAll();
+
 	string ReadString{};
 	XMVECTOR ReadXMVECTOR{};
 
@@ -1221,28 +1244,36 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 			m_CameraRep->UpdateInstanceWorldMatrix(ReadString);
 		}
 	}
-
+	
 	// Light
 	{
 		ClearLights();
 
-		uint32_t LightCount{ SceneBinaryData.ReadUint32() };
-		for (uint32_t iLight = 0; iLight < LightCount; ++iLight)
+		for (uint32_t iLightType = 0; iLightType < CLight::KLightTypeCount; ++iLightType)
 		{
-			CLight::SLightInstanceCPUData InstanceCPUData{};
-			CLight::SLightInstanceGPUData InstanceGPUData{};
+			uint32_t LightType{ SceneBinaryData.ReadUint32() };
 
-			SceneBinaryData.ReadStringWithPrefixedLength(InstanceCPUData.Name);
-			InstanceCPUData.eType = (CLight::EType)SceneBinaryData.ReadUint32();
+			uint32_t LightCount{ SceneBinaryData.ReadUint32() };
 
-			SceneBinaryData.ReadXMVECTOR(InstanceGPUData.Position);
-			SceneBinaryData.ReadXMVECTOR(InstanceGPUData.Color);
-			SceneBinaryData.ReadFloat(InstanceGPUData.Range);
+			for (uint32_t iLight = 0; iLight < LightCount; ++iLight)
+			{
+				CLight::SInstanceCPUData InstanceCPUData{};
+				CLight::SInstanceGPUData InstanceGPUData{};
 
-			InsertLight(InstanceCPUData.eType, InstanceCPUData.Name);
+				SceneBinaryData.ReadStringWithPrefixedLength(InstanceCPUData.Name);
+				InstanceCPUData.eType = (CLight::EType)SceneBinaryData.ReadUint32();
 
-			m_Light->SetInstanceGPUData(InstanceCPUData.Name, InstanceGPUData);
-			m_LightRep->SetInstancePosition(InstanceCPUData.Name, InstanceGPUData.Position);
+				SceneBinaryData.ReadXMVECTOR(InstanceGPUData.Position);
+				SceneBinaryData.ReadXMVECTOR(InstanceGPUData.Color);
+				SceneBinaryData.ReadXMVECTOR(InstanceGPUData.Direction);
+				SceneBinaryData.ReadFloat(InstanceGPUData.Range);
+				SceneBinaryData.ReadFloat(InstanceGPUData.Theta);
+
+				InsertLight(InstanceCPUData.eType, InstanceCPUData.Name);
+
+				m_LightArray[(uint32_t)InstanceCPUData.eType]->SetInstanceGPUData(InstanceCPUData.Name, InstanceGPUData);
+				m_LightRep->SetInstancePosition(InstanceCPUData.Name, InstanceGPUData.Position);
+			}
 		}
 	}
 
@@ -1334,23 +1365,32 @@ void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 		}
 	}
 
-	// Light
+	// LightArray
 	{
-		uint32_t LightCount{ (uint32_t)m_Light->GetInstanceCount() };
-		SceneBinaryData.WriteUint32(LightCount);
-		if (LightCount)
+		for (auto& Light : m_LightArray)
 		{
-			for (const auto& LightPair : m_Light->GetInstanceNameToIndexMap())
+			uint32_t LightType{ (uint32_t)Light->GetType() };
+			SceneBinaryData.WriteUint32(LightType);
+
+			uint32_t LightCount{ (uint32_t)Light->GetInstanceCount() };
+			SceneBinaryData.WriteUint32(LightCount);
+
+			if (LightCount)
 			{
-				const auto& InstanceCPUData{ m_Light->GetInstanceCPUData(LightPair.first) };
-				const auto& InstanceGPUData{ m_Light->GetInstanceGPUData(LightPair.first) };
+				for (const auto& LightPair : Light->GetInstanceNameToIndexMap())
+				{
+					const auto& InstanceCPUData{ Light->GetInstanceCPUData(LightPair.first) };
+					const auto& InstanceGPUData{ Light->GetInstanceGPUData(LightPair.first) };
 
-				SceneBinaryData.WriteStringWithPrefixedLength(InstanceCPUData.Name);
-				SceneBinaryData.WriteUint32((uint32_t)InstanceCPUData.eType);
+					SceneBinaryData.WriteStringWithPrefixedLength(InstanceCPUData.Name);
+					SceneBinaryData.WriteUint32((uint32_t)InstanceCPUData.eType);
 
-				SceneBinaryData.WriteXMVECTOR(InstanceGPUData.Position);
-				SceneBinaryData.WriteXMVECTOR(InstanceGPUData.Color);
-				SceneBinaryData.WriteFloat(InstanceGPUData.Range);
+					SceneBinaryData.WriteXMVECTOR(InstanceGPUData.Position);
+					SceneBinaryData.WriteXMVECTOR(InstanceGPUData.Color);
+					SceneBinaryData.WriteXMVECTOR(InstanceGPUData.Direction);
+					SceneBinaryData.WriteFloat(InstanceGPUData.Range);
+					SceneBinaryData.WriteFloat(InstanceGPUData.Theta);
+				}
 			}
 		}
 	}
@@ -1803,7 +1843,9 @@ void CGame::CopySelectedObject()
 			case CGame::EObjectType::Camera:
 				break;
 			case CGame::EObjectType::Light:
-				m_vCopyLights.emplace_back(m_Light->GetInstanceCPUData(SelectionData.Name), m_Light->GetInstanceGPUData(SelectionData.Name));
+				m_vCopyLights.emplace_back(
+					m_LightArray[SelectionData.Extra]->GetInstanceCPUData(SelectionData.Name),
+					m_LightArray[SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name));
 				break;
 			}
 		}
@@ -1873,10 +1915,10 @@ void CGame::PasteCopiedObject()
 
 		if (InsertLight(CopyLight.InstanceCPUData.eType, NewName))
 		{
-			m_Light->SetInstanceGPUData(NewName, CopyLight.InstanceGPUData);
+			m_LightArray[(uint32_t)CopyLight.InstanceCPUData.eType]->SetInstanceGPUData(NewName, CopyLight.InstanceGPUData);
 			m_LightRep->SetInstancePosition(NewName, CopyLight.InstanceGPUData.Position);
 
-			SelectObject(SSelectionData(EObjectType::Light, NewName), true);
+			SelectObject(SSelectionData(EObjectType::Light, NewName, (uint32_t)CopyLight.InstanceCPUData.eType), true);
 			++SelectionCount;
 
 			++CopyLight.PasteCounter;
@@ -1914,7 +1956,7 @@ void CGame::DeleteSelectedObject()
 				DeleteCamera(SelectionData.Name);
 				break;
 			case CGame::EObjectType::Light:
-				DeleteLight(SelectionData.Name);
+				DeleteLight((CLight::EType)SelectionData.Extra, SelectionData.Name);
 				break;
 			case CGame::EObjectType::Object3DInstance:
 			{
@@ -2096,6 +2138,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::HSPointLight:
 		Result = m_HSPointLight.get();
 		break;
+	case EBaseShader::HSSpotLight:
+		Result = m_HSSpotLight.get();
+		break;
 	case EBaseShader::DSTerrain:
 		Result = m_DSTerrain.get();
 		break;
@@ -2110,6 +2155,9 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::DSPointLight:
 		Result = m_DSPointLight.get();
+		break;
+	case EBaseShader::DSSpotLight:
+		Result = m_DSSpotLight.get();
 		break;
 	case EBaseShader::GSNormal:
 		Result = m_GSNormal.get();
@@ -2191,6 +2239,12 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSPointLight_Volume:
 		Result = m_PSPointLight_Volume.get();
+		break;
+	case EBaseShader::PSSpotLight:
+		Result = m_PSSpotLight.get();
+		break;
+	case EBaseShader::PSSpotLight_Volume:
+		Result = m_PSSpotLight_Volume.get();
 		break;
 	case EBaseShader::PSBase2D:
 		Result = m_PSBase2D.get();
@@ -2555,7 +2609,15 @@ ID3D11ShaderResourceView* CGame::GetMaterialTextureSRV(STextureData::EType eType
 bool CGame::InsertLight(CLight::EType eType, const std::string& Name)
 {
 	string InstanceName{ Name };
-	if (m_Light->InsertInstance(InstanceName, eType))
+	
+	while ((m_umapLightNames.find(InstanceName) != m_umapLightNames.end()) || InstanceName.empty())
+	{
+		InstanceName = "light" + to_string(m_LightCounter);
+		++m_LightCounter;
+	}
+	m_umapLightNames[InstanceName] = 0xE;
+
+	if (m_LightArray[(uint32_t)eType]->InsertInstance(InstanceName))
 	{
 		m_LightRep->InsertInstance(InstanceName);
 		return true;
@@ -2563,17 +2625,25 @@ bool CGame::InsertLight(CLight::EType eType, const std::string& Name)
 	return false;
 }
 
-void CGame::DeleteLight(const std::string& Name)
+void CGame::DeleteLight(CLight::EType eType, const std::string& Name)
 {
-	if (m_Light->DeleteInstance(Name))
+	if (m_LightArray[(uint32_t)eType]->DeleteInstance(Name))
 	{
+		m_umapLightNames.erase(Name);
+
 		m_LightRep->DeleteInstance(Name);
 	}
 }
 
 void CGame::ClearLights()
 {
-	m_Light->ClearInstances();
+	m_umapLightNames.clear();
+	m_LightCounter = 0;
+
+	for (auto& Light : m_LightArray)
+	{
+		Light->ClearInstances();
+	}
 	m_LightRep->ClearInstances();
 }
 
@@ -2737,20 +2807,25 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 	}
 	m_CameraRep->UpdateInstanceBuffers();
 
-	for (const auto& LightPair : m_Light->GetInstanceNameToIndexMap())
+	for (const auto& Light : m_LightArray)
 	{
-		const XMVECTOR& WorldPosition{ m_Light->GetInstanceGPUData(LightPair.first).Position };
-		const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(WorldPosition, KViewProjection) };
-		const XMFLOAT2 KProjectionXY{ XMVectorGetX(KProjectionCenter), XMVectorGetY(KProjectionCenter) };
+		CLight::EType eType{ Light->GetType() };
 
-		if (IsInsideSelectionRegion(KProjectionXY))
+		for (const auto& LightPair : Light->GetInstanceNameToIndexMap())
 		{
-			m_vSelectionData.emplace_back(EObjectType::Light, LightPair.first);
-			m_MultipleSelectionWorldCenter += WorldPosition;
+			const XMVECTOR& WorldPosition{ Light->GetInstanceGPUData(LightPair.first).Position };
+			const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(WorldPosition, KViewProjection) };
+			const XMFLOAT2 KProjectionXY{ XMVectorGetX(KProjectionCenter), XMVectorGetY(KProjectionCenter) };
 
-			// @important
-			m_umapSelectionLight[LightPair.first] = m_vSelectionData.size() - 1;
-			m_LightRep->SetInstanceHighlight(LightPair.first, true);
+			if (IsInsideSelectionRegion(KProjectionXY))
+			{
+				m_vSelectionData.emplace_back(EObjectType::Light, LightPair.first, (uint32_t)eType);
+				m_MultipleSelectionWorldCenter += WorldPosition;
+
+				// @important
+				m_umapSelectionLight[LightPair.first] = m_vSelectionData.size() - 1;
+				m_LightRep->SetInstanceHighlight(LightPair.first, true);
+			}
 		}
 	}
 	m_LightRep->UpdateInstanceBuffer();
@@ -2805,7 +2880,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 		m_LightRep->SetInstanceHighlight(SelectionData.Name, true);
 		m_LightRep->UpdateInstanceBuffer();
 
-		m_MultipleSelectionWorldCenter += m_Light->GetInstanceGPUData(SelectionData.Name).Position;
+		m_MultipleSelectionWorldCenter += m_LightArray[SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position;
 		break;
 	case CGame::EObjectType::Object3DInstance:
 	{
@@ -3042,17 +3117,21 @@ void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
 	if (bIsSelectionAdded) return;
 
 	// Pick Light
-	for (const auto& LightPair : m_Light->GetInstanceNameToIndexMap())
+	for (const auto& Light : m_LightArray)
 	{
-		const auto& Instance{ m_Light->GetInstanceGPUData(LightPair.first) };
-
-		XMVECTOR NewT{ KVectorGreatest };
-		if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-			m_Light->GetBoundingSphereRadius(), Instance.Position, &NewT))
+		CLight::EType eType{ Light->GetType() };
+		for (const auto& LightPair : Light->GetInstanceNameToIndexMap())
 		{
-			SelectObject(SSelectionData(EObjectType::Light, LightPair.first), bUseAdditiveSelection);
-			bIsSelectionAdded = true;
-			break;
+			const auto& Instance{ Light->GetInstanceGPUData(LightPair.first) };
+
+			XMVECTOR NewT{ KVectorGreatest };
+			if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
+				Light->GetBoundingSphereRadius(), Instance.Position, &NewT))
+			{
+				SelectObject(SSelectionData(EObjectType::Light, LightPair.first, (uint32_t)eType), bUseAdditiveSelection);
+				bIsSelectionAdded = true;
+				break;
+			}
 		}
 	}
 	if (bIsSelectionAdded) return;
@@ -3252,7 +3331,7 @@ void CGame::Capture3DGizmoTranslation()
 			}
 			case CGame::EObjectType::Light:
 			{
-				const XMVECTOR& KTranslation{ m_Light->GetInstanceGPUData(SelectionData.Name).Position };
+				const XMVECTOR& KTranslation{ m_LightArray[(uint32_t)SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position };
 				m_Current3DGizmoTranslation = m_Captured3DGizmoTranslation = KTranslation;
 				break;
 			}
@@ -3408,8 +3487,8 @@ void CGame::Select3DGizmos()
 				}
 				case CGame::EObjectType::Light:
 				{
-					const XMVECTOR& KTranslation{ m_Light->GetInstanceGPUData(SelectionData.Name).Position };
-					m_Light->SetInstancePosition(SelectionData.Name, KTranslation + DeltaTranslation);
+					const XMVECTOR& KTranslation{ m_LightArray[(uint32_t)SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position };
+					m_LightArray[(uint32_t)SelectionData.Extra]->SetInstancePosition(SelectionData.Name, KTranslation + DeltaTranslation);
 					m_LightRep->SetInstancePosition(SelectionData.Name, KTranslation);
 					break;
 				}
@@ -3916,27 +3995,42 @@ void CGame::Draw()
 			//DrawFullScreenQuad(m_PSDirectionalLight_NonIBL.get(), SRVs, ARRAYSIZE(SRVs));
 		}
 
-		// Point light
-		if (m_Light->GetInstanceCount() > 0)
+		// LightArray
 		{
 			m_DeviceContext->OMSetBlendState(m_BlendAdditiveLighting.Get(), nullptr, 0xFFFFFFFF);
 			m_DeviceContext->RSSetState(m_CommonStates->CullCounterClockwise());
+			m_DeviceContext->OMSetDepthStencilState(m_DepthStencilStateGreaterEqual.Get(), 0); // @important??
 
 			UpdateCBSpace();
 
 			m_VSLight->Use();
-			m_HSPointLight->Use();
-			m_DSPointLight->Use();
-			m_PSPointLight->Use();
 
 			ID3D11SamplerState* const Samplers[]{ m_CommonStates->PointClamp() };
 			m_DeviceContext->PSSetSamplers(0, ARRAYSIZE(Samplers), Samplers);
 
-			m_Light->Light();
+			// PointLight
+			if (m_LightArray[0]->GetInstanceCount() > 0)
+			{
+				m_HSPointLight->Use();
+				m_DSPointLight->Use();
+				m_PSPointLight->Use();
+
+				m_LightArray[0]->Light();
+			}
+
+			// SpotLight
+			if (m_LightArray[1]->GetInstanceCount() > 0)
+			{
+				m_HSSpotLight->Use();
+				m_DSSpotLight->Use();
+				m_PSSpotLight->Use();
+
+				m_LightArray[1]->Light();
+			}
 
 			m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
 			m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
-			
+
 			m_DeviceContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
 			SetUniversalRSState();
 		}
@@ -4043,7 +4137,42 @@ void CGame::Draw()
 		}
 	}
 
-	// 2D
+	// Drawing light volumes
+	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawLightVolumes))
+	{
+		m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
+
+		UpdateCBSpace();
+
+		m_VSLight->Use();
+
+		// PointLight
+		if (m_LightArray[0]->GetInstanceCount() > 0)
+		{
+			m_HSPointLight->Use();
+			m_DSPointLight->Use();
+			m_PSPointLight_Volume->Use();
+
+			m_LightArray[0]->Light();
+		}
+
+		// SpotLight
+		if (m_LightArray[1]->GetInstanceCount() > 0)
+		{
+			m_HSSpotLight->Use();
+			m_DSSpotLight->Use();
+			m_PSSpotLight_Volume->Use();
+
+			m_LightArray[1]->Light();
+		}
+
+		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
+		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
+
+		SetUniversalRSState();
+	}
+
+	// 2D & Billboard
 	{
 		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 		m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
@@ -4056,36 +4185,12 @@ void CGame::Draw()
 
 			m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
 
-			// Not 2D, but Billboard
+			// This is not 2D object, but Billboard
 			DrawLightRep();
 		}
 		else
 		{
 			m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
-		}
-	}
-
-	// Drawing light volumes
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawLightVolumes))
-	{
-		if (m_Light->GetInstanceCount() > 0)
-		{
-			m_DeviceContext->RSSetState(m_CommonStates->CullClockwise());
-			//m_DeviceContext->RSSetState(m_CommonStates->CullCounterClockwise());
-
-			UpdateCBSpace();
-
-			m_VSLight->Use();
-			m_HSPointLight->Use();
-			m_DSPointLight->Use();
-			m_PSPointLight_Volume->Use();
-
-			m_Light->Light();
-
-			m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
-			m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
-
-			SetUniversalRSState();
 		}
 	}
 }
@@ -4877,7 +4982,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 		static const char* const KCameraTypes[3]{ u8"1인칭", u8"3인칭", u8"자유 시점" };
 		static int iSelectedCameraType{};
 
-		static const char* const KLightTypes[1]{ u8"점 광원" };
+		static const char* const KLightTypes[2]{ u8"점 광원", u8"SpotLight" };
 		static int iSelectedLightType{};
 
 		static XMFLOAT4 MaterialUniformColor{ 1.0f, 1.0f, 1.0f, 1.0f };
@@ -5058,7 +5163,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text(u8"광원 종류");
 				ImGui::SameLine(KOffetX);
-				if (ImGui::BeginCombo(u8"##카메라 종류", KLightTypes[iSelectedLightType]))
+				if (ImGui::BeginCombo(u8"##광원 종류", KLightTypes[iSelectedLightType]))
 				{
 					for (int iLightType = 0; iLightType < ARRAYSIZE(KLightTypes); ++iLightType)
 					{
@@ -5857,8 +5962,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						{
 							ImGui::PushItemWidth(ItemsWidth);
 							{
-								const auto& SelectedLightCPU{ m_Light->GetInstanceCPUData(SelectionData.Name) };
-								const auto& SelectedLightGPU{ m_Light->GetInstanceGPUData(SelectionData.Name) };
+								const auto& SelectedLightCPU{ m_LightArray[SelectionData.Extra]->GetInstanceCPUData(SelectionData.Name) };
+								const auto& SelectedLightGPU{ m_LightArray[SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name) };
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"선택된 광원:");
@@ -5875,6 +5980,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"점 광원");
 									break;
+								case CLight::EType::SpotLight:
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"SpotLight");
+									break;
 								default:
 									break;
 								}
@@ -5886,7 +5995,8 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::SameLine(ItemsOffsetX);
 								if (ImGui::DragFloat3(u8"##위치", Position, 0.01f, -10000.0f, +10000.0f, "%.3f"))
 								{
-									m_Light->SetInstancePosition(SelectionData.Name, XMVectorSet(Position[0], Position[1], Position[2], 1.0f));
+									m_LightArray[SelectionData.Extra]->SetInstancePosition(SelectionData.Name,
+										XMVectorSet(Position[0], Position[1], Position[2], 1.0f));
 									m_LightRep->SetInstancePosition(SelectionData.Name, SelectedLightGPU.Position);
 
 									Capture3DGizmoTranslation();
@@ -5898,16 +6008,48 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::SameLine(ItemsOffsetX);
 								if (ImGui::ColorEdit3(u8"##색상", Color, ImGuiColorEditFlags_RGB | ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR))
 								{
-									m_Light->SetInstanceColor(SelectionData.Name, XMVectorSet(Color[0], Color[1], Color[2], 1.0f));
+									m_LightArray[SelectionData.Extra]->SetInstanceColor(SelectionData.Name, 
+										XMVectorSet(Color[0], Color[1], Color[2], 1.0f));
+								}
+
+								if (SelectedLightCPU.eType == CLight::EType::SpotLight)
+								{
+									CSpotLight* const SpotLight{ dynamic_cast<CSpotLight*>(m_LightArray[SelectionData.Extra].get()) };
+
+									float Direction[3]{ 
+										XMVectorGetX(SelectedLightGPU.Direction), XMVectorGetY(SelectedLightGPU.Direction),
+										XMVectorGetZ(SelectedLightGPU.Direction) };
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"방향");
+									ImGui::SameLine(ItemsOffsetX);
+									if (ImGui::DragFloat3(u8"##방향", Direction, 0.01f, -1.0f, +1.0f, "%.3f"))
+									{
+										SpotLight->SetInstanceDirection(SelectionData.Name,
+											XMVectorSet(Direction[0], Direction[1], Direction[2], 0.0f));
+									}
 								}
 
 								float Range{ SelectedLightGPU.Range };
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"범위");
 								ImGui::SameLine(ItemsOffsetX);
-								if (ImGui::DragFloat(u8"##범위", &Range, 0.1f, 0.1f, 10.0f, "%.1f"))
+								if (ImGui::DragFloat(u8"##범위", &Range, 0.1f, 1.0f, 20.0f, "%.1f"))
 								{
-									m_Light->SetInstanceRange(SelectionData.Name, Range);
+									m_LightArray[SelectionData.Extra]->SetInstanceRange(SelectionData.Name, Range);
+								}
+
+								if (SelectedLightCPU.eType == CLight::EType::SpotLight)
+								{
+									CSpotLight* const SpotLight{ dynamic_cast<CSpotLight*>(m_LightArray[SelectionData.Extra].get()) };
+
+									float Theta{ SelectedLightGPU.Theta };
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"Theta");
+									ImGui::SameLine(ItemsOffsetX);
+									if (ImGui::DragFloat(u8"##Theta", &Theta, 0.03125f, 0.03125f, XM_PIDIV2, "%.5f"))
+									{
+										SpotLight->SetInstanceTheta(SelectionData.Name, Theta);
+									}
 								}
 							}
 							ImGui::PopItemWidth();
@@ -7302,7 +7444,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 						ImGui::PushID(iObject3DPair * 2 + 1);
 						if (ImGui::Button(u8"-Inst"))
 						{
-							const SInstanceCPUData& InstanceCPUData{ Object3D->GetInstanceCPUData(SelectionData.Name) };
+							const SObject3DInstanceCPUData& InstanceCPUData{ Object3D->GetInstanceCPUData(SelectionData.Name) };
 							Object3D->DeleteInstance(InstanceCPUData.Name);
 							if (Object3D->GetInstanceCount() > 0)
 							{
@@ -7472,28 +7614,32 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 
 			if (ImGui::TreeNodeEx(u8"광원", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				for (const auto& LightPair : m_Light->GetInstanceNameToIndexMap())
+				for (const auto& Light : m_LightArray)
 				{
-					bool bIsThisLightSelected{ false };
-					if (m_umapSelectionLight.find(LightPair.first) != m_umapSelectionLight.end())
+					CLight::EType eType{ Light->GetType() };
+					for (const auto& LightPair : Light->GetInstanceNameToIndexMap())
 					{
-						bIsThisLightSelected = true;
-					}
+						bool bIsThisLightSelected{ false };
+						if (m_umapSelectionLight.find(LightPair.first) != m_umapSelectionLight.end())
+						{
+							bIsThisLightSelected = true;
+						}
 
-					ImGuiTreeNodeFlags Flags{ ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_Leaf };
-					if (bIsThisLightSelected) Flags |= ImGuiTreeNodeFlags_Selected;
+						ImGuiTreeNodeFlags Flags{ ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_Leaf };
+						if (bIsThisLightSelected) Flags |= ImGuiTreeNodeFlags_Selected;
 
-					ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
-					bool bIsNodeOpen{ ImGui::TreeNodeEx(LightPair.first.c_str(), Flags) };
-					if (ImGui::IsItemClicked())
-					{
-						SelectObject(SSelectionData(EObjectType::Light, LightPair.first));
+						ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
+						bool bIsNodeOpen{ ImGui::TreeNodeEx(LightPair.first.c_str(), Flags) };
+						if (ImGui::IsItemClicked())
+						{
+							SelectObject(SSelectionData(EObjectType::Light, LightPair.first, (uint32_t)eType));
+						}
+						if (bIsNodeOpen)
+						{
+							ImGui::TreePop();
+						}
+						ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
 					}
-					if (bIsNodeOpen)
-					{
-						ImGui::TreePop();
-					}
-					ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
 				}
 				ImGui::TreePop();
 			}

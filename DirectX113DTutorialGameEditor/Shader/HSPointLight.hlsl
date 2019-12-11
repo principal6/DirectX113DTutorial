@@ -19,9 +19,9 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(uint PatchID : SV_PrimitiveID)
 [outputtopology("triangle_cw")]
 [partitioning("integer")]
 [patchconstantfunc("CalcHSPatchConstants")]
-HS_OUTPUT main(InputPatch<VS_OUTPUT, 1> ControlPoints, uint ControlPointID : SV_OutputControlPointID, uint PatchID : SV_PrimitiveID)
+HS_POINT_LIGHT_OUTPUT main(InputPatch<VS_OUTPUT, 1> ControlPoints, uint ControlPointID : SV_OutputControlPointID, uint PatchID : SV_PrimitiveID)
 {
-	HS_OUTPUT Output;
+	HS_POINT_LIGHT_OUTPUT Output;
 
 	Output.WorldPosition = ControlPoints[0].WorldPosition;
 	Output.Color = ControlPoints[0].Color;

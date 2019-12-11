@@ -120,7 +120,7 @@ void CMeshPorter::ImportTerrain(const std::string& FileName, CMeshPorter::STERRD
 		for (auto& InstanceData : FoliageData.vInstanceData)
 		{
 			// # 32B (string, KInstanceNameMaxLength) Foliage instance name
-			m_BinaryData.ReadString(InstanceData.Name, SInstanceCPUData::KMaxNameLengthZeroTerminated);
+			m_BinaryData.ReadString(InstanceData.Name, SObject3DInstanceCPUData::KMaxNameLengthZeroTerminated);
 
 			// # 16B (XMVECTOR) Foliage instance translation
 			m_BinaryData.ReadXMVECTOR(InstanceData.Translation);
@@ -251,7 +251,7 @@ void CMeshPorter::ExportTerrain(const std::string& FileName, const CMeshPorter::
 		for (auto& InstanceData : FoliageData.vInstanceData)
 		{
 			// # 32B (string, KInstanceNameMaxLength) Foliage instance name
-			m_BinaryData.WriteString(InstanceData.Name, SInstanceCPUData::KMaxNameLengthZeroTerminated);
+			m_BinaryData.WriteString(InstanceData.Name, SObject3DInstanceCPUData::KMaxNameLengthZeroTerminated);
 
 			// # 16B (XMVECTOR) Foliage instance translation
 			m_BinaryData.WriteXMVECTOR(InstanceData.Translation);

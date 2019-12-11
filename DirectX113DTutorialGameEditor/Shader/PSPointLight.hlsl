@@ -23,7 +23,7 @@ cbuffer cbGBufferUnpacking : register(b0)
 #define AmbientOcclusion Metal_AO.y
 #define EyePosition InverseViewMatrix[3].xyz
 
-float4 main(DS_OUTPUT Input) : SV_TARGET
+float4 main(DS_POINT_LIGHT_OUTPUT Input) : SV_TARGET
 {
 	float2 ScreenPosition = float2(Input.Position.x / ScreenSize.x, 1.0 - (Input.Position.y / ScreenSize.y)) * 2.0 - 1.0;
 	float2 UV = float2(ScreenPosition.x * 0.5 + 0.5, 0.5 - ScreenPosition.y * 0.5);
@@ -41,6 +41,9 @@ float4 main(DS_OUTPUT Input) : SV_TARGET
 	{
 		float4 LightWorldPosition = Input.WorldPosition;
 		float3 Li = Input.Color.rgb;
+
+		float3 ToLight = LightWorldPosition.xyz - ObjectWorldPosition.xyz;
+		float DistanceToLight = length(ToLight);
 
 		float3 Wi = normalize(LightWorldPosition.xyz - ObjectWorldPosition.xyz);
 		float3 Wo = normalize(EyePosition - ObjectWorldPosition.xyz);
@@ -63,19 +66,16 @@ float4 main(DS_OUTPUT Input) : SV_TARGET
 
 		float3 Lo = Lo_diff + Lo_spec;
 
-		float Distance = distance(ObjectWorldPosition, LightWorldPosition);
-		float DistanceOverRange = Distance * Input.InverseRange;
-		float Attenuation = saturate(1.0 - (DistanceOverRange * DistanceOverRange * 1.25 - 0.125));
-		//float Attenuation = saturate(1.0 - (DistanceOverRange * DistanceOverRange));
-		if (Attenuation == 0.0) discard;
+		float DistanceAttenuation = saturate(1.0 - DistanceToLight * Input.InverseRange);
+		DistanceAttenuation *= DistanceAttenuation;
 
-		OutputColor.xyz = Lo * Attenuation;
+		OutputColor.xyz = Lo * DistanceAttenuation;
 	}
 	OutputColor = pow(OutputColor, 0.4545);
 	return OutputColor;
 }
 
-float4 Volume(DS_OUTPUT Input) : SV_TARGET
+float4 Volume(DS_POINT_LIGHT_OUTPUT Input) : SV_TARGET
 {
-	return float4(1.0, 1.0, 1.0, 0.2);
+	return float4(1.0, 0.5, 0.0, 1.0);
 }

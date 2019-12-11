@@ -77,7 +77,7 @@ public:
 		struct SFoliageData
 		{
 			std::string FileName{};
-			std::vector<SInstanceCPUData> vInstanceData{};
+			std::vector<SObject3DInstanceCPUData> vInstanceData{};
 		};
 
 	public:

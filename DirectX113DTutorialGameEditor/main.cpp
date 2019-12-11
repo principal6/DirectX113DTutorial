@@ -1,7 +1,6 @@
 #include "Core/Game.h"
 
 // @TODO
-// implement spot light
 // implement shadow mapping
 // improve terrain tessellation using quad patch? or is it good with the current Bezier triangles?
 

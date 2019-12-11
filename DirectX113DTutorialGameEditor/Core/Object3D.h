@@ -84,7 +84,7 @@ private:
 	struct SInstanceBuffer
 	{
 		ComPtr<ID3D11Buffer>	Buffer{};
-		UINT					Stride{ sizeof(SInstanceGPUData) };
+		UINT					Stride{ sizeof(SObject3DInstanceGPUData) };
 		UINT					Offset{};
 	};
 
@@ -151,16 +151,16 @@ public:
 
 public:
 	void CreateInstances(size_t InstanceCount);
-	void CreateInstances(const std::vector<SInstanceCPUData>& vInstanceData);
+	void CreateInstances(const std::vector<SObject3DInstanceCPUData>& vInstanceData);
 	bool InsertInstance();
 	bool InsertInstance(const std::string& InstanceName);
 	bool ChangeInstanceName(const std::string& OldName, const std::string& NewName);
 	void DeleteInstance(const std::string& InstanceName);
 	void ClearInstances();
-	SInstanceCPUData& GetInstanceCPUData(const std::string& InstanceName);
-	SInstanceCPUData& GetLastInstanceCPUData();
-	const std::vector<SInstanceCPUData>& GetInstanceCPUDataVector() const;
-	SInstanceGPUData& GetInstanceGPUData(const std::string& InstanceName);
+	SObject3DInstanceCPUData& GetInstanceCPUData(const std::string& InstanceName);
+	SObject3DInstanceCPUData& GetLastInstanceCPUData();
+	const std::vector<SObject3DInstanceCPUData>& GetInstanceCPUDataVector() const;
+	SObject3DInstanceGPUData& GetInstanceGPUData(const std::string& InstanceName);
 
 	void CreateInstanceBuffers();
 	void UpdateInstanceBuffers();
@@ -262,8 +262,8 @@ private:
 	bool							m_bIsBakedAnimationLoaded{ false };
 
 private:
-	std::vector<SInstanceGPUData>	m_vInstanceGPUData{};
-	std::vector<SInstanceCPUData>	m_vInstanceCPUData{};
+	std::vector<SObject3DInstanceGPUData>	m_vInstanceGPUData{};
+	std::vector<SObject3DInstanceCPUData>	m_vInstanceCPUData{};
 	std::map<std::string, size_t>	m_mapInstanceNameToIndex{};
 
 private:

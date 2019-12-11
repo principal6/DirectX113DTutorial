@@ -82,7 +82,7 @@ struct SBoundingSphere
 	XMVECTOR	CenterOffset{};
 };
 
-struct SInstanceCPUData
+struct SObject3DInstanceCPUData
 {
 	static constexpr size_t KMaxNameLengthZeroTerminated{ 32 };
 
@@ -95,7 +95,7 @@ struct SInstanceCPUData
 	SBoundingSphere	BoundingSphere{};
 };
 
-struct SInstanceGPUData
+struct SObject3DInstanceGPUData
 {
 	XMMATRIX	WorldMatrix{ KMatrixIdentity };
 	float		IsHighlighted{};

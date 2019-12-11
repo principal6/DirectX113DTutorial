@@ -50,12 +50,14 @@ public:
 		HSStatic,
 		HSBillboard,
 		HSPointLight,
+		HSSpotLight,
 
 		DSTerrain,
 		DSWater,
 		DSStatic,
 		DSBillboard,
 		DSPointLight,
+		DSSpotLight,
 
 		GSNormal,
 		GSParticle,
@@ -86,6 +88,8 @@ public:
 		PSDirectionalLight_NonIBL,
 		PSPointLight,
 		PSPointLight_Volume,
+		PSSpotLight,
+		PSSpotLight_Volume,
 
 		PSBase2D,
 		PSMasking2D,
@@ -360,7 +364,7 @@ public:
 
 	// EditorCamera
 	// Camera - Name
-	// Light - Name
+	// Light - Name, Extra(== CLight::EType)
 	// Object3D - Name, PtrObject3D
 	// Object3DInstance - Name, PtrObject3D
 	// Object3DLine - Name, PtrObject3DLine
@@ -368,16 +372,21 @@ public:
 	struct SSelectionData
 	{
 		SSelectionData() {}
-		SSelectionData(EObjectType _eObjectType) :
-			eObjectType{ _eObjectType } {}
+		
+		// For deselecting
+		SSelectionData(EObjectType _eObjectType) : eObjectType{ _eObjectType } {}
+
 		SSelectionData(EObjectType _eObjectType, const std::string& _Name) :
 			eObjectType{ _eObjectType }, Name{ _Name } {}
 		SSelectionData(EObjectType _eObjectType, const std::string& _Name, void* _PtrObject) :
 			eObjectType{ _eObjectType }, Name{ _Name }, PtrObject{ _PtrObject } {}
+		SSelectionData(EObjectType _eObjectType, const std::string& _Name, uint32_t _Extra) :
+			eObjectType{ _eObjectType }, Name{ _Name }, Extra{ _Extra } {}
 		
 		EObjectType	eObjectType{};
 		std::string	Name{};
 		void*		PtrObject{};
+		uint32_t	Extra{};
 	};
 
 	struct SCopyObject3D
@@ -385,41 +394,41 @@ public:
 		SCopyObject3D() {}
 		SCopyObject3D(const std::string& _Name, const SMESHData& _Model,
 			const CObject3D::SComponentTransform& _ComponentTransform, const CObject3D::SComponentPhysics& _ComponentPhysics,
-			const CObject3D::SComponentRender& _ComponentRender, const std::vector<SInstanceCPUData> _vInstanceCPUData) :
+			const CObject3D::SComponentRender& _ComponentRender, const std::vector<SObject3DInstanceCPUData> _vInstanceCPUData) :
 			Name{ _Name }, Model{ _Model }, 
 			ComponentTransform{ _ComponentTransform }, ComponentPhysics{ _ComponentPhysics }, ComponentRender{ _ComponentRender },
 			vInstanceCPUData{ _vInstanceCPUData } {}
 
-		std::string						Name{};
-		SMESHData							Model{};
-		CObject3D::SComponentTransform	ComponentTransform{};
-		CObject3D::SComponentPhysics	ComponentPhysics{};
-		CObject3D::SComponentRender		ComponentRender{};
-		std::vector<SInstanceCPUData>	vInstanceCPUData{};
+		std::string								Name{};
+		SMESHData								Model{};
+		CObject3D::SComponentTransform			ComponentTransform{};
+		CObject3D::SComponentPhysics			ComponentPhysics{};
+		CObject3D::SComponentRender				ComponentRender{};
+		std::vector<SObject3DInstanceCPUData>	vInstanceCPUData{};
 
-		size_t							PasteCounter{};
+		size_t									PasteCounter{};
 	};
 
 	struct SCopyObject3DInstance
 	{
 		SCopyObject3DInstance() {}
-		SCopyObject3DInstance(const SInstanceCPUData& _InstanceCPUData, CObject3D* const _PtrObject3D) :
+		SCopyObject3DInstance(const SObject3DInstanceCPUData& _InstanceCPUData, CObject3D* const _PtrObject3D) :
 			InstanceCPUData{ _InstanceCPUData }, PtrObject3D{ _PtrObject3D } {}
 
-		SInstanceCPUData	InstanceCPUData{};
-		CObject3D* const	PtrObject3D{};
-		size_t				PasteCounter{};
+		SObject3DInstanceCPUData	InstanceCPUData{};
+		CObject3D* const			PtrObject3D{};
+		size_t						PasteCounter{};
 	};
 
 	struct SCopyLight
 	{
 		SCopyLight() {}
-		SCopyLight(const CLight::SLightInstanceCPUData& _InstanceCPUData, const CLight::SLightInstanceGPUData& _InstanceGPUData) :
+		SCopyLight(const CLight::SInstanceCPUData& _InstanceCPUData, const CLight::SInstanceGPUData& _InstanceGPUData) :
 			InstanceCPUData{ _InstanceCPUData }, InstanceGPUData{ _InstanceGPUData } {}
 
-		CLight::SLightInstanceCPUData	InstanceCPUData{};
-		CLight::SLightInstanceGPUData	InstanceGPUData{};
-		size_t							PasteCounter{};
+		CLight::SInstanceCPUData	InstanceCPUData{};
+		CLight::SInstanceGPUData	InstanceGPUData{};
+		size_t						PasteCounter{};
 	};
 
 public:
@@ -573,7 +582,7 @@ public:
 
 public:
 	bool InsertLight(CLight::EType eType, const std::string& Name);
-	void DeleteLight(const std::string& Name);
+	void DeleteLight(CLight::EType eType, const std::string& Name);
 	void ClearLights();
 
 public:
@@ -781,12 +790,14 @@ private:
 	std::unique_ptr<CShader>	m_HSStatic{};
 	std::unique_ptr<CShader>	m_HSBillboard{};
 	std::unique_ptr<CShader>	m_HSPointLight{};
+	std::unique_ptr<CShader>	m_HSSpotLight{};
 
 	std::unique_ptr<CShader>	m_DSTerrain{};
 	std::unique_ptr<CShader>	m_DSWater{};
 	std::unique_ptr<CShader>	m_DSStatic{};
 	std::unique_ptr<CShader>	m_DSBillboard{};
 	std::unique_ptr<CShader>	m_DSPointLight{};
+	std::unique_ptr<CShader>	m_DSSpotLight{};
 
 	std::unique_ptr<CShader>	m_GSNormal{};
 	std::unique_ptr<CShader>	m_GSParticle{};
@@ -817,6 +828,8 @@ private:
 	std::unique_ptr<CShader>	m_PSDirectionalLight_NonIBL{};
 	std::unique_ptr<CShader>	m_PSPointLight{};
 	std::unique_ptr<CShader>	m_PSPointLight_Volume{};
+	std::unique_ptr<CShader>	m_PSSpotLight{};
+	std::unique_ptr<CShader>	m_PSSpotLight_Volume{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
@@ -898,8 +911,10 @@ private:
 
 // Light
 private:
-	std::unique_ptr<CLight>			m_Light{};
-	std::unique_ptr<CBillboard>		m_LightRep{};
+	std::unique_ptr<CLight>					m_LightArray[2]{}; // 0 for PointLight, 1 for SpotLight
+	std::unique_ptr<CBillboard>				m_LightRep{};
+	std::unordered_map<std::string, size_t>	m_umapLightNames{};
+	size_t									m_LightCounter{};
 
 // Sky
 private:
@@ -1094,6 +1109,7 @@ private:
 	ComPtr<ID3D11ShaderResourceView>	m_MetalAOSRV{};
 
 	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateLessEqualNoWrite{};
+	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateGreaterEqual{};
 	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateAlways{};
 
 	ComPtr<ID3D11BlendState>			m_BlendAlphaToCoverage{};
