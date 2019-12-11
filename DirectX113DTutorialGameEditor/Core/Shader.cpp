@@ -6,7 +6,7 @@ using std::string;
 using std::wstring;
 using std::vector;
 
-void CShader::Create(EShaderType Type, bool bShouldCompile, const wstring& FileName, const string& EntryPoint,
+void CShader::Create(EShaderType Type, EVersion eVersion, bool bShouldCompile, const wstring& FileName, const string& EntryPoint,
 	const D3D11_INPUT_ELEMENT_DESC* InputElementDescs, UINT NumElements)
 {
 	static const char KCompileFailureTitle[]{ "Failed to compile shader." };
@@ -21,33 +21,53 @@ void CShader::Create(EShaderType Type, bool bShouldCompile, const wstring& FileN
 	wstring CSOFileName{ FileName.substr(0, Dot) + ((EntryPoint == "main") ? L"" : L"_" + wEntryPoint) + L".cso" };
 
 	vector<byte> Buffer{};
+
+	string VersionSuffix{};
+	switch (eVersion)
+	{
+	case CShader::EVersion::_4_0:
+		VersionSuffix = "_4_0";
+		break;
+	case CShader::EVersion::_4_1:
+		VersionSuffix = "_4_1";
+		break;
+	case CShader::EVersion::_5_0:
+		VersionSuffix = "_5_0";
+		break;
+	case CShader::EVersion::_5_1:
+		VersionSuffix = "_5_1";
+		break;
+	default:
+		break;
+	}
+
 	if (bShouldCompile)
 	{
 		switch (m_ShaderType)
 		{
 		case EShaderType::VertexShader:
 			D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
-				"vs_4_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
+				("vs" + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
 			if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
 			break;
 		case EShaderType::HullShader:
 			D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
-				"hs_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
+				("hs" + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
 			if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
 			break;
 		case EShaderType::DomainShader:
 			D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
-				"ds_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
+				("ds" + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
 			if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
 			break;
 		case EShaderType::GeometryShader:
 			D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
-				"gs_4_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
+				("gs" + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
 			if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
 			break;
 		case EShaderType::PixelShader:
 			D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
-				"ps_4_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
+				("ps" + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
 			if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
 			break;
 		default:

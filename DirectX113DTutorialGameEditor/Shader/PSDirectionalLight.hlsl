@@ -46,6 +46,26 @@ cbuffer cbDirectionalLight : register(b1)
 #define EyePosition InverseViewMatrix[3].xyz
 #define Li LightColor
 
+float CheckIfInShadow(float CmpDepth, float2 TexCoord)
+{
+	float IsInShadow = 0;
+	float ShadowMapDepth = ShadowMap.SampleLevel(PointClampSampler, TexCoord, 0).x;
+	if (CmpDepth > ShadowMapDepth + 0.001) IsInShadow = 1.0;
+	return IsInShadow;
+}
+
+float CheckIfInShadow2x2(float CmpDepth, float2 TexCoord)
+{
+	float IsInShadow = 0;
+	float4 ShadowMapDepths = ShadowMap.Gather(PointClampSampler, TexCoord);
+	if (CmpDepth > ShadowMapDepths.x + 0.001) IsInShadow += 1.0;
+	if (CmpDepth > ShadowMapDepths.y + 0.001) IsInShadow += 1.0;
+	if (CmpDepth > ShadowMapDepths.z + 0.001) IsInShadow += 1.0;
+	if (CmpDepth > ShadowMapDepths.w + 0.001) IsInShadow += 1.0;
+	IsInShadow /= 4.0;
+	return IsInShadow;
+}
+
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
 	float ProjectionSpaceDepth = GBuffer_DepthStencil.SampleLevel(PointClampSampler, UV, 0).x;
@@ -64,20 +84,35 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		float3 F0 = lerp(KFresnel_dielectric, BaseColor, Metalness);
 		float NdotWo = max(dot(N, Wo), 0.001);
 
-		float Shadow = 1.0; // 1 for "not in shadow", 0 for "in shadow"
+		float IsInShadow = 0.0; // 0 for "not in shadow", 1 for "in shadow"
 		// Shadow
 		{
 			float4 LightSpacePosition = mul(ObjectWorldPosition, LightSpaceMatrix);
 			LightSpacePosition /= LightSpacePosition.w;
 
-			float2 ShadowMapUV = float2(LightSpacePosition.x * 0.5 + 0.5, -LightSpacePosition.y * 0.5 + 0.5);
-			float ShadowMapDepth = ShadowMap.SampleLevel(PointClampSampler, ShadowMapUV, 0).x;
+			float2 ShadowMapSize = float2(0, 0);
+			ShadowMap.GetDimensions(ShadowMapSize.x, ShadowMapSize.y);
 
-			if (LightSpacePosition.z > ShadowMapDepth + 0.001) Shadow = 0;
+			float2 ShadowMapUV = float2(LightSpacePosition.x * 0.5 + 0.5, -LightSpacePosition.y * 0.5 + 0.5);
+			
+			// # Method 0
+			float2 dUV = float2(1.0, 1.0) / ShadowMapSize;
+			for (int y = -1; y <= 1; ++y)
+			{
+				for (int x = -1; x <= 1; ++x)
+				{
+					IsInShadow += CheckIfInShadow(LightSpacePosition.z, ShadowMapUV + float2(dUV.x * (float)x, dUV.y * (float)y));
+				}
+			}
+			IsInShadow /= 9.0;
+
+			// # Method 1
+			//IsInShadow = CheckIfInShadow2x2(LightSpacePosition.z, ShadowMapUV);
 		}
 		
 		// Direct light
 		float3 DirectLight = float3(0, 0, 0);
+		if (IsInShadow < 1.0)
 		{
 			float3 Wi = LightDirection.xyz;
 			float3 M = normalize(Wi + Wo);
@@ -125,7 +160,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			IndirectLight = (Lo_diff + Lo_spec) * AmbientOcclusion;
 		}
 
-		OutputColor.xyz = DirectLight * Shadow + IndirectLight; // @important
+		OutputColor.xyz = DirectLight * (1 - IsInShadow) + IndirectLight; // @important
 	}
 	OutputColor = pow(OutputColor, 0.4545);
 

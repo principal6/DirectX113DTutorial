@@ -715,166 +715,166 @@ void CGame::CreateBaseShaders()
 	bool bShouldCompile{ false };
 
 	m_VSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSBase->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSBase.hlsl", "main",
+	m_VSBase->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSBase.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSBase->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSInstance = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSInstance->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSInstance.hlsl", "main", 
+	m_VSInstance->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSInstance.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSInstance->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSAnimation = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSAnimation->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSAnimation.hlsl", "main",
+	m_VSAnimation->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSAnimation.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSAnimation->AttachConstantBuffer(m_CBSpaceWVP.get());
 	m_VSAnimation->AttachConstantBuffer(m_CBAnimationBones.get());
 	m_VSAnimation->AttachConstantBuffer(m_CBAnimation.get());
 
 	m_VSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSSky->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSSky.hlsl", "main",
+	m_VSSky->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSSky.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSSky->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSLine->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSLine.hlsl", "main", 
+	m_VSLine->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSLine.hlsl", "main",
 		CObject3DLine::KInputElementDescs, ARRAYSIZE(CObject3DLine::KInputElementDescs));
 	m_VSLine->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSGizmo->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSGizmo.hlsl", "main", 
+	m_VSGizmo->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSGizmo.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSGizmo->AttachConstantBuffer(m_CBSpaceWVP.get());
 
 	m_VSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSTerrain->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSTerrain.hlsl", "main",
+	m_VSTerrain->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSTerrain.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSTerrain->AttachConstantBuffer(m_CBSpaceWVP.get());
 	m_VSTerrain->AttachConstantBuffer(m_CBTerrain.get());
 
 	m_VSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSFoliage->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSFoliage.hlsl", "main",
+	m_VSFoliage->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSFoliage.hlsl", "main",
 		KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
 	m_VSFoliage->AttachConstantBuffer(m_CBSpaceWVP.get());
 	m_VSFoliage->AttachConstantBuffer(m_CBTerrain.get());
 	m_VSFoliage->AttachConstantBuffer(m_CBWind.get());
 
 	m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSParticle->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSParticle.hlsl", "main",
+	m_VSParticle->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSParticle.hlsl", "main",
 		CParticlePool::KInputElementDescs, ARRAYSIZE(CParticlePool::KInputElementDescs));
 
 	m_VSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	//m_VSScreenQuad->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSScreenQuad.hlsl", "main");
-	m_VSScreenQuad->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSScreenQuad.hlsl", "main", 
+	//m_VSScreenQuad->Create(EShaderType::VertexShader,CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSScreenQuad.hlsl", "main");
+	m_VSScreenQuad->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSScreenQuad.hlsl", "main",
 		KScreenQuadInputElementDescs, ARRAYSIZE(KScreenQuadInputElementDescs));
 
 	m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSBase2D->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSBase2D.hlsl", "main",
+	m_VSBase2D->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSBase2D.hlsl", "main",
 		CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
 	m_VSBase2D->AttachConstantBuffer(m_CBSpace2D.get());
 
 	m_VSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSBillboard->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSBillboard.hlsl", "main",
+	m_VSBillboard->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSBillboard.hlsl", "main",
 		CBillboard::KInputElementDescs, ARRAYSIZE(CBillboard::KInputElementDescs));
 
 	m_VSLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_VSLight->Create(EShaderType::VertexShader, bShouldCompile, L"Shader\\VSLight.hlsl", "main",
+	m_VSLight->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSLight.hlsl", "main",
 		CLight::KInputElementDescs, ARRAYSIZE(CLight::KInputElementDescs));
 
 	m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_HSTerrain->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSTerrain.hlsl", "main");
+	m_HSTerrain->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSTerrain.hlsl", "main");
 	m_HSTerrain->AttachConstantBuffer(m_CBLight.get());
 	m_HSTerrain->AttachConstantBuffer(m_CBTessFactor.get());
 
 	m_HSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_HSWater->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSWater.hlsl", "main");
+	m_HSWater->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSWater.hlsl", "main");
 	m_HSWater->AttachConstantBuffer(m_CBLight.get());
 	m_HSWater->AttachConstantBuffer(m_CBTessFactor.get());
 
 	m_HSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_HSStatic->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSStatic.hlsl", "main");
+	m_HSStatic->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSStatic.hlsl", "main");
 	m_HSStatic->AttachConstantBuffer(m_CBTessFactor.get());
 
 	m_HSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_HSBillboard->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSBillboard.hlsl", "main");
+	m_HSBillboard->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSBillboard.hlsl", "main");
 
 	m_HSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_HSPointLight->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSPointLight.hlsl", "main");
+	m_HSPointLight->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSPointLight.hlsl", "main");
 
 	m_HSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_HSSpotLight->Create(EShaderType::HullShader, bShouldCompile, L"Shader\\HSSpotLight.hlsl", "main");
+	m_HSSpotLight->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSSpotLight.hlsl", "main");
 
 	m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_DSTerrain->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSTerrain.hlsl", "main");
+	m_DSTerrain->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSTerrain.hlsl", "main");
 	m_DSTerrain->AttachConstantBuffer(m_CBSpaceVP.get());
 	m_DSTerrain->AttachConstantBuffer(m_CBDisplacement.get());
 
 	m_DSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_DSWater->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSWater.hlsl", "main");
+	m_DSWater->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSWater.hlsl", "main");
 	m_DSWater->AttachConstantBuffer(m_CBSpaceVP.get());
 	m_DSWater->AttachConstantBuffer(m_CBWaterTime.get());
 
 	m_DSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_DSStatic->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSStatic.hlsl", "main");
+	m_DSStatic->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSStatic.hlsl", "main");
 	m_DSStatic->AttachConstantBuffer(m_CBSpaceVP.get());
 	m_DSStatic->AttachConstantBuffer(m_CBDisplacement.get());
 
 	m_DSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_DSBillboard->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSBillboard.hlsl", "main");
+	m_DSBillboard->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSBillboard.hlsl", "main");
 	m_DSBillboard->AttachConstantBuffer(m_CBSpaceVP.get());
 	m_DSBillboard->AttachConstantBuffer(m_CBBillboard.get());
 
 	m_DSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_DSPointLight->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSPointLight.hlsl", "main");
+	m_DSPointLight->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSPointLight.hlsl", "main");
 	m_DSPointLight->AttachConstantBuffer(m_CBSpaceVP.get());
 
 	m_DSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_DSSpotLight->Create(EShaderType::DomainShader, bShouldCompile, L"Shader\\DSSpotLight.hlsl", "main");
+	m_DSSpotLight->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSSpotLight.hlsl", "main");
 	m_DSSpotLight->AttachConstantBuffer(m_CBSpaceVP.get());
 
 	m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_GSNormal->Create(EShaderType::GeometryShader, bShouldCompile, L"Shader\\GSNormal.hlsl", "main");
+	m_GSNormal->Create(EShaderType::GeometryShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\GSNormal.hlsl", "main");
 	m_GSNormal->AttachConstantBuffer(m_CBSpaceVP.get());
 
 	m_GSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_GSParticle->Create(EShaderType::GeometryShader, bShouldCompile, L"Shader\\GSParticle.hlsl", "main");
+	m_GSParticle->Create(EShaderType::GeometryShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\GSParticle.hlsl", "main");
 	m_GSParticle->AttachConstantBuffer(m_CBSpaceVP.get());
 
 	m_PSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSBase->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBase.hlsl", "main");
+	m_PSBase->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase.hlsl", "main");
 	m_PSBase->AttachConstantBuffer(m_CBPSFlags.get());
 	m_PSBase->AttachConstantBuffer(m_CBLight.get());
 	m_PSBase->AttachConstantBuffer(m_CBMaterial.get());
 
 	m_PSBase_GBuffer = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSBase_GBuffer->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBase.hlsl", "GBuffer");
+	m_PSBase_GBuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase.hlsl", "GBuffer");
 	m_PSBase_GBuffer->AttachConstantBuffer(m_CBPSFlags.get());
 	m_PSBase_GBuffer->AttachConstantBuffer(m_CBLight.get());
 	m_PSBase_GBuffer->AttachConstantBuffer(m_CBMaterial.get());
 
 	m_PSBase_Void = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSBase_Void->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBase.hlsl", "Void");
+	m_PSBase_Void->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase.hlsl", "Void");
 	
 	m_PSVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSVertexColor->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSVertexColor.hlsl", "main");
+	m_PSVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSVertexColor.hlsl", "main");
 
 	m_PSDynamicSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSDynamicSky->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSDynamicSky.hlsl", "main");
+	m_PSDynamicSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSDynamicSky.hlsl", "main");
 	m_PSDynamicSky->AttachConstantBuffer(m_CBSkyTime.get());
 
 	m_PSCloud = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSCloud->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSCloud.hlsl", "main");
+	m_PSCloud->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCloud.hlsl", "main");
 	m_PSCloud->AttachConstantBuffer(m_CBSkyTime.get());
 
 	m_PSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSLine->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSLine.hlsl", "main");
+	m_PSLine->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSLine.hlsl", "main");
 
 	m_PSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSGizmo->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSGizmo.hlsl", "main");
+	m_PSGizmo->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSGizmo.hlsl", "main");
 	m_PSGizmo->AttachConstantBuffer(m_CBGizmoColorFactor.get());
 
 	m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSTerrain->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSTerrain.hlsl", "main");
+	m_PSTerrain->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSTerrain.hlsl", "main");
 	m_PSTerrain->AttachConstantBuffer(m_CBPSFlags.get());
 	m_PSTerrain->AttachConstantBuffer(m_CBTerrainMaskingSpace.get());
 	m_PSTerrain->AttachConstantBuffer(m_CBLight.get());
@@ -883,7 +883,7 @@ void CGame::CreateBaseShaders()
 	m_PSTerrain->AttachConstantBuffer(m_CBMaterial.get());
 
 	m_PSTerrain_gbuffer = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSTerrain_gbuffer->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSTerrain.hlsl", "gbuffer");
+	m_PSTerrain_gbuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSTerrain.hlsl", "gbuffer");
 	m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBPSFlags.get());
 	m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainMaskingSpace.get());
 	m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBLight.get());
@@ -892,100 +892,100 @@ void CGame::CreateBaseShaders()
 	m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBMaterial.get());
 
 	m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSWater->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSWater.hlsl", "main");
+	m_PSWater->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSWater.hlsl", "main");
 	m_PSWater->AttachConstantBuffer(m_CBWaterTime.get());
 	m_PSWater->AttachConstantBuffer(m_CBLight.get());
 
 	m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSFoliage->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSFoliage.hlsl", "main");
+	m_PSFoliage->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSFoliage.hlsl", "main");
 	m_PSFoliage->AttachConstantBuffer(m_CBPSFlags.get());
 	m_PSFoliage->AttachConstantBuffer(m_CBLight.get());
 	m_PSFoliage->AttachConstantBuffer(m_CBMaterial.get());
 
 	m_PSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSParticle->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSParticle.hlsl", "main");
+	m_PSParticle->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSParticle.hlsl", "main");
 
 	m_PSCamera = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSCamera->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSCamera.hlsl", "main");
+	m_PSCamera->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCamera.hlsl", "main");
 	m_PSCamera->AttachConstantBuffer(m_CBMaterial.get());
 	m_PSCamera->AttachConstantBuffer(m_CBEditorTime.get());
 	m_PSCamera->AttachConstantBuffer(m_CBCamera.get());
 
 	m_PSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSScreenQuad->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "main");
+	m_PSScreenQuad->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "main");
 
 	m_PSScreenQuad_Opaque = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSScreenQuad_Opaque->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "Opaque");
+	m_PSScreenQuad_Opaque->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "Opaque");
 
 	m_PSScreenQuad_Depth = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSScreenQuad_Depth->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "Depth");
+	m_PSScreenQuad_Depth->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "Depth");
 
 	m_CBScreenData.InverseScreenSize = XMFLOAT2(1.0f / m_WindowSize.x, 1.0f / m_WindowSize.y);
 	m_CBScreen->Update();
 
 	m_PSEdgeDetector = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSEdgeDetector->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSEdgeDetector.hlsl", "main");
+	m_PSEdgeDetector->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSEdgeDetector.hlsl", "main");
 	m_PSEdgeDetector->AttachConstantBuffer(m_CBScreen.get());
 
 	m_PSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSSky->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSSky.hlsl", "main");
+	m_PSSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSky.hlsl", "main");
 
 	m_PSIrradianceGenerator = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSIrradianceGenerator->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSIrradianceGenerator.hlsl", "main");
+	m_PSIrradianceGenerator->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSIrradianceGenerator.hlsl", "main");
 	m_PSIrradianceGenerator->AttachConstantBuffer(m_CBIrradianceGenerator.get());
 
 	m_PSFromHDR = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSFromHDR->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSFromHDR.hlsl", "main");
+	m_PSFromHDR->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSFromHDR.hlsl", "main");
 
 	m_PSRadiancePrefiltering = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSRadiancePrefiltering->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSRadiancePrefiltering.hlsl", "main");
+	m_PSRadiancePrefiltering->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSRadiancePrefiltering.hlsl", "main");
 	m_PSRadiancePrefiltering->AttachConstantBuffer(m_CBRadiancePrefiltering.get());
 
 	m_PSBRDFIntegrator = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSBRDFIntegrator->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBRDFIntegrator.hlsl", "main");
+	m_PSBRDFIntegrator->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBRDFIntegrator.hlsl", "main");
 
 	m_PSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSBillboard->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBillboard.hlsl", "main");
+	m_PSBillboard->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBillboard.hlsl", "main");
 	m_PSBillboard->AttachConstantBuffer(m_CBEditorTime.get());
 
 	m_PSDirectionalLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSDirectionalLight->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "main");
+	m_PSDirectionalLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "main");
 	m_PSDirectionalLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 	m_PSDirectionalLight->AttachConstantBuffer(m_CBDirectionalLight.get());
 
 	m_PSDirectionalLight_NonIBL = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSDirectionalLight_NonIBL->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "NonIBL");
+	m_PSDirectionalLight_NonIBL->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "NonIBL");
 	m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 	m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBDirectionalLight.get());
 	
 	m_PSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSPointLight->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSPointLight.hlsl", "main");
+	m_PSPointLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSPointLight.hlsl", "main");
 	m_PSPointLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 
 	m_PSPointLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSPointLight_Volume->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSPointLight.hlsl", "Volume");
+	m_PSPointLight_Volume->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSPointLight.hlsl", "Volume");
 	m_PSPointLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 
 	m_PSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSSpotLight->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "main");
+	m_PSSpotLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "main");
 	m_PSSpotLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 
 	m_PSSpotLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSSpotLight_Volume->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "Volume");
+	m_PSSpotLight_Volume->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "Volume");
 	m_PSSpotLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 
 	m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSBase2D->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSBase2D.hlsl", "main");
+	m_PSBase2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase2D.hlsl", "main");
 	m_PSBase2D->AttachConstantBuffer(m_CBPS2DFlags.get());
 
 	m_PSMasking2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSMasking2D->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSMasking2D.hlsl", "main");
+	m_PSMasking2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSMasking2D.hlsl", "main");
 
 	m_PSHeightMap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSHeightMap2D->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSHeightMap2D.hlsl", "main");
+	m_PSHeightMap2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSHeightMap2D.hlsl", "main");
 	
 	m_PSCubemap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-	m_PSCubemap2D->Create(EShaderType::PixelShader, bShouldCompile, L"Shader\\PSCubemap2D.hlsl", "main");
+	m_PSCubemap2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCubemap2D.hlsl", "main");
 }
 
 void CGame::CreateMiniAxes()
@@ -1233,6 +1233,7 @@ void CGame::CreateCubemapVertexBuffer()
 void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 {
 	DeselectAll();
+	ClearCopyList();
 
 	string ReadString{};
 	XMVECTOR ReadXMVECTOR{};
@@ -1996,6 +1997,11 @@ void CGame::PasteCopiedObject()
 	for (auto& CopyLight : m_vCopyLights)
 	{
 		string NewName{ CopyLight.InstanceCPUData.Name + "_" + to_string(CopyLight.PasteCounter) };
+		while ((m_umapLightNames.find(NewName) != m_umapLightNames.end()))
+		{
+			++m_LightCounter;
+			NewName = CopyLight.InstanceCPUData.Name + "_" + to_string(CopyLight.PasteCounter);
+		}
 
 		if (InsertLight(CopyLight.InstanceCPUData.eType, NewName))
 		{
@@ -4229,6 +4235,7 @@ void CGame::Draw()
 
 			DrawObject3DLines();
 
+			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawDirectionalLightShadowMap))
 			{
 				m_DeviceContext->RSSetViewports(1, &m_vViewports[5]);
 
@@ -4301,7 +4308,7 @@ void CGame::Draw()
 	}
 
 	// Drawing light volumes
-	if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawLightVolumes))
+	if (m_eMode == EMode::Edit && EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawLightVolumes))
 	{
 		m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
 
@@ -6932,7 +6939,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					float DirectionalLightDirection[3]{ XMVectorGetX(KDirectionalLightDirection), XMVectorGetY(KDirectionalLightDirection),
 						XMVectorGetZ(KDirectionalLightDirection) };
 
-					static constexpr float KLabelsWidth{ 220 };
+					static constexpr float KLabelsWidth{ 240 };
 					static constexpr float KItemsMaxWidth{ 240 };
 					float ItemsWidth{ WindowWidth - KLabelsWidth };
 					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
@@ -7135,6 +7142,15 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						if (ImGui::Checkbox(u8"##그리드 표시", &bDrawGrid))
 						{
 							ToggleGameRenderingFlags(EFlagsRendering::DrawGrid);
+						}
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"DirectionalLight 그림자맵 표시");
+						ImGui::SameLine(ItemsOffsetX);
+						bool bDrawDirectionalLightShadowMap{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawDirectionalLightShadowMap) };
+						if (ImGui::Checkbox(u8"##DirectionalLight 그림자맵 표시", &bDrawDirectionalLightShadowMap))
+						{
+							ToggleGameRenderingFlags(EFlagsRendering::DrawDirectionalLightShadowMap);
 						}
 					}
 					ImGui::PopItemWidth();

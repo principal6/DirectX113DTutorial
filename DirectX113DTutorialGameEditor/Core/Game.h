@@ -272,6 +272,7 @@ public:
 		UseLighting = 0x0800,
 		UsePhysicallyBasedRendering = 0x1000,
 		DrawLightVolumes = 0x2000,
+		DrawDirectionalLightShadowMap = 0x4000
 	};
 
 	enum class ERasterizerState

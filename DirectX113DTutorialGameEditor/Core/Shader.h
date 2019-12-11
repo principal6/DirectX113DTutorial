@@ -9,6 +9,16 @@ class CConstantBuffer;
 
 class CShader final
 {
+public:
+	enum class EVersion
+	{
+		_4_0,
+		_4_1,
+		_5_0,
+		_5_1
+	};
+
+private:
 	struct SAttachedConstantBuffer
 	{
 		SAttachedConstantBuffer() {}
@@ -31,7 +41,7 @@ public:
 	}
 	~CShader() {}
 
-	void Create(EShaderType Type, bool bShouldCompile, const std::wstring& FileName, const std::string& EntryPoint,
+	void Create(EShaderType Type, EVersion eVersion, bool bShouldCompile, const std::wstring& FileName, const std::string& EntryPoint,
 		const D3D11_INPUT_ELEMENT_DESC* InputElementDescs = nullptr, UINT NumElements = 0);
 
 	void AttachConstantBuffer(CConstantBuffer* const ConstantBuffer, int32_t Slot = -1);
