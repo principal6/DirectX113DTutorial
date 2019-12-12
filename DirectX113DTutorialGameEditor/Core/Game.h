@@ -13,7 +13,6 @@
 #include "Object3D.h"
 #include "Object3DLine.h"
 #include "Object2D.h"
-#include "ParticlePool.h"
 #include "PrimitiveGenerator.h"
 #include "Terrain.h"
 #include "CubemapRep.h"
@@ -39,7 +38,6 @@ public:
 		VSGizmo,
 		VSTerrain,
 		VSFoliage,
-		VSParticle,
 		VSScreenQuad,
 		VSBase2D,
 		VSBillboard,
@@ -60,7 +58,6 @@ public:
 		DSSpotLight,
 
 		GSNormal,
-		GSParticle,
 
 		PSBase,
 		PSBase_GBuffer,
@@ -75,7 +72,6 @@ public:
 		PSTerrain_GBuffer,
 		PSWater,
 		PSFoliage,
-		PSParticle,
 		PSCamera,
 		PSScreenQuad,
 		PSScreenQuad_Opaque,
@@ -772,7 +768,6 @@ private:
 	std::unique_ptr<CShader>	m_VSGizmo{};
 	std::unique_ptr<CShader>	m_VSTerrain{};
 	std::unique_ptr<CShader>	m_VSFoliage{};
-	std::unique_ptr<CShader>	m_VSParticle{};
 	std::unique_ptr<CShader>	m_VSScreenQuad{};
 	std::unique_ptr<CShader>	m_VSBase2D{};
 	std::unique_ptr<CShader>	m_VSBillboard{};
@@ -793,7 +788,6 @@ private:
 	std::unique_ptr<CShader>	m_DSSpotLight{};
 
 	std::unique_ptr<CShader>	m_GSNormal{};
-	std::unique_ptr<CShader>	m_GSParticle{};
 
 	std::unique_ptr<CShader>	m_PSBase{};
 	std::unique_ptr<CShader>	m_PSBase_GBuffer{};
@@ -808,7 +802,6 @@ private:
 	std::unique_ptr<CShader>	m_PSTerrain_gbuffer{};
 	std::unique_ptr<CShader>	m_PSWater{};
 	std::unique_ptr<CShader>	m_PSFoliage{};
-	std::unique_ptr<CShader>	m_PSParticle{};
 	std::unique_ptr<CShader>	m_PSCamera{};
 	std::unique_ptr<CShader>	m_PSScreenQuad{};
 	std::unique_ptr<CShader>	m_PSScreenQuad_Opaque{};

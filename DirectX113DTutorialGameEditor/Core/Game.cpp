@@ -753,10 +753,6 @@ void CGame::CreateBaseShaders()
 		m_VSLine->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSLine.hlsl", "main",
 			CObject3DLine::KInputElementDescs, ARRAYSIZE(CObject3DLine::KInputElementDescs));
 
-		m_VSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSParticle->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSParticle.hlsl", "main",
-			CParticlePool::KInputElementDescs, ARRAYSIZE(CParticlePool::KInputElementDescs));
-
 		m_VSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		//m_VSScreenQuad->Create(EShaderType::VertexShader,CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSScreenQuad.hlsl", "main");
 		m_VSScreenQuad->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSScreenQuad.hlsl", "main",
@@ -838,9 +834,6 @@ void CGame::CreateBaseShaders()
 
 		m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_GSNormal->Create(EShaderType::GeometryShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\GSNormal.hlsl", "main");
-
-		m_GSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_GSParticle->Create(EShaderType::GeometryShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\GSParticle.hlsl", "main");
 	}
 	
 	// PS
@@ -900,9 +893,6 @@ void CGame::CreateBaseShaders()
 		m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSFoliage->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSFoliage.hlsl", "main");
 		
-		m_PSParticle = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSParticle->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSParticle.hlsl", "main");
-
 		m_PSCamera = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSCamera->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCamera.hlsl", "main");
 		m_PSCamera->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 0);
@@ -2186,9 +2176,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::VSFoliage:
 		Result = m_VSFoliage.get();
 		break;
-	case EBaseShader::VSParticle:
-		Result = m_VSParticle.get();
-		break;
 	case EBaseShader::VSScreenQuad:
 		Result = m_VSScreenQuad.get();
 		break;
@@ -2240,9 +2227,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::GSNormal:
 		Result = m_GSNormal.get();
 		break;
-	case EBaseShader::GSParticle:
-		Result = m_GSParticle.get();
-		break;
 	case EBaseShader::PSBase:
 		Result = m_PSBase.get();
 		break;
@@ -2272,9 +2256,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSFoliage:
 		Result = m_PSFoliage.get();
-		break;
-	case EBaseShader::PSParticle:
-		Result = m_PSParticle.get();
 		break;
 	case EBaseShader::PSCamera:
 		Result = m_PSCamera.get();

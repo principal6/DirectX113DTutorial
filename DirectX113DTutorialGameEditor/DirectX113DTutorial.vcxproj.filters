@@ -72,9 +72,6 @@
     <ClCompile Include="Core\AssimpLoader.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Core\ParticlePool.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="Core\FileDialog.cpp">
       <Filter>Core</Filter>
     </ClCompile>
@@ -444,9 +441,6 @@
     <ClInclude Include="Core\Material.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\ParticlePool.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Core\FileDialog.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -631,15 +625,6 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\DSTerrain.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shader\VSParticle.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shader\PSParticle.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shader\GSParticle.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\PSCloud.hlsl">
