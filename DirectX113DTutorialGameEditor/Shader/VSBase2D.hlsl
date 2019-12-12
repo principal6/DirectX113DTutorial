@@ -1,11 +1,5 @@
 #include "Base2D.hlsli"
-
-cbuffer cbSpace : register(b0)
-{
-	float4x4 World;
-	float4x4 Projection;
-	float4x4 WVP;
-}
+#include "iVSCBs.hlsli"
 
 VS_2D_OUTPUT main(VS_2D_INPUT Input)
 {

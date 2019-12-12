@@ -1,11 +1,5 @@
 #include "Base.hlsli"
-
-cbuffer cbSpace : register(b0)
-{
-	float4x4 View;
-	float4x4 Projection;
-	float4x4 ViewProjection;
-}
+#include "iGSCBs.hlsli"
 
 [maxvertexcount(30)]
 void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)

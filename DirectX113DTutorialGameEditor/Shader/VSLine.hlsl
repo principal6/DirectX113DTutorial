@@ -1,11 +1,5 @@
 #include "Line.hlsli"
-
-cbuffer cbSpace : register(b0)
-{
-	float4x4 World;
-	float4x4 ViewProjection;
-	float4x4 WVP;
-}
+#include "iVSCBs.hlsli"
 
 VS_LINE_OUTPUT main(VS_LINE_INPUT input)
 {

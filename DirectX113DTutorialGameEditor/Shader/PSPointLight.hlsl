@@ -8,7 +8,7 @@ Texture2D GBuffer_BaseColor_Rough : register(t1);
 Texture2D GBuffer_Normal : register(t2);
 Texture2D GBuffer_Metal_AO : register(t3);
 
-cbuffer cbGBufferUnpacking : register(b0)
+cbuffer cbGBufferUnpacking : register(b3)
 {
 	float4 PerspectiveValues;
 	float4x4 InverseViewMatrix;

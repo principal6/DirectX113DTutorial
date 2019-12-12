@@ -1,6 +1,6 @@
 #include "Base.hlsli"
 
-cbuffer cbColorFactor : register(b0)
+cbuffer cbColorFactor : register(b3)
 {
 	float4 ColorFactor;
 };

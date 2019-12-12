@@ -1,16 +1,7 @@
 #include "Terrain.hlsli"
+#include "iHSCBs.hlsli"
 
-cbuffer cbLight : register(b0)
-{
-	float4	DirectionalLightDirection;
-	float3	DirectionalLightColor;
-	float	Exposure;
-	float3	AmbientLightColor;
-	float	AmbientLightIntensity;
-	float4	EyePosition;
-}
-
-cbuffer cbTessFactor : register(b1)
+cbuffer cbTessFactor : register(b2)
 {
 	float EdgeTessFactor;
 	float InsideTessFactor;

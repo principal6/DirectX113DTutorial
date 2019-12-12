@@ -1,11 +1,5 @@
 #include "Particle.hlsli"
-
-cbuffer cbSpace : register(b0)
-{
-	float4x4 View;
-	float4x4 Projection;
-	float4x4 ViewProjection;
-}
+#include "iGSCBs.hlsli"
 
 [maxvertexcount(6)]
 void main(point VS_PARTICLE_OUTPUT Input[1], inout TriangleStream<VS_PARTICLE_OUTPUT> Output)

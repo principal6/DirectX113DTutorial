@@ -3,7 +3,7 @@
 SamplerState PointSampler : register(s0);
 Texture2D DeferredTexture : register(t0);
 
-cbuffer cbScreen : register(b0)
+cbuffer cbScreen : register(b3)
 {
 	float2 InverseScreenSize;
 	float2 Pads;

@@ -1,5 +1,6 @@
 #include "Terrain.hlsli"
 #include "BRDF.hlsli"
+#include "iPSCBs.hlsli"
 
 SamplerState CurrentSampler : register(s0);
 
@@ -12,20 +13,10 @@ Texture2D MetalnessTexture : register(t5);
 Texture2D AmbientOcclusionTexture : register(t6);
 // Displacement texture slot
 
-cbuffer cbTime : register(b0)
+cbuffer cbTime : register(b3)
 {
 	float Time;
 	float3 Pads;
-}
-
-cbuffer cbLight : register(b1)
-{
-	float4	DirectionalLightDirection;
-	float3	DirectionalLightColor;
-	float	Exposure;
-	float3	AmbientLightColor;
-	float	AmbientLightIntensity;
-	float4	EyePosition;
 }
 
 float4 main(VS_OUTPUT Input) : SV_TARGET

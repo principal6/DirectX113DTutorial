@@ -65,7 +65,8 @@ public:
 		PSBase,
 		PSBase_GBuffer,
 		PSBase_Void,
-		PSVertexColor,
+		PSBase_RawVertexColor,
+		PSBase_RawDiffuseColor,
 		PSDynamicSky,
 		PSCloud,
 		PSLine,
@@ -94,6 +95,7 @@ public:
 		PSSpotLight_Volume,
 
 		PSBase2D,
+		PSBase2D_RawVertexColor,
 		PSMasking2D,
 		PSHeightMap2D,
 		PSCubemap2D
@@ -104,75 +106,43 @@ public:
 		NONE,
 
 		Object3D,
+		Object3DInstance, // Instance of Object3D
 		Object3DLine,
 		Object2D,
 		EditorCamera,
 		Camera,
-		Light,
-
-		Object3DInstance
+		Light
 	};
 
-	struct SCBSpaceWVPData
+	struct SCBSpaceData // Update every frame (because Camera/View is seriously dynamic)
 	{
 		XMMATRIX	World{};
-		XMMATRIX	ViewProjection{};
-		XMMATRIX	WVP{};
-	};
-
-	struct SCBSpaceVPData
-	{
 		XMMATRIX	View{};
 		XMMATRIX	Projection{};
 		XMMATRIX	ViewProjection{};
+		XMMATRIX	WVP{};
+		XMVECTOR	EyePosition{};
 	};
 
-	struct SCBSpace2DData
-	{
-		XMMATRIX	World{};
-		XMMATRIX	Projection{};
-	};
-
-	struct SCBAnimationBonesData
+	struct SCBAnimationBonesData // Update every frame (when CPU skinning is used)
 	{
 		XMMATRIX	BoneMatrices[CObject3D::KMaxBoneMatrixCount]{};
 	};
 
-	struct SCBPSFlagsData
+	struct SCBGlobalLightData // Update only when there is a change
 	{
-		BOOL		bUseTexture{};
-		BOOL		bUseLighting{};
-		BOOL		bUsePhysicallyBasedRendering{};
-		uint32_t	EnvironmentTextureMipLevels{};
-
-		uint32_t	PrefilteredRadianceTextureMipLevels{};
-		float		Pads[3]{};
-	};
-
-	struct SCBLightData
-	{
+		XMMATRIX	DirectionalLightSpaceMatrix{ KMatrixIdentity };
 		XMVECTOR	DirectionalLightDirection{ XMVectorSet(0, 1, 0, 0) };
 		XMFLOAT3	DirectionalLightColor{ 1, 1, 1 };
 		float		Exposure{ 1.0 };
 		XMFLOAT3	AmbientLightColor{ 1, 1, 1 };
 		float		AmbientLightIntensity{ 0.5f };
-		XMVECTOR	EyePosition{};
-	};
-
-	struct SCBDirectionalLightData
-	{
-		XMVECTOR	LightDirection{ XMVectorSet(0, 1, 0, 0) };
-		XMFLOAT3	LightColor{ 1, 1, 1 };
-		float		Exposure{ 1.0 };
-		XMFLOAT3	AmbientLightColor{ 1, 1, 1 };
-		float		AmbientLightIntensity{ 0.5f };
-		XMMATRIX	LightSpaceMatrix{ KMatrixIdentity };
-		uint32_t	EnvironmentTextureMipLevels{};
+		uint32_t	IrradianceTextureMipLevels{};
 		uint32_t	PrefilteredRadianceTextureMipLevels{};
-		float		Reserved[2]{};
+		XMFLOAT2	Reserved{};
 	};
 
-	struct SCBMaterialData
+	struct SCBMaterialData // Update at least per every object (even an object could have multiple materials)
 	{
 		XMFLOAT3	AmbientColor{};
 		float		SpecularExponent{ 1 };
@@ -201,12 +171,6 @@ public:
 	struct SCBTerrainMaskingSpaceData
 	{
 		XMMATRIX	Matrix{};
-	};
-
-	struct SCBPS2DFlagsData
-	{
-		BOOL		bUseTexture{};
-		BOOL		Pad[3]{};
 	};
 
 	struct SCBWaterTimeData
@@ -502,7 +466,6 @@ public:
 	void ToggleGameRenderingFlags(EFlagsRendering Flags);
 	void Set3DGizmoMode(E3DGizmoMode Mode);
 	void SetUniversalRSState();
-	void SetUniversalbUseLighiting();
 	E3DGizmoMode Get3DGizmoMode() const { return m_e3DGizmoMode; }
 	CommonStates* GetCommonStates() const { return m_CommonStates.get(); }
 
@@ -512,6 +475,7 @@ public:
 
 private:
 	void UpdateCBSpace(const XMMATRIX& World = KMatrixIdentity);
+	void UpdateCBSpace(const XMMATRIX& World, const XMMATRIX& Projection);
 	void UpdateCBAnimationBoneMatrices(const XMMATRIX* const BoneMatrices);
 	void UpdateCBAnimationData(const CObject3D::SCBAnimationData& Data);
 	void UpdateCBTerrainData(const CTerrain::SCBTerrainData& Data);
@@ -526,7 +490,8 @@ private:
 	void UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection);
 
 	void UpdateCBBillboard(const CBillboard::SCBBillboardData& Data);
-	void UpdateCBDirectionalLight();
+
+	void UpdateCBGlobalLightProbeData();
 
 public:
 	void CreateDynamicSky(const std::string& SkyDataFileName, float ScalingFactor);
@@ -833,7 +798,8 @@ private:
 	std::unique_ptr<CShader>	m_PSBase{};
 	std::unique_ptr<CShader>	m_PSBase_GBuffer{};
 	std::unique_ptr<CShader>	m_PSBase_Void{};
-	std::unique_ptr<CShader>	m_PSVertexColor{};
+	std::unique_ptr<CShader>	m_PSBase_RawVertexColor{};
+	std::unique_ptr<CShader>	m_PSBase_RawDiffuseColor{};
 	std::unique_ptr<CShader>	m_PSDynamicSky{};
 	std::unique_ptr<CShader>	m_PSCloud{};
 	std::unique_ptr<CShader>	m_PSLine{};
@@ -862,27 +828,23 @@ private:
 	std::unique_ptr<CShader>	m_PSSpotLight_Volume{};
 
 	std::unique_ptr<CShader>	m_PSBase2D{};
+	std::unique_ptr<CShader>	m_PSBase2D_RawVertexColor{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
 	std::unique_ptr<CShader>	m_PSHeightMap2D{};
 	std::unique_ptr<CShader>	m_PSCubemap2D{};
 
 // Constant buffer
 private:
-	std::unique_ptr<CConstantBuffer>	m_CBSpaceWVP{};
-	std::unique_ptr<CConstantBuffer>	m_CBSpaceVP{};
-	std::unique_ptr<CConstantBuffer>	m_CBSpace2D{};
+	std::unique_ptr<CConstantBuffer>	m_CBSpace{};
 	std::unique_ptr<CConstantBuffer>	m_CBAnimationBones{};
 	std::unique_ptr<CConstantBuffer>	m_CBAnimation{};
 	std::unique_ptr<CConstantBuffer>	m_CBTerrain{};
 	std::unique_ptr<CConstantBuffer>	m_CBWind{};
 	std::unique_ptr<CConstantBuffer>	m_CBTessFactor{};
 	std::unique_ptr<CConstantBuffer>	m_CBDisplacement{};
-	std::unique_ptr<CConstantBuffer>	m_CBLight{};
-	std::unique_ptr<CConstantBuffer>	m_CBDirectionalLight{};
+	std::unique_ptr<CConstantBuffer>	m_CBGlobalLight{};
 	std::unique_ptr<CConstantBuffer>	m_CBMaterial{};
-	std::unique_ptr<CConstantBuffer>	m_CBPSFlags{}; // ...
 	std::unique_ptr<CConstantBuffer>	m_CBGizmoColorFactor{};
-	std::unique_ptr<CConstantBuffer>	m_CBPS2DFlags{}; // ...
 	std::unique_ptr<CConstantBuffer>	m_CBTerrainMaskingSpace{};
 	std::unique_ptr<CConstantBuffer>	m_CBTerrainSelection{};
 	std::unique_ptr<CConstantBuffer>	m_CBSkyTime{};
@@ -895,21 +857,16 @@ private:
 	std::unique_ptr<CConstantBuffer>	m_CBBillboard{};
 	std::unique_ptr<CConstantBuffer>	m_CBGBufferUnpacking{};
 
-	SCBSpaceWVPData						m_CBSpaceWVPData{};
-	SCBSpaceVPData						m_CBSpaceVPData{};
-	SCBSpace2DData						m_CBSpace2DData{};
+	SCBSpaceData						m_CBSpaceData{};
 	SCBAnimationBonesData				m_CBAnimationBonesData{};
 	CObject3D::SCBAnimationData			m_CBAnimationData{};
 	CTerrain::SCBTerrainData			m_CBTerrainData{};
 	CTerrain::SCBWindData				m_CBWindData{};
 	CObject3D::SCBTessFactorData		m_CBTessFactorData{};
 	CObject3D::SCBDisplacementData		m_CBDisplacementData{};
-	SCBLightData						m_CBLightData{};
-	SCBDirectionalLightData				m_CBDirectionalLightData{};
+	SCBGlobalLightData					m_CBGlobalLightData{};
 	SCBMaterialData						m_CBMaterialData{};
-	SCBPSFlagsData						m_CBPSFlagsData{};
 	SCBGizmoColorFactorData				m_CBGizmoColorFactorData{};
-	SCBPS2DFlagsData					m_CBPS2DFlagsData{};
 	SCBTerrainMaskingSpaceData			m_CBTerrainMaskingSpaceData{};
 	CTerrain::SCBTerrainSelectionData	m_CBTerrainSelectionData{};
 	SCBSkyTimeData						m_CBSkyTimeData{};

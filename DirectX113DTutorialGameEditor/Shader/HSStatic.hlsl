@@ -1,6 +1,6 @@
 #include "Base.hlsli"
 
-cbuffer cbTessFactor : register(b0)
+cbuffer cbTessFactor : register(b2)
 {
 	float EdgeTessFactor;
 	float InsideTessFactor;

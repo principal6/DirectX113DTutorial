@@ -3,7 +3,7 @@
 SamplerState CubemapSampler : register(s0);
 TextureCube CubemapTexture : register(t0);
 
-cbuffer cbRadiancePrefiltering : register(b0)
+cbuffer cbRadiancePrefiltering : register(b3)
 {
 	float Roughness;
 	float RangeFactor;

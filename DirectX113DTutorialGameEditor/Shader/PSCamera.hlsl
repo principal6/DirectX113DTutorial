@@ -1,29 +1,15 @@
 #include "Base.hlsli"
 #include "Shared.hlsli"
+#include "iPSCBs.hlsli"
 
-cbuffer cbMaterial : register(b0)
-{
-	float3	MaterialAmbientColor; // Classical
-	float	MaterialSpecularExponent; // Classical
-	float3	MaterialDiffuseColor;
-	float	MaterialSpecularIntensity; // Classical
-	float3	MaterialSpecularColor; // Classical
-	float	MaterialRoughness;
-
-	float	MaterialMetalness;
-	uint	FlagsHasTexture;
-	uint	FlagsIsTextureSRGB;
-	uint	TotalMaterialCount; // for Terrain this is texture layer count
-}
-
-cbuffer cbEditorTime : register(b1)
+cbuffer cbEditorTime : register(b3)
 {
 	float NormalizedTime;
 	float NormalizedTimeHalfSpeed;
-	float2 Reserved;
+	float2 Reserved2;
 }
 
-cbuffer cbCameraInfo : register(b2)
+cbuffer cbCameraInfo : register(b4)
 {
 	uint CurrentCameraID;
 	float3 Pads;

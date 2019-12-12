@@ -3,7 +3,7 @@
 SamplerState CubemapSampler : register(s0);
 TextureCube CubemapTexture : register(t0);
 
-cbuffer cbIrradianceGenerator : register(b0)
+cbuffer cbIrradianceGenerator : register(b3)
 {
 	float RangeFactor;
 	float3 Pads;

@@ -1,6 +1,7 @@
 #include "Terrain.hlsli"
 #include "BRDF.hlsli"
 #include "GBuffer.hlsli"
+#include "iPSCBs.hlsli"
 
 #define FLAG_ID_DIFFUSE 0x01
 #define FLAG_ID_NORMAL 0x02
@@ -59,33 +60,12 @@ TextureCube IrradianceTexture : register(t51);
 TextureCube PrefilteredRadianceTexture : register(t52);
 Texture2D IntegratedBRDFTexture : register(t53);
 
-cbuffer cbFlags : register(b0)
-{
-	bool bUseTexture;
-	bool bUseLighting;
-	bool bUsePhysicallyBasedRendering;
-	uint EnvironmentTextureMipLevels;
-
-	uint PrefilteredRadianceTextureMipLevels;
-	float3 Pads;
-}
-
-cbuffer cbMaskingSpace : register(b1)
+cbuffer cbMaskingSpace : register(b3)
 {
 	float4x4 MaskingSpaceMatrix;
 }
 
-cbuffer cbLight : register(b2)
-{
-	float4	DirectionalLightDirection;
-	float3	DirectionalLightColor;
-	float	Exposure;
-	float3	AmbientLightColor;
-	float	AmbientLightIntensity;
-	float4	EyePosition;
-}
-
-cbuffer cbSelection : register(b3)
+cbuffer cbSelection : register(b4)
 {
 	bool bShowSelection;
 	float SelectionRadius;
@@ -95,26 +75,11 @@ cbuffer cbSelection : register(b3)
 	float4x4 InverseTerrainWorld;
 }
 
-cbuffer cbEditorTime : register(b4)
+cbuffer cbEditorTime : register(b5)
 {
 	float NormalizedTime;
 	float NormalizedTimeHalfSpeed;
 	float2 Pad2;
-}
-
-cbuffer cbMaterial : register(b5)
-{
-	float3	MaterialAmbientColor; // Classical
-	float	MaterialSpecularExponent; // Classical
-	float3	MaterialDiffuseColor;
-	float	MaterialSpecularIntensity; // Classical
-	float3	MaterialSpecularColor; // Classical
-	float	MaterialRoughness;
-
-	float	MaterialMetalness;
-	uint	FlagsHasTexture;
-	uint	FlagsIsTextureSRGB;
-	uint	TotalMaterialCount; // for Terrain this is texture layer count
 }
 
 #define TEX_COORD Input.TexCoord.xy
@@ -233,7 +198,6 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	}
 
 	float4 OutputColor = float4(BlendedDiffuse.xyz, 1);
-	if (bUseLighting == true)
 	{
 		// Exposure tone mapping for raw albedo
 		float3 Albedo = float3(1.0, 1.0, 1.0) - exp(-BlendedDiffuse.xyz * Exposure);
@@ -244,7 +208,6 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		// This is equivalent of V vector (view direction from a point on interface-- both for macrosurface and microsurface.)
 		float3 Wo = normalize(EyePosition.xyz - Input.WorldPosition.xyz);
 
-		if (bUsePhysicallyBasedRendering)
 		{
 			// Calculate Fresnel reflectance at incident angle of 0 degree
 			float3 F0 = lerp(KFresnel_dielectric, Albedo, MaterialMetalness);
@@ -291,23 +254,11 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 				/*
 				// Diffuse: Irradiance of the surface point
-				float3 Ei_indirect = IrradianceTexture.SampleBias(LinearWrapSampler, N, BlendedRoughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
+				float3 Ei_indirect = IrradianceTexture.SampleBias(LinearWrapSampler, N, BlendedRoughness * (float)(IrradianceTextureMipLevels - 1)).rgb;
 
 				OutputColor.xyz += Ei_indirect * Albedo * K1DIVPI * BlendedAmbientOcclusion;
 				*/
 			}
-		}
-		else
-		{
-			float3 Ambient = CalculateClassicalAmbient(Albedo, AmbientLightColor, AmbientLightIntensity);
-			float3 Directional = CalculateClassicalDirectional(Albedo, Albedo, MaterialSpecularExponent, BlendedSpecularIntensity,
-				DirectionalLightColor, Wi_direct, Wo, N);
-
-			// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
-			float Dot = dot(DirectionalLightDirection, KUpDirection);
-			Directional.xyz *= pow(Dot, 0.6f);
-
-			OutputColor.xyz = Ambient + Directional;
 		}
 	}
 

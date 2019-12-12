@@ -1,11 +1,5 @@
 #include "DeferredLight.hlsli"
-
-cbuffer cbSpace : register(b0)
-{
-	float4x4 View;
-	float4x4 Projection;
-	float4x4 ViewProjection;
-}
+#include "iDSCBs.hlsli"
 
 [domain("quad")]
 DS_POINT_LIGHT_OUTPUT main(HS_CONSTANT_DATA_OUTPUT ConstantData, float2 Domain : SV_DomainLocation, const OutputPatch<HS_POINT_LIGHT_OUTPUT, 1> ControlPoints)

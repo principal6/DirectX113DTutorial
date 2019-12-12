@@ -1,11 +1,5 @@
 #include "DeferredLight.hlsli"
-
-cbuffer cbSpace : register(b0)
-{
-	float4x4 View;
-	float4x4 Projection;
-	float4x4 ViewProjection;
-}
+#include "iDSCBs.hlsli"
 
 //                  £¯|¡¬                      ^
 //                £¯  |  ¡¬                    |

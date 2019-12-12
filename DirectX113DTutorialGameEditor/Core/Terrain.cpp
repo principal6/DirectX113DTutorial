@@ -1006,8 +1006,6 @@ void CTerrain::DrawFoliageCluster()
 	if (m_vFoliages.empty()) return;
 	if (m_vFoliages[0]->GetInstanceCount() == 0) return;
 
-	m_PtrGame->SetUniversalbUseLighiting();
-
 	m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->CullNone());
 	m_PtrDeviceContext->OMSetBlendState(m_PtrGame->GetBlendStateAlphaToCoverage(), nullptr, 0xFFFFFFFF);
 
@@ -1040,7 +1038,7 @@ void CTerrain::DrawWindRepresentation()
 		m_Object3DWindRep->UpdateWorldMatrix();
 
 		m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->Use();
-		m_PtrGame->GetBaseShader(CGame::EBaseShader::PSVertexColor)->Use();
+		m_PtrGame->GetBaseShader(CGame::EBaseShader::PSBase_RawVertexColor)->Use();
 
 		m_Object3DWindRep->Draw();
 

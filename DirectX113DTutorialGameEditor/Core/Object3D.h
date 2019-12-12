@@ -15,8 +15,6 @@ public:
 	{
 		None = 0x00,
 		NoCulling = 0x01,
-		NoLighting = 0x02,
-		NoTexture = 0x04,
 	};
 
 	struct SCBTessFactorData

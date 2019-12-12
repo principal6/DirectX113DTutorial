@@ -1,6 +1,7 @@
 #include "Base.hlsli"
 #include "BRDF.hlsli"
 #include "GBuffer.hlsli"
+#include "iPSCBs.hlsli"
 
 #define FLAG_ID_DIFFUSE 0x01
 #define FLAG_ID_NORMAL 0x02
@@ -30,42 +31,6 @@ TextureCube IrradianceTexture : register(t51);
 TextureCube PrefilteredRadianceTexture : register(t52);
 Texture2D IntegratedBRDFTexture : register(t53);
 
-cbuffer cbFlags : register(b0)
-{
-	bool bUseTexture;
-	bool bUseLighting;
-	bool bUsePhysicallyBasedRendering;
-	uint EnvironmentTextureMipLevels;
-
-	uint PrefilteredRadianceTextureMipLevels;
-	float3 Pads;
-}
-
-cbuffer cbLight : register(b1)
-{
-	float4	DirectionalLightDirection;
-	float3	DirectionalLightColor;
-	float	Exposure;
-	float3	AmbientLightColor;
-	float	AmbientLightIntensity;
-	float4	EyePosition;
-}
-
-cbuffer cbMaterial : register(b2)
-{
-	float3	MaterialAmbientColor; // Classical
-	float	MaterialSpecularExponent; // Classical
-	float3	MaterialDiffuseColor;
-	float	MaterialSpecularIntensity; // Classical
-	float3	MaterialSpecularColor; // Classical
-	float	MaterialRoughness;
-
-	float	MaterialMetalness;
-	uint	FlagsHasTexture;
-	uint	FlagsIsTextureSRGB;
-	uint	TotalMaterialCount; // for Terrain this is texture layer count
-}
-
 #define N WorldNormal.xyz // Macrosurface normal
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
@@ -80,61 +45,58 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float Opacity = 1.0;
 	float AmbientOcclusion = 1.0;
 	
-	if (bUseTexture == true)
+	if (FlagsHasTexture & FLAG_ID_DIFFUSE)
 	{
-		if (FlagsHasTexture & FLAG_ID_DIFFUSE)
-		{
-			DiffuseColor = DiffuseTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).xyz;
+		DiffuseColor = DiffuseTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).xyz;
 
-			// # Here we make sure that input RGB values are in linear-space!
-			if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
-			{
-				// # Convert gamma-space RGB to linear-space RGB
-				DiffuseColor = pow(DiffuseColor, 2.2);
-			}
-		}
-
-		if (FlagsHasTexture & FLAG_ID_NORMAL)
+		// # Here we make sure that input RGB values are in linear-space!
+		if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
 		{
-			WorldNormal = NormalTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
-			WorldNormal = normalize((WorldNormal * 2.0) - 1.0);
+			// # Convert gamma-space RGB to linear-space RGB
+			DiffuseColor = pow(DiffuseColor, 2.2);
+		}
+	}
 
-			float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
-			WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
-		}
-		
-		if (FlagsHasTexture & FLAG_ID_OPACITY)
-		{
-			float4 Sampled = OpacityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
-			if (Sampled.r == Sampled.g && Sampled.g == Sampled.b)
-			{
-				Opacity = Sampled.r;
-			}
-			else
-			{
-				Opacity = Sampled.a;
-			}
-		}
+	if (FlagsHasTexture & FLAG_ID_NORMAL)
+	{
+		WorldNormal = NormalTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
+		WorldNormal = normalize((WorldNormal * 2.0) - 1.0);
 
-		if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY)
-		{
-			SpecularIntensity = SpecularIntensityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
-		}
+		float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
+		WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
+	}
 
-		if (FlagsHasTexture & FLAG_ID_ROUGHNESS)
+	if (FlagsHasTexture & FLAG_ID_OPACITY)
+	{
+		float4 Sampled = OpacityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
+		if (Sampled.r == Sampled.g && Sampled.g == Sampled.b)
 		{
-			Roughness = RoughnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+			Opacity = Sampled.r;
 		}
+		else
+		{
+			Opacity = Sampled.a;
+		}
+	}
 
-		if (FlagsHasTexture & FLAG_ID_METALNESS)
-		{
-			Metalness = MetalnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
-		}
+	if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY)
+	{
+		SpecularIntensity = SpecularIntensityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
 
-		if (FlagsHasTexture & FLAG_ID_AMBIENTOCCLUSION)
-		{
-			AmbientOcclusion = AmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
-		}
+	if (FlagsHasTexture & FLAG_ID_ROUGHNESS)
+	{
+		Roughness = RoughnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
+
+	if (FlagsHasTexture & FLAG_ID_METALNESS)
+	{
+		Metalness = MetalnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
+
+	if (FlagsHasTexture & FLAG_ID_AMBIENTOCCLUSION)
+	{
+		AmbientOcclusion = AmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 	}
 
 	if (FlagsHasTexture & FLAG_ID_DIFFUSE)
@@ -143,7 +105,6 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	}
 
 	float4 OutputColor = float4(DiffuseColor, 1);
-	if (bUseLighting == true)
 	{
 		// Exposure tone mapping for raw albedo
 		float3 Albedo = float3(1.0, 1.0, 1.0) - exp(-DiffuseColor * Exposure);
@@ -154,7 +115,6 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		// This is equivalent of V vector (view direction from a point on the interface-- both for macrosurface and microsurface.)
 		float3 Wo = normalize(EyePosition.xyz - Input.WorldPosition.xyz); 
 
-		if (bUsePhysicallyBasedRendering == true)
 		{
 			// Calculate Fresnel reflectance at incident angle of 0 degree
 			float3 F0 = lerp(KFresnel_dielectric, Albedo, Metalness);
@@ -195,14 +155,14 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			}
 
 			// Indirect light
-			if (EnvironmentTextureMipLevels > 0)
+			if (IrradianceTextureMipLevels > 0)
 			{
 				// Indirect light direction
 				float3 Wi_indirect = normalize(-Wo + (2.0 * dot(N, Wo) * N)); // @important: do not clamp dot product...!!!!
 				float NdotWi_indirect = dot(N, Wi_indirect);
 
 				// Diffuse: Irradiance of the surface point
-				float3 Ei_indirect = IrradianceTexture.SampleBias(LinearWrapSampler, N, Roughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
+				float3 Ei_indirect = IrradianceTexture.SampleBias(LinearWrapSampler, N, Roughness * (float)(IrradianceTextureMipLevels - 1)).rgb;
 				if (!(FlagsIsTextureSRGB & FLAG_ID_IRRADIANCE)) Ei_indirect = pow(Ei_indirect, 2.2);
 
 				// Calculate Fresnel reflectance of macrosurface
@@ -229,18 +189,6 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 				OutputColor.xyz += (Lo_indirect_diff + Lo_indirect_spec) * AmbientOcclusion;
 			}
 		}
-		else
-		{
-			float3 Ambient = CalculateClassicalAmbient(AmbientColor, AmbientLightColor, AmbientLightIntensity);
-			float3 Directional = CalculateClassicalDirectional(Albedo, SpecularColor, MaterialSpecularExponent, SpecularIntensity,
-				DirectionalLightColor, Wi_direct, Wo, N);
-
-			// Directional Light의 위치가 지평선에 가까워질수록 빛의 세기를 약하게 한다.
-			float Dot = dot(DirectionalLightDirection, KUpDirection);
-			Directional.xyz *= pow(Dot, 0.6f);
-
-			OutputColor.xyz = Ambient + Directional;
-		}
 	}
 
 	// # Here we make sure that output RGB values are in gamma-space!
@@ -262,34 +210,31 @@ GBufferOutput GBuffer(VS_OUTPUT Input)
 	float Metalness = MaterialMetalness;
 	float AmbientOcclusion = 1.0;
 
-	if (bUseTexture == true)
+	if (FlagsHasTexture & FLAG_ID_DIFFUSE)
 	{
-		if (FlagsHasTexture & FLAG_ID_DIFFUSE)
+		DiffuseColor = DiffuseTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).xyz;
+
+		// # Here we make sure that input RGB values are in linear-space!
+		if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
 		{
-			DiffuseColor = DiffuseTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).xyz;
-
-			// # Here we make sure that input RGB values are in linear-space!
-			if (!(FlagsIsTextureSRGB & FLAG_ID_DIFFUSE))
-			{
-				// # Convert gamma-space RGB to linear-space RGB
-				DiffuseColor = pow(DiffuseColor, 2.2);
-			}
+			// # Convert gamma-space RGB to linear-space RGB
+			DiffuseColor = pow(DiffuseColor, 2.2);
 		}
-
-		if (FlagsHasTexture & FLAG_ID_NORMAL)
-		{
-			WorldNormal = NormalTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
-			WorldNormal = normalize((WorldNormal * 2.0f) - 1.0f);
-
-			float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
-			WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
-		}
-
-		if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY) SpecularIntensity = SpecularIntensityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
-		if (FlagsHasTexture & FLAG_ID_ROUGHNESS) Roughness = RoughnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
-		if (FlagsHasTexture & FLAG_ID_METALNESS) Metalness = MetalnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
-		if (FlagsHasTexture & FLAG_ID_AMBIENTOCCLUSION) AmbientOcclusion = AmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 	}
+
+	if (FlagsHasTexture & FLAG_ID_NORMAL)
+	{
+		WorldNormal = NormalTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
+		WorldNormal = normalize((WorldNormal * 2.0f) - 1.0f);
+
+		float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
+		WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
+	}
+
+	if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY) SpecularIntensity = SpecularIntensityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	if (FlagsHasTexture & FLAG_ID_ROUGHNESS) Roughness = RoughnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	if (FlagsHasTexture & FLAG_ID_METALNESS) Metalness = MetalnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	if (FlagsHasTexture & FLAG_ID_AMBIENTOCCLUSION) AmbientOcclusion = AmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 
 	float3 BaseColor = float3(1.0, 1.0, 1.0) - exp(-DiffuseColor * Exposure);
 
@@ -303,4 +248,26 @@ GBufferOutput GBuffer(VS_OUTPUT Input)
 float4 Void() : SV_TARGET
 {
 	return float4(1, 1, 1, 1);
+}
+
+float4 RawVertexColor(VS_OUTPUT Input) : SV_TARGET
+{
+	float4 OutputColor = Input.Color;
+
+	// # Here we make sure that output RGB values are in gamma-space!
+	// # Convert linear-space RGB to gamma-space RGB
+	OutputColor.rgb = pow(OutputColor.rgb, 0.4545);
+
+	return OutputColor;
+}
+
+float4 RawDiffuseColor() : SV_TARGET
+{
+	float4 OutputColor = float4(MaterialDiffuseColor, 1);
+
+	// # Here we make sure that output RGB values are in gamma-space!
+	// # Convert linear-space RGB to gamma-space RGB
+	OutputColor.rgb = pow(OutputColor.rgb, 0.4545);
+
+	return OutputColor;
 }

@@ -1,6 +1,6 @@
 #include "Base.hlsli"
 
-cbuffer cbTime : register(b0)
+cbuffer cbTime : register(b3)
 {
 	float	SkyTime;
 	float3	Pads;

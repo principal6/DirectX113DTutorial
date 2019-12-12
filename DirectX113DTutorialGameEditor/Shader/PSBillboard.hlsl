@@ -4,7 +4,7 @@ SamplerState LinearClampSampler : register(s0);
 SamplerState PointClampSampler : register(s1);
 Texture2D BillboardTexture : register(t0);
 
-cbuffer cbEditorTime : register(b0)
+cbuffer cbEditorTime : register(b3)
 {
 	float NormalizedTime;
 	float NormalizedTimeHalfSpeed;

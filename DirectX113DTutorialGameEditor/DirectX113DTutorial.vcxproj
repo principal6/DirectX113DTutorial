@@ -302,6 +302,11 @@
     <None Include="Shader\Deferred.hlsli" />
     <None Include="Shader\Foliage.hlsli" />
     <None Include="Shader\GBuffer.hlsli" />
+    <None Include="Shader\iDSCBs.hlsli" />
+    <None Include="Shader\iGSCBs.hlsli" />
+    <None Include="Shader\iHSCBs.hlsli" />
+    <None Include="Shader\iPSCBs.hlsli" />
+    <None Include="Shader\iVSCBs.hlsli" />
     <None Include="Shader\Line.hlsli" />
     <None Include="Shader\Particle.hlsli" />
     <None Include="Shader\DeferredLight.hlsli" />
@@ -614,14 +619,6 @@
     <FxCompile Include="Shader\PSTerrain.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="Shader\PSVertexColor.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>

@@ -1,13 +1,5 @@
 #include "Terrain.hlsli"
-
-static const float KDisplacementFactor = 0.25f;
-
-cbuffer cbSpace : register(b0)
-{
-	float4x4 View;
-	float4x4 Projection;
-	float4x4 ViewProjection;
-}
+#include "iDSCBs.hlsli"
 
 cbuffer cbDisplacement : register(b1)
 {
@@ -15,6 +7,8 @@ cbuffer cbDisplacement : register(b1)
 	float DisplacementFactor;
 	float2 Pads;
 }
+
+static const float KDisplacementFactor = 0.25f;
 
 SamplerState CurrentSampler : register(s0);
 Texture2D DisplacementTexture : register(t0);

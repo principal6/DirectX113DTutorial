@@ -556,6 +556,21 @@
     <None Include="Shader\GBuffer.hlsli">
       <Filter>Shader</Filter>
     </None>
+    <None Include="Shader\iVSCBs.hlsli">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="Shader\iDSCBs.hlsli">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="Shader\iGSCBs.hlsli">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="Shader\iPSCBs.hlsli">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="Shader\iHSCBs.hlsli">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\GSNormal.hlsl">
@@ -577,9 +592,6 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\PSLine.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shader\PSVertexColor.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\PSBase2D.hlsl">

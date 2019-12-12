@@ -1,5 +1,6 @@
 #include "Deferred.hlsli"
 #include "BRDF.hlsli"
+#include "iPSCBs.hlsli"
 
 SamplerState PointClampSampler : register(s0);
 SamplerState LinearWrapSampler : register(s1);
@@ -16,25 +17,12 @@ TextureCube IrradianceTexture : register(t51);
 TextureCube PrefilteredRadianceTexture : register(t52);
 Texture2D IntegratedBRDFTexture : register(t53);
 
-cbuffer cbGBufferUnpacking : register(b0)
+cbuffer cbGBufferUnpacking : register(b3)
 {
 	float4 PerspectiveValues;
 	float4x4 InverseViewMatrix;
 	float2 ScreenSize;
 	float2 Reserved2;
-}
-
-cbuffer cbDirectionalLight : register(b1)
-{
-	float4		LightDirection;
-	float3		LightColor;
-	float		Exposure;
-	float3		AmbientLightColor;
-	float		AmbientLightIntensity;
-	float4x4	LightSpaceMatrix;
-	uint		EnvironmentTextureMipLevels;
-	uint		PrefilteredRadianceTextureMipLevels;
-	float2		Reserved;
 }
 
 #define UV Input.TexCoord.xy
@@ -44,7 +32,7 @@ cbuffer cbDirectionalLight : register(b1)
 #define Metalness Metal_AO.x
 #define AmbientOcclusion Metal_AO.y
 #define EyePosition InverseViewMatrix[3].xyz
-#define Li LightColor
+#define Li DirectionalLightColor
 
 float CheckIfInShadow(float CmpDepth, float2 TexCoord)
 {
@@ -87,7 +75,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		float IsInShadow = 0.0; // 0 for "not in shadow", 1 for "in shadow"
 		// Shadow
 		{
-			float4 LightSpacePosition = mul(ObjectWorldPosition, LightSpaceMatrix);
+			float4 LightSpacePosition = mul(ObjectWorldPosition, DirectionalLightSpaceMatrix);
 			LightSpacePosition /= LightSpacePosition.w;
 
 			float2 ShadowMapSize = float2(0, 0);
@@ -114,7 +102,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		float3 DirectLight = float3(0, 0, 0);
 		if (IsInShadow < 1.0)
 		{
-			float3 Wi = LightDirection.xyz;
+			float3 Wi = DirectionalLightDirection.xyz;
 			float3 M = normalize(Wi + Wo);
 
 			float NdotWi = max(dot(N, Wi), 0.001);
@@ -136,7 +124,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 		// Indirect light
 		float3 IndirectLight = float3(0, 0, 0);
-		float3 Ei = IrradianceTexture.SampleBias(LinearWrapSampler, N, Roughness * (float)(EnvironmentTextureMipLevels - 1)).rgb;
+		float3 Ei = IrradianceTexture.SampleBias(LinearWrapSampler, N, Roughness * (float)(IrradianceTextureMipLevels - 1)).rgb;
 		if (Metalness == 0.0)
 		{
 			IndirectLight = Ei * BaseColor * K1DIVPI;
@@ -187,7 +175,7 @@ float4 NonIBL(VS_OUTPUT Input) : SV_TARGET
 
 		// Direct light
 		{
-			float3 Wi = LightDirection.xyz;
+			float3 Wi = DirectionalLightDirection.xyz;
 			float3 M = normalize(Wi + Wo);
 
 			float NdotWi = max(dot(N, Wi), 0.001);
