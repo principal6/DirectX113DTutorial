@@ -3,6 +3,7 @@
 // @TODO
 // implement anti-aliasing
 // improve shadow mapping
+// implement SSAO
 // improve terrain tessellation using quad patch? or is it good with the current Bezier triangles?
 
 IMGUI_IMPL_API LRESULT  ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);

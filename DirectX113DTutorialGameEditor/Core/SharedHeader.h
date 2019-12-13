@@ -73,7 +73,7 @@ struct SMesh
 	uint8_t							MaterialID{};
 };
 
-struct SBoundingSphere
+struct SEditorBoundingSphere
 {
 	static constexpr float KDefaultRadius{ 1.0f };
 
@@ -86,13 +86,13 @@ struct SObject3DInstanceCPUData
 {
 	static constexpr size_t KMaxNameLengthZeroTerminated{ 32 };
 
-	std::string	Name{};
-	XMVECTOR	Translation{};
-	XMVECTOR	Scaling{ XMVectorSet(1, 1, 1, 0) };
-	float		Pitch{};
-	float		Yaw{};
-	float		Roll{};
-	SBoundingSphere	BoundingSphere{};
+	std::string				Name{};
+	XMVECTOR				Translation{};
+	XMVECTOR				Scaling{ XMVectorSet(1, 1, 1, 0) };
+	float					Pitch{};
+	float					Yaw{};
+	float					Roll{};
+	SEditorBoundingSphere	EditorBoundingSphere{};
 };
 
 struct SObject3DInstanceGPUData

@@ -29,7 +29,7 @@ private:
 		SInstanceCPUDataBillboard(const std::string& _Name) : Name{ _Name } {}
 
 		std::string				Name{};
-		SBoundingSphere			BoundingSphere{};
+		SEditorBoundingSphere	EditorBoundingSphere{};
 	};
 
 	struct alignas(16) SInstanceGPUDataBillboard

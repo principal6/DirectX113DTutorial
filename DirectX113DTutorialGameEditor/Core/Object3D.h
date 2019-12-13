@@ -55,8 +55,7 @@ public:
 
 	struct SComponentPhysics
 	{
-		SBoundingSphere	BoundingSphere{};
-		bool			bIsPickable{ true };
+		bool		bIsPickable{ true };
 	};
 
 	struct SComponentRender
@@ -232,6 +231,7 @@ public:
 	SComponentRender				ComponentRender{};
 	SComponentPhysics				ComponentPhysics{};
 	EFlagsRendering					eFlagsRendering{};
+	SEditorBoundingSphere			EditorBoundingSphere{};
 
 private:
 	ID3D11Device* const				m_PtrDevice{};

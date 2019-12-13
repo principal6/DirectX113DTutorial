@@ -2826,7 +2826,7 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 			const auto& vInstanceCPUData{ Object3D->GetInstanceCPUDataVector() };
 			for (const auto& Instance : vInstanceCPUData)
 			{
-				const XMVECTOR KTranslation{ Instance.Translation + Instance.BoundingSphere.CenterOffset };
+				const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.CenterOffset };
 				const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(KTranslation, KViewProjection) };
 				const XMFLOAT2 KProjectionXY{ XMVectorGetX(KProjectionCenter), XMVectorGetY(KProjectionCenter) };
 
@@ -2842,7 +2842,7 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 		}
 		else
 		{
-			const XMVECTOR KTranslation{ Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset };
+			const XMVECTOR KTranslation{ Object3D->ComponentTransform.Translation + Object3D->EditorBoundingSphere.CenterOffset };
 			const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(KTranslation, KViewProjection) };
 			const XMFLOAT2 KProjectionXY{ XMVectorGetX(KProjectionCenter), XMVectorGetY(KProjectionCenter) };
 
@@ -2923,7 +2923,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 	case CGame::EObjectType::Object3D:
 	{
 		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-		const XMVECTOR KObjectTranslation{ Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset };
+		const XMVECTOR KObjectTranslation{ Object3D->ComponentTransform.Translation + Object3D->EditorBoundingSphere.CenterOffset };
 		
 		m_umapSelectionObject3D[SelectionData.Name] = KSelectionIndex;
 
@@ -2957,7 +2957,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 	{
 		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
 		const XMVECTOR KInstanceTranslation{
-			Object3D->GetInstanceCPUData(SelectionData.Name).Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset };
+			Object3D->GetInstanceCPUData(SelectionData.Name).Translation + Object3D->EditorBoundingSphere.CenterOffset };
 
 		m_umapSelectionObject3DInstance[Object3D->GetName() + SelectionData.Name] = KSelectionIndex;
 
@@ -3219,7 +3219,7 @@ void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
 				{
 					XMVECTOR NewT{ KVectorGreatest };
 					if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-						InstanceCPUData.BoundingSphere.Radius, InstanceCPUData.Translation + InstanceCPUData.BoundingSphere.CenterOffset, &NewT))
+						InstanceCPUData.EditorBoundingSphere.Radius, InstanceCPUData.Translation + InstanceCPUData.EditorBoundingSphere.CenterOffset, &NewT))
 					{
 						m_vObject3DPickingCandidates.emplace_back(Object3D.get(), InstanceCPUData.Name, NewT);
 					}
@@ -3229,8 +3229,8 @@ void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
 			{
 				XMVECTOR NewT{ KVectorGreatest };
 				if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-					Object3D->ComponentPhysics.BoundingSphere.Radius, 
-					Object3D->ComponentTransform.Translation + Object3D->ComponentPhysics.BoundingSphere.CenterOffset, &NewT))
+					Object3D->EditorBoundingSphere.Radius, 
+					Object3D->ComponentTransform.Translation + Object3D->EditorBoundingSphere.CenterOffset, &NewT))
 				{
 					m_vObject3DPickingCandidates.emplace_back(Object3D.get(), NewT);
 				}
@@ -3838,140 +3838,161 @@ void CGame::BeginRendering(const FLOAT* ClearColor)
 void CGame::Update()
 {
 	// Calculate time
-	m_TimeNow = m_Clock.now().time_since_epoch().count();
-	if (m_TimePrev == 0) m_TimePrev = m_TimeNow;
-	m_DeltaTimeF = static_cast<float>((m_TimeNow - m_TimePrev) * 0.000'000'001);
-
-	if (m_TimeNow > m_PreviousFrameTime + 1'000'000'000)
 	{
-		m_FPS = m_FrameCount;
-		m_FrameCount = 0;
-		m_PreviousFrameTime = m_TimeNow;
+		m_TimeNow = m_Clock.now().time_since_epoch().count();
+		if (m_TimePrev == 0) m_TimePrev = m_TimeNow;
+		m_DeltaTimeF = static_cast<float>((m_TimeNow - m_TimePrev) * 0.000'000'001);
+
+		if (m_TimeNow > m_PreviousFrameTime + 1'000'000'000)
+		{
+			m_FPS = m_FrameCount;
+			m_FrameCount = 0;
+			m_PreviousFrameTime = m_TimeNow;
+		}
+
+		m_CBEditorTimeData.NormalizedTime += m_DeltaTimeF;
+		m_CBEditorTimeData.NormalizedTimeHalfSpeed += m_DeltaTimeF * 0.5f;
+		if (m_CBEditorTimeData.NormalizedTime > 1.0f) m_CBEditorTimeData.NormalizedTime = 0.0f;
+		if (m_CBEditorTimeData.NormalizedTimeHalfSpeed > 1.0f) m_CBEditorTimeData.NormalizedTimeHalfSpeed = 0.0f;
+		m_CBEditorTime->Update();
+
+		m_CBWaterTimeData.Time += m_DeltaTimeF * 0.1f;
+		if (m_CBWaterTimeData.Time > 1.0f) m_CBWaterTimeData.Time = 0.0f;
+		m_CBWaterTime->Update();
+
+		m_CBTerrainData.Time = m_CBEditorTimeData.NormalizedTime;
 	}
 
 	// Capture inputs
 	m_CapturedKeyboardState = GetKeyState();
 	m_CapturedMouseState = GetMouseState();
 
-	// Process keyboard inputs
-	if (m_CapturedKeyboardState.LeftAlt && m_CapturedKeyboardState.Q)
+	// Engine input processing
+	if (m_eMode != EMode::Play)
 	{
-		Destroy();
-		return;
-	}
-	
-	if (!ImGui::IsAnyItemActive() && !ImGui::IsAnyWindowFocused() && m_CapturedKeyboardState.Escape)
-	{
-		DeselectAll();
-	}
-	if (!ImGui::IsAnyItemActive())
-	{
-		if (m_CapturedKeyboardState.W)
-		{
-			m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Forward, m_DeltaTimeF);
+		// Process keyboard inputs
 
-			if (m_PtrCurrentCamera != m_EditorCamera.get())
-				m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
-		}
-		if (m_CapturedKeyboardState.S)
+		if (m_CapturedKeyboardState.LeftAlt && m_CapturedKeyboardState.Q)
 		{
-			m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Backward, m_DeltaTimeF);
+			Destroy();
+			return;
+		}
 
-			if (m_PtrCurrentCamera != m_EditorCamera.get())
-				m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
-		}
-		if (m_CapturedKeyboardState.A  && !m_CapturedKeyboardState.LeftControl)
+		if (!ImGui::IsAnyItemActive() && !ImGui::IsAnyWindowFocused() && m_CapturedKeyboardState.Escape)
 		{
-			m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Leftward, m_DeltaTimeF);
-
-			if (m_PtrCurrentCamera != m_EditorCamera.get())
-				m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
+			DeselectAll();
 		}
-		if (m_CapturedKeyboardState.D)
+		if (!ImGui::IsAnyItemActive())
 		{
-			m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Rightward, m_DeltaTimeF);
-
-			if (m_PtrCurrentCamera != m_EditorCamera.get())
-				m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
-		}
-		if (m_CapturedKeyboardState.D1)
-		{
-			Set3DGizmoMode(E3DGizmoMode::Translation);
-		}
-		if (m_CapturedKeyboardState.D2)
-		{
-			Set3DGizmoMode(E3DGizmoMode::Rotation);
-		}
-		if (m_CapturedKeyboardState.D3)
-		{
-			Set3DGizmoMode(E3DGizmoMode::Scaling);
-		}
-	}
-
-	// Process moue inputs
-	static int PrevMouseX{ m_CapturedMouseState.x };
-	static int PrevMouseY{ m_CapturedMouseState.y };
-	if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
-	{
-		if (m_CapturedMouseState.rightButton) ImGui::SetWindowFocus(nullptr);
-
-		if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
-		{
-			Select3DGizmos();
-
-			if (m_bLeftButtonPressedOnce)
+			if (m_CapturedKeyboardState.W)
 			{
-				m_MultipleSelectionTopLeft = XMFLOAT2((float)m_CapturedMouseState.x, (float)m_CapturedMouseState.y);
-				m_MultipleSelectionChanging = true;
-			}
-
-			if (IsGizmoSelected()) m_MultipleSelectionChanging = false;
-
-			if (m_MultipleSelectionChanging)
-			{
-				m_MultipleSelectionBottomRight = XMFLOAT2((float)m_CapturedMouseState.x, (float)m_CapturedMouseState.y);
-			}
-			
-			if (m_bLeftButtonUpOnce)
-			{
-				m_MultipleSelectionChanging = false;
-
-				Select();
-			}
-
-			if (!m_CapturedMouseState.leftButton) Deselect3DGizmos();
-			if (m_CapturedMouseState.rightButton) DeselectAll();
-
-			if (m_CapturedMouseState.x != PrevMouseX || m_CapturedMouseState.y != PrevMouseY)
-			{
-				if (m_CapturedMouseState.leftButton || m_CapturedMouseState.rightButton)
-				{
-					SelectTerrain(true, m_CapturedMouseState.leftButton);
-				}
-				else
-				{
-					SelectTerrain(false, false);
-				}
-			}
-		}
-		else
-		{
-			SelectTerrain(false, false);
-		}
-
-		if (m_CapturedMouseState.x != PrevMouseX || m_CapturedMouseState.y != PrevMouseY)
-		{
-			if (m_CapturedMouseState.middleButton)
-			//if (m_CapturedMouseState.rightButton)
-			{
-				m_PtrCurrentCamera->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, m_DeltaTimeF);
+				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Forward, m_DeltaTimeF);
 
 				if (m_PtrCurrentCamera != m_EditorCamera.get())
 					m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
 			}
+			if (m_CapturedKeyboardState.S)
+			{
+				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Backward, m_DeltaTimeF);
 
-			PrevMouseX = m_CapturedMouseState.x;
-			PrevMouseY = m_CapturedMouseState.y;
+				if (m_PtrCurrentCamera != m_EditorCamera.get())
+					m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
+			}
+			if (m_CapturedKeyboardState.A && !m_CapturedKeyboardState.LeftControl)
+			{
+				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Leftward, m_DeltaTimeF);
+
+				if (m_PtrCurrentCamera != m_EditorCamera.get())
+					m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
+			}
+			if (m_CapturedKeyboardState.D)
+			{
+				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Rightward, m_DeltaTimeF);
+
+				if (m_PtrCurrentCamera != m_EditorCamera.get())
+					m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
+			}
+			if (m_CapturedKeyboardState.D1)
+			{
+				Set3DGizmoMode(E3DGizmoMode::Translation);
+			}
+			if (m_CapturedKeyboardState.D2)
+			{
+				Set3DGizmoMode(E3DGizmoMode::Rotation);
+			}
+			if (m_CapturedKeyboardState.D3)
+			{
+				Set3DGizmoMode(E3DGizmoMode::Scaling);
+			}
+		}
+
+		// Process moue inputs
+		static int PrevMouseX{ m_CapturedMouseState.x };
+		static int PrevMouseY{ m_CapturedMouseState.y };
+		bool bMouseMoved{ (m_CapturedMouseState.x != PrevMouseX || m_CapturedMouseState.y != PrevMouseY) };
+
+		if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
+		{
+			if (m_CapturedMouseState.rightButton) ImGui::SetWindowFocus(nullptr);
+
+			if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
+			{
+				Select3DGizmos();
+
+				if (m_bLeftButtonPressedOnce)
+				{
+					m_MultipleSelectionTopLeft = XMFLOAT2((float)m_CapturedMouseState.x, (float)m_CapturedMouseState.y);
+					m_MultipleSelectionChanging = true;
+				}
+
+				if (IsGizmoSelected()) m_MultipleSelectionChanging = false;
+
+				if (m_MultipleSelectionChanging)
+				{
+					m_MultipleSelectionBottomRight = XMFLOAT2((float)m_CapturedMouseState.x, (float)m_CapturedMouseState.y);
+				}
+
+				if (m_bLeftButtonUpOnce)
+				{
+					m_MultipleSelectionChanging = false;
+
+					Select();
+				}
+
+				if (!m_CapturedMouseState.leftButton) Deselect3DGizmos();
+				if (m_CapturedMouseState.rightButton) DeselectAll();
+
+				if (bMouseMoved)
+				{
+					if (m_CapturedMouseState.leftButton || m_CapturedMouseState.rightButton)
+					{
+						SelectTerrain(true, m_CapturedMouseState.leftButton);
+					}
+					else
+					{
+						SelectTerrain(false, false);
+					}
+				}
+			}
+			else
+			{
+				SelectTerrain(false, false);
+			}
+
+			if (bMouseMoved)
+			{
+				if (m_CapturedMouseState.middleButton)
+					//if (m_CapturedMouseState.rightButton)
+				{
+					m_PtrCurrentCamera->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, m_DeltaTimeF);
+
+					if (m_PtrCurrentCamera != m_EditorCamera.get())
+						m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
+				}
+
+				PrevMouseX = m_CapturedMouseState.x;
+				PrevMouseY = m_CapturedMouseState.y;
+			}
 		}
 	}
 
@@ -3983,21 +4004,7 @@ void CGame::Draw()
 {
 	if (m_IsDestroyed) return;
 
-	m_CBEditorTimeData.NormalizedTime += m_DeltaTimeF;
-	m_CBEditorTimeData.NormalizedTimeHalfSpeed += m_DeltaTimeF * 0.5f;
-	if (m_CBEditorTimeData.NormalizedTime > 1.0f) m_CBEditorTimeData.NormalizedTime = 0.0f;
-	if (m_CBEditorTimeData.NormalizedTimeHalfSpeed > 1.0f) m_CBEditorTimeData.NormalizedTimeHalfSpeed = 0.0f;
-	m_CBEditorTime->Update();
-
-	m_CBWaterTimeData.Time += m_DeltaTimeF * 0.1f;
-	if (m_CBWaterTimeData.Time > 1.0f) m_CBWaterTimeData.Time = 0.0f;
-	m_CBWaterTime->Update();
-
-	m_CBTerrainData.Time = m_CBEditorTimeData.NormalizedTime;
-
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
-
-	//m_CBGlobalLight->Update();
 
 	// Deferred shading
 	{
@@ -4343,10 +4350,6 @@ void CGame::DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances, bo
 	{
 		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
 	}
-	else
-	{
-		SetUniversalRSState();
-	}
 
 	if (PtrObject3D->IsRigged())
 	{
@@ -4372,14 +4375,7 @@ void CGame::DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances, bo
 	}
 	else
 	{
-		if (m_bIsDeferredRenderTargetsSet)
-		{
-			m_PSBase_GBuffer->Use();
-		}
-		else
-		{
-			m_PSBase->Use();
-		}
+		(m_bIsDeferredRenderTargetsSet) ? m_PSBase_GBuffer->Use() : m_PSBase->Use();
 	}
 
 	PtrObject3D->Draw(bIgnoreOwnTexture, bIgnoreInstances);
@@ -4389,6 +4385,11 @@ void CGame::DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances, bo
 		m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
 		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
 	}
+
+	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoCulling))
+	{
+		SetUniversalRSState();
+	}
 }
 
 void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
@@ -4396,9 +4397,9 @@ void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
 	m_VSBase->Use();
 
 	XMMATRIX Translation{ XMMatrixTranslationFromVector(PtrObject3D->ComponentTransform.Translation + 
-		PtrObject3D->ComponentPhysics.BoundingSphere.CenterOffset) };
-	XMMATRIX Scaling{ XMMatrixScaling(PtrObject3D->ComponentPhysics.BoundingSphere.Radius,
-		PtrObject3D->ComponentPhysics.BoundingSphere.Radius, PtrObject3D->ComponentPhysics.BoundingSphere.Radius) };
+		PtrObject3D->EditorBoundingSphere.CenterOffset) };
+	XMMATRIX Scaling{ XMMatrixScaling(PtrObject3D->EditorBoundingSphere.Radius,
+		PtrObject3D->EditorBoundingSphere.Radius, PtrObject3D->EditorBoundingSphere.Radius) };
 	UpdateCBSpace(Scaling * Translation);
 
 	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
@@ -4879,7 +4880,7 @@ void CGame::DrawMultipleSelectionRep()
 	m_MultipleSelectionRep->TranslateTo(SelectionTranslation);
 	m_MultipleSelectionRep->ScaleTo(SelectionSize);
 
-	UpdateCBSpace(m_MultipleSelectionRep->GetWorldMatrix());
+	UpdateCBSpace(m_MultipleSelectionRep->GetWorldMatrix(), m_MatrixProjection2D);
 
 	m_MultipleSelectionRep->Draw();
 }
@@ -5345,17 +5346,17 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 						case 0:
 							Mesh = GenerateSquareXYPlane();
 							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, HeightScalar3D, 1.0f, 0));
-							Object3D->ComponentPhysics.BoundingSphere.Radius = sqrt(2.0f);
+							Object3D->EditorBoundingSphere.Radius = sqrt(2.0f);
 							break;
 						case 1:
 							Mesh = GenerateSquareXZPlane();
 							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, 1.0f, HeightScalar3D, 0));
-							Object3D->ComponentPhysics.BoundingSphere.Radius = sqrt(2.0f);
+							Object3D->EditorBoundingSphere.Radius = sqrt(2.0f);
 							break;
 						case 2:
 							Mesh = GenerateSquareYZPlane();
 							ScaleMesh(Mesh, XMVectorSet(1.0f, WidthScalar3D, HeightScalar3D, 0));
-							Object3D->ComponentPhysics.BoundingSphere.Radius = sqrt(2.0f);
+							Object3D->EditorBoundingSphere.Radius = sqrt(2.0f);
 							break;
 						case 3:
 							Mesh = GenerateCircleXZPlane(SideCount);
@@ -5366,18 +5367,18 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 							break;
 						case 5:
 							Mesh = GenerateCone(RadiusFactor, 1.0f, 1.0f, SideCount);
-							Object3D->ComponentPhysics.BoundingSphere.CenterOffset = XMVectorSetY(Object3D->ComponentPhysics.BoundingSphere.CenterOffset, -0.5f);
+							Object3D->EditorBoundingSphere.CenterOffset = XMVectorSetY(Object3D->EditorBoundingSphere.CenterOffset, -0.5f);
 							break;
 						case 6:
 							Mesh = GenerateCylinder(1.0f, 1.0f, SideCount);
-							Object3D->ComponentPhysics.BoundingSphere.Radius = sqrt(1.5f);
+							Object3D->EditorBoundingSphere.Radius = sqrt(1.5f);
 							break;
 						case 7:
 							Mesh = GenerateSphere(SegmentCount);
 							break;
 						case 8:
 							Mesh = GenerateTorus(InnerRadius, SideCount, SegmentCount);
-							Object3D->ComponentPhysics.BoundingSphere.Radius += InnerRadius;
+							Object3D->EditorBoundingSphere.Radius += InnerRadius;
 							break;
 						default:
 							break;
@@ -5675,30 +5676,30 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::Text(u8"오브젝트 BS 중심");
 								ImGui::SameLine(ItemsOffsetX);
 								float BSCenterOffset[3]{
-									XMVectorGetX(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
-									XMVectorGetY(Object3D->ComponentPhysics.BoundingSphere.CenterOffset),
-									XMVectorGetZ(Object3D->ComponentPhysics.BoundingSphere.CenterOffset) };
+									XMVectorGetX(Object3D->EditorBoundingSphere.CenterOffset),
+									XMVectorGetY(Object3D->EditorBoundingSphere.CenterOffset),
+									XMVectorGetZ(Object3D->EditorBoundingSphere.CenterOffset) };
 								if (ImGui::DragFloat3(u8"##오브젝트 BS 중심", BSCenterOffset, KBSCenterOffsetDelta,
 									KBSCenterOffsetMinLimit, KBSCenterOffsetMaxLimit, "%.2f"))
 								{
-									Object3D->ComponentPhysics.BoundingSphere.CenterOffset =
+									Object3D->EditorBoundingSphere.CenterOffset =
 										XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f);
 								}
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"오브젝트 BS 반지름 편중치");
 								ImGui::SameLine(ItemsOffsetX);
-								float BSRadiusBias{ Object3D->ComponentPhysics.BoundingSphere.RadiusBias };
+								float BSRadiusBias{ Object3D->EditorBoundingSphere.RadiusBias };
 								if (ImGui::DragFloat(u8"##오브젝트 BS반지름 편중치", &BSRadiusBias, KBSRadiusBiasDelta,
 									KBSRadiusBiasMinLimit, KBSRadiusBiasMaxLimit, "%.2f"))
 								{
-									Object3D->ComponentPhysics.BoundingSphere.RadiusBias = BSRadiusBias;
+									Object3D->EditorBoundingSphere.RadiusBias = BSRadiusBias;
 								}
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"오브젝트 BS 반지름 (자동)");
 								ImGui::SameLine(ItemsOffsetX);
-								float BSRadius{ Object3D->ComponentPhysics.BoundingSphere.Radius };
+								float BSRadius{ Object3D->EditorBoundingSphere.Radius };
 								ImGui::DragFloat(u8"##오브젝트 BS반지름 (자동)", &BSRadius, KBSRadiusDelta,
 									KBSRadiusMinLimit, KBSRadiusMaxLimit, "%.2f");
 

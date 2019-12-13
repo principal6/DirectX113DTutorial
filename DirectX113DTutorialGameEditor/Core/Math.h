@@ -3,6 +3,8 @@
 #include "SharedHeader.h"
 
 using namespace DirectX;
+using std::max;
+using std::min;
 
 static const XMVECTOR KVectorZero{ XMVectorZero() };
 static const XMVECTOR KVectorGreatest{ XMVectorSet(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX) };
@@ -24,6 +26,10 @@ static bool IntersectRayCylinder(const XMVECTOR& RayOrigin, const XMVECTOR& RayD
 	float CylinderHeight, float CylinderRadius, XMVECTOR* OutPtrT = nullptr);
 static bool IntersectRayHollowCylinderCentered(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection,
 	float CylinderHeight, float CylinderInnerRadius, float CylinderOuterRadius, XMVECTOR* OutPtrT = nullptr);
+static bool IntersectSphereSphere(const XMVECTOR& CenterA, float RadiusA, const XMVECTOR& CenterB, float RadiusB);
+static bool IntersectSphereAABB(const XMVECTOR& SphereCenter, float SphereRadius, const XMVECTOR& AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ);
+static bool IntersectAABBAABB(const XMVECTOR& ACenter, float AHalfSizeX, float AHalfSizeY, float AHalfSizeZ,
+	const XMVECTOR& BCenter, float BHalfSizeX, float BHalfSizeY, float BHalfSizeZ);
 
 static float Lerp(float a, float b, float t)
 {
@@ -343,4 +349,41 @@ static bool IntersectRayHollowCylinderCentered(const XMVECTOR& RayOrigin, const 
 	}
 
 	return false;
+}
+
+static bool IntersectSphereSphere(const XMVECTOR& CenterA, float RadiusA, const XMVECTOR& CenterB, float RadiusB)
+{
+	auto Difference{ CenterA - CenterB };
+	float DistanceSquare{ XMVectorGetX(XMVector3LengthSq(Difference)) };
+	if (DistanceSquare <= RadiusA * RadiusA + RadiusB * RadiusB)
+	{
+		return true;
+	}
+	return false;
+}
+
+static bool IntersectSphereAABB(const XMVECTOR& SphereCenter, float SphereRadius, const XMVECTOR& AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ)
+{
+	XMVECTOR AABBMax{ AABBCenter + XMVectorSet(HalfSizeX, HalfSizeY, HalfSizeZ, 0) };
+	XMVECTOR AABBMin{ AABBCenter - XMVectorSet(HalfSizeX, HalfSizeY, HalfSizeZ, 0) };
+	XMVECTOR AABBClosestPoint{ XMVectorMin(XMVectorMax(SphereCenter, AABBMin), AABBMax) };
+
+	XMVECTOR Difference{ SphereCenter - AABBClosestPoint };
+	float DistanceSquare{ XMVectorGetX(XMVector3LengthSq(Difference)) };
+	if (DistanceSquare <= SphereRadius * SphereRadius)
+	{
+		return true;
+	}
+	return false;
+}
+
+static bool IntersectAABBAABB(const XMVECTOR& ACenter, float AHalfSizeX, float AHalfSizeY, float AHalfSizeZ, 
+	const XMVECTOR& BCenter, float BHalfSizeX, float BHalfSizeY, float BHalfSizeZ)
+{
+	XMVECTOR Difference{ ACenter - BCenter };
+
+	XMVECTOR AHalfSize{ XMVectorSet(AHalfSizeX, AHalfSizeY, AHalfSizeZ, 0) };
+	XMVECTOR BHalfSize{ XMVectorSet(BHalfSizeX, BHalfSizeY, BHalfSizeZ, 0) };
+
+	return XMVector3LessOrEqual(Difference, AHalfSize + BHalfSize);
 }

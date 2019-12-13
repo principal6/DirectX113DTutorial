@@ -40,7 +40,7 @@ void CObject3D::Create(const SMESHData& MESHData)
 {
 	m_Model = MESHData;
 
-	ComponentPhysics.BoundingSphere = MESHData.BoundingSphereData;
+	EditorBoundingSphere = MESHData.EditorBoundingSphereData;
 
 	CreateMeshBuffers();
 	CreateMaterialTextures();
@@ -248,8 +248,8 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
 	{
 		Object3DBinary.ReadBool(ComponentPhysics.bIsPickable);
 
-		Object3DBinary.ReadXMVECTOR(ComponentPhysics.BoundingSphere.CenterOffset);
-		Object3DBinary.ReadFloat(ComponentPhysics.BoundingSphere.RadiusBias);
+		Object3DBinary.ReadXMVECTOR(EditorBoundingSphere.CenterOffset);
+		Object3DBinary.ReadFloat(EditorBoundingSphere.RadiusBias);
 	}
 
 	// ### ComponentRender ###
@@ -276,8 +276,8 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
 			Object3DBinary.ReadFloat(InstanceCPUData.Roll);
 			Object3DBinary.ReadXMVECTOR(InstanceCPUData.Scaling);
 
-			Object3DBinary.ReadXMVECTOR(InstanceCPUData.BoundingSphere.CenterOffset);
-			Object3DBinary.ReadFloat(InstanceCPUData.BoundingSphere.RadiusBias);
+			Object3DBinary.ReadXMVECTOR(InstanceCPUData.EditorBoundingSphere.CenterOffset);
+			Object3DBinary.ReadFloat(InstanceCPUData.EditorBoundingSphere.RadiusBias);
 		}
 
 		CreateInstances(vInstanceCPUData);
@@ -350,8 +350,8 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 	{
 		Object3DBinary.WriteBool(ComponentPhysics.bIsPickable);
 		
-		Object3DBinary.WriteXMVECTOR(ComponentPhysics.BoundingSphere.CenterOffset);
-		Object3DBinary.WriteFloat(ComponentPhysics.BoundingSphere.RadiusBias);
+		Object3DBinary.WriteXMVECTOR(EditorBoundingSphere.CenterOffset);
+		Object3DBinary.WriteFloat(EditorBoundingSphere.RadiusBias);
 	}
 
 	// ### ComponentRender ###
@@ -374,8 +374,8 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 			Object3DBinary.WriteFloat(InstanceCPUData.Roll);
 			Object3DBinary.WriteXMVECTOR(InstanceCPUData.Scaling);
 
-			Object3DBinary.WriteXMVECTOR(InstanceCPUData.BoundingSphere.CenterOffset);
-			Object3DBinary.WriteFloat(InstanceCPUData.BoundingSphere.RadiusBias);
+			Object3DBinary.WriteXMVECTOR(InstanceCPUData.EditorBoundingSphere.CenterOffset);
+			Object3DBinary.WriteFloat(InstanceCPUData.EditorBoundingSphere.RadiusBias);
 		}
 	}
 
@@ -657,7 +657,7 @@ void CObject3D::CreateInstances(const std::vector<SObject3DInstanceCPUData>& vIn
 		float ScalingY{ XMVectorGetY(InstanceCPUData.Scaling) };
 		float ScalingZ{ XMVectorGetZ(InstanceCPUData.Scaling) };
 		float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
-		InstanceCPUData.BoundingSphere.Radius = InstanceCPUData.BoundingSphere.RadiusBias * MaxScaling; // @important
+		InstanceCPUData.EditorBoundingSphere.Radius = InstanceCPUData.EditorBoundingSphere.RadiusBias * MaxScaling; // @important
 
 		m_mapInstanceNameToIndex[InstanceCPUData.Name] = iInstance;
 		++iInstance;
@@ -721,7 +721,7 @@ bool CObject3D::InsertInstance(const string& InstanceName)
 	m_vInstanceCPUData.back().Pitch = ComponentTransform.Pitch;
 	m_vInstanceCPUData.back().Yaw = ComponentTransform.Yaw;
 	m_vInstanceCPUData.back().Roll = ComponentTransform.Roll;
-	m_vInstanceCPUData.back().BoundingSphere = ComponentPhysics.BoundingSphere; // @important
+	m_vInstanceCPUData.back().EditorBoundingSphere = EditorBoundingSphere; // @important
 	m_mapInstanceNameToIndex[LimitedName] = m_vInstanceCPUData.size() - 1;
 
 	m_vInstanceGPUData.emplace_back();
@@ -937,10 +937,10 @@ void CObject3D::UpdateWorldMatrix()
 	float ScalingY{ XMVectorGetY(ComponentTransform.Scaling) };
 	float ScalingZ{ XMVectorGetZ(ComponentTransform.Scaling) };
 	float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
-	ComponentPhysics.BoundingSphere.Radius = ComponentPhysics.BoundingSphere.RadiusBias * MaxScaling;
+	EditorBoundingSphere.Radius = EditorBoundingSphere.RadiusBias * MaxScaling;
 
-	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(ComponentPhysics.BoundingSphere.CenterOffset) };
-	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-ComponentPhysics.BoundingSphere.CenterOffset) };
+	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.CenterOffset) };
+	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.CenterOffset) };
 
 	ComponentTransform.MatrixWorld = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
 }
@@ -972,10 +972,10 @@ void CObject3D::UpdateInstanceWorldMatrix(const std::string& InstanceName)
 	float ScalingY{ XMVectorGetY(InstanceCPUData.Scaling) };
 	float ScalingZ{ XMVectorGetZ(InstanceCPUData.Scaling) };
 	float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
-	InstanceCPUData.BoundingSphere.Radius = ComponentPhysics.BoundingSphere.RadiusBias * MaxScaling;
+	InstanceCPUData.EditorBoundingSphere.Radius = EditorBoundingSphere.RadiusBias * MaxScaling;
 
-	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(ComponentPhysics.BoundingSphere.CenterOffset) };
-	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-ComponentPhysics.BoundingSphere.CenterOffset) };
+	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.CenterOffset) };
+	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.CenterOffset) };
 
 	// Update GPU data
 	InstanceGPUData.WorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
@@ -1013,8 +1013,8 @@ void CObject3D::UpdateAllInstancesWorldMatrix()
 			m_vInstanceCPUData[iInstance].Yaw, m_vInstanceCPUData[iInstance].Roll) };
 		XMMATRIX Scaling{ XMMatrixScalingFromVector(m_vInstanceCPUData[iInstance].Scaling) };
 
-		XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(ComponentPhysics.BoundingSphere.CenterOffset) };
-		XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-ComponentPhysics.BoundingSphere.CenterOffset) };
+		XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.CenterOffset) };
+		XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.CenterOffset) };
 
 		// Update GPU data
 		m_vInstanceGPUData[iInstance].WorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
