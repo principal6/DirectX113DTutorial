@@ -6919,7 +6919,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							static CFileDialog FileDialog{ GetWorkingDirectory() };
 							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0HDR 파일\0*.hdr\0", "Environment map 불러오기"))
 							{
-								m_EnvironmentTexture->CreateCubeMapFromFile(FileDialog.GetFileName());
+								m_EnvironmentTexture->CreateCubeMapFromFile(FileDialog.GetRelativeFileName());
 
 								if (m_EnvironmentTexture->IsHDRi())
 								{
@@ -6964,7 +6964,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							static CFileDialog FileDialog{ GetWorkingDirectory() };
 							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0", "Irradiance map 불러오기"))
 							{
-								m_IrradianceTexture->CreateCubeMapFromFile(FileDialog.GetFileName());
+								m_IrradianceTexture->CreateCubeMapFromFile(FileDialog.GetRelativeFileName());
 
 								UpdateCBGlobalLightProbeData();
 							}
@@ -7028,7 +7028,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							static CFileDialog FileDialog{ GetWorkingDirectory() };
 							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0", "Prefiltered radiance map 불러오기"))
 							{
-								m_PrefilteredRadianceTexture->CreateCubeMapFromFile(FileDialog.GetFileName());
+								m_PrefilteredRadianceTexture->CreateCubeMapFromFile(FileDialog.GetRelativeFileName());
 
 								UpdateCBGlobalLightProbeData();
 							}
@@ -7088,7 +7088,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							static CFileDialog FileDialog{ GetWorkingDirectory() };
 							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0", "Integrated BRDF map 불러오기"))
 							{
-								m_IntegratedBRDFTexture->CreateTextureFromFile(FileDialog.GetFileName(), false);
+								m_IntegratedBRDFTexture->CreateTextureFromFile(FileDialog.GetRelativeFileName(), false);
 							}
 						}
 
