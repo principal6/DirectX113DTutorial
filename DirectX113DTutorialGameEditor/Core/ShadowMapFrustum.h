@@ -50,7 +50,7 @@ static float MinFloat8(float(&Values)[8])
 	return Result;
 }
 
-static SFrustumVertices GetViewFrustumVertices(const XMMATRIX& Projection, const XMVECTOR& EyePosition, const XMVECTOR& ViewDirection,
+static SFrustumVertices CalculateViewFrustumVertices(const XMMATRIX& Projection, const XMVECTOR& EyePosition, const XMVECTOR& ViewDirection,
 	const XMVECTOR& DirectionToLight, float ViewFrustumZNear, float ViewFrustumZFar)
 {
 	XMVECTOR ViewRight{ XMVector3Normalize(XMVector3Cross(XMVectorSet(0, 1, 0, 0), ViewDirection)) };
@@ -83,10 +83,10 @@ static SFrustumVertices GetViewFrustumVertices(const XMMATRIX& Projection, const
 	return Result;
 }
 
-static SShadowMapFrustum GetShadowMapFrustum(const XMMATRIX& Projection, const XMVECTOR& EyePosition, const XMVECTOR& ViewDirection,
+static SShadowMapFrustum CalculateShadowMapFrustum(const XMMATRIX& Projection, const XMVECTOR& EyePosition, const XMVECTOR& ViewDirection,
 	const XMVECTOR& DirectionToLight, float ViewFrustumZNear, float ViewFrustumZFar)
 {
-	SFrustumVertices ViewFrustumVertices{ GetViewFrustumVertices(Projection, EyePosition, ViewDirection, DirectionToLight, ViewFrustumZNear, ViewFrustumZFar) };
+	SFrustumVertices ViewFrustumVertices{ CalculateViewFrustumVertices(Projection, EyePosition, ViewDirection, DirectionToLight, ViewFrustumZNear, ViewFrustumZFar) };
 
 	SShadowMapFrustum ShadowMapFrustum{};
 	ShadowMapFrustum.LightForward = -DirectionToLight;
@@ -165,7 +165,7 @@ static SShadowMapFrustum GetShadowMapFrustum(const XMMATRIX& Projection, const X
 	return ShadowMapFrustum;
 }
 
-static SFrustumVertices GetShadowMapFrustumVertices(const XMVECTOR& DirectionToLight, const SShadowMapFrustum& ShadowMapFrustum)
+static SFrustumVertices CalculateShadowMapFrustumVertices(const XMVECTOR& DirectionToLight, const SShadowMapFrustum& ShadowMapFrustum)
 {
 	SFrustumVertices ShadowMapFrustumVertices{};
 

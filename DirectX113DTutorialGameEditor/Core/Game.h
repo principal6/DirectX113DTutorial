@@ -19,7 +19,7 @@
 #include "MeshPorter.h"
 #include "Billboard.h"
 #include "Light.h"
-#include "ShadowMapFrustum.h"
+#include "CascadedShadowMap.h"
 
 #include "TinyXml2/tinyxml2.h"
 #include "ImGui/imgui.h"
@@ -128,8 +128,6 @@ public:
 
 	struct SCBGlobalLightData // Update only when there is a change
 	{
-		XMMATRIX	DirectionalLightSpaceMatrix0{ KMatrixIdentity };
-		XMMATRIX	DirectionalLightSpaceMatrix1{ KMatrixIdentity };
 		XMVECTOR	DirectionalLightDirection{ XMVectorSet(0, 1, 0, 0) };
 		XMFLOAT3	DirectionalLightColor{ 1, 1, 1 };
 		float		Exposure{ 1.0 };
@@ -215,6 +213,12 @@ public:
 		XMMATRIX	InverseViewMatrix{};
 		XMFLOAT2	ScreenSize{};
 		float		Reserved[2]{};
+	};
+
+	struct SCBShadowMapData
+	{
+		XMMATRIX	ShadowMapSpaceMatrix[KCascadedShadowMapLODCountMax]{ KMatrixIdentity, KMatrixIdentity, KMatrixIdentity, KMatrixIdentity, KMatrixIdentity };
+		float		ShadowMapZFars[KCascadedShadowMapLODCountMax - 1]{ FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
 	};
 
 	enum class EFlagsRendering
@@ -418,14 +422,6 @@ public:
 		ComPtr<ID3D11Texture2D>				MetalAOBuffer{};
 		ComPtr<ID3D11RenderTargetView>		MetalAORTV{};
 		ComPtr<ID3D11ShaderResourceView>	MetalAOSRV{};
-	};
-
-	struct SShadowMap
-	{
-		ComPtr<ID3D11Texture2D>				Texture{};
-		ComPtr<ID3D11DepthStencilView>		DSV{};
-		ComPtr<ID3D11ShaderResourceView>	SRV{};
-		D3D11_VIEWPORT						Viewport{};
 	};
 
 public:
@@ -655,6 +651,7 @@ public:
 	auto GetDeltaTime() const->float { return m_DeltaTimeF; }
 
 private:
+	void DrawOpaqueObject3Ds();
 	void DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances = false, bool bIgnoreOwnTexture = false, bool bUseVoidPS = false);
 	void DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D);
 
@@ -764,7 +761,6 @@ private:
 	static constexpr int KEditorCameraID{ -999 };
 	static constexpr float KEditorCameraDefaultMovementFactor{ 3.0f };
 	static constexpr size_t KInvalidIndex{ SIZE_T_MAX };
-	static constexpr float KDirectionalLightShadowMapSize{ 2048.0f };
 
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
@@ -862,6 +858,7 @@ private:
 	std::unique_ptr<CConstantBuffer>	m_CBIrradianceGenerator{};
 	std::unique_ptr<CConstantBuffer>	m_CBBillboard{};
 	std::unique_ptr<CConstantBuffer>	m_CBGBufferUnpacking{};
+	std::unique_ptr<CConstantBuffer>	m_CBShadowMap{};
 
 	SCBSpaceData						m_CBSpaceData{};
 	SCBAnimationBonesData				m_CBAnimationBonesData{};
@@ -884,6 +881,7 @@ private:
 	SCBIrradianceGenerator				m_CBIrradianceGeneratorData{};
 	CBillboard::SCBBillboardData		m_CBBillboardData{};
 	SCBGBufferUnpackingData				m_CBGBufferUnpackingData{};
+	SCBShadowMapData					m_CBShadowMapData{};
 
 // Object pool
 private:
@@ -904,15 +902,9 @@ private:
 
 // Shadow map
 private:
-	std::unique_ptr<CObject3DLine>				m_ViewFrustumRep0{};
-	std::unique_ptr<CObject3DLine>				m_ViewFrustumRep1{};
-	std::unique_ptr<CObject3DLine>				m_ShadowMapFrustumRep0{};
-	std::unique_ptr<CObject3DLine>				m_ShadowMapFrustumRep1{};
-
-	SFrustumVertices							m_ViewFrustumRep0Data{};
-	SFrustumVertices							m_ViewFrustumRep1Data{};
-	SFrustumVertices							m_ShadowMapFrustumRep0Data{};
-	SFrustumVertices							m_ShadowMapFrustumRep1Data{};
+	std::unique_ptr<CCascadedShadowMap>			m_CascadedShadowMap{};
+	std::unique_ptr<CObject3DLine>				m_ViewFrustumReps[KCascadedShadowMapLODCountMax]{};
+	std::unique_ptr<CObject3DLine>				m_ShadowMapFrustumReps[KCascadedShadowMapLODCountMax]{};
 
 // Light
 private:
@@ -1094,9 +1086,6 @@ private:
 	ComPtr<ID3D11ShaderResourceView>	m_ScreenQuadSRV{};
 
 	SGeometryBuffers					m_GBuffers{};
-	
-	SShadowMap							m_DirectionalLightShadowMap0{};
-	SShadowMap							m_DirectionalLightShadowMap1{};
 
 	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateLessEqualNoWrite{};
 	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateGreaterEqual{};

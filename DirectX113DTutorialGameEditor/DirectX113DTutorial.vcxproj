@@ -140,6 +140,7 @@
     <ClCompile Include="Core\Object3D.cpp" />
     <ClCompile Include="Core\Object3DLine.cpp" />
     <ClCompile Include="Core\Shader.cpp" />
+    <ClCompile Include="Core\CascadedShadowMap.cpp" />
     <ClCompile Include="Core\Terrain.cpp" />
     <ClCompile Include="Core\Material.cpp" />
     <ClCompile Include="ImGui\imgui.cpp" />
@@ -242,6 +243,7 @@
     <ClInclude Include="Core\Object3DLine.h" />
     <ClInclude Include="Core\PrimitiveGenerator.h" />
     <ClInclude Include="Core\Shader.h" />
+    <ClInclude Include="Core\CascadedShadowMap.h" />
     <ClInclude Include="Core\ShadowMapFrustum.h" />
     <ClInclude Include="Core\SharedHeader.h" />
     <ClInclude Include="Core\Terrain.h" />

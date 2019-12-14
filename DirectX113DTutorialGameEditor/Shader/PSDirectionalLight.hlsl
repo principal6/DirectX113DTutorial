@@ -12,6 +12,9 @@ Texture2D GBuffer_Normal : register(t2);
 Texture2D GBuffer_Metal_AO : register(t3);
 Texture2D ShadowMap0 : register(t4);
 Texture2D ShadowMap1 : register(t5);
+Texture2D ShadowMap2 : register(t6);
+Texture2D ShadowMap3 : register(t7);
+Texture2D ShadowMap4 : register(t8);
 
 TextureCube EnvironmentTexture : register(t50);
 TextureCube IrradianceTexture : register(t51);
@@ -26,6 +29,16 @@ cbuffer cbGBufferUnpacking : register(b3)
 	float2 Reserved2;
 }
 
+cbuffer cbShadowMap : register(b4)
+{
+	float4x4	ShadowMapSpaceMatrix0;
+	float4x4	ShadowMapSpaceMatrix1;
+	float4x4	ShadowMapSpaceMatrix2;
+	float4x4	ShadowMapSpaceMatrix3;
+	float4x4	ShadowMapSpaceMatrix4;
+	float4		ShadowMapZFars;
+}
+
 #define UV Input.TexCoord.xy
 #define N WorldNormal
 #define BaseColor BaseColor_Rough.xyz
@@ -35,11 +48,16 @@ cbuffer cbGBufferUnpacking : register(b3)
 #define EyePosition InverseViewMatrix[3].xyz
 #define Li DirectionalLightColor
 
-float CheckIfInShadow(uint MapLOD, float CmpDepth, float2 TexCoord)
+float CheckIfInShadow(uint ShadowMapLOD, float CmpDepth, float2 TexCoord)
 {
 	float IsInShadow = 0;
-	float ShadowMapDepth = 
-		(MapLOD == 0) ? ShadowMap0.SampleLevel(LinearClampSampler, TexCoord, 0).x : ShadowMap1.SampleLevel(LinearClampSampler, TexCoord, 0).x;
+	float ShadowMapDepth = 0;
+	if (ShadowMapLOD == 0) ShadowMapDepth = ShadowMap0.SampleLevel(LinearClampSampler, TexCoord, 0).x;
+	else if (ShadowMapLOD == 1) ShadowMapDepth = ShadowMap1.SampleLevel(LinearClampSampler, TexCoord, 0).x;
+	else if (ShadowMapLOD == 2) ShadowMapDepth = ShadowMap2.SampleLevel(LinearClampSampler, TexCoord, 0).x;
+	else if (ShadowMapLOD == 3) ShadowMapDepth = ShadowMap3.SampleLevel(LinearClampSampler, TexCoord, 0).x;
+	else if (ShadowMapLOD == 4) ShadowMapDepth = ShadowMap4.SampleLevel(LinearClampSampler, TexCoord, 0).x;
+
 	if (CmpDepth > ShadowMapDepth + 0.001) IsInShadow = 1.0;
 	return IsInShadow;
 }
@@ -61,14 +79,22 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		float3 F0 = lerp(KFresnel_dielectric, BaseColor, Metalness);
 		float NdotWo = max(dot(N, Wo), 0.001);
 
-		float IsInShadow = 0.0; // 0 for "not in shadow", 1 for "in shadow"
 		// Shadow
+		float IsInShadow = 0.0; // 0 for "not in shadow", 1 for "in shadow"
+		if (ViewSpaceDepth <= 50.0) // @important (arbirtrary threshold ...)
 		{
-			uint ShadowMapLOD = (ViewSpaceDepth > 10.0) ? 1 : 0;
+			uint ShadowMapLOD = 0;
+			if (ViewSpaceDepth > ShadowMapZFars.w) ShadowMapLOD = 4;
+			else if (ViewSpaceDepth > ShadowMapZFars.z) ShadowMapLOD = 3;
+			else if (ViewSpaceDepth > ShadowMapZFars.y) ShadowMapLOD = 2;
+			else if (ViewSpaceDepth > ShadowMapZFars.x) ShadowMapLOD = 1;
 
-			float4 LightSpacePosition = 
-				(ShadowMapLOD == 0) ? mul(ObjectWorldPosition, DirectionalLightSpaceMatrix0) :
-				mul(ObjectWorldPosition, DirectionalLightSpaceMatrix1);
+			float4 LightSpacePosition = float4(0, 0, 0, 1);
+			if (ShadowMapLOD == 0) LightSpacePosition = mul(ObjectWorldPosition, ShadowMapSpaceMatrix0);
+			else if (ShadowMapLOD == 1) LightSpacePosition = mul(ObjectWorldPosition, ShadowMapSpaceMatrix1);
+			else if (ShadowMapLOD == 2) LightSpacePosition = mul(ObjectWorldPosition, ShadowMapSpaceMatrix2);
+			else if (ShadowMapLOD == 3) LightSpacePosition = mul(ObjectWorldPosition, ShadowMapSpaceMatrix3);
+			else if (ShadowMapLOD == 4) LightSpacePosition = mul(ObjectWorldPosition, ShadowMapSpaceMatrix4);
 			LightSpacePosition /= LightSpacePosition.w;
 
 			float2 ShadowMapSize = float2(0, 0);

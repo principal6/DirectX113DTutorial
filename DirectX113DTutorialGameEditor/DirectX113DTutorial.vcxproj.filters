@@ -97,6 +97,9 @@
     <ClCompile Include="Core\BoundingVolume.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Core\CascadedShadowMap.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTK\Audio.h">
@@ -472,6 +475,9 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\ShadowMapFrustum.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\CascadedShadowMap.h">
       <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>

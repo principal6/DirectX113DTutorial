@@ -225,28 +225,30 @@ void CGame::InitializeEditorAssets()
 	}
 	
 	{
-		if (!m_ViewFrustumRep0)
+		if (!m_CascadedShadowMap)
 		{
-			m_ViewFrustumRep0 = make_unique<CObject3DLine>("ViewFrustumRep0", m_Device.Get(), m_DeviceContext.Get());
-			m_ViewFrustumRep0->Create(12, XMVectorSet(1, 1, 0, 1));
+			m_CascadedShadowMap = make_unique<CCascadedShadowMap>(m_Device.Get(), m_DeviceContext.Get());
+			m_CascadedShadowMap->Create(4, XMFLOAT2(1024, 1024));
+			m_CascadedShadowMap->SetZFar(0, 10.0f);
+			m_CascadedShadowMap->SetZFar(1, 20.0f);
+			m_CascadedShadowMap->SetZFar(2, 30.0f);
+			m_CascadedShadowMap->SetZFar(3, 50.0f);
 		}
 
-		if (!m_ViewFrustumRep1)
+		for (size_t iLOD = 0; iLOD < KCascadedShadowMapLODCountMax; ++iLOD)
 		{
-			m_ViewFrustumRep1 = make_unique<CObject3DLine>("ViewFrustumRep1", m_Device.Get(), m_DeviceContext.Get());
-			m_ViewFrustumRep1->Create(12, XMVectorSet(1, 0.25f, 0, 1));
+			if (m_ViewFrustumReps[iLOD]) continue;
+
+			m_ViewFrustumReps[iLOD] = make_unique<CObject3DLine>("ViewFrustumRep", m_Device.Get(), m_DeviceContext.Get());
+			m_ViewFrustumReps[iLOD]->Create(12, XMVectorSet(1 - (0.125f * iLOD), 1 - (0.25f * iLOD), 0, 1));
 		}
 
-		if (!m_ShadowMapFrustumRep0)
+		for (size_t iLOD = 0; iLOD < KCascadedShadowMapLODCountMax; ++iLOD)
 		{
-			m_ShadowMapFrustumRep0 = make_unique<CObject3DLine>("ShadowMapFrustumRep0", m_Device.Get(), m_DeviceContext.Get());
-			m_ShadowMapFrustumRep0->Create(12, XMVectorSet(0, 1, 0, 1));
-		}
+			if (m_ShadowMapFrustumReps[iLOD]) continue;
 
-		if (!m_ShadowMapFrustumRep1)
-		{
-			m_ShadowMapFrustumRep1 = make_unique<CObject3DLine>("ShadowMapFrustumRep1", m_Device.Get(), m_DeviceContext.Get());
-			m_ShadowMapFrustumRep1->Create(12, XMVectorSet(0, 0.5f, 0, 1));
+			m_ShadowMapFrustumReps[iLOD] = make_unique<CObject3DLine>("ShadowFrustumRep", m_Device.Get(), m_DeviceContext.Get());
+			m_ShadowMapFrustumReps[iLOD]->Create(12, XMVectorSet(0, 1 - (0.125f * iLOD), 0.25f, 1));
 		}
 	}
 
@@ -458,80 +460,6 @@ void CGame::CreateViews()
 		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 		m_Device->CreateRenderTargetView(m_ScreenQuadTexture.Get(), &ScreenQuadRTVDesc, m_ScreenQuadRTV.ReleaseAndGetAddressOf());
 	}
-
-	// Create shadow map for directional light
-	{
-		m_DirectionalLightShadowMap0.Viewport.TopLeftX = 0;
-		m_DirectionalLightShadowMap0.Viewport.TopLeftY = 0;
-		m_DirectionalLightShadowMap0.Viewport.Width = KDirectionalLightShadowMapSize;
-		m_DirectionalLightShadowMap0.Viewport.Height = KDirectionalLightShadowMapSize;
-		m_DirectionalLightShadowMap0.Viewport.MinDepth = 0.0f;
-		m_DirectionalLightShadowMap0.Viewport.MaxDepth = 1.0f;
-		
-		D3D11_TEXTURE2D_DESC Texture2DDesc{};
-		Texture2DDesc.ArraySize = 1;
-		Texture2DDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-		Texture2DDesc.CPUAccessFlags = 0;
-		Texture2DDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; // @important
-		Texture2DDesc.Width = (UINT)KDirectionalLightShadowMapSize;
-		Texture2DDesc.Height = (UINT)KDirectionalLightShadowMapSize;
-		Texture2DDesc.MipLevels = 1;
-		Texture2DDesc.MiscFlags = 0;
-		Texture2DDesc.SampleDesc.Count = 1;
-		Texture2DDesc.SampleDesc.Quality = 0;
-		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
-
-		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_DirectionalLightShadowMap0.Texture.ReleaseAndGetAddressOf());
-
-		D3D11_DEPTH_STENCIL_VIEW_DESC DSVDesc{};
-		DSVDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-		m_Device->CreateDepthStencilView(m_DirectionalLightShadowMap0.Texture.Get(), &DSVDesc, m_DirectionalLightShadowMap0.DSV.ReleaseAndGetAddressOf());
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
-		SRVDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-		SRVDesc.Texture2D.MipLevels = 1;
-		SRVDesc.Texture2D.MostDetailedMip = 0;
-		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		m_Device->CreateShaderResourceView(m_DirectionalLightShadowMap0.Texture.Get(), &SRVDesc, m_DirectionalLightShadowMap0.SRV.ReleaseAndGetAddressOf());
-	}
-
-	// Create shadow map for directional light
-	{
-		m_DirectionalLightShadowMap1.Viewport.TopLeftX = 0;
-		m_DirectionalLightShadowMap1.Viewport.TopLeftY = 0;
-		m_DirectionalLightShadowMap1.Viewport.Width = KDirectionalLightShadowMapSize;
-		m_DirectionalLightShadowMap1.Viewport.Height = KDirectionalLightShadowMapSize;
-		m_DirectionalLightShadowMap1.Viewport.MinDepth = 0.0f;
-		m_DirectionalLightShadowMap1.Viewport.MaxDepth = 1.0f;
-
-		D3D11_TEXTURE2D_DESC Texture2DDesc{};
-		Texture2DDesc.ArraySize = 1;
-		Texture2DDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-		Texture2DDesc.CPUAccessFlags = 0;
-		Texture2DDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; // @important
-		Texture2DDesc.Width = (UINT)KDirectionalLightShadowMapSize;
-		Texture2DDesc.Height = (UINT)KDirectionalLightShadowMapSize;
-		Texture2DDesc.MipLevels = 1;
-		Texture2DDesc.MiscFlags = 0;
-		Texture2DDesc.SampleDesc.Count = 1;
-		Texture2DDesc.SampleDesc.Quality = 0;
-		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
-
-		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_DirectionalLightShadowMap1.Texture.ReleaseAndGetAddressOf());
-
-		D3D11_DEPTH_STENCIL_VIEW_DESC DSVDesc{};
-		DSVDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-		m_Device->CreateDepthStencilView(m_DirectionalLightShadowMap1.Texture.Get(), &DSVDesc, m_DirectionalLightShadowMap1.DSV.ReleaseAndGetAddressOf());
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
-		SRVDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-		SRVDesc.Texture2D.MipLevels = 1;
-		SRVDesc.Texture2D.MostDetailedMip = 0;
-		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		m_Device->CreateShaderResourceView(m_DirectionalLightShadowMap1.Texture.Get(), &SRVDesc, m_DirectionalLightShadowMap1.SRV.ReleaseAndGetAddressOf());
-	}
 }
 
 void CGame::InitializeViewports()
@@ -620,6 +548,19 @@ void CGame::InitializeViewports()
 
 		D3D11_VIEWPORT& Viewport{ m_vViewports.back() };
 		Viewport.TopLeftX = m_WindowSize.x * 1.0f / 8.0f;
+		Viewport.TopLeftY = m_WindowSize.y * 6.0f / 8.0f;
+		Viewport.Width = m_WindowSize.x / 8.0f;
+		Viewport.Height = m_WindowSize.y / 8.0f;
+		Viewport.MinDepth = 0.0f;
+		Viewport.MaxDepth = 1.0f;
+	}
+
+	// #7 Directional light shadow map2
+	{
+		m_vViewports.emplace_back();
+
+		D3D11_VIEWPORT& Viewport{ m_vViewports.back() };
+		Viewport.TopLeftX = m_WindowSize.x * 2.0f / 8.0f;
 		Viewport.TopLeftY = m_WindowSize.y * 6.0f / 8.0f;
 		Viewport.Width = m_WindowSize.x / 8.0f;
 		Viewport.Height = m_WindowSize.y / 8.0f;
@@ -751,6 +692,8 @@ void CGame::CreateConstantBuffers()
 		&m_CBBillboardData, sizeof(m_CBBillboardData));
 	m_CBGBufferUnpacking = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBGBufferUnpackingData, sizeof(m_CBGBufferUnpackingData));
+	m_CBShadowMap = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBShadowMapData, sizeof(m_CBShadowMapData));
 
 	m_CBSpace->Create();
 	m_CBAnimationBones->Create();
@@ -777,6 +720,7 @@ void CGame::CreateConstantBuffers()
 	m_CBIrradianceGenerator->Create();
 	m_CBBillboard->Create();
 	m_CBGBufferUnpacking->Create();
+	m_CBShadowMap->Create();
 }
 
 void CGame::CreateBaseShaders()
@@ -935,44 +879,87 @@ void CGame::CreateBaseShaders()
 		m_PSBase_RawDiffuseColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase_RawDiffuseColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase.hlsl", "RawDiffuseColor");
 
-		m_PSDynamicSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSDynamicSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSDynamicSky.hlsl", "main");
-		m_PSDynamicSky->AttachConstantBuffer(m_CBSkyTime.get(), KPSSharedCBCount + 0);
+		m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSBase2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase2D.hlsl", "main");
+
+		m_PSBase2D_RawVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSBase2D_RawVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase2D.hlsl", "RawVertexColor");
+
+		m_PSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSBillboard->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBillboard.hlsl", "main");
+		m_PSBillboard->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 0);
+
+		m_PSBRDFIntegrator = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSBRDFIntegrator->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBRDFIntegrator.hlsl", "main");
+
+		m_PSCamera = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSCamera->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCamera.hlsl", "main");
+		m_PSCamera->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 0);
+		m_PSCamera->AttachConstantBuffer(m_CBCamera.get(), KPSSharedCBCount + 1);
 
 		m_PSCloud = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSCloud->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCloud.hlsl", "main");
 		m_PSCloud->AttachConstantBuffer(m_CBSkyTime.get(), KPSSharedCBCount + 0);
 
-		m_PSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSLine->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSLine.hlsl", "main");
+		m_PSCubemap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSCubemap2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCubemap2D.hlsl", "main");
+
+		m_PSDirectionalLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSDirectionalLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "main");
+		m_PSDirectionalLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
+		m_PSDirectionalLight->AttachConstantBuffer(m_CBShadowMap.get(), KPSSharedCBCount + 1);
+
+		m_PSDirectionalLight_NonIBL = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSDirectionalLight_NonIBL->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "NonIBL");
+		m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
+		m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBShadowMap.get(), KPSSharedCBCount + 1);
+
+		m_PSDynamicSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSDynamicSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSDynamicSky.hlsl", "main");
+		m_PSDynamicSky->AttachConstantBuffer(m_CBSkyTime.get(), KPSSharedCBCount + 0);
+
+		m_PSEdgeDetector = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSEdgeDetector->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSEdgeDetector.hlsl", "main");
+		m_PSEdgeDetector->AttachConstantBuffer(m_CBScreen.get(), KPSSharedCBCount + 0);
+
+		m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSFoliage->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSFoliage.hlsl", "main");
+
+		m_PSFromHDR = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSFromHDR->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSFromHDR.hlsl", "main");
 
 		m_PSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSGizmo->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSGizmo.hlsl", "main");
 		m_PSGizmo->AttachConstantBuffer(m_CBGizmoColorFactor.get(), KPSSharedCBCount + 0);
 
-		m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSTerrain->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSTerrain.hlsl", "main");
-		m_PSTerrain->AttachConstantBuffer(m_CBTerrainMaskingSpace.get(), KPSSharedCBCount + 0);
-		m_PSTerrain->AttachConstantBuffer(m_CBTerrainSelection.get(), KPSSharedCBCount + 1);
-		m_PSTerrain->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 2);
+		m_PSHeightMap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSHeightMap2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSHeightMap2D.hlsl", "main");
 
-		m_PSTerrain_gbuffer = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSTerrain_gbuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSTerrain.hlsl", "gbuffer");
-		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainMaskingSpace.get(), KPSSharedCBCount + 0);
-		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainSelection.get() , KPSSharedCBCount + 1);
-		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 2);
+		m_PSIrradianceGenerator = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSIrradianceGenerator->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSIrradianceGenerator.hlsl", "main");
+		m_PSIrradianceGenerator->AttachConstantBuffer(m_CBIrradianceGenerator.get(), KPSSharedCBCount + 0);
 
-		m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSWater->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSWater.hlsl", "main");
-		m_PSWater->AttachConstantBuffer(m_CBWaterTime.get(), KPSSharedCBCount + 0);
+		m_PSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSLine->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSLine.hlsl", "main");
 
-		m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSFoliage->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSFoliage.hlsl", "main");
-		
-		m_PSCamera = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSCamera->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCamera.hlsl", "main");
-		m_PSCamera->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 0);
-		m_PSCamera->AttachConstantBuffer(m_CBCamera.get(), KPSSharedCBCount + 1);
+		m_PSMasking2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSMasking2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSMasking2D.hlsl", "main");
+
+		m_PSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSPointLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSPointLight.hlsl", "main");
+		m_PSPointLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
+
+		m_PSPointLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSPointLight_Volume->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSPointLight.hlsl", "Volume");
+		m_PSPointLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
+
+		m_PSRadiancePrefiltering = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSRadiancePrefiltering->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSRadiancePrefiltering.hlsl", "main");
+		m_PSRadiancePrefiltering->AttachConstantBuffer(m_CBRadiancePrefiltering.get(), KPSSharedCBCount + 0);
+
+		m_PSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSSpotLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "main");
+		m_PSSpotLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
 
 		m_PSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSScreenQuad->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "main");
@@ -983,69 +970,29 @@ void CGame::CreateBaseShaders()
 		m_PSScreenQuad_Depth = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSScreenQuad_Depth->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "Depth");
 
-		m_PSEdgeDetector = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSEdgeDetector->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSEdgeDetector.hlsl", "main");
-		m_PSEdgeDetector->AttachConstantBuffer(m_CBScreen.get(), KPSSharedCBCount + 0);
-
 		m_PSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSky.hlsl", "main");
-
-		m_PSIrradianceGenerator = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSIrradianceGenerator->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSIrradianceGenerator.hlsl", "main");
-		m_PSIrradianceGenerator->AttachConstantBuffer(m_CBIrradianceGenerator.get(), KPSSharedCBCount + 0);
-
-		m_PSFromHDR = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSFromHDR->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSFromHDR.hlsl", "main");
-
-		m_PSRadiancePrefiltering = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSRadiancePrefiltering->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSRadiancePrefiltering.hlsl", "main");
-		m_PSRadiancePrefiltering->AttachConstantBuffer(m_CBRadiancePrefiltering.get(), KPSSharedCBCount + 0);
-
-		m_PSBRDFIntegrator = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBRDFIntegrator->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBRDFIntegrator.hlsl", "main");
-
-		m_PSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBillboard->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBillboard.hlsl", "main");
-		m_PSBillboard->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 0);
-
-		m_PSDirectionalLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSDirectionalLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "main");
-		m_PSDirectionalLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
-
-		m_PSDirectionalLight_NonIBL = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSDirectionalLight_NonIBL->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "NonIBL");
-		m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
-
-		m_PSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSPointLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSPointLight.hlsl", "main");
-		m_PSPointLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
-
-		m_PSPointLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSPointLight_Volume->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSPointLight.hlsl", "Volume");
-		m_PSPointLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
-
-		m_PSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSSpotLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "main");
-		m_PSSpotLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
 
 		m_PSSpotLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSSpotLight_Volume->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "Volume");
 		m_PSSpotLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
 
-		m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBase2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase2D.hlsl", "main");
+		m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSTerrain->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSTerrain.hlsl", "main");
+		m_PSTerrain->AttachConstantBuffer(m_CBTerrainMaskingSpace.get(), KPSSharedCBCount + 0);
+		m_PSTerrain->AttachConstantBuffer(m_CBTerrainSelection.get(), KPSSharedCBCount + 1);
+		m_PSTerrain->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 2);
 
-		m_PSBase2D_RawVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBase2D_RawVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase2D.hlsl", "RawVertexColor");
+		m_PSTerrain_gbuffer = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSTerrain_gbuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSTerrain.hlsl", "gbuffer");
+		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainMaskingSpace.get(), KPSSharedCBCount + 0);
+		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainSelection.get(), KPSSharedCBCount + 1);
+		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 2);
 
-		m_PSMasking2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSMasking2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSMasking2D.hlsl", "main");
+		m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSWater->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSWater.hlsl", "main");
+		m_PSWater->AttachConstantBuffer(m_CBWaterTime.get(), KPSSharedCBCount + 0);
 
-		m_PSHeightMap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSHeightMap2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSHeightMap2D.hlsl", "main");
-
-		m_PSCubemap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSCubemap2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCubemap2D.hlsl", "main");
 	}
 }
 
@@ -4137,106 +4084,20 @@ void CGame::Draw()
 			const XMVECTOR& EyePosition{ m_PtrCurrentCamera->GetEyePosition() };
 			const XMVECTOR& ViewDirection{ m_PtrCurrentCamera->GetForward() };
 
-			// Shadow map 0
+			size_t LODCount{ m_CascadedShadowMap->GetLODCount() };
+			for (size_t iLOD = 0; iLOD < LODCount; ++iLOD)
 			{
-				float ZNear{ m_NearZ };
-				float ZFar{ 10.0f };
+				m_CascadedShadowMap->Set(iLOD, SavedProjectionMatrix, EyePosition, ViewDirection, m_CBGlobalLightData.DirectionalLightDirection);
 
-				m_DeviceContext->RSSetViewports(1, &m_DirectionalLightShadowMap0.Viewport);
+				// @important
+				m_MatrixView = m_CascadedShadowMap->GetViewMatrix(iLOD);
+				m_MatrixProjection = m_CascadedShadowMap->GetProjectionMatrix(iLOD);
+				m_CBShadowMapData.ShadowMapSpaceMatrix[iLOD] = m_CascadedShadowMap->GetTransposedSpaceMatrix(iLOD);
+				if (iLOD < KCascadedShadowMapLODCountMax) m_CBShadowMapData.ShadowMapZFars[iLOD] = m_CascadedShadowMap->GetZFar(iLOD);
 
-				m_DeviceContext->OMSetRenderTargets(0, nullptr, m_DirectionalLightShadowMap0.DSV.Get());
-				m_DeviceContext->ClearDepthStencilView(m_DirectionalLightShadowMap0.DSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-				SShadowMapFrustum ShadowMapFrustum0{
-					GetShadowMapFrustum(SavedProjectionMatrix, EyePosition, ViewDirection,
-						m_CBGlobalLightData.DirectionalLightDirection, ZNear, ZFar) };
-
-				m_ShadowMapFrustumRep0Data = GetShadowMapFrustumVertices(m_CBGlobalLightData.DirectionalLightDirection, ShadowMapFrustum0);
-
-				m_ViewFrustumRep0Data =
-					GetViewFrustumVertices(SavedProjectionMatrix, EyePosition, ViewDirection,
-						m_CBGlobalLightData.DirectionalLightDirection, ZNear, ZFar);
-
-				m_MatrixView = XMMatrixLookToLH(ShadowMapFrustum0.LightPosition, ShadowMapFrustum0.LightForward, ShadowMapFrustum0.LightUp);
-				m_MatrixProjection = XMMatrixOrthographicOffCenterLH(
-					-ShadowMapFrustum0.HalfSize.x, +ShadowMapFrustum0.HalfSize.x, -ShadowMapFrustum0.HalfSize.y, +ShadowMapFrustum0.HalfSize.y, 
-					0.0f, ShadowMapFrustum0.HalfSize.z * 2.0f);
-
-				// @important: just saving data to be used in PS
-				m_CBGlobalLightData.DirectionalLightSpaceMatrix0 = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-
-				// Opaque Object3Ds
-				for (auto& Object3D : m_vObject3Ds)
-				{
-					if (Object3D->ComponentRender.bIsTransparent) continue;
-					if (Object3D->IsRigged())
-					{
-						if (Object3D->HasBakedAnimationTexture())
-						{
-							UpdateCBAnimationData(Object3D->GetAnimationData());
-						}
-						else
-						{
-							UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
-						}
-
-						Object3D->Animate(m_DeltaTimeF);
-					}
-					Object3D->UpdateWorldMatrix();
-					DrawObject3D(Object3D.get(), false, true, true);
-				}
+				DrawOpaqueObject3Ds();
 			}
 
-			// Shadow map 1
-			{
-				float ZNear{ 10.0f };
-				float ZFar{ 30.0f };
-
-				m_DeviceContext->RSSetViewports(1, &m_DirectionalLightShadowMap1.Viewport);
-
-				m_DeviceContext->OMSetRenderTargets(0, nullptr, m_DirectionalLightShadowMap1.DSV.Get());
-				m_DeviceContext->ClearDepthStencilView(m_DirectionalLightShadowMap1.DSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-				SShadowMapFrustum ShadowMapFrustum1{
-					GetShadowMapFrustum(SavedProjectionMatrix, EyePosition, ViewDirection,
-						m_CBGlobalLightData.DirectionalLightDirection, ZNear, ZFar) };
-
-				m_ShadowMapFrustumRep1Data = GetShadowMapFrustumVertices(m_CBGlobalLightData.DirectionalLightDirection, ShadowMapFrustum1);
-
-				m_ViewFrustumRep1Data =
-					GetViewFrustumVertices(SavedProjectionMatrix, EyePosition, ViewDirection,
-						m_CBGlobalLightData.DirectionalLightDirection, ZNear, ZFar);
-
-				m_MatrixView = XMMatrixLookToLH(ShadowMapFrustum1.LightPosition, ShadowMapFrustum1.LightForward, ShadowMapFrustum1.LightUp);
-				m_MatrixProjection = XMMatrixOrthographicOffCenterLH(
-					-ShadowMapFrustum1.HalfSize.x, +ShadowMapFrustum1.HalfSize.x, -ShadowMapFrustum1.HalfSize.y, +ShadowMapFrustum1.HalfSize.y,
-					0.0f, ShadowMapFrustum1.HalfSize.z * 2.0f);
-
-				// @important: just saving data to be used in PS
-				m_CBGlobalLightData.DirectionalLightSpaceMatrix1 = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-
-				// Opaque Object3Ds
-				for (auto& Object3D : m_vObject3Ds)
-				{
-					if (Object3D->ComponentRender.bIsTransparent) continue;
-					if (Object3D->IsRigged())
-					{
-						if (Object3D->HasBakedAnimationTexture())
-						{
-							UpdateCBAnimationData(Object3D->GetAnimationData());
-						}
-						else
-						{
-							UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
-						}
-
-						Object3D->Animate(m_DeltaTimeF);
-					}
-					Object3D->UpdateWorldMatrix();
-					DrawObject3D(Object3D.get(), false, true, true);
-				}
-			}
-			
 			m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 			m_MatrixView = SavedViewMatrix;
 			m_MatrixProjection = SavedProjectionMatrix;
@@ -4256,13 +4117,20 @@ void CGame::Draw()
 			m_DeviceContext->OMSetRenderTargets(1, m_BackBufferRTV.GetAddressOf(), nullptr);
 
 			m_CBGlobalLight->Update();
+			m_CBShadowMap->Update();
 
-			ID3D11ShaderResourceView* SRVs[]{
-				m_GBuffers.DepthStencilSRV.Get(), m_GBuffers.BaseColorRoughSRV.Get(), m_GBuffers.NormalSRV.Get(), m_GBuffers.MetalAOSRV.Get(),
-				m_DirectionalLightShadowMap0.SRV.Get(), m_DirectionalLightShadowMap1.SRV.Get() };
-
-			DrawFullScreenQuad(m_PSDirectionalLight.get(), SRVs, ARRAYSIZE(SRVs));
-			//DrawFullScreenQuad(m_PSDirectionalLight_NonIBL.get(), SRVs, ARRAYSIZE(SRVs));
+			// @important
+			vector<ID3D11ShaderResourceView*> vSRVs
+			{
+				m_GBuffers.DepthStencilSRV.Get(), m_GBuffers.BaseColorRoughSRV.Get(), m_GBuffers.NormalSRV.Get(), m_GBuffers.MetalAOSRV.Get()
+			};
+			size_t LODCount{ m_CascadedShadowMap->GetLODCount() };
+			for (size_t iLOD = 0; iLOD < LODCount; ++iLOD)
+			{
+				vSRVs.emplace_back(m_CascadedShadowMap->GetSRV(iLOD));
+			}
+			DrawFullScreenQuad(m_PSDirectionalLight.get(), &vSRVs[0], (UINT)vSRVs.size());
+			//DrawFullScreenQuad(m_PSDirectionalLight_NonIBL.get(), &vSRVs[0], (UINT)vSRVs.size());
 		}
 
 		// LightArray
@@ -4349,13 +4217,22 @@ void CGame::Draw()
 			{
 				DrawShadowMapFrustumsRep();
 
+				ID3D11ShaderResourceView* SRVs[1]{};
+
+				SRVs[0] = m_CascadedShadowMap->GetSRV(0);
 				m_DeviceContext->RSSetViewports(1, &m_vViewports[5]);
 				UpdateCBSpace();
-				DrawFullScreenQuad(m_PSScreenQuad_Depth.get(), m_DirectionalLightShadowMap0.SRV.GetAddressOf(), 1);
+				DrawFullScreenQuad(m_PSScreenQuad_Depth.get(), SRVs, 1);
 
+				SRVs[0] = m_CascadedShadowMap->GetSRV(1);
 				m_DeviceContext->RSSetViewports(1, &m_vViewports[6]);
 				UpdateCBSpace();
-				DrawFullScreenQuad(m_PSScreenQuad_Depth.get(), m_DirectionalLightShadowMap1.SRV.GetAddressOf(), 1);
+				DrawFullScreenQuad(m_PSScreenQuad_Depth.get(), SRVs, 1);
+
+				SRVs[0] = m_CascadedShadowMap->GetSRV(2);
+				m_DeviceContext->RSSetViewports(1, &m_vViewports[7]);
+				UpdateCBSpace();
+				DrawFullScreenQuad(m_PSScreenQuad_Depth.get(), SRVs, 1);
 
 				m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 			}
@@ -4477,6 +4354,29 @@ void CGame::Draw()
 		{
 			m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthDefault(), 0);
 		}
+	}
+}
+
+void CGame::DrawOpaqueObject3Ds()
+{
+	// Opaque Object3Ds
+	for (auto& Object3D : m_vObject3Ds)
+	{
+		if (Object3D->ComponentRender.bIsTransparent) continue;
+		if (Object3D->IsRigged())
+		{
+			if (Object3D->HasBakedAnimationTexture())
+			{
+				UpdateCBAnimationData(Object3D->GetAnimationData());
+			}
+			else
+			{
+				UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
+			}
+
+			Object3D->Animate(m_DeltaTimeF);
+		}
+		DrawObject3D(Object3D.get(), false, true, true);
 	}
 }
 
@@ -4652,92 +4552,55 @@ void CGame::DrawGrid()
 
 void CGame::CaptureShadowMapFrustums()
 {
+	size_t LODCount{ m_CascadedShadowMap->GetLODCount() };
+	for (size_t iLOD = 0; iLOD < LODCount; ++iLOD)
 	{
+		const auto& Vertices{ m_CascadedShadowMap->GetViewFrustumVertices(iLOD).Vertices };
+
 		// Near plane
-		m_ViewFrustumRep0->UpdateLinePosition(0, m_ViewFrustumRep0Data.Vertices[0], m_ViewFrustumRep0Data.Vertices[1]);
-		m_ViewFrustumRep0->UpdateLinePosition(1, m_ViewFrustumRep0Data.Vertices[1], m_ViewFrustumRep0Data.Vertices[3]);
-		m_ViewFrustumRep0->UpdateLinePosition(2, m_ViewFrustumRep0Data.Vertices[3], m_ViewFrustumRep0Data.Vertices[2]);
-		m_ViewFrustumRep0->UpdateLinePosition(3, m_ViewFrustumRep0Data.Vertices[2], m_ViewFrustumRep0Data.Vertices[0]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(0, Vertices[0], Vertices[1]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(1, Vertices[1], Vertices[3]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(2, Vertices[3], Vertices[2]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(3, Vertices[2], Vertices[0]);
 
 		// Far plane
-		m_ViewFrustumRep0->UpdateLinePosition(4, m_ViewFrustumRep0Data.Vertices[4], m_ViewFrustumRep0Data.Vertices[5]);
-		m_ViewFrustumRep0->UpdateLinePosition(5, m_ViewFrustumRep0Data.Vertices[5], m_ViewFrustumRep0Data.Vertices[7]);
-		m_ViewFrustumRep0->UpdateLinePosition(6, m_ViewFrustumRep0Data.Vertices[7], m_ViewFrustumRep0Data.Vertices[6]);
-		m_ViewFrustumRep0->UpdateLinePosition(7, m_ViewFrustumRep0Data.Vertices[6], m_ViewFrustumRep0Data.Vertices[4]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(4, Vertices[4], Vertices[5]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(5, Vertices[5], Vertices[7]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(6, Vertices[7], Vertices[6]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(7, Vertices[6], Vertices[4]);
 
 		// Side
-		m_ViewFrustumRep0->UpdateLinePosition(8, m_ViewFrustumRep0Data.Vertices[0], m_ViewFrustumRep0Data.Vertices[4]);
-		m_ViewFrustumRep0->UpdateLinePosition(9, m_ViewFrustumRep0Data.Vertices[1], m_ViewFrustumRep0Data.Vertices[5]);
-		m_ViewFrustumRep0->UpdateLinePosition(10, m_ViewFrustumRep0Data.Vertices[2], m_ViewFrustumRep0Data.Vertices[6]);
-		m_ViewFrustumRep0->UpdateLinePosition(11, m_ViewFrustumRep0Data.Vertices[3], m_ViewFrustumRep0Data.Vertices[7]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(8, Vertices[0], Vertices[4]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(9, Vertices[1], Vertices[5]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(10, Vertices[2], Vertices[6]);
+		m_ViewFrustumReps[iLOD]->UpdateLinePosition(11, Vertices[3], Vertices[7]);
 
-		m_ViewFrustumRep0->UpdateVertexBuffer();
-	}
-	
-	{
-		// Near plane
-		m_ViewFrustumRep1->UpdateLinePosition(0, m_ViewFrustumRep1Data.Vertices[0], m_ViewFrustumRep1Data.Vertices[1]);
-		m_ViewFrustumRep1->UpdateLinePosition(1, m_ViewFrustumRep1Data.Vertices[1], m_ViewFrustumRep1Data.Vertices[3]);
-		m_ViewFrustumRep1->UpdateLinePosition(2, m_ViewFrustumRep1Data.Vertices[3], m_ViewFrustumRep1Data.Vertices[2]);
-		m_ViewFrustumRep1->UpdateLinePosition(3, m_ViewFrustumRep1Data.Vertices[2], m_ViewFrustumRep1Data.Vertices[0]);
-
-		// Far plane
-		m_ViewFrustumRep1->UpdateLinePosition(4, m_ViewFrustumRep1Data.Vertices[4], m_ViewFrustumRep1Data.Vertices[5]);
-		m_ViewFrustumRep1->UpdateLinePosition(5, m_ViewFrustumRep1Data.Vertices[5], m_ViewFrustumRep1Data.Vertices[7]);
-		m_ViewFrustumRep1->UpdateLinePosition(6, m_ViewFrustumRep1Data.Vertices[7], m_ViewFrustumRep1Data.Vertices[6]);
-		m_ViewFrustumRep1->UpdateLinePosition(7, m_ViewFrustumRep1Data.Vertices[6], m_ViewFrustumRep1Data.Vertices[4]);
-
-		// Side
-		m_ViewFrustumRep1->UpdateLinePosition(8, m_ViewFrustumRep1Data.Vertices[0], m_ViewFrustumRep1Data.Vertices[4]);
-		m_ViewFrustumRep1->UpdateLinePosition(9, m_ViewFrustumRep1Data.Vertices[1], m_ViewFrustumRep1Data.Vertices[5]);
-		m_ViewFrustumRep1->UpdateLinePosition(10, m_ViewFrustumRep1Data.Vertices[2], m_ViewFrustumRep1Data.Vertices[6]);
-		m_ViewFrustumRep1->UpdateLinePosition(11, m_ViewFrustumRep1Data.Vertices[3], m_ViewFrustumRep1Data.Vertices[7]);
-
-		m_ViewFrustumRep1->UpdateVertexBuffer();
+		m_ViewFrustumReps[iLOD]->UpdateVertexBuffer();
 	}
 
+	for (size_t iLOD = 0; iLOD < LODCount; ++iLOD)
 	{
+		const auto& Vertices{ m_CascadedShadowMap->GetShadowMapFrustumVertices(iLOD).Vertices };
+
 		// Near plane
-		m_ShadowMapFrustumRep0->UpdateLinePosition(0, m_ShadowMapFrustumRep0Data.Vertices[0], m_ShadowMapFrustumRep0Data.Vertices[1]);
-		m_ShadowMapFrustumRep0->UpdateLinePosition(1, m_ShadowMapFrustumRep0Data.Vertices[1], m_ShadowMapFrustumRep0Data.Vertices[3]);
-		m_ShadowMapFrustumRep0->UpdateLinePosition(2, m_ShadowMapFrustumRep0Data.Vertices[3], m_ShadowMapFrustumRep0Data.Vertices[2]);
-		m_ShadowMapFrustumRep0->UpdateLinePosition(3, m_ShadowMapFrustumRep0Data.Vertices[2], m_ShadowMapFrustumRep0Data.Vertices[0]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(0, Vertices[0], Vertices[1]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(1, Vertices[1], Vertices[3]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(2, Vertices[3], Vertices[2]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(3, Vertices[2], Vertices[0]);
 
 		// Far plane
-		m_ShadowMapFrustumRep0->UpdateLinePosition(4, m_ShadowMapFrustumRep0Data.Vertices[4], m_ShadowMapFrustumRep0Data.Vertices[5]);
-		m_ShadowMapFrustumRep0->UpdateLinePosition(5, m_ShadowMapFrustumRep0Data.Vertices[5], m_ShadowMapFrustumRep0Data.Vertices[7]);
-		m_ShadowMapFrustumRep0->UpdateLinePosition(6, m_ShadowMapFrustumRep0Data.Vertices[7], m_ShadowMapFrustumRep0Data.Vertices[6]);
-		m_ShadowMapFrustumRep0->UpdateLinePosition(7, m_ShadowMapFrustumRep0Data.Vertices[6], m_ShadowMapFrustumRep0Data.Vertices[4]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(4, Vertices[4], Vertices[5]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(5, Vertices[5], Vertices[7]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(6, Vertices[7], Vertices[6]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(7, Vertices[6], Vertices[4]);
 
 		// Side
-		m_ShadowMapFrustumRep0->UpdateLinePosition(8, m_ShadowMapFrustumRep0Data.Vertices[0], m_ShadowMapFrustumRep0Data.Vertices[4]);
-		m_ShadowMapFrustumRep0->UpdateLinePosition(9, m_ShadowMapFrustumRep0Data.Vertices[1], m_ShadowMapFrustumRep0Data.Vertices[5]);
-		m_ShadowMapFrustumRep0->UpdateLinePosition(10, m_ShadowMapFrustumRep0Data.Vertices[2], m_ShadowMapFrustumRep0Data.Vertices[6]);
-		m_ShadowMapFrustumRep0->UpdateLinePosition(11, m_ShadowMapFrustumRep0Data.Vertices[3], m_ShadowMapFrustumRep0Data.Vertices[7]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(8, Vertices[0], Vertices[4]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(9, Vertices[1], Vertices[5]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(10, Vertices[2], Vertices[6]);
+		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(11, Vertices[3], Vertices[7]);
 
-		m_ShadowMapFrustumRep0->UpdateVertexBuffer();
-	}
-
-	{
-		// Near plane
-		m_ShadowMapFrustumRep1->UpdateLinePosition(0, m_ShadowMapFrustumRep1Data.Vertices[0], m_ShadowMapFrustumRep1Data.Vertices[1]);
-		m_ShadowMapFrustumRep1->UpdateLinePosition(1, m_ShadowMapFrustumRep1Data.Vertices[1], m_ShadowMapFrustumRep1Data.Vertices[3]);
-		m_ShadowMapFrustumRep1->UpdateLinePosition(2, m_ShadowMapFrustumRep1Data.Vertices[3], m_ShadowMapFrustumRep1Data.Vertices[2]);
-		m_ShadowMapFrustumRep1->UpdateLinePosition(3, m_ShadowMapFrustumRep1Data.Vertices[2], m_ShadowMapFrustumRep1Data.Vertices[0]);
-
-		// Far plane
-		m_ShadowMapFrustumRep1->UpdateLinePosition(4, m_ShadowMapFrustumRep1Data.Vertices[4], m_ShadowMapFrustumRep1Data.Vertices[5]);
-		m_ShadowMapFrustumRep1->UpdateLinePosition(5, m_ShadowMapFrustumRep1Data.Vertices[5], m_ShadowMapFrustumRep1Data.Vertices[7]);
-		m_ShadowMapFrustumRep1->UpdateLinePosition(6, m_ShadowMapFrustumRep1Data.Vertices[7], m_ShadowMapFrustumRep1Data.Vertices[6]);
-		m_ShadowMapFrustumRep1->UpdateLinePosition(7, m_ShadowMapFrustumRep1Data.Vertices[6], m_ShadowMapFrustumRep1Data.Vertices[4]);
-
-		// Side
-		m_ShadowMapFrustumRep1->UpdateLinePosition(8, m_ShadowMapFrustumRep1Data.Vertices[0], m_ShadowMapFrustumRep1Data.Vertices[4]);
-		m_ShadowMapFrustumRep1->UpdateLinePosition(9, m_ShadowMapFrustumRep1Data.Vertices[1], m_ShadowMapFrustumRep1Data.Vertices[5]);
-		m_ShadowMapFrustumRep1->UpdateLinePosition(10, m_ShadowMapFrustumRep1Data.Vertices[2], m_ShadowMapFrustumRep1Data.Vertices[6]);
-		m_ShadowMapFrustumRep1->UpdateLinePosition(11, m_ShadowMapFrustumRep1Data.Vertices[3], m_ShadowMapFrustumRep1Data.Vertices[7]);
-
-		m_ShadowMapFrustumRep1->UpdateVertexBuffer();
+		m_ShadowMapFrustumReps[iLOD]->UpdateVertexBuffer();
 	}
 }
 
@@ -4748,10 +4611,15 @@ void CGame::DrawShadowMapFrustumsRep()
 
 	UpdateCBSpace();
 
-	m_ViewFrustumRep0->Draw();
-	m_ViewFrustumRep1->Draw();
-	m_ShadowMapFrustumRep0->Draw();
-	m_ShadowMapFrustumRep1->Draw();
+	for (const auto& ViewFrustumRep : m_ViewFrustumReps)
+	{
+		if (ViewFrustumRep) ViewFrustumRep->Draw();
+	}
+	
+	for (const auto& ShadowMapFrustumRep : m_ShadowMapFrustumReps)
+	{
+		if (ShadowMapFrustumRep) ShadowMapFrustumRep->Draw();
+	}
 }
 
 void CGame::DrawSky(float DeltaTime)
