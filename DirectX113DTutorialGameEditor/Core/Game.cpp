@@ -223,6 +223,32 @@ void CGame::InitializeEditorAssets()
 		m_Grid = make_unique<CObject3DLine>("Grid", m_Device.Get(), m_DeviceContext.Get());
 		m_Grid->Create(Generate3DGrid(0));
 	}
+	
+	{
+		if (!m_ViewFrustumRep0)
+		{
+			m_ViewFrustumRep0 = make_unique<CObject3DLine>("ViewFrustumRep0", m_Device.Get(), m_DeviceContext.Get());
+			m_ViewFrustumRep0->Create(12, XMVectorSet(1, 1, 0, 1));
+		}
+
+		if (!m_ViewFrustumRep1)
+		{
+			m_ViewFrustumRep1 = make_unique<CObject3DLine>("ViewFrustumRep1", m_Device.Get(), m_DeviceContext.Get());
+			m_ViewFrustumRep1->Create(12, XMVectorSet(1, 0.25f, 0, 1));
+		}
+
+		if (!m_ShadowMapFrustumRep0)
+		{
+			m_ShadowMapFrustumRep0 = make_unique<CObject3DLine>("ShadowMapFrustumRep0", m_Device.Get(), m_DeviceContext.Get());
+			m_ShadowMapFrustumRep0->Create(12, XMVectorSet(0, 1, 0, 1));
+		}
+
+		if (!m_ShadowMapFrustumRep1)
+		{
+			m_ShadowMapFrustumRep1 = make_unique<CObject3DLine>("ShadowMapFrustumRep1", m_Device.Get(), m_DeviceContext.Get());
+			m_ShadowMapFrustumRep1->Create(12, XMVectorSet(0, 0.5f, 0, 1));
+		}
+	}
 
 	{
 		CMaterialData MaterialData{ "test" };
@@ -435,12 +461,12 @@ void CGame::CreateViews()
 
 	// Create shadow map for directional light
 	{
-		m_DirectionalLightShadowMapViewport.TopLeftX = 0;
-		m_DirectionalLightShadowMapViewport.TopLeftY = 0;
-		m_DirectionalLightShadowMapViewport.Width = KDirectionalLightShadowMapSize;
-		m_DirectionalLightShadowMapViewport.Height = KDirectionalLightShadowMapSize;
-		m_DirectionalLightShadowMapViewport.MinDepth = 0.0f;
-		m_DirectionalLightShadowMapViewport.MaxDepth = 1.0f;
+		m_DirectionalLightShadowMap0.Viewport.TopLeftX = 0;
+		m_DirectionalLightShadowMap0.Viewport.TopLeftY = 0;
+		m_DirectionalLightShadowMap0.Viewport.Width = KDirectionalLightShadowMapSize;
+		m_DirectionalLightShadowMap0.Viewport.Height = KDirectionalLightShadowMapSize;
+		m_DirectionalLightShadowMap0.Viewport.MinDepth = 0.0f;
+		m_DirectionalLightShadowMap0.Viewport.MaxDepth = 1.0f;
 		
 		D3D11_TEXTURE2D_DESC Texture2DDesc{};
 		Texture2DDesc.ArraySize = 1;
@@ -455,19 +481,56 @@ void CGame::CreateViews()
 		Texture2DDesc.SampleDesc.Quality = 0;
 		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
 
-		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_DirectionalLightShadowMap.ReleaseAndGetAddressOf());
+		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_DirectionalLightShadowMap0.Texture.ReleaseAndGetAddressOf());
 
 		D3D11_DEPTH_STENCIL_VIEW_DESC DSVDesc{};
 		DSVDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-		m_Device->CreateDepthStencilView(m_DirectionalLightShadowMap.Get(), &DSVDesc, m_DirectionalLightShadowMapDSV.ReleaseAndGetAddressOf());
+		m_Device->CreateDepthStencilView(m_DirectionalLightShadowMap0.Texture.Get(), &DSVDesc, m_DirectionalLightShadowMap0.DSV.ReleaseAndGetAddressOf());
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
 		SRVDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 		SRVDesc.Texture2D.MipLevels = 1;
 		SRVDesc.Texture2D.MostDetailedMip = 0;
 		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		m_Device->CreateShaderResourceView(m_DirectionalLightShadowMap.Get(), &SRVDesc, m_DirectionalLightShadowMapSRV.ReleaseAndGetAddressOf());
+		m_Device->CreateShaderResourceView(m_DirectionalLightShadowMap0.Texture.Get(), &SRVDesc, m_DirectionalLightShadowMap0.SRV.ReleaseAndGetAddressOf());
+	}
+
+	// Create shadow map for directional light
+	{
+		m_DirectionalLightShadowMap1.Viewport.TopLeftX = 0;
+		m_DirectionalLightShadowMap1.Viewport.TopLeftY = 0;
+		m_DirectionalLightShadowMap1.Viewport.Width = KDirectionalLightShadowMapSize;
+		m_DirectionalLightShadowMap1.Viewport.Height = KDirectionalLightShadowMapSize;
+		m_DirectionalLightShadowMap1.Viewport.MinDepth = 0.0f;
+		m_DirectionalLightShadowMap1.Viewport.MaxDepth = 1.0f;
+
+		D3D11_TEXTURE2D_DESC Texture2DDesc{};
+		Texture2DDesc.ArraySize = 1;
+		Texture2DDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+		Texture2DDesc.CPUAccessFlags = 0;
+		Texture2DDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; // @important
+		Texture2DDesc.Width = (UINT)KDirectionalLightShadowMapSize;
+		Texture2DDesc.Height = (UINT)KDirectionalLightShadowMapSize;
+		Texture2DDesc.MipLevels = 1;
+		Texture2DDesc.MiscFlags = 0;
+		Texture2DDesc.SampleDesc.Count = 1;
+		Texture2DDesc.SampleDesc.Quality = 0;
+		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+
+		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_DirectionalLightShadowMap1.Texture.ReleaseAndGetAddressOf());
+
+		D3D11_DEPTH_STENCIL_VIEW_DESC DSVDesc{};
+		DSVDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+		m_Device->CreateDepthStencilView(m_DirectionalLightShadowMap1.Texture.Get(), &DSVDesc, m_DirectionalLightShadowMap1.DSV.ReleaseAndGetAddressOf());
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
+		SRVDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		SRVDesc.Texture2D.MipLevels = 1;
+		SRVDesc.Texture2D.MostDetailedMip = 0;
+		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		m_Device->CreateShaderResourceView(m_DirectionalLightShadowMap1.Texture.Get(), &SRVDesc, m_DirectionalLightShadowMap1.SRV.ReleaseAndGetAddressOf());
 	}
 }
 
@@ -538,12 +601,25 @@ void CGame::InitializeViewports()
 		Viewport.MaxDepth = 1.0f;
 	}
 
-	// #5 Directional light shadow map
+	// #5 Directional light shadow map0
 	{
 		m_vViewports.emplace_back();
 
 		D3D11_VIEWPORT& Viewport{ m_vViewports.back() };
 		Viewport.TopLeftX = 0.0f;
+		Viewport.TopLeftY = m_WindowSize.y * 6.0f / 8.0f;
+		Viewport.Width = m_WindowSize.x / 8.0f;
+		Viewport.Height = m_WindowSize.y / 8.0f;
+		Viewport.MinDepth = 0.0f;
+		Viewport.MaxDepth = 1.0f;
+	}
+
+	// #6 Directional light shadow map1
+	{
+		m_vViewports.emplace_back();
+
+		D3D11_VIEWPORT& Viewport{ m_vViewports.back() };
+		Viewport.TopLeftX = m_WindowSize.x * 1.0f / 8.0f;
 		Viewport.TopLeftY = m_WindowSize.y * 6.0f / 8.0f;
 		Viewport.Width = m_WindowSize.x / 8.0f;
 		Viewport.Height = m_WindowSize.y / 8.0f;
@@ -3912,6 +3988,12 @@ void CGame::Update()
 				if (m_PtrCurrentCamera != m_EditorCamera.get())
 					m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
 			}
+
+			if (m_CapturedKeyboardState.F)
+			{
+				CaptureShadowMapFrustums();
+			}
+
 			if (m_CapturedKeyboardState.D1)
 			{
 				Set3DGizmoMode(E3DGizmoMode::Translation);
@@ -4047,64 +4129,117 @@ void CGame::Draw()
 
 		// Directional light shadow map
 		{
-			//m_DeviceContext->RSSetState(m_CommonStates->CullCounterClockwise());
-
-			//SetForwardRenderTargets(true);
 			m_bIsDeferredRenderTargetsSet = false;
-
-			m_DeviceContext->RSSetViewports(1, &m_DirectionalLightShadowMapViewport);
-
-			m_DeviceContext->OMSetRenderTargets(0, nullptr, m_DirectionalLightShadowMapDSV.Get());
-			m_DeviceContext->ClearDepthStencilView(m_DirectionalLightShadowMapDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 			XMMATRIX SavedViewMatrix{ m_MatrixView };
 			XMMATRIX SavedProjectionMatrix{ m_MatrixProjection };
 
-			m_MatrixView = 
-				XMMatrixLookAtLH(
-					m_CBGlobalLightData.DirectionalLightDirection * KSkyDistance,
-					XMVectorSet(0, 0, 0, 1),
-					XMVectorSet(0, 1, 0, 0));
+			const XMVECTOR& EyePosition{ m_PtrCurrentCamera->GetEyePosition() };
+			const XMVECTOR& ViewDirection{ m_PtrCurrentCamera->GetForward() };
 
-			// @important: REALLY IMPORTANT...
-			m_MatrixProjection = XMMatrixOrthographicOffCenterLH(-KSkyDistance, +KSkyDistance, -KSkyDistance, +KSkyDistance, 0.1f, KSkyDistance * 2.0f);
-
-			// @important: just saving data to be used later
-			m_CBGlobalLightData.DirectionalLightSpaceMatrix = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
-
-			// Opaque Object3Ds
-			for (auto& Object3D : m_vObject3Ds)
+			// Shadow map 0
 			{
-				if (Object3D->ComponentRender.bIsTransparent) continue;
+				float ZNear{ m_NearZ };
+				float ZFar{ 10.0f };
 
-				if (Object3D->IsRigged())
+				m_DeviceContext->RSSetViewports(1, &m_DirectionalLightShadowMap0.Viewport);
+
+				m_DeviceContext->OMSetRenderTargets(0, nullptr, m_DirectionalLightShadowMap0.DSV.Get());
+				m_DeviceContext->ClearDepthStencilView(m_DirectionalLightShadowMap0.DSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+				SShadowMapFrustum ShadowMapFrustum0{
+					GetShadowMapFrustum(SavedProjectionMatrix, EyePosition, ViewDirection,
+						m_CBGlobalLightData.DirectionalLightDirection, ZNear, ZFar) };
+
+				m_ShadowMapFrustumRep0Data = GetShadowMapFrustumVertices(m_CBGlobalLightData.DirectionalLightDirection, ShadowMapFrustum0);
+
+				m_ViewFrustumRep0Data =
+					GetViewFrustumVertices(SavedProjectionMatrix, EyePosition, ViewDirection,
+						m_CBGlobalLightData.DirectionalLightDirection, ZNear, ZFar);
+
+				m_MatrixView = XMMatrixLookToLH(ShadowMapFrustum0.LightPosition, ShadowMapFrustum0.LightForward, ShadowMapFrustum0.LightUp);
+				m_MatrixProjection = XMMatrixOrthographicOffCenterLH(
+					-ShadowMapFrustum0.HalfSize.x, +ShadowMapFrustum0.HalfSize.x, -ShadowMapFrustum0.HalfSize.y, +ShadowMapFrustum0.HalfSize.y, 
+					0.0f, ShadowMapFrustum0.HalfSize.z * 2.0f);
+
+				// @important: just saving data to be used in PS
+				m_CBGlobalLightData.DirectionalLightSpaceMatrix0 = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
+
+				// Opaque Object3Ds
+				for (auto& Object3D : m_vObject3Ds)
 				{
-					if (Object3D->HasBakedAnimationTexture())
+					if (Object3D->ComponentRender.bIsTransparent) continue;
+					if (Object3D->IsRigged())
 					{
-						UpdateCBAnimationData(Object3D->GetAnimationData());
+						if (Object3D->HasBakedAnimationTexture())
+						{
+							UpdateCBAnimationData(Object3D->GetAnimationData());
+						}
+						else
+						{
+							UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
+						}
+
+						Object3D->Animate(m_DeltaTimeF);
 					}
-					else
-					{
-						UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
-					}
-
-					Object3D->Animate(m_DeltaTimeF);
-				}
-
-				Object3D->UpdateWorldMatrix();
-				DrawObject3D(Object3D.get(), false, true, true);
-
-				if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
-				{
-					DrawObject3DBoundingSphere(Object3D.get());
+					Object3D->UpdateWorldMatrix();
+					DrawObject3D(Object3D.get(), false, true, true);
 				}
 			}
 
+			// Shadow map 1
+			{
+				float ZNear{ 10.0f };
+				float ZFar{ 30.0f };
+
+				m_DeviceContext->RSSetViewports(1, &m_DirectionalLightShadowMap1.Viewport);
+
+				m_DeviceContext->OMSetRenderTargets(0, nullptr, m_DirectionalLightShadowMap1.DSV.Get());
+				m_DeviceContext->ClearDepthStencilView(m_DirectionalLightShadowMap1.DSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+				SShadowMapFrustum ShadowMapFrustum1{
+					GetShadowMapFrustum(SavedProjectionMatrix, EyePosition, ViewDirection,
+						m_CBGlobalLightData.DirectionalLightDirection, ZNear, ZFar) };
+
+				m_ShadowMapFrustumRep1Data = GetShadowMapFrustumVertices(m_CBGlobalLightData.DirectionalLightDirection, ShadowMapFrustum1);
+
+				m_ViewFrustumRep1Data =
+					GetViewFrustumVertices(SavedProjectionMatrix, EyePosition, ViewDirection,
+						m_CBGlobalLightData.DirectionalLightDirection, ZNear, ZFar);
+
+				m_MatrixView = XMMatrixLookToLH(ShadowMapFrustum1.LightPosition, ShadowMapFrustum1.LightForward, ShadowMapFrustum1.LightUp);
+				m_MatrixProjection = XMMatrixOrthographicOffCenterLH(
+					-ShadowMapFrustum1.HalfSize.x, +ShadowMapFrustum1.HalfSize.x, -ShadowMapFrustum1.HalfSize.y, +ShadowMapFrustum1.HalfSize.y,
+					0.0f, ShadowMapFrustum1.HalfSize.z * 2.0f);
+
+				// @important: just saving data to be used in PS
+				m_CBGlobalLightData.DirectionalLightSpaceMatrix1 = XMMatrixTranspose(m_MatrixView * m_MatrixProjection);
+
+				// Opaque Object3Ds
+				for (auto& Object3D : m_vObject3Ds)
+				{
+					if (Object3D->ComponentRender.bIsTransparent) continue;
+					if (Object3D->IsRigged())
+					{
+						if (Object3D->HasBakedAnimationTexture())
+						{
+							UpdateCBAnimationData(Object3D->GetAnimationData());
+						}
+						else
+						{
+							UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
+						}
+
+						Object3D->Animate(m_DeltaTimeF);
+					}
+					Object3D->UpdateWorldMatrix();
+					DrawObject3D(Object3D.get(), false, true, true);
+				}
+			}
+			
 			m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 			m_MatrixView = SavedViewMatrix;
 			m_MatrixProjection = SavedProjectionMatrix;
-
-			SetUniversalRSState();
 		}
 
 		// @important
@@ -4124,7 +4259,7 @@ void CGame::Draw()
 
 			ID3D11ShaderResourceView* SRVs[]{
 				m_GBuffers.DepthStencilSRV.Get(), m_GBuffers.BaseColorRoughSRV.Get(), m_GBuffers.NormalSRV.Get(), m_GBuffers.MetalAOSRV.Get(),
-				m_DirectionalLightShadowMapSRV.Get() };
+				m_DirectionalLightShadowMap0.SRV.Get(), m_DirectionalLightShadowMap1.SRV.Get() };
 
 			DrawFullScreenQuad(m_PSDirectionalLight.get(), SRVs, ARRAYSIZE(SRVs));
 			//DrawFullScreenQuad(m_PSDirectionalLight_NonIBL.get(), SRVs, ARRAYSIZE(SRVs));
@@ -4212,10 +4347,15 @@ void CGame::Draw()
 
 			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawDirectionalLightShadowMap))
 			{
-				m_DeviceContext->RSSetViewports(1, &m_vViewports[5]);
+				DrawShadowMapFrustumsRep();
 
+				m_DeviceContext->RSSetViewports(1, &m_vViewports[5]);
 				UpdateCBSpace();
-				DrawFullScreenQuad(m_PSScreenQuad_Depth.get(), m_DirectionalLightShadowMapSRV.GetAddressOf(), 1);
+				DrawFullScreenQuad(m_PSScreenQuad_Depth.get(), m_DirectionalLightShadowMap0.SRV.GetAddressOf(), 1);
+
+				m_DeviceContext->RSSetViewports(1, &m_vViewports[6]);
+				UpdateCBSpace();
+				DrawFullScreenQuad(m_PSScreenQuad_Depth.get(), m_DirectionalLightShadowMap1.SRV.GetAddressOf(), 1);
 
 				m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 			}
@@ -4508,6 +4648,110 @@ void CGame::DrawGrid()
 	UpdateCBSpace(m_Grid->ComponentTransform.MatrixWorld);
 
 	m_Grid->Draw();
+}
+
+void CGame::CaptureShadowMapFrustums()
+{
+	{
+		// Near plane
+		m_ViewFrustumRep0->UpdateLinePosition(0, m_ViewFrustumRep0Data.Vertices[0], m_ViewFrustumRep0Data.Vertices[1]);
+		m_ViewFrustumRep0->UpdateLinePosition(1, m_ViewFrustumRep0Data.Vertices[1], m_ViewFrustumRep0Data.Vertices[3]);
+		m_ViewFrustumRep0->UpdateLinePosition(2, m_ViewFrustumRep0Data.Vertices[3], m_ViewFrustumRep0Data.Vertices[2]);
+		m_ViewFrustumRep0->UpdateLinePosition(3, m_ViewFrustumRep0Data.Vertices[2], m_ViewFrustumRep0Data.Vertices[0]);
+
+		// Far plane
+		m_ViewFrustumRep0->UpdateLinePosition(4, m_ViewFrustumRep0Data.Vertices[4], m_ViewFrustumRep0Data.Vertices[5]);
+		m_ViewFrustumRep0->UpdateLinePosition(5, m_ViewFrustumRep0Data.Vertices[5], m_ViewFrustumRep0Data.Vertices[7]);
+		m_ViewFrustumRep0->UpdateLinePosition(6, m_ViewFrustumRep0Data.Vertices[7], m_ViewFrustumRep0Data.Vertices[6]);
+		m_ViewFrustumRep0->UpdateLinePosition(7, m_ViewFrustumRep0Data.Vertices[6], m_ViewFrustumRep0Data.Vertices[4]);
+
+		// Side
+		m_ViewFrustumRep0->UpdateLinePosition(8, m_ViewFrustumRep0Data.Vertices[0], m_ViewFrustumRep0Data.Vertices[4]);
+		m_ViewFrustumRep0->UpdateLinePosition(9, m_ViewFrustumRep0Data.Vertices[1], m_ViewFrustumRep0Data.Vertices[5]);
+		m_ViewFrustumRep0->UpdateLinePosition(10, m_ViewFrustumRep0Data.Vertices[2], m_ViewFrustumRep0Data.Vertices[6]);
+		m_ViewFrustumRep0->UpdateLinePosition(11, m_ViewFrustumRep0Data.Vertices[3], m_ViewFrustumRep0Data.Vertices[7]);
+
+		m_ViewFrustumRep0->UpdateVertexBuffer();
+	}
+	
+	{
+		// Near plane
+		m_ViewFrustumRep1->UpdateLinePosition(0, m_ViewFrustumRep1Data.Vertices[0], m_ViewFrustumRep1Data.Vertices[1]);
+		m_ViewFrustumRep1->UpdateLinePosition(1, m_ViewFrustumRep1Data.Vertices[1], m_ViewFrustumRep1Data.Vertices[3]);
+		m_ViewFrustumRep1->UpdateLinePosition(2, m_ViewFrustumRep1Data.Vertices[3], m_ViewFrustumRep1Data.Vertices[2]);
+		m_ViewFrustumRep1->UpdateLinePosition(3, m_ViewFrustumRep1Data.Vertices[2], m_ViewFrustumRep1Data.Vertices[0]);
+
+		// Far plane
+		m_ViewFrustumRep1->UpdateLinePosition(4, m_ViewFrustumRep1Data.Vertices[4], m_ViewFrustumRep1Data.Vertices[5]);
+		m_ViewFrustumRep1->UpdateLinePosition(5, m_ViewFrustumRep1Data.Vertices[5], m_ViewFrustumRep1Data.Vertices[7]);
+		m_ViewFrustumRep1->UpdateLinePosition(6, m_ViewFrustumRep1Data.Vertices[7], m_ViewFrustumRep1Data.Vertices[6]);
+		m_ViewFrustumRep1->UpdateLinePosition(7, m_ViewFrustumRep1Data.Vertices[6], m_ViewFrustumRep1Data.Vertices[4]);
+
+		// Side
+		m_ViewFrustumRep1->UpdateLinePosition(8, m_ViewFrustumRep1Data.Vertices[0], m_ViewFrustumRep1Data.Vertices[4]);
+		m_ViewFrustumRep1->UpdateLinePosition(9, m_ViewFrustumRep1Data.Vertices[1], m_ViewFrustumRep1Data.Vertices[5]);
+		m_ViewFrustumRep1->UpdateLinePosition(10, m_ViewFrustumRep1Data.Vertices[2], m_ViewFrustumRep1Data.Vertices[6]);
+		m_ViewFrustumRep1->UpdateLinePosition(11, m_ViewFrustumRep1Data.Vertices[3], m_ViewFrustumRep1Data.Vertices[7]);
+
+		m_ViewFrustumRep1->UpdateVertexBuffer();
+	}
+
+	{
+		// Near plane
+		m_ShadowMapFrustumRep0->UpdateLinePosition(0, m_ShadowMapFrustumRep0Data.Vertices[0], m_ShadowMapFrustumRep0Data.Vertices[1]);
+		m_ShadowMapFrustumRep0->UpdateLinePosition(1, m_ShadowMapFrustumRep0Data.Vertices[1], m_ShadowMapFrustumRep0Data.Vertices[3]);
+		m_ShadowMapFrustumRep0->UpdateLinePosition(2, m_ShadowMapFrustumRep0Data.Vertices[3], m_ShadowMapFrustumRep0Data.Vertices[2]);
+		m_ShadowMapFrustumRep0->UpdateLinePosition(3, m_ShadowMapFrustumRep0Data.Vertices[2], m_ShadowMapFrustumRep0Data.Vertices[0]);
+
+		// Far plane
+		m_ShadowMapFrustumRep0->UpdateLinePosition(4, m_ShadowMapFrustumRep0Data.Vertices[4], m_ShadowMapFrustumRep0Data.Vertices[5]);
+		m_ShadowMapFrustumRep0->UpdateLinePosition(5, m_ShadowMapFrustumRep0Data.Vertices[5], m_ShadowMapFrustumRep0Data.Vertices[7]);
+		m_ShadowMapFrustumRep0->UpdateLinePosition(6, m_ShadowMapFrustumRep0Data.Vertices[7], m_ShadowMapFrustumRep0Data.Vertices[6]);
+		m_ShadowMapFrustumRep0->UpdateLinePosition(7, m_ShadowMapFrustumRep0Data.Vertices[6], m_ShadowMapFrustumRep0Data.Vertices[4]);
+
+		// Side
+		m_ShadowMapFrustumRep0->UpdateLinePosition(8, m_ShadowMapFrustumRep0Data.Vertices[0], m_ShadowMapFrustumRep0Data.Vertices[4]);
+		m_ShadowMapFrustumRep0->UpdateLinePosition(9, m_ShadowMapFrustumRep0Data.Vertices[1], m_ShadowMapFrustumRep0Data.Vertices[5]);
+		m_ShadowMapFrustumRep0->UpdateLinePosition(10, m_ShadowMapFrustumRep0Data.Vertices[2], m_ShadowMapFrustumRep0Data.Vertices[6]);
+		m_ShadowMapFrustumRep0->UpdateLinePosition(11, m_ShadowMapFrustumRep0Data.Vertices[3], m_ShadowMapFrustumRep0Data.Vertices[7]);
+
+		m_ShadowMapFrustumRep0->UpdateVertexBuffer();
+	}
+
+	{
+		// Near plane
+		m_ShadowMapFrustumRep1->UpdateLinePosition(0, m_ShadowMapFrustumRep1Data.Vertices[0], m_ShadowMapFrustumRep1Data.Vertices[1]);
+		m_ShadowMapFrustumRep1->UpdateLinePosition(1, m_ShadowMapFrustumRep1Data.Vertices[1], m_ShadowMapFrustumRep1Data.Vertices[3]);
+		m_ShadowMapFrustumRep1->UpdateLinePosition(2, m_ShadowMapFrustumRep1Data.Vertices[3], m_ShadowMapFrustumRep1Data.Vertices[2]);
+		m_ShadowMapFrustumRep1->UpdateLinePosition(3, m_ShadowMapFrustumRep1Data.Vertices[2], m_ShadowMapFrustumRep1Data.Vertices[0]);
+
+		// Far plane
+		m_ShadowMapFrustumRep1->UpdateLinePosition(4, m_ShadowMapFrustumRep1Data.Vertices[4], m_ShadowMapFrustumRep1Data.Vertices[5]);
+		m_ShadowMapFrustumRep1->UpdateLinePosition(5, m_ShadowMapFrustumRep1Data.Vertices[5], m_ShadowMapFrustumRep1Data.Vertices[7]);
+		m_ShadowMapFrustumRep1->UpdateLinePosition(6, m_ShadowMapFrustumRep1Data.Vertices[7], m_ShadowMapFrustumRep1Data.Vertices[6]);
+		m_ShadowMapFrustumRep1->UpdateLinePosition(7, m_ShadowMapFrustumRep1Data.Vertices[6], m_ShadowMapFrustumRep1Data.Vertices[4]);
+
+		// Side
+		m_ShadowMapFrustumRep1->UpdateLinePosition(8, m_ShadowMapFrustumRep1Data.Vertices[0], m_ShadowMapFrustumRep1Data.Vertices[4]);
+		m_ShadowMapFrustumRep1->UpdateLinePosition(9, m_ShadowMapFrustumRep1Data.Vertices[1], m_ShadowMapFrustumRep1Data.Vertices[5]);
+		m_ShadowMapFrustumRep1->UpdateLinePosition(10, m_ShadowMapFrustumRep1Data.Vertices[2], m_ShadowMapFrustumRep1Data.Vertices[6]);
+		m_ShadowMapFrustumRep1->UpdateLinePosition(11, m_ShadowMapFrustumRep1Data.Vertices[3], m_ShadowMapFrustumRep1Data.Vertices[7]);
+
+		m_ShadowMapFrustumRep1->UpdateVertexBuffer();
+	}
+}
+
+void CGame::DrawShadowMapFrustumsRep()
+{
+	m_VSLine->Use();
+	m_PSLine->Use();
+
+	UpdateCBSpace();
+
+	m_ViewFrustumRep0->Draw();
+	m_ViewFrustumRep1->Draw();
+	m_ShadowMapFrustumRep0->Draw();
+	m_ShadowMapFrustumRep1->Draw();
 }
 
 void CGame::DrawSky(float DeltaTime)
@@ -6995,10 +7239,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						}
 
 						ImGui::AlignTextToFramePadding();
-						ImGui::Text(u8"Bounding Sphere 표시");
+						ImGui::Text(u8"Editor BS 표시");
 						ImGui::SameLine(ItemsOffsetX);
 						bool bDrawBoundingSphere{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere) };
-						if (ImGui::Checkbox(u8"##Bounding Sphere 표시", &bDrawBoundingSphere))
+						if (ImGui::Checkbox(u8"##Editor BS 표시", &bDrawBoundingSphere))
 						{
 							ToggleGameRenderingFlags(EFlagsRendering::DrawBoundingSphere);
 						}

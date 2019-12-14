@@ -2,7 +2,8 @@
 
 cbuffer cbGlobalLight : register(b0)
 {
-	float4x4	DirectionalLightSpaceMatrix;
+	float4x4	DirectionalLightSpaceMatrix0;
+	float4x4	DirectionalLightSpaceMatrix1;
 	float4		DirectionalLightDirection;
 	float3		DirectionalLightColor;
 	float		Exposure;

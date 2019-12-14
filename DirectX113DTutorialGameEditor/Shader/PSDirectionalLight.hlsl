@@ -10,7 +10,8 @@ Texture2D GBuffer_DepthStencil : register(t0);
 Texture2D GBuffer_BaseColor_Rough : register(t1);
 Texture2D GBuffer_Normal : register(t2);
 Texture2D GBuffer_Metal_AO : register(t3);
-Texture2D ShadowMap : register(t4);
+Texture2D ShadowMap0 : register(t4);
+Texture2D ShadowMap1 : register(t5);
 
 TextureCube EnvironmentTexture : register(t50);
 TextureCube IrradianceTexture : register(t51);
@@ -34,23 +35,12 @@ cbuffer cbGBufferUnpacking : register(b3)
 #define EyePosition InverseViewMatrix[3].xyz
 #define Li DirectionalLightColor
 
-float CheckIfInShadow(float CmpDepth, float2 TexCoord)
+float CheckIfInShadow(uint MapLOD, float CmpDepth, float2 TexCoord)
 {
 	float IsInShadow = 0;
-	float ShadowMapDepth = ShadowMap.SampleLevel(PointClampSampler, TexCoord, 0).x;
+	float ShadowMapDepth = 
+		(MapLOD == 0) ? ShadowMap0.SampleLevel(LinearClampSampler, TexCoord, 0).x : ShadowMap1.SampleLevel(LinearClampSampler, TexCoord, 0).x;
 	if (CmpDepth > ShadowMapDepth + 0.001) IsInShadow = 1.0;
-	return IsInShadow;
-}
-
-float CheckIfInShadow2x2(float CmpDepth, float2 TexCoord)
-{
-	float IsInShadow = 0;
-	float4 ShadowMapDepths = ShadowMap.Gather(PointClampSampler, TexCoord);
-	if (CmpDepth > ShadowMapDepths.x + 0.001) IsInShadow += 1.0;
-	if (CmpDepth > ShadowMapDepths.y + 0.001) IsInShadow += 1.0;
-	if (CmpDepth > ShadowMapDepths.z + 0.001) IsInShadow += 1.0;
-	if (CmpDepth > ShadowMapDepths.w + 0.001) IsInShadow += 1.0;
-	IsInShadow /= 4.0;
 	return IsInShadow;
 }
 
@@ -66,7 +56,6 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 Metal_AO = GBuffer_Metal_AO.SampleLevel(PointClampSampler, UV, 0);
 
 	float4 OutputColor = float4(0, 0, 0, 1);
-
 	{
 		float3 Wo = normalize(EyePosition - ObjectWorldPosition.xyz);
 		float3 F0 = lerp(KFresnel_dielectric, BaseColor, Metalness);
@@ -75,27 +64,28 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		float IsInShadow = 0.0; // 0 for "not in shadow", 1 for "in shadow"
 		// Shadow
 		{
-			float4 LightSpacePosition = mul(ObjectWorldPosition, DirectionalLightSpaceMatrix);
+			uint ShadowMapLOD = (ViewSpaceDepth > 10.0) ? 1 : 0;
+
+			float4 LightSpacePosition = 
+				(ShadowMapLOD == 0) ? mul(ObjectWorldPosition, DirectionalLightSpaceMatrix0) :
+				mul(ObjectWorldPosition, DirectionalLightSpaceMatrix1);
 			LightSpacePosition /= LightSpacePosition.w;
 
 			float2 ShadowMapSize = float2(0, 0);
-			ShadowMap.GetDimensions(ShadowMapSize.x, ShadowMapSize.y);
+			ShadowMap0.GetDimensions(ShadowMapSize.x, ShadowMapSize.y);
 
 			float2 ShadowMapUV = float2(LightSpacePosition.x * 0.5 + 0.5, -LightSpacePosition.y * 0.5 + 0.5);
 			
-			// # Method 0
+			// 4x4 PCF
 			float2 dUV = float2(1.0, 1.0) / ShadowMapSize;
-			for (int y = -1; y <= 1; ++y)
+			for (float y = -1.5; y <= 1.5; y += 1.0)
 			{
-				for (int x = -1; x <= 1; ++x)
+				for (float x = -1.5; x <= 1.5; x += 1.0)
 				{
-					IsInShadow += CheckIfInShadow(LightSpacePosition.z, ShadowMapUV + float2(dUV.x * (float)x, dUV.y * (float)y));
+					IsInShadow += CheckIfInShadow(ShadowMapLOD, LightSpacePosition.z, ShadowMapUV + float2(dUV.x * x, dUV.y * y));
 				}
 			}
-			IsInShadow /= 9.0;
-
-			// # Method 1
-			//IsInShadow = CheckIfInShadow2x2(LightSpacePosition.z, ShadowMapUV);
+			IsInShadow /= 16.0;
 		}
 		
 		// Direct light

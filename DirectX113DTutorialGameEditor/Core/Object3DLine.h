@@ -43,8 +43,15 @@ public:
 
 public:
 	void Create(const std::vector<SVertex3DLine>& vVertices);
+	void Create(size_t LineCount, const XMVECTOR& UniformColor);
+
+public:
+	void UpdateLinePosition(size_t LineIndex, const XMVECTOR& PositionA, const XMVECTOR& PositionB);
+	void UpdateLineColor(size_t LineIndex, const XMVECTOR& ColorA, const XMVECTOR& ColorB);
 	void UpdateVertexBuffer();
 	void UpdateWorldMatrix();
+
+public:
 	void Draw() const;
 
 public:
@@ -67,8 +74,8 @@ private:
 	ID3D11DeviceContext* const	m_PtrDeviceContext{};
 
 private:
-	std::string						m_Name{};
-	std::vector<SVertex3DLine>		m_vVertices{};
+	std::string					m_Name{};
+	std::vector<SVertex3DLine>	m_vVertices{};
 
 	ComPtr<ID3D11Buffer>		m_VertexBuffer{};
 	UINT						m_VertexBufferStride{ sizeof(SVertex3DLine) };

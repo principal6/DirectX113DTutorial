@@ -19,6 +19,7 @@
 #include "MeshPorter.h"
 #include "Billboard.h"
 #include "Light.h"
+#include "ShadowMapFrustum.h"
 
 #include "TinyXml2/tinyxml2.h"
 #include "ImGui/imgui.h"
@@ -127,7 +128,8 @@ public:
 
 	struct SCBGlobalLightData // Update only when there is a change
 	{
-		XMMATRIX	DirectionalLightSpaceMatrix{ KMatrixIdentity };
+		XMMATRIX	DirectionalLightSpaceMatrix0{ KMatrixIdentity };
+		XMMATRIX	DirectionalLightSpaceMatrix1{ KMatrixIdentity };
 		XMVECTOR	DirectionalLightDirection{ XMVectorSet(0, 1, 0, 0) };
 		XMFLOAT3	DirectionalLightColor{ 1, 1, 1 };
 		float		Exposure{ 1.0 };
@@ -418,6 +420,14 @@ public:
 		ComPtr<ID3D11ShaderResourceView>	MetalAOSRV{};
 	};
 
+	struct SShadowMap
+	{
+		ComPtr<ID3D11Texture2D>				Texture{};
+		ComPtr<ID3D11DepthStencilView>		DSV{};
+		ComPtr<ID3D11ShaderResourceView>	SRV{};
+		D3D11_VIEWPORT						Viewport{};
+	};
+
 public:
 	CGame(HINSTANCE hInstance, const XMFLOAT2& WindowSize) : m_hInstance{ hInstance }, m_WindowSize{ WindowSize } {}
 	~CGame() {}
@@ -659,6 +669,9 @@ private:
 
 	void DrawGrid();
 
+	void CaptureShadowMapFrustums();
+	void DrawShadowMapFrustumsRep();
+
 	void DrawSky(float DeltaTime);
 	void DrawTerrainOpaqueParts(float DeltaTime);
 	void DrawTerrainTransparentParts();
@@ -879,15 +892,27 @@ private:
 	std::vector<std::unique_ptr<CObject2D>>		m_vObject2Ds{};
 
 	std::vector<std::unique_ptr<CObject3D>>		m_vMiniAxes{};
-	std::unique_ptr<CObject3DLine>				m_Grid{};
-
 	std::unique_ptr<CObject3D>					m_BoundingSphereRep{};
+
+	std::unique_ptr<CObject3DLine>				m_Grid{};
 
 	std::map<std::string, size_t>				m_mapObject3DNameToIndex{};
 	std::map<std::string, size_t>				m_mapObject3DLineNameToIndex{};
 	std::map<std::string, size_t>				m_mapObject2DNameToIndex{};
 	std::map<std::string, size_t>				m_mapCameraNameToIndex{};
 	size_t										m_PrimitiveCreationCounter{};
+
+// Shadow map
+private:
+	std::unique_ptr<CObject3DLine>				m_ViewFrustumRep0{};
+	std::unique_ptr<CObject3DLine>				m_ViewFrustumRep1{};
+	std::unique_ptr<CObject3DLine>				m_ShadowMapFrustumRep0{};
+	std::unique_ptr<CObject3DLine>				m_ShadowMapFrustumRep1{};
+
+	SFrustumVertices							m_ViewFrustumRep0Data{};
+	SFrustumVertices							m_ViewFrustumRep1Data{};
+	SFrustumVertices							m_ShadowMapFrustumRep0Data{};
+	SFrustumVertices							m_ShadowMapFrustumRep1Data{};
 
 // Light
 private:
@@ -998,7 +1023,7 @@ private:
 	EFlagsRendering				m_eFlagsRendering{};
 	bool						m_bIsDeferredRenderTargetsSet{ false };
 	bool						m_IsDestroyed{ false };
-	CMeshPorter				m_MeshPorter{};
+	CMeshPorter					m_MeshPorter{};
 	ImFont*						m_EditorGUIFont{};
 	SEditorGUIBools				m_EditorGUIBools{};
 	EMode						m_eMode{};
@@ -1069,11 +1094,9 @@ private:
 	ComPtr<ID3D11ShaderResourceView>	m_ScreenQuadSRV{};
 
 	SGeometryBuffers					m_GBuffers{};
-
-	ComPtr<ID3D11Texture2D>				m_DirectionalLightShadowMap{};
-	ComPtr<ID3D11DepthStencilView>		m_DirectionalLightShadowMapDSV{};
-	ComPtr<ID3D11ShaderResourceView>	m_DirectionalLightShadowMapSRV{};
-	D3D11_VIEWPORT						m_DirectionalLightShadowMapViewport{};
+	
+	SShadowMap							m_DirectionalLightShadowMap0{};
+	SShadowMap							m_DirectionalLightShadowMap1{};
 
 	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateLessEqualNoWrite{};
 	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateGreaterEqual{};

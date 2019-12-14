@@ -21,6 +21,40 @@ void CObject3DLine::Create(const vector<SVertex3DLine>& vVertices)
 	m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, m_VertexBuffer.GetAddressOf());
 }
 
+void CObject3DLine::Create(size_t LineCount, const XMVECTOR& UniformColor)
+{
+	m_vVertices.resize(LineCount * 2);
+
+	for (auto& Vertex : m_vVertices)
+	{
+		Vertex.Color = UniformColor;
+	}
+
+	Create(m_vVertices);
+}
+
+void CObject3DLine::UpdateLinePosition(size_t LineIndex, const XMVECTOR& PositionA, const XMVECTOR& PositionB)
+{
+	if (LineIndex >= m_vVertices.size() * 2) return;
+
+	size_t iVertexA{ LineIndex * 2 };
+	size_t iVertexB{ iVertexA + 1 };
+
+	m_vVertices[iVertexA].Position = PositionA;
+	m_vVertices[iVertexB].Position = PositionB;
+}
+
+void CObject3DLine::UpdateLineColor(size_t LineIndex, const XMVECTOR& ColorA, const XMVECTOR& ColorB)
+{
+	if (LineIndex >= m_vVertices.size() * 2) return;
+
+	size_t iVertexA{ LineIndex * 2 };
+	size_t iVertexB{ iVertexA + 1 };
+
+	m_vVertices[iVertexA].Color = ColorA;
+	m_vVertices[iVertexB].Color = ColorB;
+}
+
 void CObject3DLine::UpdateVertexBuffer()
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};

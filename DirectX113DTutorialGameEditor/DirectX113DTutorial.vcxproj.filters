@@ -471,6 +471,9 @@
     <ClInclude Include="Core\BoundingVolume.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\ShadowMapFrustum.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Library Include="DirectXTK\DirectXTK.lib">

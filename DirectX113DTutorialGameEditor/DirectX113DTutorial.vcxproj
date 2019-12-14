@@ -242,6 +242,7 @@
     <ClInclude Include="Core\Object3DLine.h" />
     <ClInclude Include="Core\PrimitiveGenerator.h" />
     <ClInclude Include="Core\Shader.h" />
+    <ClInclude Include="Core\ShadowMapFrustum.h" />
     <ClInclude Include="Core\SharedHeader.h" />
     <ClInclude Include="Core\Terrain.h" />
     <ClInclude Include="Core\Material.h" />
