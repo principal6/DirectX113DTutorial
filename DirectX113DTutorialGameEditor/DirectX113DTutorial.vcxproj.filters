@@ -94,9 +94,6 @@
     <ClCompile Include="Core\MeshPorter.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Core\BoundingVolume.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="Core\CascadedShadowMap.cpp">
       <Filter>Core</Filter>
     </ClCompile>
@@ -469,9 +466,6 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\MeshPorter.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\BoundingVolume.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\ShadowMapFrustum.h">

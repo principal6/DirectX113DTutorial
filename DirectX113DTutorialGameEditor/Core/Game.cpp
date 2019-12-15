@@ -227,12 +227,16 @@ void CGame::InitializeEditorAssets()
 	{
 		if (!m_CascadedShadowMap)
 		{
+			vector<CCascadedShadowMap::SLODData> vLODData
+			{
+				CCascadedShadowMap::SLODData(0,  8.0f, 0),
+				CCascadedShadowMap::SLODData(1, 16.0f, 1),
+				CCascadedShadowMap::SLODData(2, 24.0f, 2),
+				CCascadedShadowMap::SLODData(3, 50.0f, 3)
+			};
+
 			m_CascadedShadowMap = make_unique<CCascadedShadowMap>(m_Device.Get(), m_DeviceContext.Get());
-			m_CascadedShadowMap->Create(4, XMFLOAT2(1024, 1024));
-			m_CascadedShadowMap->SetZFar(0, 10.0f);
-			m_CascadedShadowMap->SetZFar(1, 20.0f);
-			m_CascadedShadowMap->SetZFar(2, 30.0f);
-			m_CascadedShadowMap->SetZFar(3, 50.0f);
+			m_CascadedShadowMap->Create(vLODData, XMFLOAT2(1024, 1024));
 		}
 
 		for (size_t iLOD = 0; iLOD < KCascadedShadowMapLODCountMax; ++iLOD)
@@ -682,8 +686,6 @@ void CGame::CreateConstantBuffers()
 		&m_CBEditorTimeData, sizeof(m_CBEditorTimeData));
 	m_CBCamera = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBCameraData, sizeof(m_CBCameraData));
-	m_CBScreen = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
-		&m_CBScreenData, sizeof(m_CBScreenData));
 	m_CBRadiancePrefiltering = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBRadiancePrefilteringData, sizeof(m_CBRadiancePrefilteringData));
 	m_CBIrradianceGenerator = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
@@ -712,10 +714,6 @@ void CGame::CreateConstantBuffers()
 	m_CBEditorTime->Create();
 	m_CBCamera->Create();
 	
-	m_CBScreen->Create();
-	m_CBScreenData.InverseScreenSize = XMFLOAT2(1.0f / m_WindowSize.x, 1.0f / m_WindowSize.y);
-	m_CBScreen->Update();
-
 	m_CBRadiancePrefiltering->Create();
 	m_CBIrradianceGenerator->Create();
 	m_CBBillboard->Create();
@@ -919,8 +917,7 @@ void CGame::CreateBaseShaders()
 		m_PSDynamicSky->AttachConstantBuffer(m_CBSkyTime.get(), KPSSharedCBCount + 0);
 
 		m_PSEdgeDetector = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSEdgeDetector->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSEdgeDetector.hlsl", "main");
-		m_PSEdgeDetector->AttachConstantBuffer(m_CBScreen.get(), KPSSharedCBCount + 0);
+		m_PSEdgeDetector->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, true, L"Shader\\PSEdgeDetector.hlsl", "main");
 
 		m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSFoliage->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSFoliage.hlsl", "main");
@@ -4085,6 +4082,7 @@ void CGame::Draw()
 			const XMVECTOR& ViewDirection{ m_PtrCurrentCamera->GetForward() };
 
 			size_t LODCount{ m_CascadedShadowMap->GetLODCount() };
+			m_CBShadowMapData.LODCount = static_cast<uint32_t>(LODCount);
 			for (size_t iLOD = 0; iLOD < LODCount; ++iLOD)
 			{
 				m_CascadedShadowMap->Set(iLOD, SavedProjectionMatrix, EyePosition, ViewDirection, m_CBGlobalLightData.DirectionalLightDirection);

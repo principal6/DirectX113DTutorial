@@ -1,17 +1,15 @@
 #include "CascadedShadowMap.h"
 
-void CCascadedShadowMap::Create(size_t LODCount, const XMFLOAT2& MapSize)
+void CCascadedShadowMap::Create(const std::vector<SLODData>& vLODData, const XMFLOAT2& MapSize)
 {
-	assert(LODCount <= KCascadedShadowMapLODCountMax);
+	m_vLODData = vLODData;
+	size_t LODCount{ m_vLODData.size() };
 
-	if (m_vShadowMaps.size() < LODCount)
-	{
-		m_vShadowMaps.resize(LODCount);
-		m_vShadowMapFrustums.resize(LODCount);
-		m_vShadowMapFrustumVertices.resize(LODCount);
-		m_vViewFrustumVertices.resize(LODCount);
-		m_vZFars.resize(LODCount);
-	}
+	assert(LODCount <= KCascadedShadowMapLODCountMax);
+	m_vShadowMaps.resize(LODCount);
+	m_vShadowMapFrustums.resize(LODCount);
+	m_vShadowMapFrustumVertices.resize(LODCount);
+	m_vViewFrustumVertices.resize(LODCount);
 
 	D3D11_TEXTURE2D_DESC Texture2DDesc{};
 	Texture2DDesc.ArraySize = 1;
@@ -53,24 +51,24 @@ void CCascadedShadowMap::Create(size_t LODCount, const XMFLOAT2& MapSize)
 
 void CCascadedShadowMap::SetZFar(size_t LOD, float ZFar)
 {
-	m_vZFars[LOD] = ZFar;
+	m_vLODData[LOD].ZFar = ZFar;
 }
 
 float CCascadedShadowMap::GetZNear(size_t LOD) const
 {
-	return (LOD == 0) ? 0.1f : m_vZFars[LOD - 1];
+	return (LOD == 0) ? 0.1f : m_vLODData[LOD - 1].ZFar;
 }
 
 float CCascadedShadowMap::GetZFar(size_t LOD) const
 {
-	return m_vZFars[LOD];
+	return m_vLODData[LOD].ZFar;
 }
 
 void CCascadedShadowMap::Set(size_t LOD, const XMMATRIX& Projection, const XMVECTOR& EyePosition, 
 	const XMVECTOR& ViewDirection, const XMVECTOR& DirectionToLight)
 {
-	float ZNear{ (LOD == 0) ? 0.1f : m_vZFars[LOD - 1] };
-	float ZFar{ m_vZFars[LOD] };
+	float ZNear{ (LOD == 0) ? 0.1f : m_vLODData[LOD - 1].ZFar };
+	float ZFar{ m_vLODData[LOD].ZFar };
 
 	m_PtrDeviceContext->RSSetViewports(1, &m_vShadowMaps[LOD].Viewport);
 
@@ -92,7 +90,7 @@ void CCascadedShadowMap::Set(size_t LOD, const XMMATRIX& Projection, const XMVEC
 
 size_t CCascadedShadowMap::GetLODCount() const
 {
-	return m_vShadowMaps.size();
+	return m_vLODData.size();
 }
 
 ID3D11ShaderResourceView* CCascadedShadowMap::GetSRV(size_t LOD) const

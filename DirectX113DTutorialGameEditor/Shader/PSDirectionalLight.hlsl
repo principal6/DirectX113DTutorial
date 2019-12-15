@@ -37,6 +37,8 @@ cbuffer cbShadowMap : register(b4)
 	float4x4	ShadowMapSpaceMatrix3;
 	float4x4	ShadowMapSpaceMatrix4;
 	float4		ShadowMapZFars;
+	uint		LODCount; // @important: [1, 5]
+	float3		Reserved3;
 }
 
 #define UV Input.TexCoord.xy
@@ -81,7 +83,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 
 		// Shadow
 		float IsInShadow = 0.0; // 0 for "not in shadow", 1 for "in shadow"
-		if (ViewSpaceDepth <= 50.0) // @important (arbirtrary threshold ...)
+		if (ViewSpaceDepth <= ShadowMapZFars[LODCount - 1])
 		{
 			uint ShadowMapLOD = 0;
 			if (ViewSpaceDepth > ShadowMapZFars.w) ShadowMapLOD = 4;

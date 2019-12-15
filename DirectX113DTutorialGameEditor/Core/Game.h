@@ -121,11 +121,6 @@ public:
 		XMVECTOR	EyePosition{};
 	};
 
-	struct SCBAnimationBonesData // Update every frame (when CPU skinning is used)
-	{
-		XMMATRIX	BoneMatrices[CObject3D::KMaxBoneMatrixCount]{};
-	};
-
 	struct SCBGlobalLightData // Update only when there is a change
 	{
 		XMVECTOR	DirectionalLightDirection{ XMVectorSet(0, 1, 0, 0) };
@@ -151,6 +146,11 @@ public:
 		uint32_t	FlagsHasTexture{};
 		uint32_t	FlagsIsTextureSRGB{};
 		uint32_t	TotalMaterialCount{};
+	};
+
+	struct SCBAnimationBonesData // Update every frame (when CPU skinning is used)
+	{
+		XMMATRIX	BoneMatrices[CObject3D::KMaxBoneMatrixCount]{};
 	};
 
 	struct SCBSkyTimeData
@@ -188,12 +188,6 @@ public:
 		float		Pads[3]{};
 	};
 
-	struct SCBScreenData
-	{
-		XMFLOAT2	InverseScreenSize{};
-		float		Pads[2]{};
-	};
-
 	struct SCBRadiancePrefiltering
 	{
 		float	Roughness{};
@@ -219,6 +213,8 @@ public:
 	{
 		XMMATRIX	ShadowMapSpaceMatrix[KCascadedShadowMapLODCountMax]{ KMatrixIdentity, KMatrixIdentity, KMatrixIdentity, KMatrixIdentity, KMatrixIdentity };
 		float		ShadowMapZFars[KCascadedShadowMapLODCountMax - 1]{ FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
+		uint32_t	LODCount{};
+		float		Reserved[3]{};
 	};
 
 	enum class EFlagsRendering
@@ -853,7 +849,6 @@ private:
 	std::unique_ptr<CConstantBuffer>	m_CBWaterTime{};
 	std::unique_ptr<CConstantBuffer>	m_CBEditorTime{};
 	std::unique_ptr<CConstantBuffer>	m_CBCamera{};
-	std::unique_ptr<CConstantBuffer>	m_CBScreen{};
 	std::unique_ptr<CConstantBuffer>	m_CBRadiancePrefiltering{};
 	std::unique_ptr<CConstantBuffer>	m_CBIrradianceGenerator{};
 	std::unique_ptr<CConstantBuffer>	m_CBBillboard{};
@@ -876,7 +871,6 @@ private:
 	SCBWaterTimeData					m_CBWaterTimeData{};
 	SCBEditorTimeData					m_CBEditorTimeData{};
 	SCBCameraData						m_CBCameraData{};
-	SCBScreenData						m_CBScreenData{};
 	SCBRadiancePrefiltering				m_CBRadiancePrefilteringData{};
 	SCBIrradianceGenerator				m_CBIrradianceGeneratorData{};
 	CBillboard::SCBBillboardData		m_CBBillboardData{};

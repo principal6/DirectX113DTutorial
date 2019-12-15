@@ -8,6 +8,18 @@ static constexpr size_t KCascadedShadowMapLODCountMax{ 5 };
 // Cascaded shadow map for directional light (orthogonal projection)
 class CCascadedShadowMap final
 {
+public:
+	struct SLODData
+	{
+		SLODData(size_t _LOD, float _ZFar, size_t _UpdateFrameInterval) : 
+			LOD{ _LOD }, ZFar{ _ZFar }, UpdateFrameInterval{ _UpdateFrameInterval } {}
+
+		size_t	LOD{};
+		float	ZFar{ FLT_MAX };
+		size_t	UpdateFrameInterval{};
+	};
+
+private:
 	struct SMapData
 	{
 		ComPtr<ID3D11Texture2D>				Texture{};
@@ -29,7 +41,7 @@ public:
 	~CCascadedShadowMap() {}
 
 public:
-	void Create(size_t LODCount, const XMFLOAT2& MapSize);
+	void Create(const std::vector<SLODData>& vLODData, const XMFLOAT2& MapSize);
 
 public:
 	void SetZFar(size_t LOD, float ZFar);
@@ -57,5 +69,5 @@ private:
 	std::vector<SShadowMapFrustum>	m_vShadowMapFrustums{};
 	std::vector<SFrustumVertices>	m_vShadowMapFrustumVertices{};
 	std::vector<SFrustumVertices>	m_vViewFrustumVertices{};
-	std::vector<float>				m_vZFars{};
+	std::vector<SLODData>			m_vLODData{};
 };

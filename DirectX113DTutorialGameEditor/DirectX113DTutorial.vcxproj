@@ -128,7 +128,6 @@
     <ClCompile Include="Core\AssimpLoader.cpp" />
     <ClCompile Include="Core\Billboard.cpp" />
     <ClCompile Include="Core\BinaryData.cpp" />
-    <ClCompile Include="Core\BoundingVolume.cpp" />
     <ClCompile Include="Core\Camera.cpp" />
     <ClCompile Include="Core\ConstantBuffer.cpp" />
     <ClCompile Include="Core\CubemapRep.cpp" />
@@ -229,7 +228,6 @@
     <ClInclude Include="Core\AssimpLoader.h" />
     <ClInclude Include="Core\Billboard.h" />
     <ClInclude Include="Core\BinaryData.h" />
-    <ClInclude Include="Core\BoundingVolume.h" />
     <ClInclude Include="Core\Camera.h" />
     <ClInclude Include="Core\ConstantBuffer.h" />
     <ClInclude Include="Core\CubemapRep.h" />
@@ -544,6 +542,8 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="Shader\PSFoliage.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
