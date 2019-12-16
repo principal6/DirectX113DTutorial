@@ -227,45 +227,45 @@ private:
 	static constexpr int32_t KAnimationTextureReservedFirstPixelCount{ 2 };
 
 public:
-	SComponentTransform				ComponentTransform{};
-	SComponentRender				ComponentRender{};
-	SComponentPhysics				ComponentPhysics{};
-	EFlagsRendering					eFlagsRendering{};
-	SEditorBoundingSphere			EditorBoundingSphere{};
+	SComponentTransform						ComponentTransform{};
+	SComponentRender						ComponentRender{};
+	SComponentPhysics						ComponentPhysics{};
+	EFlagsRendering							eFlagsRendering{};
+	SEditorBoundingSphere					EditorBoundingSphere{};
 
 private:
-	ID3D11Device* const				m_PtrDevice{};
-	ID3D11DeviceContext* const		m_PtrDeviceContext{};
-	CGame* const					m_PtrGame{};
+	ID3D11Device* const						m_PtrDevice{};
+	ID3D11DeviceContext* const				m_PtrDeviceContext{};
+	CGame* const							m_PtrGame{};
 
 private:
-	std::string						m_Name{};
-	std::string						m_ModelFileName{};
-	std::string						m_OB3DFileName{};
-	bool							m_bIsCreated{ false };
-	SMESHData						m_Model{};
+	std::string								m_Name{};
+	std::string								m_ModelFileName{};
+	std::string								m_OB3DFileName{};
+	bool									m_bIsCreated{ false };
+	SMESHData								m_Model{};
 	std::vector<std::unique_ptr<CMaterialTextureSet>> m_vMaterialTextureSets{};
-	std::vector<SMeshBuffers>		m_vMeshBuffers{};
-	std::vector<SInstanceBuffer>	m_vInstanceBuffers{};
-	SCBTessFactorData				m_CBTessFactorData{};
-	SCBDisplacementData				m_CBDisplacementData{};
+	std::vector<SMeshBuffers>				m_vMeshBuffers{};
+	std::vector<SInstanceBuffer>			m_vInstanceBuffers{};
+	SCBTessFactorData						m_CBTessFactorData{};
+	SCBDisplacementData						m_CBDisplacementData{};
 
-	XMMATRIX						m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
-	int								m_CurrentAnimationID{};
-	float							m_CurrentAnimationTick{};
-	bool							m_bShouldTesselate{ false };
+	XMMATRIX								m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
+	int										m_CurrentAnimationID{};
+	float									m_CurrentAnimationTick{};
+	bool									m_bShouldTesselate{ false };
 
-	std::unique_ptr<CTexture>		m_BakedAnimationTexture{};
-	SCBAnimationData				m_CBAnimationData{};
-	bool							m_bIsBakedAnimationLoaded{ false };
+	std::unique_ptr<CTexture>				m_BakedAnimationTexture{};
+	SCBAnimationData						m_CBAnimationData{};
+	bool									m_bIsBakedAnimationLoaded{ false };
 
 private:
 	std::vector<SObject3DInstanceGPUData>	m_vInstanceGPUData{};
 	std::vector<SObject3DInstanceCPUData>	m_vInstanceCPUData{};
-	std::map<std::string, size_t>	m_mapInstanceNameToIndex{};
+	std::map<std::string, size_t>			m_mapInstanceNameToIndex{};
 
 private:
-	CAssimpLoader					m_AssimpLoader{};
+	CAssimpLoader							m_AssimpLoader{};
 };
 
 ENUM_CLASS_FLAG(CObject3D::EFlagsRendering)

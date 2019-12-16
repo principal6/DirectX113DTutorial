@@ -610,7 +610,7 @@ public:
 	auto GetDeltaTime() const->float { return m_DeltaTimeF; }
 
 private:
-	void DrawOpaqueObject3Ds();
+	void DrawOpaqueObject3Ds(bool bIgnoreOwnTexture = false, bool bUseVoidPS = false);
 	void DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances = false, bool bIgnoreOwnTexture = false, bool bUseVoidPS = false);
 	void DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D);
 
@@ -836,6 +836,9 @@ private:
 // Object pool
 private:
 	std::vector<std::unique_ptr<CObject3D>>		m_vObject3Ds{};
+	size_t										m_Object3DTotalInstanceCount{};
+	size_t										m_Object3DCulledInstanceCount{};
+
 	std::vector<std::unique_ptr<CObject3DLine>>	m_vObject3DLines{};
 	std::vector<std::unique_ptr<CObject2D>>		m_vObject2Ds{};
 

@@ -2,7 +2,6 @@
 
 // @TODO
 // implement anti-aliasing
-// improve shadow mapping
 // implement SSAO
 // improve terrain tessellation using quad patch? or is it good with the current Bezier triangles?
 

@@ -11,6 +11,7 @@ using std::wstring;
 using std::thread;
 using std::chrono::steady_clock;
 using std::to_string;
+using std::to_wstring;
 using std::stof;
 using std::make_unique;
 using std::swap;
@@ -236,8 +237,8 @@ void CGame::InitializeEditorAssets()
 	
 	if (!m_CascadedShadowMap)
 	{
-		XMFLOAT2 PositionBase{ 0, 592 };
 		XMFLOAT2 Size{ 128, 128 };
+		XMFLOAT2 PositionBase{ 0, m_WindowSize.y - Size.y };
 		vector<CCascadedShadowMap::SLODData> vLODData
 		{
 			CCascadedShadowMap::SLODData(0,  8.0f, 1, XMFLOAT2(PositionBase.x + Size.x * 0.0f, PositionBase.y), Size),
@@ -3899,32 +3900,7 @@ void CGame::Draw()
 		DrawTerrainOpaqueParts(m_DeltaTimeF);
 
 		// Opaque Object3Ds
-		for (auto& Object3D : m_vObject3Ds)
-		{
-			if (Object3D->ComponentRender.bIsTransparent) continue;
-
-			if (Object3D->IsRigged())
-			{
-				if (Object3D->HasBakedAnimationTexture())
-				{
-					UpdateCBAnimationData(Object3D->GetAnimationData());
-				}
-				else
-				{
-					UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
-				}
-
-				Object3D->Animate(m_DeltaTimeF);
-			}
-
-			Object3D->UpdateWorldMatrix();
-			DrawObject3D(Object3D.get());
-
-			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
-			{
-				DrawObject3DBoundingSphere(Object3D.get());
-			}
-		}
+		DrawOpaqueObject3Ds();
 
 		// Directional light shadow map
 		{
@@ -3950,7 +3926,7 @@ void CGame::Draw()
 					m_CBShadowMapData.ShadowMapSpaceMatrix[iLOD] = m_CascadedShadowMap->GetTransposedSpaceMatrix(iLOD);
 					if (iLOD < KCascadedShadowMapLODCountMax) m_CBShadowMapData.ShadowMapZFars[iLOD] = m_CascadedShadowMap->GetZFar(iLOD);
 
-					DrawOpaqueObject3Ds();
+					DrawOpaqueObject3Ds(true, true);
 				}
 			}
 
@@ -4206,7 +4182,7 @@ void CGame::Draw()
 	}
 }
 
-void CGame::DrawOpaqueObject3Ds()
+void CGame::DrawOpaqueObject3Ds(bool bIgnoreOwnTexture, bool bUseVoidPS)
 {
 	// Opaque Object3Ds
 	for (auto& Object3D : m_vObject3Ds)
@@ -4225,7 +4201,14 @@ void CGame::DrawOpaqueObject3Ds()
 
 			Object3D->Animate(m_DeltaTimeF);
 		}
-		DrawObject3D(Object3D.get(), false, true, true);
+
+		Object3D->UpdateWorldMatrix();
+		DrawObject3D(Object3D.get(), false, bIgnoreOwnTexture, bUseVoidPS);
+
+		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
+		{
+			DrawObject3DBoundingSphere(Object3D.get());
+		}
 	}
 }
 
@@ -4246,7 +4229,14 @@ void CGame::DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances, bo
 	}
 	else
 	{
-		(PtrObject3D->IsInstanced() && !bIgnoreInstances) ? m_VSInstance->Use() : m_VSBase->Use();
+		if (PtrObject3D->IsInstanced() && !bIgnoreInstances)
+		{
+			m_VSInstance->Use();
+		}
+		else
+		{
+			m_VSBase->Use();
+		}
 	}
 	
 	if (PtrObject3D->ShouldTessellate())
@@ -5429,6 +5419,17 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					float ItemsWidth{ WindowWidth - KLabelsWidth };
 					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
 					float ItemsOffsetX{ WindowWidth - ItemsWidth - 20 };
+
+					// Instance culling data
+					{
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text((u8"Total Instance Count: " + to_string(m_Object3DTotalInstanceCount)).c_str());
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text((u8"Culled Instance Count: " + to_string(m_Object3DCulledInstanceCount)).c_str());
+
+						ImGui::Separator();
+					}
 
 					// No information about multiple selection
 					if (m_vSelectionData.size() == 1)
