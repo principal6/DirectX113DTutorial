@@ -19,12 +19,13 @@ public:
 			LOD{ _LOD }, ZFar{ _ZFar }, UpdateFrameInterval{ _UpdateFrameInterval }, 
 			TextureViewportPosition{ _TextureViewportPosition }, TextureViewportSize{ _TextureViewportSize } {}
 
-		size_t	LOD{};
-		float	ZFar{ FLT_MAX };
-		size_t	UpdateFrameInterval{};
+		size_t			LOD{};
+		float			ZFar{ FLT_MAX };
+		size_t			UpdateFrameInterval{};
+		mutable size_t	FrameCounter{};
 
-		XMFLOAT2 TextureViewportPosition{};
-		XMFLOAT2 TextureViewportSize{};
+		XMFLOAT2		TextureViewportPosition{};
+		XMFLOAT2		TextureViewportSize{};
 	};
 
 private:
@@ -52,6 +53,7 @@ public:
 	float GetZFar(size_t LOD) const;
 
 public:
+	bool ShouldUpdate(size_t LOD) const;
 	void Set(size_t LOD, const XMMATRIX& Projection, const XMVECTOR& EyePosition, const XMVECTOR& ViewDirection, const XMVECTOR& DirectionToLight);
 
 public:

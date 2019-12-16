@@ -98,7 +98,19 @@ float CCascadedShadowMap::GetZFar(size_t LOD) const
 	return m_vLODData[LOD].ZFar;
 }
 
-void CCascadedShadowMap::Set(size_t LOD, const XMMATRIX& Projection, const XMVECTOR& EyePosition, 
+bool CCascadedShadowMap::ShouldUpdate(size_t LOD) const
+{
+	++m_vLODData[LOD].FrameCounter;
+
+	if (m_vLODData[LOD].FrameCounter >= m_vLODData[LOD].UpdateFrameInterval)
+	{
+		m_vLODData[LOD].FrameCounter = 0;
+		return true;
+	}
+	return false;
+}
+
+void CCascadedShadowMap::Set(size_t LOD, const XMMATRIX& Projection, const XMVECTOR& EyePosition,
 	const XMVECTOR& ViewDirection, const XMVECTOR& DirectionToLight)
 {
 	float ZNear{ (LOD == 0) ? 0.1f : m_vLODData[LOD - 1].ZFar };

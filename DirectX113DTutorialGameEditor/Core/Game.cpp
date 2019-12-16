@@ -240,10 +240,10 @@ void CGame::InitializeEditorAssets()
 		XMFLOAT2 Size{ 128, 128 };
 		vector<CCascadedShadowMap::SLODData> vLODData
 		{
-			CCascadedShadowMap::SLODData(0,  8.0f, 0, XMFLOAT2(PositionBase.x + Size.x * 0.0f, PositionBase.y), Size),
-			CCascadedShadowMap::SLODData(1, 16.0f, 1, XMFLOAT2(PositionBase.x + Size.x * 1.0f, PositionBase.y), Size),
-			CCascadedShadowMap::SLODData(2, 24.0f, 2, XMFLOAT2(PositionBase.x + Size.x * 2.0f, PositionBase.y), Size),
-			CCascadedShadowMap::SLODData(3, 50.0f, 3, XMFLOAT2(PositionBase.x + Size.x * 3.0f, PositionBase.y), Size)
+			CCascadedShadowMap::SLODData(0,  8.0f, 1, XMFLOAT2(PositionBase.x + Size.x * 0.0f, PositionBase.y), Size),
+			CCascadedShadowMap::SLODData(1, 16.0f, 2, XMFLOAT2(PositionBase.x + Size.x * 1.0f, PositionBase.y), Size),
+			CCascadedShadowMap::SLODData(2, 24.0f, 8, XMFLOAT2(PositionBase.x + Size.x * 2.0f, PositionBase.y), Size),
+			CCascadedShadowMap::SLODData(3, 50.0f, 32, XMFLOAT2(PositionBase.x + Size.x * 3.0f, PositionBase.y), Size)
 		};
 
 		m_CascadedShadowMap = make_unique<CCascadedShadowMap>(m_Device.Get(), m_DeviceContext.Get());
@@ -3940,15 +3940,18 @@ void CGame::Draw()
 			m_CBShadowMapData.LODCount = static_cast<uint32_t>(LODCount);
 			for (size_t iLOD = 0; iLOD < LODCount; ++iLOD)
 			{
-				m_CascadedShadowMap->Set(iLOD, SavedProjectionMatrix, EyePosition, ViewDirection, m_CBGlobalLightData.DirectionalLightDirection);
+				if (m_CascadedShadowMap->ShouldUpdate(iLOD))
+				{
+					m_CascadedShadowMap->Set(iLOD, SavedProjectionMatrix, EyePosition, ViewDirection, m_CBGlobalLightData.DirectionalLightDirection);
 
-				// @important
-				m_MatrixView = m_CascadedShadowMap->GetViewMatrix(iLOD);
-				m_MatrixProjection = m_CascadedShadowMap->GetProjectionMatrix(iLOD);
-				m_CBShadowMapData.ShadowMapSpaceMatrix[iLOD] = m_CascadedShadowMap->GetTransposedSpaceMatrix(iLOD);
-				if (iLOD < KCascadedShadowMapLODCountMax) m_CBShadowMapData.ShadowMapZFars[iLOD] = m_CascadedShadowMap->GetZFar(iLOD);
+					// @important
+					m_MatrixView = m_CascadedShadowMap->GetViewMatrix(iLOD);
+					m_MatrixProjection = m_CascadedShadowMap->GetProjectionMatrix(iLOD);
+					m_CBShadowMapData.ShadowMapSpaceMatrix[iLOD] = m_CascadedShadowMap->GetTransposedSpaceMatrix(iLOD);
+					if (iLOD < KCascadedShadowMapLODCountMax) m_CBShadowMapData.ShadowMapZFars[iLOD] = m_CascadedShadowMap->GetZFar(iLOD);
 
-				DrawOpaqueObject3Ds();
+					DrawOpaqueObject3Ds();
+				}
 			}
 
 			m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
