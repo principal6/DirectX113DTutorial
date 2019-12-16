@@ -207,9 +207,23 @@ void CGame::InitializeEditorAssets()
 			m_IntegratedBRDFTexture->SetSlot(KIntegratedBRDFTextureSlot);
 		}
 
-		if (!m_EnvironmentRep) m_EnvironmentRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get(), this);
-		if (!m_IrradianceRep) m_IrradianceRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get(), this);
-		if (!m_PrefilteredRadianceRep) m_PrefilteredRadianceRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get(), this);
+		if (!m_EnvironmentCubemapRep)
+		{
+			m_EnvironmentCubemapRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get());
+			m_EnvironmentCubemapRep->Create(KVSSharedCBCount, KPSSharedCBCount);
+		}
+
+		if (!m_IrradianceCubemapRep)
+		{
+			m_IrradianceCubemapRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get());
+			m_IrradianceCubemapRep->Create(KVSSharedCBCount, KPSSharedCBCount);
+		}
+
+		if (!m_PrefilteredRadianceCubemapRep)
+		{
+			m_PrefilteredRadianceCubemapRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get());
+			m_PrefilteredRadianceCubemapRep->Create(KVSSharedCBCount, KPSSharedCBCount);
+		}
 
 		UpdateCBGlobalLightProbeData();
 	}
@@ -870,9 +884,6 @@ void CGame::CreateBaseShaders()
 		m_PSCloud->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCloud.hlsl", "main");
 		m_PSCloud->AttachConstantBuffer(m_CBSkyTime.get(), KPSSharedCBCount + 0);
 
-		m_PSCubemap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSCubemap2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCubemap2D.hlsl", "main");
-
 		m_PSDirectionalLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSDirectionalLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "main");
 		m_PSDirectionalLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
@@ -1220,17 +1231,17 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
 		m_EnvironmentTexture->CreateCubeMapFromFile(ReadString);
 		m_EnvironmentTexture->SetSlot(KEnvironmentTextureSlot);
-		m_EnvironmentRep->UnfoldCubemap(m_EnvironmentTexture->GetShaderResourceViewPtr());
+		m_EnvironmentCubemapRep->UnfoldCubemap(m_EnvironmentTexture->GetShaderResourceViewPtr());
 
 		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
 		m_IrradianceTexture->CreateCubeMapFromFile(ReadString);
 		m_IrradianceTexture->SetSlot(KIrradianceTextureSlot);
-		m_IrradianceRep->UnfoldCubemap(m_IrradianceTexture->GetShaderResourceViewPtr());
+		m_IrradianceCubemapRep->UnfoldCubemap(m_IrradianceTexture->GetShaderResourceViewPtr());
 
 		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
 		m_PrefilteredRadianceTexture->CreateCubeMapFromFile(ReadString);
 		m_PrefilteredRadianceTexture->SetSlot(KPrefilteredRadianceTextureSlot);
-		m_PrefilteredRadianceRep->UnfoldCubemap(m_PrefilteredRadianceTexture->GetShaderResourceViewPtr());
+		m_PrefilteredRadianceCubemapRep->UnfoldCubemap(m_PrefilteredRadianceTexture->GetShaderResourceViewPtr());
 
 		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
 		m_IntegratedBRDFTexture->CreateCubeMapFromFile(ReadString);
@@ -2192,9 +2203,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSHeightMap2D:
 		Result = m_PSHeightMap2D.get();
-		break;
-	case EBaseShader::PSCubemap2D:
-		Result = m_PSCubemap2D.get();
 		break;
 	default:
 		assert(Result);
@@ -6594,10 +6602,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							// @important
 							UpdateCBSpace(KMatrixIdentity, KMatrixIdentity);
 
-							m_EnvironmentRep->UnfoldCubemap(m_EnvironmentTexture->GetShaderResourceViewPtr());
+							m_EnvironmentCubemapRep->UnfoldCubemap(m_EnvironmentTexture->GetShaderResourceViewPtr());
 							SetForwardRenderTargets(); // @important
 
-							ImGui::Image(m_EnvironmentRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
+							ImGui::Image(m_EnvironmentCubemapRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
 						}
 
 						ImGui::TreePop();
@@ -6656,10 +6664,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							// @important
 							UpdateCBSpace(KMatrixIdentity, KMatrixIdentity);
 
-							m_IrradianceRep->UnfoldCubemap(m_IrradianceTexture->GetShaderResourceViewPtr());
+							m_IrradianceCubemapRep->UnfoldCubemap(m_IrradianceTexture->GetShaderResourceViewPtr());
 							SetForwardRenderTargets(); // @important
 
-							ImGui::Image(m_IrradianceRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
+							ImGui::Image(m_IrradianceCubemapRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
 						}
 
 						ImGui::TreePop();
@@ -6718,10 +6726,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							// @important
 							UpdateCBSpace(KMatrixIdentity, KMatrixIdentity);
 
-							m_PrefilteredRadianceRep->UnfoldCubemap(m_PrefilteredRadianceTexture->GetShaderResourceViewPtr());
+							m_PrefilteredRadianceCubemapRep->UnfoldCubemap(m_PrefilteredRadianceTexture->GetShaderResourceViewPtr());
 							SetForwardRenderTargets(); // @important
 
-							ImGui::Image(m_PrefilteredRadianceRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
+							ImGui::Image(m_PrefilteredRadianceCubemapRep->GetSRV(), ImVec2(CCubemapRep::KRepWidth, CCubemapRep::KRepHeight));
 						}
 
 						ImGui::TreePop();

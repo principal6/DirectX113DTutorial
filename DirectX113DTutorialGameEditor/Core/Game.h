@@ -88,8 +88,7 @@ public:
 		PSBase2D,
 		PSBase2D_RawVertexColor,
 		PSMasking2D,
-		PSHeightMap2D,
-		PSCubemap2D
+		PSHeightMap2D
 	};
 
 	enum class EObjectType
@@ -791,7 +790,6 @@ private:
 	std::unique_ptr<CShader>	m_PSBase2D_RawVertexColor{};
 	std::unique_ptr<CShader>	m_PSMasking2D{};
 	std::unique_ptr<CShader>	m_PSHeightMap2D{};
-	std::unique_ptr<CShader>	m_PSCubemap2D{};
 
 // Constant buffer
 private:
@@ -978,9 +976,9 @@ private:
 	std::unique_ptr<CTexture>		m_PrefilteredRadianceTexture{};
 	std::unique_ptr<CTexture>		m_IntegratedBRDFTexture{};
 
-	std::unique_ptr<CCubemapRep>	m_EnvironmentRep{};
-	std::unique_ptr<CCubemapRep>	m_IrradianceRep{};
-	std::unique_ptr<CCubemapRep>	m_PrefilteredRadianceRep{};
+	std::unique_ptr<CCubemapRep>	m_EnvironmentCubemapRep{};
+	std::unique_ptr<CCubemapRep>	m_IrradianceCubemapRep{};
+	std::unique_ptr<CCubemapRep>	m_PrefilteredRadianceCubemapRep{};
 
 	std::unique_ptr<CIBLBaker>		m_IBLBaker{};
 

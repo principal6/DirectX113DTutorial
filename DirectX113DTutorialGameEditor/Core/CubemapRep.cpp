@@ -1,10 +1,30 @@
 #include "CubemapRep.h"
-#include "Game.h"
+#include "Object2D.h"
+#include "Shader.h"
+#include "PrimitiveGenerator.h"
 
 using std::make_unique;
 
-void CCubemapRep::UnfoldCubemap(ID3D11ShaderResourceView* const CubemapSRV)
+CCubemapRep::CCubemapRep(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
+	m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
 {
+	assert(m_PtrDevice);
+	assert(m_PtrDeviceContext);
+}
+
+CCubemapRep::~CCubemapRep()
+{
+}
+
+void CCubemapRep::Create(uint32_t VSSharedCBCount, uint32_t PSSharedCBCount)
+{
+	m_Viewport.Width = KRepWidth;
+	m_Viewport.Height = KRepHeight;
+	m_Viewport.TopLeftX = 0.0f;
+	m_Viewport.TopLeftY = 0.0f;
+	m_Viewport.MinDepth = 0.0f;
+	m_Viewport.MaxDepth = 1.0f;
+
 	if (!m_Texture)
 	{
 		m_TextureDesc.ArraySize = 1;
@@ -45,23 +65,44 @@ void CCubemapRep::UnfoldCubemap(ID3D11ShaderResourceView* const CubemapSRV)
 		m_CubemapRepresentation->Create(Generate2DCubemapRepresentation(XMFLOAT2(KUnitSize, KUnitSize)));
 	}
 
-	ID3D11SamplerState* LinearClamp{ m_PtrGame->GetCommonStates()->LinearClamp() };
-	m_PtrDeviceContext->PSSetSamplers(0, 1, &LinearClamp);
+	if (!m_CommonStates)
+	{
+		m_CommonStates = make_unique<CommonStates>(m_PtrDevice);
+	}
 
-	D3D11_VIEWPORT Viewport{};
-	Viewport.Width = KRepWidth;
-	Viewport.Height = KRepHeight;
-	Viewport.TopLeftX = 0.0f;
-	Viewport.TopLeftY = 0.0f;
-	Viewport.MinDepth = 0.0f;
-	Viewport.MaxDepth = 1.0f;
-	m_PtrDeviceContext->RSSetViewports(1, &Viewport);
+	CreateShaders(VSSharedCBCount, PSSharedCBCount);
+}
+
+void CCubemapRep::CreateShaders(uint32_t VSSharedCBCount, uint32_t PSSharedCBCount)
+{
+	bool bShouldCompileShaders{ false };
+
+	if (!m_VSBase2D)
+	{
+		m_VSBase2D = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
+		m_VSBase2D->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBase2D.hlsl", "main",
+			CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
+	}
+	
+	if (!m_PSCubemap2D)
+	{
+		m_PSCubemap2D = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
+		m_PSCubemap2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSCubemap2D.hlsl", "main");
+	}
+}
+
+void CCubemapRep::UnfoldCubemap(ID3D11ShaderResourceView* const CubemapSRV)
+{
+	ID3D11SamplerState* SamplerStates{ m_CommonStates->LinearClamp() };
+	m_PtrDeviceContext->PSSetSamplers(0, 1, &SamplerStates);
+
+	m_PtrDeviceContext->RSSetViewports(1, &m_Viewport);
 
 	m_PtrDeviceContext->OMSetRenderTargets(1, m_RTV.GetAddressOf(), nullptr);
 	m_PtrDeviceContext->ClearRenderTargetView(m_RTV.Get(), Colors::Transparent);
 
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase2D)->Use();
-	m_PtrGame->GetBaseShader(CGame::EBaseShader::PSCubemap2D)->Use();
+	m_VSBase2D->Use();
+	m_PSCubemap2D->Use();
 	
 	m_PtrDeviceContext->PSSetShaderResources(0, 1, &CubemapSRV);
 	m_CubemapRepresentation->Draw(true);
