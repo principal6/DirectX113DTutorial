@@ -1,4 +1,19 @@
 #include "CascadedShadowMap.h"
+#include "Object3DLine.h"
+#include "FullScreenQuad.h"
+
+using std::make_unique;
+
+CCascadedShadowMap::CCascadedShadowMap(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) : 
+	m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
+{
+	assert(m_PtrDevice);
+	assert(m_PtrDeviceContext);
+}
+
+CCascadedShadowMap::~CCascadedShadowMap()
+{
+}
 
 void CCascadedShadowMap::Create(const std::vector<SLODData>& vLODData, const XMFLOAT2& MapSize)
 {
@@ -10,6 +25,9 @@ void CCascadedShadowMap::Create(const std::vector<SLODData>& vLODData, const XMF
 	m_vShadowMapFrustums.resize(LODCount);
 	m_vShadowMapFrustumVertices.resize(LODCount);
 	m_vViewFrustumVertices.resize(LODCount);
+	m_vShadowMapFrustumReps.resize(LODCount);
+	m_vViewFrustumReps.resize(LODCount);
+	m_vViewports.resize(LODCount);
 
 	D3D11_TEXTURE2D_DESC Texture2DDesc{};
 	Texture2DDesc.ArraySize = 1;
@@ -46,7 +64,23 @@ void CCascadedShadowMap::Create(const std::vector<SLODData>& vLODData, const XMF
 		m_PtrDevice->CreateTexture2D(&Texture2DDesc, nullptr, m_vShadowMaps[iLOD].Texture.ReleaseAndGetAddressOf());
 		m_PtrDevice->CreateDepthStencilView(m_vShadowMaps[iLOD].Texture.Get(), &DSVDesc, m_vShadowMaps[iLOD].DSV.ReleaseAndGetAddressOf());
 		m_PtrDevice->CreateShaderResourceView(m_vShadowMaps[iLOD].Texture.Get(), &SRVDesc, m_vShadowMaps[iLOD].SRV.ReleaseAndGetAddressOf());
+
+		m_vShadowMapFrustumReps[iLOD] = make_unique<CObject3DLine>("ShadowFrustumRep", m_PtrDevice, m_PtrDeviceContext);
+		m_vShadowMapFrustumReps[iLOD]->Create(12, XMVectorSet(0, 1 - (0.125f * iLOD), 0.25f, 1));
+
+		m_vViewFrustumReps[iLOD] = make_unique<CObject3DLine>("ViewFrustumRep", m_PtrDevice, m_PtrDeviceContext);
+		m_vViewFrustumReps[iLOD]->Create(12, XMVectorSet(1 - (0.125f * iLOD), 1 - (0.25f * iLOD), 0, 1));
+
+		m_vViewports[iLOD].MinDepth = 0.0f;
+		m_vViewports[iLOD].MaxDepth = 1.0f;
+		m_vViewports[iLOD].TopLeftX = m_vLODData[iLOD].TextureViewportPosition.x;
+		m_vViewports[iLOD].TopLeftY = m_vLODData[iLOD].TextureViewportPosition.y;
+		m_vViewports[iLOD].Width = m_vLODData[iLOD].TextureViewportSize.x;
+		m_vViewports[iLOD].Height = m_vLODData[iLOD].TextureViewportSize.y;
 	}
+
+	m_FullScreenQuad = make_unique<CFullScreenQuad>(m_PtrDevice, m_PtrDeviceContext);
+	m_FullScreenQuad->Create2DDrawer(CFullScreenQuad::EPixelShaderPass::MonochromeSRV);
 }
 
 void CCascadedShadowMap::SetZFar(size_t LOD, float ZFar)
@@ -86,6 +120,92 @@ void CCascadedShadowMap::Set(size_t LOD, const XMMATRIX& Projection, const XMVEC
 		0.0f, m_vShadowMapFrustums[LOD].HalfSize.z * 2.0f);
 
 	m_vShadowMaps[LOD].VPTransposed = XMMatrixTranspose(m_vShadowMaps[LOD].ViewMatrix * m_vShadowMaps[LOD].ProjectionMatrix);
+}
+
+void CCascadedShadowMap::CaptureFrustums()
+{
+	size_t LODCount{ GetLODCount() };
+
+	// View frustums
+	for (size_t iLOD = 0; iLOD < LODCount; ++iLOD)
+	{
+		const auto& Vertices{ GetViewFrustumVertices(iLOD).Vertices };
+
+		// Near plane
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(0, Vertices[0], Vertices[1]);
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(1, Vertices[1], Vertices[3]);
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(2, Vertices[3], Vertices[2]);
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(3, Vertices[2], Vertices[0]);
+
+		// Far plane
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(4, Vertices[4], Vertices[5]);
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(5, Vertices[5], Vertices[7]);
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(6, Vertices[7], Vertices[6]);
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(7, Vertices[6], Vertices[4]);
+
+		// Side
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(8, Vertices[0], Vertices[4]);
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(9, Vertices[1], Vertices[5]);
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(10, Vertices[2], Vertices[6]);
+		m_vViewFrustumReps[iLOD]->UpdateLinePosition(11, Vertices[3], Vertices[7]);
+
+		m_vViewFrustumReps[iLOD]->UpdateVertexBuffer();
+	}
+
+	// Shadow map frustums
+	for (size_t iLOD = 0; iLOD < LODCount; ++iLOD)
+	{
+		const auto& Vertices{ GetShadowMapFrustumVertices(iLOD).Vertices };
+
+		// Near plane
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(0, Vertices[0], Vertices[1]);
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(1, Vertices[1], Vertices[3]);
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(2, Vertices[3], Vertices[2]);
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(3, Vertices[2], Vertices[0]);
+
+		// Far plane
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(4, Vertices[4], Vertices[5]);
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(5, Vertices[5], Vertices[7]);
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(6, Vertices[7], Vertices[6]);
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(7, Vertices[6], Vertices[4]);
+
+		// Side
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(8, Vertices[0], Vertices[4]);
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(9, Vertices[1], Vertices[5]);
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(10, Vertices[2], Vertices[6]);
+		m_vShadowMapFrustumReps[iLOD]->UpdateLinePosition(11, Vertices[3], Vertices[7]);
+
+		m_vShadowMapFrustumReps[iLOD]->UpdateVertexBuffer();
+	}
+}
+
+void CCascadedShadowMap::DrawFrustums()
+{
+	for (const auto& ViewFrustum : m_vViewFrustumReps)
+	{
+		if (ViewFrustum) ViewFrustum->Draw();
+	}
+
+	for (const auto& ShadowMapFrustum : m_vShadowMapFrustumReps)
+	{
+		if (ShadowMapFrustum) ShadowMapFrustum->Draw();
+	}
+}
+
+void CCascadedShadowMap::DrawTextures()
+{
+	m_FullScreenQuad->SetIA();
+	m_FullScreenQuad->SetShaders();
+	m_FullScreenQuad->SetPointClampSampler();
+
+	for (size_t iLOD = 0; iLOD < GetLODCount(); ++iLOD)
+	{
+		m_PtrDeviceContext->RSSetViewports(1, &m_vViewports[iLOD]);
+
+		m_PtrDeviceContext->PSSetShaderResources(0, 1, m_vShadowMaps[iLOD].SRV.GetAddressOf());
+
+		m_FullScreenQuad->Draw2D();
+	}
 }
 
 size_t CCascadedShadowMap::GetLODCount() const

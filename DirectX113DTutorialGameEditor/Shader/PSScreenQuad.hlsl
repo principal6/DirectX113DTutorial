@@ -1,19 +1,19 @@
 #include "Deferred.hlsli"
 
-SamplerState PointClampSampler : register(s0);
-Texture2D DeferredTexture : register(t0);
+SamplerState CurrentSampler : register(s0);
+Texture2D CurrentTexture : register(t0);
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	return DeferredTexture.Sample(PointClampSampler, Input.TexCoord.xy);
+	return CurrentTexture.Sample(CurrentSampler, Input.TexCoord.xy);
 }
 
 float4 Opaque(VS_OUTPUT Input) : SV_TARGET
 {
-	return float4(DeferredTexture.Sample(PointClampSampler, Input.TexCoord.xy).xyz, 1);
+	return float4(CurrentTexture.Sample(CurrentSampler, Input.TexCoord.xy).xyz, 1);
 }
 
-float4 Depth(VS_OUTPUT Input) : SV_TARGET
+float4 Monochrome(VS_OUTPUT Input) : SV_TARGET
 {
-	return float4(DeferredTexture.Sample(PointClampSampler, Input.TexCoord.xy).xxx, 1);
+	return float4(CurrentTexture.Sample(CurrentSampler, Input.TexCoord.xy).xxx, 1);
 }

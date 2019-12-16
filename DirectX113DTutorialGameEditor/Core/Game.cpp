@@ -33,13 +33,6 @@ static constexpr D3D11_INPUT_ELEMENT_DESC KBaseInputElementDescs[]
 	{ "IS_HIGHLIGHTED"	, 0, DXGI_FORMAT_R32_FLOAT			, 2, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
 };
 
-// FOR DEBUGGING SHADER...
-static constexpr D3D11_INPUT_ELEMENT_DESC KScreenQuadInputElementDescs[]
-{
-	{ "POSITION"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	{ "TEXCOORD"	, 0, DXGI_FORMAT_R32G32B32_FLOAT	, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-};
-
 void CGame::CreateWin32(WNDPROC const WndProc, const std::string& WindowName, bool bWindowed)
 {
 	GetCurrentDirectoryA(MAX_PATH, m_WorkingDirectory);
@@ -127,9 +120,6 @@ void CGame::InitializeDirectX(bool bWindowed)
 	CreatePickedTriangle();
 	CreateBoundingSphere();
 	Create3DGizmos();
-
-	CreateScreenQuadVertexBuffer();
-	CreateCubemapVertexBuffer();
 
 	SetProjectionMatrices(KDefaultFOV, KDefaultNearZ, KDefaultFarZ);
 	InitializeViewports();
@@ -224,36 +214,35 @@ void CGame::InitializeEditorAssets()
 		m_Grid->Create(Generate3DGrid(0));
 	}
 	
+	if (!m_CascadedShadowMap)
 	{
-		if (!m_CascadedShadowMap)
+		XMFLOAT2 PositionBase{ 0, 592 };
+		XMFLOAT2 Size{ 128, 128 };
+		vector<CCascadedShadowMap::SLODData> vLODData
 		{
-			vector<CCascadedShadowMap::SLODData> vLODData
-			{
-				CCascadedShadowMap::SLODData(0,  8.0f, 0),
-				CCascadedShadowMap::SLODData(1, 16.0f, 1),
-				CCascadedShadowMap::SLODData(2, 24.0f, 2),
-				CCascadedShadowMap::SLODData(3, 50.0f, 3)
-			};
+			CCascadedShadowMap::SLODData(0,  8.0f, 0, XMFLOAT2(PositionBase.x + Size.x * 0.0f, PositionBase.y), Size),
+			CCascadedShadowMap::SLODData(1, 16.0f, 1, XMFLOAT2(PositionBase.x + Size.x * 1.0f, PositionBase.y), Size),
+			CCascadedShadowMap::SLODData(2, 24.0f, 2, XMFLOAT2(PositionBase.x + Size.x * 2.0f, PositionBase.y), Size),
+			CCascadedShadowMap::SLODData(3, 50.0f, 3, XMFLOAT2(PositionBase.x + Size.x * 3.0f, PositionBase.y), Size)
+		};
 
-			m_CascadedShadowMap = make_unique<CCascadedShadowMap>(m_Device.Get(), m_DeviceContext.Get());
-			m_CascadedShadowMap->Create(vLODData, XMFLOAT2(1024, 1024));
-		}
+		m_CascadedShadowMap = make_unique<CCascadedShadowMap>(m_Device.Get(), m_DeviceContext.Get());
+		m_CascadedShadowMap->Create(vLODData, XMFLOAT2(1024, 1024));
+	}
 
-		for (size_t iLOD = 0; iLOD < KCascadedShadowMapLODCountMax; ++iLOD)
-		{
-			if (m_ViewFrustumReps[iLOD]) continue;
+	if (!m_EdgeDetectorFSQ)
+	{
+		m_EdgeDetectorFSQ = make_unique<CFullScreenQuad>(m_Device.Get(), m_DeviceContext.Get());
+		m_EdgeDetectorFSQ->Create2DDrawer(CFullScreenQuad::EPixelShaderPass::OpaqueSRV);
+		m_EdgeDetectorFSQ->OverridePixelShader(m_PSEdgeDetector.get());
+	}
 
-			m_ViewFrustumReps[iLOD] = make_unique<CObject3DLine>("ViewFrustumRep", m_Device.Get(), m_DeviceContext.Get());
-			m_ViewFrustumReps[iLOD]->Create(12, XMVectorSet(1 - (0.125f * iLOD), 1 - (0.25f * iLOD), 0, 1));
-		}
-
-		for (size_t iLOD = 0; iLOD < KCascadedShadowMapLODCountMax; ++iLOD)
-		{
-			if (m_ShadowMapFrustumReps[iLOD]) continue;
-
-			m_ShadowMapFrustumReps[iLOD] = make_unique<CObject3DLine>("ShadowFrustumRep", m_Device.Get(), m_DeviceContext.Get());
-			m_ShadowMapFrustumReps[iLOD]->Create(12, XMVectorSet(0, 1 - (0.125f * iLOD), 0.25f, 1));
-		}
+	if (!m_DirectionalLightFSQ)
+	{
+		m_DirectionalLightFSQ = make_unique<CFullScreenQuad>(m_Device.Get(), m_DeviceContext.Get());
+		m_DirectionalLightFSQ->Create2DDrawer(CFullScreenQuad::EPixelShaderPass::AllChannels);
+		m_DirectionalLightFSQ->OverridePixelShader(m_PSDirectionalLight.get());
+		//m_DirectionalLightFSQ->OverridePixelShader(m_PSDirectionalLight_NonIBL.get());
 	}
 
 	{
@@ -449,20 +438,20 @@ void CGame::CreateViews()
 		Texture2DDesc.SampleDesc.Quality = 0;
 		Texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
 		Texture2DDesc.Width = static_cast<UINT>(m_WindowSize.x);
-		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_ScreenQuadTexture.ReleaseAndGetAddressOf());
+		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_EdgeDetectorTexture.ReleaseAndGetAddressOf());
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC ScreenQuadSRVDesc{};
 		ScreenQuadSRVDesc.Format = Texture2DDesc.Format;
 		ScreenQuadSRVDesc.Texture2D.MipLevels = 1;
 		ScreenQuadSRVDesc.Texture2D.MostDetailedMip = 0;
 		ScreenQuadSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		m_Device->CreateShaderResourceView(m_ScreenQuadTexture.Get(), &ScreenQuadSRVDesc, m_ScreenQuadSRV.ReleaseAndGetAddressOf());
+		m_Device->CreateShaderResourceView(m_EdgeDetectorTexture.Get(), &ScreenQuadSRVDesc, m_EdgeDetectorSRV.ReleaseAndGetAddressOf());
 
 		D3D11_RENDER_TARGET_VIEW_DESC ScreenQuadRTVDesc{};
 		ScreenQuadRTVDesc.Format = Texture2DDesc.Format;
 		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
 		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		m_Device->CreateRenderTargetView(m_ScreenQuadTexture.Get(), &ScreenQuadRTVDesc, m_ScreenQuadRTV.ReleaseAndGetAddressOf());
+		m_Device->CreateRenderTargetView(m_EdgeDetectorTexture.Get(), &ScreenQuadRTVDesc, m_EdgeDetectorRTV.ReleaseAndGetAddressOf());
 	}
 }
 
@@ -771,11 +760,6 @@ void CGame::CreateBaseShaders()
 		m_VSLine->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSLine.hlsl", "main",
 			CObject3DLine::KInputElementDescs, ARRAYSIZE(CObject3DLine::KInputElementDescs));
 
-		m_VSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		//m_VSScreenQuad->Create(EShaderType::VertexShader,CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSScreenQuad.hlsl", "main");
-		m_VSScreenQuad->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSScreenQuad.hlsl", "main",
-			KScreenQuadInputElementDescs, ARRAYSIZE(KScreenQuadInputElementDescs));
-
 		m_VSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSSky->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSSky.hlsl", "main",
 			KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
@@ -917,7 +901,7 @@ void CGame::CreateBaseShaders()
 		m_PSDynamicSky->AttachConstantBuffer(m_CBSkyTime.get(), KPSSharedCBCount + 0);
 
 		m_PSEdgeDetector = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSEdgeDetector->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, true, L"Shader\\PSEdgeDetector.hlsl", "main");
+		m_PSEdgeDetector->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSEdgeDetector.hlsl", "main");
 
 		m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSFoliage->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSFoliage.hlsl", "main");
@@ -957,15 +941,6 @@ void CGame::CreateBaseShaders()
 		m_PSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSSpotLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "main");
 		m_PSSpotLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
-
-		m_PSScreenQuad = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSScreenQuad->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "main");
-
-		m_PSScreenQuad_Opaque = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSScreenQuad_Opaque->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "Opaque");
-
-		m_PSScreenQuad_Depth = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSScreenQuad_Depth->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSScreenQuad.hlsl", "Depth");
 
 		m_PSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSky.hlsl", "main");
@@ -1153,86 +1128,6 @@ void CGame::Create3DGizmos()
 		m_Object3D_3DGizmoScalingZ->Create(MeshAxis);
 		m_Object3D_3DGizmoScalingZ->ComponentTransform.Pitch = XM_PIDIV2;
 	}
-}
-
-void CGame::CreateScreenQuadVertexBuffer()
-{
-	D3D11_BUFFER_DESC BufferDesc{};
-	BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SScreenQuadVertex) * m_vScreenQuadVertices.size());
-	BufferDesc.CPUAccessFlags = 0;
-	BufferDesc.MiscFlags = 0;
-	BufferDesc.StructureByteStride = 0;
-	BufferDesc.Usage = D3D11_USAGE_DEFAULT;
-
-	D3D11_SUBRESOURCE_DATA SubresourceData{};
-	SubresourceData.pSysMem = &m_vScreenQuadVertices[0];
-	m_Device->CreateBuffer(&BufferDesc, &SubresourceData, &m_ScreenQuadVertexBuffer);
-}
-
-void CGame::CreateCubemapVertexBuffer()
-{
-	m_vCubemapVertices.clear();
-
-	// x+
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, +1, 0, 1), XMFLOAT3(+1, +1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(+1, +1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(+1, -1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(+1, +1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, -1, 0, 1), XMFLOAT3(+1, -1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(+1, -1, +1));
-
-	// x-
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, +1, 0, 1), XMFLOAT3(-1, +1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(-1, +1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(-1, -1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(-1, +1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, -1, 0, 1), XMFLOAT3(-1, -1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(-1, -1, -1));
-
-	// y+
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, +1, 0, 1), XMFLOAT3(-1, +1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(+1, +1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(-1, +1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(+1, +1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, -1, 0, 1), XMFLOAT3(+1, +1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(-1, +1, +1));
-
-	// y-
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, +1, 0, 1), XMFLOAT3(-1, -1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(+1, -1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(-1, -1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(+1, -1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, -1, 0, 1), XMFLOAT3(+1, -1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(-1, -1, -1));
-
-	// z+
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, +1, 0, 1), XMFLOAT3(-1, +1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(+1, +1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(-1, -1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(+1, +1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, -1, 0, 1), XMFLOAT3(+1, -1, +1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(-1, -1, +1));
-
-	// z-
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, +1, 0, 1), XMFLOAT3(+1, +1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(-1, +1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(+1, -1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(-1, +1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(+1, -1, 0, 1), XMFLOAT3(-1, -1, -1));
-	m_vCubemapVertices.emplace_back(XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(+1, -1, -1));
-
-	D3D11_BUFFER_DESC BufferDesc{};
-	BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	BufferDesc.ByteWidth = static_cast<UINT>(sizeof(SCubemapVertex) * m_vCubemapVertices.size());
-	BufferDesc.CPUAccessFlags = 0;
-	BufferDesc.MiscFlags = 0;
-	BufferDesc.StructureByteStride = 0;
-	BufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
-
-	D3D11_SUBRESOURCE_DATA SubresourceData{};
-	SubresourceData.pSysMem = &m_vCubemapVertices[0];
-	m_Device->CreateBuffer(&BufferDesc, &SubresourceData, &m_CubemapVertexBuffer);
 }
 
 void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
@@ -2196,9 +2091,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::VSFoliage:
 		Result = m_VSFoliage.get();
 		break;
-	case EBaseShader::VSScreenQuad:
-		Result = m_VSScreenQuad.get();
-		break;
 	case EBaseShader::VSBase2D:
 		Result = m_VSBase2D.get();
 		break;
@@ -2279,15 +2171,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSCamera:
 		Result = m_PSCamera.get();
-		break;
-	case EBaseShader::PSScreenQuad:
-		Result = m_PSScreenQuad.get();
-		break;
-	case EBaseShader::PSScreenQuad_Opaque:
-		Result = m_PSScreenQuad_Opaque.get();
-		break;
-	case EBaseShader::PSScreenQuad_Depth:
-		Result = m_PSScreenQuad_Depth.get();
 		break;
 	case EBaseShader::PSEdgeDetector:
 		Result = m_PSEdgeDetector.get();
@@ -3935,7 +3818,7 @@ void CGame::Update()
 
 			if (m_CapturedKeyboardState.F)
 			{
-				CaptureShadowMapFrustums();
+				m_CascadedShadowMap->CaptureFrustums();
 			}
 
 			if (m_CapturedKeyboardState.D1)
@@ -4127,8 +4010,14 @@ void CGame::Draw()
 			{
 				vSRVs.emplace_back(m_CascadedShadowMap->GetSRV(iLOD));
 			}
-			DrawFullScreenQuad(m_PSDirectionalLight.get(), &vSRVs[0], (UINT)vSRVs.size());
-			//DrawFullScreenQuad(m_PSDirectionalLight_NonIBL.get(), &vSRVs[0], (UINT)vSRVs.size());
+
+			m_DeviceContext->PSSetShaderResources(0, (UINT)vSRVs.size(), &vSRVs[0]);
+
+			m_DirectionalLightFSQ->SetIA();
+			m_DirectionalLightFSQ->SetPointClampSampler();
+			m_DirectionalLightFSQ->SetShaders();
+
+			m_DirectionalLightFSQ->Draw2D();
 		}
 
 		// LightArray
@@ -4213,24 +4102,7 @@ void CGame::Draw()
 
 			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawDirectionalLightShadowMap))
 			{
-				DrawShadowMapFrustumsRep();
-
-				ID3D11ShaderResourceView* SRVs[1]{};
-
-				SRVs[0] = m_CascadedShadowMap->GetSRV(0);
-				m_DeviceContext->RSSetViewports(1, &m_vViewports[5]);
-				UpdateCBSpace();
-				DrawFullScreenQuad(m_PSScreenQuad_Depth.get(), SRVs, 1);
-
-				SRVs[0] = m_CascadedShadowMap->GetSRV(1);
-				m_DeviceContext->RSSetViewports(1, &m_vViewports[6]);
-				UpdateCBSpace();
-				DrawFullScreenQuad(m_PSScreenQuad_Depth.get(), SRVs, 1);
-
-				SRVs[0] = m_CascadedShadowMap->GetSRV(2);
-				m_DeviceContext->RSSetViewports(1, &m_vViewports[7]);
-				UpdateCBSpace();
-				DrawFullScreenQuad(m_PSScreenQuad_Depth.get(), SRVs, 1);
+				DrawShadowMapReps();
 
 				m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 			}
@@ -4548,76 +4420,16 @@ void CGame::DrawGrid()
 	m_Grid->Draw();
 }
 
-void CGame::CaptureShadowMapFrustums()
-{
-	size_t LODCount{ m_CascadedShadowMap->GetLODCount() };
-	for (size_t iLOD = 0; iLOD < LODCount; ++iLOD)
-	{
-		const auto& Vertices{ m_CascadedShadowMap->GetViewFrustumVertices(iLOD).Vertices };
-
-		// Near plane
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(0, Vertices[0], Vertices[1]);
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(1, Vertices[1], Vertices[3]);
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(2, Vertices[3], Vertices[2]);
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(3, Vertices[2], Vertices[0]);
-
-		// Far plane
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(4, Vertices[4], Vertices[5]);
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(5, Vertices[5], Vertices[7]);
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(6, Vertices[7], Vertices[6]);
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(7, Vertices[6], Vertices[4]);
-
-		// Side
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(8, Vertices[0], Vertices[4]);
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(9, Vertices[1], Vertices[5]);
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(10, Vertices[2], Vertices[6]);
-		m_ViewFrustumReps[iLOD]->UpdateLinePosition(11, Vertices[3], Vertices[7]);
-
-		m_ViewFrustumReps[iLOD]->UpdateVertexBuffer();
-	}
-
-	for (size_t iLOD = 0; iLOD < LODCount; ++iLOD)
-	{
-		const auto& Vertices{ m_CascadedShadowMap->GetShadowMapFrustumVertices(iLOD).Vertices };
-
-		// Near plane
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(0, Vertices[0], Vertices[1]);
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(1, Vertices[1], Vertices[3]);
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(2, Vertices[3], Vertices[2]);
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(3, Vertices[2], Vertices[0]);
-
-		// Far plane
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(4, Vertices[4], Vertices[5]);
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(5, Vertices[5], Vertices[7]);
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(6, Vertices[7], Vertices[6]);
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(7, Vertices[6], Vertices[4]);
-
-		// Side
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(8, Vertices[0], Vertices[4]);
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(9, Vertices[1], Vertices[5]);
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(10, Vertices[2], Vertices[6]);
-		m_ShadowMapFrustumReps[iLOD]->UpdateLinePosition(11, Vertices[3], Vertices[7]);
-
-		m_ShadowMapFrustumReps[iLOD]->UpdateVertexBuffer();
-	}
-}
-
-void CGame::DrawShadowMapFrustumsRep()
+void CGame::DrawShadowMapReps()
 {
 	m_VSLine->Use();
 	m_PSLine->Use();
 
 	UpdateCBSpace();
 
-	for (const auto& ViewFrustumRep : m_ViewFrustumReps)
-	{
-		if (ViewFrustumRep) ViewFrustumRep->Draw();
-	}
-	
-	for (const auto& ShadowMapFrustumRep : m_ShadowMapFrustumReps)
-	{
-		if (ShadowMapFrustumRep) ShadowMapFrustumRep->Draw();
-	}
+	m_CascadedShadowMap->DrawFrustums();
+
+	m_CascadedShadowMap->DrawTextures();
 }
 
 void CGame::DrawSky(float DeltaTime)
@@ -7927,8 +7739,18 @@ void CGame::GenerateCubemapFromHDRi()
 
 	m_Device->CreateShaderResourceView(m_GeneratedEnvironmentMapTexture.Get(), nullptr, m_GeneratedEnvironmentMapSRV.ReleaseAndGetAddressOf());
 
+	if (!m_GeneratedEnvironmentMapFSQ)
+	{
+		m_GeneratedEnvironmentMapFSQ = make_unique<CFullScreenQuad>(m_Device.Get(), m_DeviceContext.Get());
+		m_GeneratedEnvironmentMapFSQ->CreateCubemapDrawer();
+		m_GeneratedEnvironmentMapFSQ->OverridePixelShader(m_PSFromHDR.get());
+	}
+
 	// Draw!
 	{
+		m_GeneratedEnvironmentMapFSQ->SetIA();
+		m_GeneratedEnvironmentMapFSQ->SetShaders();
+
 		D3D11_VIEWPORT Viewport{};
 		Viewport.Width = static_cast<FLOAT>(m_GeneratedEnvironmentMapTextureDesc.Width);
 		Viewport.Height = static_cast<FLOAT>(m_GeneratedEnvironmentMapTextureDesc.Height);
@@ -7943,21 +7765,16 @@ void CGame::GenerateCubemapFromHDRi()
 
 		m_EnvironmentTexture->Use(0);
 
-		m_VSScreenQuad->Use();
-		m_PSFromHDR->Use();
-
-		m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_DeviceContext->IASetVertexBuffers(0, 1, m_CubemapVertexBuffer.GetAddressOf(), &m_CubemapVertexBufferStride, &m_CubemapVertexBufferOffset);
-
 		for (auto& RTV : m_vGeneratedEnvironmentMapRTV)
 		{
 			if (RTV) m_DeviceContext->ClearRenderTargetView(RTV.Get(), Colors::Blue);
 		}
 
-		for (int iCubeFace = 0; iCubeFace < 6; ++iCubeFace)
+		for (int iCubemapFace = 0; iCubemapFace < 6; ++iCubemapFace)
 		{
-			m_DeviceContext->OMSetRenderTargets(1, m_vGeneratedEnvironmentMapRTV[iCubeFace].GetAddressOf(), nullptr);
-			m_DeviceContext->Draw(6, iCubeFace * 6);
+			m_DeviceContext->OMSetRenderTargets(1, m_vGeneratedEnvironmentMapRTV[iCubemapFace].GetAddressOf(), nullptr);
+			
+			m_GeneratedEnvironmentMapFSQ->DrawCubemap(iCubemapFace);
 		}
 
 		SetForwardRenderTargets();
@@ -8006,8 +7823,18 @@ void CGame::GenerateIrradianceMap(float RangeFactor)
 
 	m_Device->CreateShaderResourceView(m_GeneratedIrradianceMapTexture.Get(), nullptr, m_GeneratedIrradianceMapSRV.ReleaseAndGetAddressOf());
 
+	if (!m_GeneratedIrradianceMapFSQ)
+	{
+		m_GeneratedIrradianceMapFSQ = make_unique<CFullScreenQuad>(m_Device.Get(), m_DeviceContext.Get());
+		m_GeneratedIrradianceMapFSQ->CreateCubemapDrawer();
+		m_GeneratedIrradianceMapFSQ->OverridePixelShader(m_PSIrradianceGenerator.get());
+	}
+
 	// Draw!
 	{
+		m_GeneratedIrradianceMapFSQ->SetIA();
+		m_GeneratedIrradianceMapFSQ->SetShaders();
+
 		D3D11_VIEWPORT Viewport{};
 		Viewport.Width = static_cast<FLOAT>(m_GeneratedIrradianceMapTextureDesc.Width);
 		Viewport.Height = static_cast<FLOAT>(m_GeneratedIrradianceMapTextureDesc.Height);
@@ -8022,25 +7849,20 @@ void CGame::GenerateIrradianceMap(float RangeFactor)
 
 		m_EnvironmentTexture->Use(0);
 
-		m_VSScreenQuad->Use();
-		m_PSIrradianceGenerator->Use();
-
 		// @important
 		m_CBIrradianceGeneratorData.RangeFactor = RangeFactor;
 		m_CBIrradianceGenerator->Update();
-
-		m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_DeviceContext->IASetVertexBuffers(0, 1, m_CubemapVertexBuffer.GetAddressOf(), &m_CubemapVertexBufferStride, &m_CubemapVertexBufferOffset);
 
 		for (auto& RTV : m_vGeneratedIrradianceMapRTV)
 		{
 			if (RTV) m_DeviceContext->ClearRenderTargetView(RTV.Get(), Colors::Blue);
 		}
 
-		for (int iCubeFace = 0; iCubeFace < 6; ++iCubeFace)
+		for (int iCubemapFace = 0; iCubemapFace < 6; ++iCubemapFace)
 		{
-			m_DeviceContext->OMSetRenderTargets(1, m_vGeneratedIrradianceMapRTV[iCubeFace].GetAddressOf(), nullptr);
-			m_DeviceContext->Draw(6, iCubeFace * 6);
+			m_DeviceContext->OMSetRenderTargets(1, m_vGeneratedIrradianceMapRTV[iCubemapFace].GetAddressOf(), nullptr);
+			
+			m_GeneratedIrradianceMapFSQ->DrawCubemap(iCubemapFace);
 		}
 
 		SetForwardRenderTargets();
@@ -8076,18 +7898,22 @@ void CGame::GeneratePrefilteredRadianceMap(float RangeFactor)
 
 	m_Device->CreateShaderResourceView(m_PrefilteredRadianceMapTexture.Get(), nullptr, m_PrefilteredRadianceMapSRV.ReleaseAndGetAddressOf());
 
+	if (!m_PrefilteredRadianceMapFSQ)
+	{
+		m_PrefilteredRadianceMapFSQ = make_unique<CFullScreenQuad>(m_Device.Get(), m_DeviceContext.Get());
+		m_PrefilteredRadianceMapFSQ->CreateCubemapDrawer();
+		m_PrefilteredRadianceMapFSQ->OverridePixelShader(m_PSRadiancePrefiltering.get());
+	}
+
 	// Draw!
 	{
+		m_PrefilteredRadianceMapFSQ->SetIA();
+		m_PrefilteredRadianceMapFSQ->SetShaders();
+
 		ID3D11SamplerState* LinearWrap{ m_CommonStates->LinearWrap() };
 		m_DeviceContext->PSSetSamplers(0, 1, &LinearWrap);
 
 		m_EnvironmentTexture->Use(0);
-
-		m_VSScreenQuad->Use();
-		m_PSRadiancePrefiltering->Use();
-
-		m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_DeviceContext->IASetVertexBuffers(0, 1, m_CubemapVertexBuffer.GetAddressOf(), &m_CubemapVertexBufferStride, &m_CubemapVertexBufferOffset);
 
 		{
 			m_vPrefilteredRadianceMapRTV.resize(6);
@@ -8126,10 +7952,11 @@ void CGame::GeneratePrefilteredRadianceMap(float RangeFactor)
 					if (RTV) m_DeviceContext->ClearRenderTargetView(RTV.Get(), Colors::Blue);
 				}
 
-				for (int iCubeFace = 0; iCubeFace < 6; ++iCubeFace)
+				for (int iCubemapFace = 0; iCubemapFace < 6; ++iCubemapFace)
 				{
-					m_DeviceContext->OMSetRenderTargets(1, m_vPrefilteredRadianceMapRTV[iCubeFace].GetAddressOf(), nullptr);
-					m_DeviceContext->Draw(6, iCubeFace * 6);
+					m_DeviceContext->OMSetRenderTargets(1, m_vPrefilteredRadianceMapRTV[iCubemapFace].GetAddressOf(), nullptr);
+					
+					m_PrefilteredRadianceMapFSQ->DrawCubemap(iCubemapFace);
 				}
 			}
 		}
@@ -8144,31 +7971,40 @@ void CGame::GeneratePrefilteredRadianceMap(float RangeFactor)
 
 void CGame::GenerateIntegratedBRDFMap()
 {
-	// @important
-	//m_IntegratedBRDFTextureDesc.Width = 512;
-	//m_IntegratedBRDFTextureDesc.Height = 512;
-	m_IntegratedBRDFTextureDesc.Width = 128;
-	m_IntegratedBRDFTextureDesc.Height = 128;
-	m_IntegratedBRDFTextureDesc.ArraySize = 1;
-	m_IntegratedBRDFTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-	m_IntegratedBRDFTextureDesc.CPUAccessFlags = 0;
-	m_IntegratedBRDFTextureDesc.Format = DXGI_FORMAT_R16G16_UNORM;
-	m_IntegratedBRDFTextureDesc.MipLevels = 0;
-	m_IntegratedBRDFTextureDesc.MiscFlags = 0;
-	m_IntegratedBRDFTextureDesc.SampleDesc.Count = 1;
-	m_IntegratedBRDFTextureDesc.SampleDesc.Quality = 0;
-	m_IntegratedBRDFTextureDesc.Usage = D3D11_USAGE_DEFAULT;
-	m_Device->CreateTexture2D(&m_IntegratedBRDFTextureDesc, nullptr, m_IntegratedBRDFTextureRaw.ReleaseAndGetAddressOf());
+	if (!m_IntegratedBRDFTextureRaw)
+	{
+		// @important
+		//m_IntegratedBRDFTextureDesc.Width = 512;
+		//m_IntegratedBRDFTextureDesc.Height = 512;
+		m_IntegratedBRDFTextureDesc.Width = 128;
+		m_IntegratedBRDFTextureDesc.Height = 128;
+		m_IntegratedBRDFTextureDesc.ArraySize = 1;
+		m_IntegratedBRDFTextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		m_IntegratedBRDFTextureDesc.CPUAccessFlags = 0;
+		m_IntegratedBRDFTextureDesc.Format = DXGI_FORMAT_R16G16_UNORM;
+		m_IntegratedBRDFTextureDesc.MipLevels = 0;
+		m_IntegratedBRDFTextureDesc.MiscFlags = 0;
+		m_IntegratedBRDFTextureDesc.SampleDesc.Count = 1;
+		m_IntegratedBRDFTextureDesc.SampleDesc.Quality = 0;
+		m_IntegratedBRDFTextureDesc.Usage = D3D11_USAGE_DEFAULT;
+		m_Device->CreateTexture2D(&m_IntegratedBRDFTextureDesc, nullptr, m_IntegratedBRDFTextureRaw.ReleaseAndGetAddressOf());
 
-	m_Device->CreateShaderResourceView(m_IntegratedBRDFTextureRaw.Get(), nullptr, m_IntegratedBRDFSRV.ReleaseAndGetAddressOf());
+		m_Device->CreateShaderResourceView(m_IntegratedBRDFTextureRaw.Get(), nullptr, m_IntegratedBRDFSRV.ReleaseAndGetAddressOf());
+	}
+
+	if (!m_IntegratedBRDFFSQ)
+	{
+		m_IntegratedBRDFFSQ = make_unique<CFullScreenQuad>(m_Device.Get(), m_DeviceContext.Get());
+		m_IntegratedBRDFFSQ->Create2DDrawer(CFullScreenQuad::EPixelShaderPass::AllChannels);
+		m_IntegratedBRDFFSQ->OverridePixelShader(m_PSBRDFIntegrator.get());
+	}
 	
 	{
+		m_IntegratedBRDFFSQ->SetShaders();
+
 		// @importnat: clamp!
 		ID3D11SamplerState* LinearClamp{ m_CommonStates->LinearClamp() };
 		m_DeviceContext->PSSetSamplers(0, 1, &LinearClamp);
-
-		m_VSScreenQuad->Use();
-		m_PSBRDFIntegrator->Use();
 
 		D3D11_VIEWPORT Viewport{};
 		Viewport.Width = static_cast<FLOAT>(m_IntegratedBRDFTextureDesc.Width);
@@ -8184,12 +8020,7 @@ void CGame::GenerateIntegratedBRDFMap()
 
 		m_DeviceContext->OMSetRenderTargets(1, m_IntegratedBRDFRTV.GetAddressOf(), nullptr);
 
-		// Draw!
-		{
-			m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			m_DeviceContext->IASetVertexBuffers(0, 1, m_ScreenQuadVertexBuffer.GetAddressOf(), &m_ScreenQuadVertexBufferStride, &m_ScreenQuadVertexBufferOffset);
-			m_DeviceContext->Draw(6, 0);
-		}
+		m_IntegratedBRDFFSQ->Draw2D();
 
 		SetForwardRenderTargets();
 	}
@@ -8208,8 +8039,8 @@ void CGame::EndRendering()
 	{
 		m_bIsDeferredRenderTargetsSet = false;
 
-		m_DeviceContext->OMSetRenderTargets(1, m_ScreenQuadRTV.GetAddressOf(), m_GBuffers.DepthStencilDSV.Get());
-		m_DeviceContext->ClearRenderTargetView(m_ScreenQuadRTV.Get(), Colors::Transparent);
+		m_DeviceContext->OMSetRenderTargets(1, m_EdgeDetectorRTV.GetAddressOf(), m_GBuffers.DepthStencilDSV.Get());
+		m_DeviceContext->ClearRenderTargetView(m_EdgeDetectorRTV.Get(), Colors::Transparent);
 		m_DeviceContext->ClearDepthStencilView(m_GBuffers.DepthStencilDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 		if (m_vSelectionData.size())
@@ -8270,7 +8101,12 @@ void CGame::EndRendering()
 
 		SetForwardRenderTargets();
 
-		DrawFullScreenQuad(m_PSEdgeDetector.get(), m_ScreenQuadSRV.GetAddressOf(), 1);
+		m_DeviceContext->PSSetShaderResources(0, 1, m_EdgeDetectorSRV.GetAddressOf());
+
+		m_EdgeDetectorFSQ->SetIA();
+		m_EdgeDetectorFSQ->SetShaders();
+		m_EdgeDetectorFSQ->SetPointClampSampler();
+		m_EdgeDetectorFSQ->Draw2D();
 	}
 
 	if (m_eMode != EMode::Play)
@@ -8323,27 +8159,6 @@ void CGame::SetDeferredRenderTargets(bool bClearViews)
 	}
 
 	m_bIsDeferredRenderTargetsSet = true;
-}
-
-void CGame::DrawFullScreenQuad(CShader* const PixelShader, ID3D11ShaderResourceView** const SRVs, UINT NumSRVs)
-{
-	m_DeviceContext->RSSetState(m_CommonStates->CullNone());
-
-	{
-		m_VSScreenQuad->Use();
-		PixelShader->Use();
-
-		ID3D11SamplerState* const Samplers[]{ m_CommonStates->PointClamp(), m_CommonStates->LinearWrap(), m_CommonStates->LinearClamp() };
-		m_DeviceContext->PSSetSamplers(0, ARRAYSIZE(Samplers), Samplers);
-		m_DeviceContext->PSSetShaderResources(0, NumSRVs, SRVs);
-
-		// Draw full-screen quad vertices
-		m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_DeviceContext->IASetVertexBuffers(0, 1, m_ScreenQuadVertexBuffer.GetAddressOf(), &m_ScreenQuadVertexBufferStride, &m_ScreenQuadVertexBufferOffset);
-		m_DeviceContext->Draw(6, 0);
-	}
-
-	SetUniversalRSState();
 }
 
 Keyboard::State CGame::GetKeyState() const

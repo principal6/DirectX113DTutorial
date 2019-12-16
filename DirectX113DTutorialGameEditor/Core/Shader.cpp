@@ -133,7 +133,7 @@ void CShader::AttachConstantBuffer(CConstantBuffer* const ConstantBuffer, int32_
 	m_vAttachedConstantBuffers.emplace_back(ConstantBuffer, uSlot);
 }
 
-void CShader::Use()
+void CShader::Use() const
 {
 	switch (m_ShaderType)
 	{

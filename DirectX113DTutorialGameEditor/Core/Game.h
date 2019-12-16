@@ -20,6 +20,7 @@
 #include "Billboard.h"
 #include "Light.h"
 #include "CascadedShadowMap.h"
+#include "FullScreenQuad.h"
 
 #include "TinyXml2/tinyxml2.h"
 #include "ImGui/imgui.h"
@@ -39,7 +40,6 @@ public:
 		VSGizmo,
 		VSTerrain,
 		VSFoliage,
-		VSScreenQuad,
 		VSBase2D,
 		VSBillboard,
 		VSLight,
@@ -74,9 +74,6 @@ public:
 		PSWater,
 		PSFoliage,
 		PSCamera,
-		PSScreenQuad,
-		PSScreenQuad_Opaque,
-		PSScreenQuad_Depth,
 		PSEdgeDetector,
 		PSSky,
 		PSIrradianceGenerator,
@@ -314,13 +311,6 @@ public:
 		bool		bHasFailedPickingTest{ false };
 	};
 
-	struct SScreenQuadVertex
-	{
-		SScreenQuadVertex(const XMFLOAT4& _Position, const XMFLOAT3& _TexCoord) : Position{ _Position }, TexCoord{ _TexCoord } {}
-		XMFLOAT4 Position;
-		XMFLOAT3 TexCoord;
-	};
-
 	struct SCubemapVertex
 	{
 		SCubemapVertex(const XMFLOAT4& _Position, const XMFLOAT3& _TexCoord) : Position{ _Position }, TexCoord{ _TexCoord } {}
@@ -450,8 +440,6 @@ private:
 	void CreatePickedTriangle();
 	void CreateBoundingSphere();
 	void Create3DGizmos();
-	void CreateScreenQuadVertexBuffer();
-	void CreateCubemapVertexBuffer();
 
 public:
 	void LoadScene(const std::string& FileName, const std::string& SceneDirectory);
@@ -630,7 +618,6 @@ public:
 private:
 	void SetForwardRenderTargets(bool bClearViews = false);
 	void SetDeferredRenderTargets(bool bClearViews = false);
-	void DrawFullScreenQuad(CShader* const PixelShader, ID3D11ShaderResourceView** const SRVs, UINT NumSRVs);
 
 public:
 	auto GethWnd() const->HWND { return m_hWnd; }
@@ -662,8 +649,7 @@ private:
 
 	void DrawGrid();
 
-	void CaptureShadowMapFrustums();
-	void DrawShadowMapFrustumsRep();
+	void DrawShadowMapReps();
 
 	void DrawSky(float DeltaTime);
 	void DrawTerrainOpaqueParts(float DeltaTime);
@@ -773,7 +759,6 @@ private:
 	std::unique_ptr<CShader>	m_VSGizmo{};
 	std::unique_ptr<CShader>	m_VSTerrain{};
 	std::unique_ptr<CShader>	m_VSFoliage{};
-	std::unique_ptr<CShader>	m_VSScreenQuad{};
 	std::unique_ptr<CShader>	m_VSBase2D{};
 	std::unique_ptr<CShader>	m_VSBillboard{};
 	std::unique_ptr<CShader>	m_VSLight{};
@@ -808,9 +793,6 @@ private:
 	std::unique_ptr<CShader>	m_PSWater{};
 	std::unique_ptr<CShader>	m_PSFoliage{};
 	std::unique_ptr<CShader>	m_PSCamera{};
-	std::unique_ptr<CShader>	m_PSScreenQuad{};
-	std::unique_ptr<CShader>	m_PSScreenQuad_Opaque{};
-	std::unique_ptr<CShader>	m_PSScreenQuad_Depth{};
 	std::unique_ptr<CShader>	m_PSEdgeDetector{};
 	std::unique_ptr<CShader>	m_PSSky{};
 	std::unique_ptr<CShader>	m_PSIrradianceGenerator{};
@@ -897,8 +879,6 @@ private:
 // Shadow map
 private:
 	std::unique_ptr<CCascadedShadowMap>			m_CascadedShadowMap{};
-	std::unique_ptr<CObject3DLine>				m_ViewFrustumReps[KCascadedShadowMapLODCountMax]{};
-	std::unique_ptr<CObject3DLine>				m_ShadowMapFrustumReps[KCascadedShadowMapLODCountMax]{};
 
 // Light
 private:
@@ -1015,28 +995,8 @@ private:
 	EMode						m_eMode{};
 	EEditMode					m_eEditMode{};
 
-// Full-screen quad
-private:
-	std::vector<SScreenQuadVertex>		m_vScreenQuadVertices
-	{
-		{ XMFLOAT4(-1, +1, 0, 1), XMFLOAT3(0, 0, 0) },
-		{ XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(1, 0, 0) },
-		{ XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(0, 1, 0) },
-		{ XMFLOAT4(+1, +1, 0, 1), XMFLOAT3(1, 0, 0) },
-		{ XMFLOAT4(+1, -1, 0, 1), XMFLOAT3(1, 1, 0) },
-		{ XMFLOAT4(-1, -1, 0, 1), XMFLOAT3(0, 1, 0) },
-	};
-	ComPtr<ID3D11Buffer>				m_ScreenQuadVertexBuffer{};
-	UINT								m_ScreenQuadVertexBufferStride{ sizeof(SScreenQuadVertex) };
-	UINT								m_ScreenQuadVertexBufferOffset{};
-
 // IBL
 private:
-	std::vector<SCubemapVertex>					m_vCubemapVertices{};
-	ComPtr<ID3D11Buffer>						m_CubemapVertexBuffer{};
-	UINT										m_CubemapVertexBufferStride{ sizeof(SCubemapVertex) };
-	UINT										m_CubemapVertexBufferOffset{};
-
 	std::unique_ptr<CTexture>					m_EnvironmentTexture{};
 	std::unique_ptr<CTexture>					m_IrradianceTexture{};
 	std::unique_ptr<CTexture>					m_PrefilteredRadianceTexture{};
@@ -1046,25 +1006,33 @@ private:
 	std::unique_ptr<CCubemapRep>				m_IrradianceRep{};
 	std::unique_ptr<CCubemapRep>				m_PrefilteredRadianceRep{};
 
-	D3D11_TEXTURE2D_DESC						m_GeneratedIrradianceMapTextureDesc{};
-	ComPtr<ID3D11Texture2D>						m_GeneratedIrradianceMapTexture{};
-	ComPtr<ID3D11ShaderResourceView>			m_GeneratedIrradianceMapSRV{};
-	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedIrradianceMapRTV{};
-
 	D3D11_TEXTURE2D_DESC						m_GeneratedEnvironmentMapTextureDesc{};
 	ComPtr<ID3D11Texture2D>						m_GeneratedEnvironmentMapTexture{};
 	ComPtr<ID3D11ShaderResourceView>			m_GeneratedEnvironmentMapSRV{};
 	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedEnvironmentMapRTV{};
+	std::unique_ptr<CFullScreenQuad>			m_GeneratedEnvironmentMapFSQ{};
+
+	D3D11_TEXTURE2D_DESC						m_GeneratedIrradianceMapTextureDesc{};
+	ComPtr<ID3D11Texture2D>						m_GeneratedIrradianceMapTexture{};
+	ComPtr<ID3D11ShaderResourceView>			m_GeneratedIrradianceMapSRV{};
+	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedIrradianceMapRTV{};
+	std::unique_ptr<CFullScreenQuad>			m_GeneratedIrradianceMapFSQ{};
 
 	D3D11_TEXTURE2D_DESC						m_PrefilteredRadianceMapTextureDesc{};
 	ComPtr<ID3D11Texture2D>						m_PrefilteredRadianceMapTexture{};
 	ComPtr<ID3D11ShaderResourceView>			m_PrefilteredRadianceMapSRV{};
 	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vPrefilteredRadianceMapRTV{};
+	std::unique_ptr<CFullScreenQuad>			m_PrefilteredRadianceMapFSQ{};
 
 	ComPtr<ID3D11Texture2D>						m_IntegratedBRDFTextureRaw{};
 	ComPtr<ID3D11RenderTargetView>				m_IntegratedBRDFRTV{};
 	ComPtr<ID3D11ShaderResourceView>			m_IntegratedBRDFSRV{};
 	D3D11_TEXTURE2D_DESC						m_IntegratedBRDFTextureDesc{};
+	std::unique_ptr<CFullScreenQuad>			m_IntegratedBRDFFSQ{};
+
+private:
+	std::unique_ptr<CFullScreenQuad>			m_EdgeDetectorFSQ{};
+	std::unique_ptr<CFullScreenQuad>			m_DirectionalLightFSQ{};
 
 // DirectX
 private:
@@ -1075,9 +1043,9 @@ private:
 	ComPtr<ID3D11Texture2D>				m_BackBuffer{};
 	ComPtr<ID3D11RenderTargetView>		m_BackBufferRTV{};
 
-	ComPtr<ID3D11Texture2D>				m_ScreenQuadTexture{};
-	ComPtr<ID3D11RenderTargetView>		m_ScreenQuadRTV{};
-	ComPtr<ID3D11ShaderResourceView>	m_ScreenQuadSRV{};
+	ComPtr<ID3D11Texture2D>				m_EdgeDetectorTexture{};
+	ComPtr<ID3D11RenderTargetView>		m_EdgeDetectorRTV{};
+	ComPtr<ID3D11ShaderResourceView>	m_EdgeDetectorSRV{};
 
 	SGeometryBuffers					m_GBuffers{};
 

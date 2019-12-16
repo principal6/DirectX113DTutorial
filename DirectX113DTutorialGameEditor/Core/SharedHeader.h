@@ -101,6 +101,15 @@ struct SObject3DInstanceGPUData
 	float		IsHighlighted{};
 };
 
+struct SVertexBufferBundle
+{
+	SVertexBufferBundle(size_t _Stride) : Stride{ static_cast<UINT>(_Stride) } {}
+
+	ComPtr<ID3D11Buffer>	Buffer{};
+	UINT					Stride{};
+	UINT					Offset{};
+};
+
 #define ENUM_CLASS_FLAG(enum_type)\
 static enum_type operator|(enum_type a, enum_type b)\
 {\

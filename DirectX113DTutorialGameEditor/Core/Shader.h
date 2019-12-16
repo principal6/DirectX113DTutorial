@@ -46,7 +46,7 @@ public:
 
 	void AttachConstantBuffer(CConstantBuffer* const ConstantBuffer, int32_t Slot = -1);
 
-	void Use();
+	void Use() const;
 
 private:
 	ID3D11Device* const						m_PtrDevice{};

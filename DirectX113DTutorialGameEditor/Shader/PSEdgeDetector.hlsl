@@ -1,13 +1,13 @@
 #include "Deferred.hlsli"
 
-SamplerState PointSampler : register(s0);
-Texture2D DeferredTexture : register(t0);
+SamplerState CurrentSampler : register(s0);
+Texture2D CurrentTexture : register(t0);
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	float2 DeferredTextureSize = float2(0, 0);
-	DeferredTexture.GetDimensions(DeferredTextureSize.x, DeferredTextureSize.y);
-	float2 dXY = float2(1, 1) / DeferredTextureSize;
+	float2 CurrentTextureSize = float2(0, 0);
+	CurrentTexture.GetDimensions(CurrentTextureSize.x, CurrentTextureSize.y);
+	float2 dXY = float2(1, 1) / CurrentTextureSize;
 
 	float SobelX = 0;
 	float SobelY = 0;
@@ -16,7 +16,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		for (int x = 0; x < 3; ++x)
 		{
 			float2 OffsetTexCoord = Input.TexCoord.xy + dXY * float2(x - 1, y - 1);
-			float4 Sampled = DeferredTexture.Sample(PointSampler, OffsetTexCoord).rgba;
+			float4 Sampled = CurrentTexture.Sample(CurrentSampler, OffsetTexCoord).rgba;
 			
 			float SobelFactor = Sampled.a;
 			SobelX += SobelFactor * KSobelKernelX[y][x];
