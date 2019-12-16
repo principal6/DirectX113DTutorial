@@ -21,6 +21,7 @@
 #include "Light.h"
 #include "CascadedShadowMap.h"
 #include "FullScreenQuad.h"
+#include "IBLBaker.h"
 
 #include "TinyXml2/tinyxml2.h"
 #include "ImGui/imgui.h"
@@ -76,10 +77,6 @@ public:
 		PSCamera,
 		PSEdgeDetector,
 		PSSky,
-		PSIrradianceGenerator,
-		PSFromHDR,
-		PSRadiancePrefiltering,
-		PSBRDFIntegrator,
 		PSBillboard,
 		PSDirectionalLight,
 		PSDirectionalLight_NonIBL,
@@ -183,19 +180,6 @@ public:
 	{
 		uint32_t	CurrentCameraID{};
 		float		Pads[3]{};
-	};
-
-	struct SCBRadiancePrefiltering
-	{
-		float	Roughness{};
-		float	RangeFactor{};
-		float	Pads[2]{};
-	};
-
-	struct SCBIrradianceGenerator
-	{
-		float RangeFactor{};
-		float Pads[3]{};
 	};
 
 	struct SCBGBufferUnpackingData
@@ -309,13 +293,6 @@ public:
 		std::string	InstanceName{};
 		XMVECTOR	T{};
 		bool		bHasFailedPickingTest{ false };
-	};
-
-	struct SCubemapVertex
-	{
-		SCubemapVertex(const XMFLOAT4& _Position, const XMFLOAT3& _TexCoord) : Position{ _Position }, TexCoord{ _TexCoord } {}
-		XMFLOAT4 Position;
-		XMFLOAT3 TexCoord;
 	};
 
 	// EditorCamera
@@ -680,7 +657,7 @@ private:
 	void DrawEditorGUIWindowSceneEditor();
 
 private:
-	void GenerateCubemapFromHDRi();
+	void GenerateEnvironmentCubemapFromHDRi();
 	void GenerateIrradianceMap(float RangeFactor);
 	void GeneratePrefilteredRadianceMap(float RangeFactor);
 	void GenerateIntegratedBRDFMap();
@@ -747,6 +724,13 @@ private:
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
 
+private:
+	static constexpr uint32_t KVSSharedCBCount{ 1 };
+	static constexpr uint32_t KHSSharedCBCount{ 2 };
+	static constexpr uint32_t KDSSharedCBCount{ 1 };
+	static constexpr uint32_t KGSSharedCBCount{ 1 };
+	static constexpr uint32_t KPSSharedCBCount{ 3 };
+
 // Shader
 private:
 	std::vector<std::unique_ptr<CShader>>	m_vCustomShaders{};
@@ -795,10 +779,6 @@ private:
 	std::unique_ptr<CShader>	m_PSCamera{};
 	std::unique_ptr<CShader>	m_PSEdgeDetector{};
 	std::unique_ptr<CShader>	m_PSSky{};
-	std::unique_ptr<CShader>	m_PSIrradianceGenerator{};
-	std::unique_ptr<CShader>	m_PSFromHDR{};
-	std::unique_ptr<CShader>	m_PSRadiancePrefiltering{};
-	std::unique_ptr<CShader>	m_PSBRDFIntegrator{};
 	std::unique_ptr<CShader>	m_PSBillboard{};
 	std::unique_ptr<CShader>	m_PSDirectionalLight{};
 	std::unique_ptr<CShader>	m_PSDirectionalLight_NonIBL{};
@@ -831,8 +811,6 @@ private:
 	std::unique_ptr<CConstantBuffer>	m_CBWaterTime{};
 	std::unique_ptr<CConstantBuffer>	m_CBEditorTime{};
 	std::unique_ptr<CConstantBuffer>	m_CBCamera{};
-	std::unique_ptr<CConstantBuffer>	m_CBRadiancePrefiltering{};
-	std::unique_ptr<CConstantBuffer>	m_CBIrradianceGenerator{};
 	std::unique_ptr<CConstantBuffer>	m_CBBillboard{};
 	std::unique_ptr<CConstantBuffer>	m_CBGBufferUnpacking{};
 	std::unique_ptr<CConstantBuffer>	m_CBShadowMap{};
@@ -853,8 +831,6 @@ private:
 	SCBWaterTimeData					m_CBWaterTimeData{};
 	SCBEditorTimeData					m_CBEditorTimeData{};
 	SCBCameraData						m_CBCameraData{};
-	SCBRadiancePrefiltering				m_CBRadiancePrefilteringData{};
-	SCBIrradianceGenerator				m_CBIrradianceGeneratorData{};
 	CBillboard::SCBBillboardData		m_CBBillboardData{};
 	SCBGBufferUnpackingData				m_CBGBufferUnpackingData{};
 	SCBShadowMapData					m_CBShadowMapData{};
@@ -878,7 +854,7 @@ private:
 
 // Shadow map
 private:
-	std::unique_ptr<CCascadedShadowMap>			m_CascadedShadowMap{};
+	std::unique_ptr<CCascadedShadowMap>		m_CascadedShadowMap{};
 
 // Light
 private:
@@ -997,42 +973,20 @@ private:
 
 // IBL
 private:
-	std::unique_ptr<CTexture>					m_EnvironmentTexture{};
-	std::unique_ptr<CTexture>					m_IrradianceTexture{};
-	std::unique_ptr<CTexture>					m_PrefilteredRadianceTexture{};
-	std::unique_ptr<CTexture>					m_IntegratedBRDFTexture{};
+	std::unique_ptr<CTexture>		m_EnvironmentTexture{};
+	std::unique_ptr<CTexture>		m_IrradianceTexture{};
+	std::unique_ptr<CTexture>		m_PrefilteredRadianceTexture{};
+	std::unique_ptr<CTexture>		m_IntegratedBRDFTexture{};
 
-	std::unique_ptr<CCubemapRep>				m_EnvironmentRep{};
-	std::unique_ptr<CCubemapRep>				m_IrradianceRep{};
-	std::unique_ptr<CCubemapRep>				m_PrefilteredRadianceRep{};
+	std::unique_ptr<CCubemapRep>	m_EnvironmentRep{};
+	std::unique_ptr<CCubemapRep>	m_IrradianceRep{};
+	std::unique_ptr<CCubemapRep>	m_PrefilteredRadianceRep{};
 
-	D3D11_TEXTURE2D_DESC						m_GeneratedEnvironmentMapTextureDesc{};
-	ComPtr<ID3D11Texture2D>						m_GeneratedEnvironmentMapTexture{};
-	ComPtr<ID3D11ShaderResourceView>			m_GeneratedEnvironmentMapSRV{};
-	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedEnvironmentMapRTV{};
-	std::unique_ptr<CFullScreenQuad>			m_GeneratedEnvironmentMapFSQ{};
-
-	D3D11_TEXTURE2D_DESC						m_GeneratedIrradianceMapTextureDesc{};
-	ComPtr<ID3D11Texture2D>						m_GeneratedIrradianceMapTexture{};
-	ComPtr<ID3D11ShaderResourceView>			m_GeneratedIrradianceMapSRV{};
-	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vGeneratedIrradianceMapRTV{};
-	std::unique_ptr<CFullScreenQuad>			m_GeneratedIrradianceMapFSQ{};
-
-	D3D11_TEXTURE2D_DESC						m_PrefilteredRadianceMapTextureDesc{};
-	ComPtr<ID3D11Texture2D>						m_PrefilteredRadianceMapTexture{};
-	ComPtr<ID3D11ShaderResourceView>			m_PrefilteredRadianceMapSRV{};
-	std::vector<ComPtr<ID3D11RenderTargetView>>	m_vPrefilteredRadianceMapRTV{};
-	std::unique_ptr<CFullScreenQuad>			m_PrefilteredRadianceMapFSQ{};
-
-	ComPtr<ID3D11Texture2D>						m_IntegratedBRDFTextureRaw{};
-	ComPtr<ID3D11RenderTargetView>				m_IntegratedBRDFRTV{};
-	ComPtr<ID3D11ShaderResourceView>			m_IntegratedBRDFSRV{};
-	D3D11_TEXTURE2D_DESC						m_IntegratedBRDFTextureDesc{};
-	std::unique_ptr<CFullScreenQuad>			m_IntegratedBRDFFSQ{};
+	std::unique_ptr<CIBLBaker>		m_IBLBaker{};
 
 private:
-	std::unique_ptr<CFullScreenQuad>			m_EdgeDetectorFSQ{};
-	std::unique_ptr<CFullScreenQuad>			m_DirectionalLightFSQ{};
+	std::unique_ptr<CFullScreenQuad>	m_EdgeDetectorFSQ{};
+	std::unique_ptr<CFullScreenQuad>	m_DirectionalLightFSQ{};
 
 // DirectX
 private:

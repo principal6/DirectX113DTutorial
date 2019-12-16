@@ -196,7 +196,7 @@ void CCascadedShadowMap::DrawTextures()
 {
 	m_FullScreenQuad->SetIA();
 	m_FullScreenQuad->SetShaders();
-	m_FullScreenQuad->SetPointClampSampler();
+	m_FullScreenQuad->SetSampler(CFullScreenQuad::ESamplerState::PointClamp);
 
 	for (size_t iLOD = 0; iLOD < GetLODCount(); ++iLOD)
 	{

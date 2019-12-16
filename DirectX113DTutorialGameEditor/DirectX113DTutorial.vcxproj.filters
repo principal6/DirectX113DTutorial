@@ -100,6 +100,9 @@
     <ClCompile Include="Core\FullScreenQuad.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Core\IBLBaker.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTK\Audio.h">
@@ -478,6 +481,9 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\FullScreenQuad.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\IBLBaker.h">
       <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>

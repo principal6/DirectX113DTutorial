@@ -14,6 +14,14 @@ public:
 		MonochromeSRV,
 	};
 
+	enum class ESamplerState
+	{
+		PointClamp,
+		PointWrap,
+		LinearClamp,
+		LinearWrap
+	};
+
 private:
 	struct SVertex
 	{
@@ -34,12 +42,12 @@ public:
 	~CFullScreenQuad();
 
 public:
-	void Create2DDrawer(CFullScreenQuad::EPixelShaderPass PixelShaderPass = CFullScreenQuad::EPixelShaderPass::AllChannels);
+	void Create2DDrawer(CFullScreenQuad::EPixelShaderPass ePixelShaderPass = CFullScreenQuad::EPixelShaderPass::AllChannels);
 	void CreateCubemapDrawer();
 
 private:
 	void CreateVertexBuffer();
-	void CreateShaders(CFullScreenQuad::EPixelShaderPass PixelShaderPass);
+	void CreateShaders(CFullScreenQuad::EPixelShaderPass ePixelShaderPass);
 
 public:
 	void OverridePixelShader(CShader* const PixelShader);
@@ -47,7 +55,7 @@ public:
 public:
 	void SetShaders() const;
 
-	void SetPointClampSampler();
+	void SetSampler(ESamplerState eSamplerState);
 
 	void SetIA();
 

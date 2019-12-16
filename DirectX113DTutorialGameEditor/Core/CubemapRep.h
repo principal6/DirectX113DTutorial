@@ -29,12 +29,12 @@ public:
 	static constexpr float KRepHeight{ KUnitSize * 3 };
 
 private:
-	ID3D11Device* const			m_PtrDevice{};
-	ID3D11DeviceContext* const	m_PtrDeviceContext{};
-	CGame* const				m_PtrGame{};
+	ID3D11Device* const					m_PtrDevice{};
+	ID3D11DeviceContext* const			m_PtrDeviceContext{};
+	CGame* const						m_PtrGame{};
 
 private:
-	std::unique_ptr<CObject2D>	m_CubemapRepresentation{};
+	std::unique_ptr<CObject2D>			m_CubemapRepresentation{};
 
 private:
 	ComPtr<ID3D11RenderTargetView>		m_RTV{};

@@ -134,6 +134,7 @@
     <ClCompile Include="Core\FileDialog.cpp" />
     <ClCompile Include="Core\FullScreenQuad.cpp" />
     <ClCompile Include="Core\Game.cpp" />
+    <ClCompile Include="Core\IBLBaker.cpp" />
     <ClCompile Include="Core\Light.cpp" />
     <ClCompile Include="Core\MeshPorter.cpp" />
     <ClCompile Include="Core\Object2D.cpp" />
@@ -235,6 +236,7 @@
     <ClInclude Include="Core\FileDialog.h" />
     <ClInclude Include="Core\FullScreenQuad.h" />
     <ClInclude Include="Core\Game.h" />
+    <ClInclude Include="Core\IBLBaker.h" />
     <ClInclude Include="Core\Light.h" />
     <ClInclude Include="Core\Math.h" />
     <ClInclude Include="Core\MeshPorter.h" />

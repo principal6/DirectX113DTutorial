@@ -14,7 +14,7 @@ CFullScreenQuad::~CFullScreenQuad()
 {
 }
 
-void CFullScreenQuad::Create2DDrawer(CFullScreenQuad::EPixelShaderPass PixelShaderPass)
+void CFullScreenQuad::Create2DDrawer(CFullScreenQuad::EPixelShaderPass ePixelShaderPass)
 {
 	m_vVertices =
 	{
@@ -27,7 +27,7 @@ void CFullScreenQuad::Create2DDrawer(CFullScreenQuad::EPixelShaderPass PixelShad
 	};
 
 	CreateVertexBuffer();
-	CreateShaders(PixelShaderPass);
+	CreateShaders(ePixelShaderPass);
 	
 	m_CommonStates = make_unique<CommonStates>(m_PtrDevice);
 }
@@ -106,23 +106,25 @@ void CFullScreenQuad::CreateVertexBuffer()
 	m_PtrDevice->CreateBuffer(&BufferDesc, &SubresourceData, m_VertexBufferBundle.Buffer.ReleaseAndGetAddressOf());
 }
 
-void CFullScreenQuad::CreateShaders(CFullScreenQuad::EPixelShaderPass PixelShaderPass)
+void CFullScreenQuad::CreateShaders(CFullScreenQuad::EPixelShaderPass ePixelShaderPass)
 {
+	bool bShouldCompileShaders{ false };
+
 	m_VSScreenQuad = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
-	m_VSScreenQuad->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, true, L"Shader\\VSScreenQuad.hlsl", "main",
+	m_VSScreenQuad->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSScreenQuad.hlsl", "main",
 		KInputElementDescs, ARRAYSIZE(KInputElementDescs));
 
 	m_PSScreenQuad = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
-	switch (PixelShaderPass)
+	switch (ePixelShaderPass)
 	{
 	case CFullScreenQuad::EPixelShaderPass::AllChannels:
-		m_PSScreenQuad->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, true, L"Shader\\PSScreenQuad.hlsl", "main");
+		m_PSScreenQuad->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSScreenQuad.hlsl", "main");
 		break;
 	case CFullScreenQuad::EPixelShaderPass::OpaqueSRV:
-		m_PSScreenQuad->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, true, L"Shader\\PSScreenQuad.hlsl", "Opaque");
+		m_PSScreenQuad->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSScreenQuad.hlsl", "Opaque");
 		break;
 	case CFullScreenQuad::EPixelShaderPass::MonochromeSRV:
-		m_PSScreenQuad->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, true, L"Shader\\PSScreenQuad.hlsl", "Monochrome");
+		m_PSScreenQuad->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSScreenQuad.hlsl", "Monochrome");
 		break;
 	default:
 		break;
@@ -143,9 +145,28 @@ void CFullScreenQuad::SetShaders() const
 	m_PtrPixelShader->Use();
 }
 
-void CFullScreenQuad::SetPointClampSampler()
+void CFullScreenQuad::SetSampler(CFullScreenQuad::ESamplerState eSamplerState)
 {
-	ID3D11SamplerState* SamplerStates[]{ m_CommonStates->PointClamp() };
+	ID3D11SamplerState* SamplerStates[1]{};
+
+	switch (eSamplerState)
+	{
+	case CFullScreenQuad::ESamplerState::PointClamp:
+		SamplerStates[0] = m_CommonStates->PointClamp();
+		break;
+	case CFullScreenQuad::ESamplerState::PointWrap:
+		SamplerStates[0] = m_CommonStates->PointWrap();
+		break;
+	case CFullScreenQuad::ESamplerState::LinearClamp:
+		SamplerStates[0] = m_CommonStates->LinearClamp();
+		break;
+	case CFullScreenQuad::ESamplerState::LinearWrap:
+		SamplerStates[0] = m_CommonStates->LinearWrap();
+		break;
+	default:
+		break;
+	}
+	
 	m_PtrDeviceContext->PSSetSamplers(0, 1, SamplerStates);
 }
 
