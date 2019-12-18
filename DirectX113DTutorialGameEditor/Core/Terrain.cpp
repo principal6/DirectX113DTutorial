@@ -1,8 +1,10 @@
 #include "Terrain.h"
-#include "PrimitiveGenerator.h"
-#include "MeshPorter.h"
-#include "Math.h"
 #include "Game.h"
+#include "Material.h"
+#include "Math.h"
+#include "MeshPorter.h"
+#include "Object2D.h"
+#include "PrimitiveGenerator.h"
 
 using std::max;
 using std::min;
@@ -11,19 +13,31 @@ using std::string;
 using std::to_string;
 using std::make_unique;
 
+CTerrain::CTerrain(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext, CGame* const PtrGame) :
+	m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }, m_PtrGame{ PtrGame }
+{
+	assert(m_PtrDevice);
+	assert(m_PtrDeviceContext);
+}
+
+CTerrain::~CTerrain()
+{
+}
+
 void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterialData& MaterialData, uint32_t MaskingDetail, float UniformScaling)
 {
 	m_vFoliages.clear();
+	
+	m_TerrainFileData = make_unique<STERRData>(KTessFactorMin, KTessFactorMin, KMaskingDefaultDetail, KDefaultFoliagePlacingDetail);
+	m_TerrainFileData->SizeX = TerrainSize.x;
+	m_TerrainFileData->SizeZ = TerrainSize.y;
+	m_TerrainFileData->HeightRange = KHeightRange;
+	m_TerrainFileData->MaskingDetail = max(min(MaskingDetail, KMaskingMaxDetail), KMaskingMinDetail);
+	m_TerrainFileData->UniformScalingFactor = UniformScaling;
 
-	m_TerrainFileData.SizeX = TerrainSize.x;
-	m_TerrainFileData.SizeZ = TerrainSize.y;
-	m_TerrainFileData.HeightRange = KHeightRange;
-	m_TerrainFileData.MaskingDetail = max(min(MaskingDetail, KMaskingMaxDetail), KMaskingMinDetail);
-	m_TerrainFileData.UniformScalingFactor = UniformScaling;
-
-	m_CBTerrainData.TerrainSizeX = m_TerrainFileData.SizeX;
-	m_CBTerrainData.TerrainSizeZ = m_TerrainFileData.SizeZ;
-	m_CBTerrainData.TerrainHeightRange = m_TerrainFileData.HeightRange;
+	m_CBTerrainData.TerrainSizeX = m_TerrainFileData->SizeX;
+	m_CBTerrainData.TerrainSizeZ = m_TerrainFileData->SizeZ;
+	m_CBTerrainData.TerrainHeightRange = m_TerrainFileData->HeightRange;
 
 	vector<CMaterialData> vMaterialData{};
 	vMaterialData.emplace_back(MaterialData);
@@ -37,25 +51,26 @@ void CTerrain::Create(const XMFLOAT2& TerrainSize, const CMaterialData& Material
 
 	CreateWater();
 
-	Scale(XMVectorSet(m_TerrainFileData.UniformScalingFactor, m_TerrainFileData.UniformScalingFactor, m_TerrainFileData.UniformScalingFactor, 0));
+	Scale(XMVectorSet(m_TerrainFileData->UniformScalingFactor, m_TerrainFileData->UniformScalingFactor, m_TerrainFileData->UniformScalingFactor, 0));
 
-	m_TerrainFileData.bShouldSave = true;
+	m_TerrainFileData->bShouldSave = true;
 }
 
 void CTerrain::Load(const string& FileName)
 {
 	m_vFoliages.clear();
 
-	m_TerrainFileData.FileName = FileName;
+	m_TerrainFileData = make_unique<STERRData>(KTessFactorMin, KTessFactorMin, KMaskingDefaultDetail, KDefaultFoliagePlacingDetail);
+	m_TerrainFileData->FileName = FileName;
 
 	CMeshPorter MeshPorter{};
-	MeshPorter.ImportTerrain(FileName, m_TerrainFileData);
+	MeshPorter.ImportTerrain(FileName, *m_TerrainFileData);
 
-	m_CBTerrainData.TerrainSizeX = m_TerrainFileData.SizeX;
-	m_CBTerrainData.TerrainSizeZ = m_TerrainFileData.SizeZ;
-	m_CBTerrainData.TerrainHeightRange = m_TerrainFileData.HeightRange;
+	m_CBTerrainData.TerrainSizeX = m_TerrainFileData->SizeX;
+	m_CBTerrainData.TerrainSizeZ = m_TerrainFileData->SizeZ;
+	m_CBTerrainData.TerrainHeightRange = m_TerrainFileData->HeightRange;
 
-	CreateTerrainObject3D(m_TerrainFileData.vMaterialData);
+	CreateTerrainObject3D(m_TerrainFileData->vMaterialData);
 
 	m_Object2DTextureRep = make_unique<CObject2D>("TextureRepresentation", m_PtrDevice, m_PtrDeviceContext);
 	m_Object2DTextureRep->Create(Generate2DRectangle(XMFLOAT2(600, 480)), true);
@@ -65,9 +80,9 @@ void CTerrain::Load(const string& FileName)
 
 	CreateWater();
 
-	Scale(XMVectorSet(m_TerrainFileData.UniformScalingFactor, m_TerrainFileData.UniformScalingFactor, m_TerrainFileData.UniformScalingFactor, 0));
+	Scale(XMVectorSet(m_TerrainFileData->UniformScalingFactor, m_TerrainFileData->UniformScalingFactor, m_TerrainFileData->UniformScalingFactor, 0));
 
-	if (m_TerrainFileData.vFoliageData.size())
+	if (m_TerrainFileData->vFoliageData.size())
 	{
 		CreateFoliageCluster();
 	}
@@ -77,18 +92,18 @@ bool CTerrain::Save(const string& FileName)
 {
 	if (!m_Object3DTerrain) return false;
 
-	m_TerrainFileData.FileName = FileName;
-	m_TerrainFileData.vMaterialData = m_Object3DTerrain->GetModel().vMaterialData;
+	m_TerrainFileData->FileName = FileName;
+	m_TerrainFileData->vMaterialData = m_Object3DTerrain->GetModel().vMaterialData;
 
 	CMeshPorter MeshPorter{};
 	for (size_t iFoliage = 0; iFoliage < m_vFoliages.size(); ++iFoliage)
 	{
-		m_TerrainFileData.vFoliageData[iFoliage].vInstanceData = m_vFoliages[iFoliage]->GetInstanceCPUDataVector();
+		m_TerrainFileData->vFoliageData[iFoliage].vInstanceData = m_vFoliages[iFoliage]->GetInstanceCPUDataVector();
 	}
 	
-	MeshPorter.ExportTerrain(FileName, m_TerrainFileData);
+	MeshPorter.ExportTerrain(FileName, *m_TerrainFileData);
 
-	m_TerrainFileData.bShouldSave = false;
+	m_TerrainFileData->bShouldSave = false;
 
 	return true;
 }
@@ -110,12 +125,12 @@ void CTerrain::Scale(const XMVECTOR& Scaling)
 
 void CTerrain::RegisterChange()
 {
-	m_TerrainFileData.bShouldSave = true;
+	m_TerrainFileData->bShouldSave = true;
 }
 
 bool CTerrain::ShouldSave() const
 {
-	return m_TerrainFileData.bShouldSave;
+	return m_TerrainFileData->bShouldSave;
 }
 
 void CTerrain::CreateFoliageCluster()
@@ -125,14 +140,14 @@ void CTerrain::CreateFoliageCluster()
 	CreateFoliagePlacingTexutre(true);
 
 	m_vFoliages.clear();
-	for (const auto& FoliageData : m_TerrainFileData.vFoliageData)
+	for (const auto& FoliageData : m_TerrainFileData->vFoliageData)
 	{
 		m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext));
 		m_vFoliages.back()->CreateFromFile(FoliageData.FileName, false);
 		m_vFoliages.back()->CreateInstances(FoliageData.vInstanceData);
 	}
 
-	m_TerrainFileData.bHasFoliageCluster = true;
+	m_TerrainFileData->bHasFoliageCluster = true;
 
 	CreateWindRepresentation();
 
@@ -143,26 +158,26 @@ void CTerrain::CreateFoliageCluster(const std::vector<std::string>& vFoliageFile
 {
 	srand((unsigned int)GetTickCount64());
 
-	m_TerrainFileData.vFoliageData.clear();
-	m_TerrainFileData.vFoliageData.resize(vFoliageFileNames.size());
-	for (size_t iFoliageData = 0; iFoliageData < m_TerrainFileData.vFoliageData.size(); ++iFoliageData)
+	m_TerrainFileData->vFoliageData.clear();
+	m_TerrainFileData->vFoliageData.resize(vFoliageFileNames.size());
+	for (size_t iFoliageData = 0; iFoliageData < m_TerrainFileData->vFoliageData.size(); ++iFoliageData)
 	{
-		m_TerrainFileData.vFoliageData[iFoliageData].FileName = vFoliageFileNames[iFoliageData];
+		m_TerrainFileData->vFoliageData[iFoliageData].FileName = vFoliageFileNames[iFoliageData];
 	}
 
-	m_TerrainFileData.FoliagePlacingDetail = PlacingDetail;
+	m_TerrainFileData->FoliagePlacingDetail = PlacingDetail;
 
 	CreateFoliagePlacingTexutre(true);
 
 	m_vFoliages.clear();
-	for (const auto& FoliageData : m_TerrainFileData.vFoliageData)
+	for (const auto& FoliageData : m_TerrainFileData->vFoliageData)
 	{
 		m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext));
 		m_vFoliages.back()->CreateFromFile(FoliageData.FileName, false);
 		m_vFoliages.back()->CreateInstances(FoliageData.vInstanceData);
 	}
 
-	m_TerrainFileData.bHasFoliageCluster = true;
+	m_TerrainFileData->bHasFoliageCluster = true;
 
 	CreateWindRepresentation();
 
@@ -171,12 +186,12 @@ void CTerrain::CreateFoliageCluster(const std::vector<std::string>& vFoliageFile
 
 void CTerrain::SetFoliageDensity(float Density)
 {
-	m_TerrainFileData.FoliageDenstiy = Density;
+	m_TerrainFileData->FoliageDenstiy = Density;
 }
 
 float CTerrain::GetFoliageDenstiy() const
 {
-	return m_TerrainFileData.FoliageDenstiy;
+	return m_TerrainFileData->FoliageDenstiy;
 }
 
 void CTerrain::SetWindVelocity(const XMFLOAT3& Velocity)
@@ -216,7 +231,7 @@ void CTerrain::CreateTerrainObject3D(const std::vector<CMaterialData>& vMaterial
 	SMESHData Model{};
 
 	Model.vMeshes.clear();
-	Model.vMeshes.emplace_back(GenerateTerrainBase(XMFLOAT2(m_TerrainFileData.SizeX, m_TerrainFileData.SizeZ), KTextureSubdivisionDetail)); // @important
+	Model.vMeshes.emplace_back(GenerateTerrainBase(XMFLOAT2(m_TerrainFileData->SizeX, m_TerrainFileData->SizeZ), KTextureSubdivisionDetail)); // @important
 	Model.vMaterialData = vMaterialData;
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
 
@@ -229,7 +244,7 @@ void CTerrain::CreateHeightMapTexture(bool bShouldClear)
 {
 	m_HeightMapTexture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
 
-	m_HeightMapTextureSize = XMFLOAT2(m_TerrainFileData.SizeX + 1.0f, m_TerrainFileData.SizeZ + 1.0f);
+	m_HeightMapTextureSize = XMFLOAT2(m_TerrainFileData->SizeX + 1.0f, m_TerrainFileData->SizeZ + 1.0f);
 	m_HeightMapTexture->CreateBlankTexture(CTexture::EFormat::Pixel8Int, m_HeightMapTextureSize);
 	m_HeightMapTexture->SetSlot(0);
 	m_HeightMapTexture->SetShaderType(EShaderType::VertexShader);
@@ -237,38 +252,38 @@ void CTerrain::CreateHeightMapTexture(bool bShouldClear)
 
 	if (bShouldClear)
 	{
-		m_TerrainFileData.vHeightMapTextureRawData.clear();
-		m_TerrainFileData.vHeightMapTextureRawData.resize(static_cast<size_t>(m_HeightMapTextureSize.x)* static_cast<size_t>(m_HeightMapTextureSize.y));
-		for (auto& Data : m_TerrainFileData.vHeightMapTextureRawData)
+		m_TerrainFileData->vHeightMapTextureRawData.clear();
+		m_TerrainFileData->vHeightMapTextureRawData.resize(static_cast<size_t>(m_HeightMapTextureSize.x)* static_cast<size_t>(m_HeightMapTextureSize.y));
+		for (auto& Data : m_TerrainFileData->vHeightMapTextureRawData)
 		{
 			Data.R = 127;
 		}
 	}
 
 	// Update HeightMap Texture
-	m_HeightMapTexture->UpdateTextureRawData(&m_TerrainFileData.vHeightMapTextureRawData[0]);
+	m_HeightMapTexture->UpdateTextureRawData(&m_TerrainFileData->vHeightMapTextureRawData[0]);
 }
 
 void CTerrain::CreateMaskingTexture(bool bShouldClear)
 {
 	m_MaskingTexture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	
-	m_MaskingTextureSize = XMFLOAT2(m_TerrainFileData.SizeX * m_TerrainFileData.MaskingDetail, m_TerrainFileData.SizeZ * m_TerrainFileData.MaskingDetail);
+	m_MaskingTextureSize = XMFLOAT2(m_TerrainFileData->SizeX * m_TerrainFileData->MaskingDetail, m_TerrainFileData->SizeZ * m_TerrainFileData->MaskingDetail);
 	m_MaskingTexture->CreateBlankTexture(CTexture::EFormat::Pixel32Int, m_MaskingTextureSize);
 	m_MaskingTexture->SetSlot(KMaskingTextureSlot);
 	m_MaskingTexture->Use();
 
 	if (bShouldClear)
 	{
-		m_TerrainFileData.vMaskingTextureRawData.clear();
-		m_TerrainFileData.vMaskingTextureRawData.resize(static_cast<size_t>(m_MaskingTextureSize.x) * static_cast<size_t>(m_MaskingTextureSize.y));
+		m_TerrainFileData->vMaskingTextureRawData.clear();
+		m_TerrainFileData->vMaskingTextureRawData.resize(static_cast<size_t>(m_MaskingTextureSize.x) * static_cast<size_t>(m_MaskingTextureSize.y));
 	}
 
 	// Update Masking Texture
-	m_MaskingTexture->UpdateTextureRawData(&m_TerrainFileData.vMaskingTextureRawData[0]);
+	m_MaskingTexture->UpdateTextureRawData(&m_TerrainFileData->vMaskingTextureRawData[0]);
 
-	XMMATRIX Translation{ XMMatrixTranslation(m_TerrainFileData.SizeX / 2.0f, 0, m_TerrainFileData.SizeZ / 2.0f) };
-	XMMATRIX Scaling{ XMMatrixScaling(1 / m_TerrainFileData.SizeX, 1.0f, 1 / m_TerrainFileData.SizeZ) };
+	XMMATRIX Translation{ XMMatrixTranslation(m_TerrainFileData->SizeX / 2.0f, 0, m_TerrainFileData->SizeZ / 2.0f) };
+	XMMATRIX Scaling{ XMMatrixScaling(1 / m_TerrainFileData->SizeX, 1.0f, 1 / m_TerrainFileData->SizeZ) };
 	m_MatrixMaskingSpace = Translation * Scaling;
 }
 
@@ -278,7 +293,7 @@ void CTerrain::CreateWater()
 
 	m_Object3DWater = make_unique<CObject3D>("Water", m_PtrDevice, m_PtrDeviceContext);
 
-	SMesh WaterMesh{ GenerateTerrainBase(XMFLOAT2(m_TerrainFileData.SizeX, m_TerrainFileData.SizeZ), KTextureSubdivisionDetail, KWaterColor) };
+	SMesh WaterMesh{ GenerateTerrainBase(XMFLOAT2(m_TerrainFileData->SizeX, m_TerrainFileData->SizeZ), KTextureSubdivisionDetail, KWaterColor) };
 
 	CMaterialData WaterMaterialData{};
 	WaterMaterialData.SetTextureFileName(ETextureType::DiffuseTexture, "Asset\\water_diffuse.jpg");
@@ -294,18 +309,18 @@ void CTerrain::CreateFoliagePlacingTexutre(bool bShouldClear)
 	m_FoliagePlacingTexture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	
 	m_FoliagePlacingTextureSize = 
-		XMFLOAT2(m_TerrainFileData.SizeX * m_TerrainFileData.FoliagePlacingDetail, m_TerrainFileData.SizeZ * m_TerrainFileData.FoliagePlacingDetail);
+		XMFLOAT2(m_TerrainFileData->SizeX * m_TerrainFileData->FoliagePlacingDetail, m_TerrainFileData->SizeZ * m_TerrainFileData->FoliagePlacingDetail);
 	m_FoliagePlacingTexture->CreateBlankTexture(CTexture::EFormat::Pixel8Int, m_FoliagePlacingTextureSize);
 
 	if (bShouldClear)
 	{
-		m_TerrainFileData.vFoliagePlacingTextureRawData.clear();
-		m_TerrainFileData.vFoliagePlacingTextureRawData.resize(static_cast<size_t>(m_FoliagePlacingTextureSize.x)* static_cast<size_t>(m_FoliagePlacingTextureSize.y));
+		m_TerrainFileData->vFoliagePlacingTextureRawData.clear();
+		m_TerrainFileData->vFoliagePlacingTextureRawData.resize(static_cast<size_t>(m_FoliagePlacingTextureSize.x)* static_cast<size_t>(m_FoliagePlacingTextureSize.y));
 	}
 	else
 	{
 		// Update Foliage Placing Texture
-		m_FoliagePlacingTexture->UpdateTextureRawData(&m_TerrainFileData.vFoliagePlacingTextureRawData[0]);
+		m_FoliagePlacingTexture->UpdateTextureRawData(&m_TerrainFileData->vFoliagePlacingTextureRawData[0]);
 	}
 }
 
@@ -376,7 +391,7 @@ void CTerrain::UpdateSelectionPosition(const XMVECTOR& PickingRayOrigin, const X
 	XMVECTOR PlaneT{};
 	if (IntersectRayPlane(PickingRayOrigin, PickingRayDirection, XMVectorSet(0, 0, 0, 1), XMVectorSet(0, 1, 0, 0), &PlaneT))
 	{
-		const XMFLOAT2 KTerrainHalfSize{ m_TerrainFileData.SizeX / 2.0f, m_TerrainFileData.SizeZ / 2.0f };
+		const XMFLOAT2 KTerrainHalfSize{ m_TerrainFileData->SizeX / 2.0f, m_TerrainFileData->SizeZ / 2.0f };
 		const XMVECTOR KPointOnPlane{ PickingRayOrigin + PickingRayDirection * PlaneT };
 
 		m_CBTerrainSelectionData.Position.x = XMVectorGetX(KPointOnPlane);
@@ -389,8 +404,8 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 	const XMMATRIX KInverseWorld{ XMMatrixInverse(nullptr, m_CBTerrainSelectionData.TerrainWorld) };
 	const float KLocalSelectionRadius{ m_CBTerrainSelectionData.SelectionRadius / XMVectorGetX(m_Object3DTerrain->ComponentTransform.Scaling) };
 	const float KLocalRadiusSquare{ KLocalSelectionRadius * KLocalSelectionRadius };
-	const int KTerrainSizeX{ (int)m_TerrainFileData.SizeX };
-	const int KTerrainSizeZ{ (int)m_TerrainFileData.SizeZ };
+	const int KTerrainSizeX{ (int)m_TerrainFileData->SizeX };
+	const int KTerrainSizeZ{ (int)m_TerrainFileData->SizeZ };
 	
 	XMVECTOR LocalSelectionPosition{ m_CBTerrainSelectionData.Position.x, 0, m_CBTerrainSelectionData.Position.y, 1 };
 	LocalSelectionPosition = XMVector3TransformCoord(LocalSelectionPosition, KInverseWorld);
@@ -402,7 +417,7 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 	{
 		int PixelInRangeCount{};
 		int HeightSum{};
-		for (int iPixel = 0; iPixel < (int)m_TerrainFileData.vHeightMapTextureRawData.size(); ++iPixel)
+		for (int iPixel = 0; iPixel < (int)m_TerrainFileData->vHeightMapTextureRawData.size(); ++iPixel)
 		{
 			int U{ iPixel % (int)m_HeightMapTextureSize.x };
 			int V{ iPixel / (int)m_HeightMapTextureSize.x };
@@ -412,7 +427,7 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 			float DistanceSquare{ dU * dU + dV * dV };
 			if (DistanceSquare <= KLocalRadiusSquare)
 			{
-				HeightSum += m_TerrainFileData.vHeightMapTextureRawData[iPixel].R;
+				HeightSum += m_TerrainFileData->vHeightMapTextureRawData[iPixel].R;
 				++PixelInRangeCount;
 			}
 		}
@@ -420,7 +435,7 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 		AverageHeightInRange = (int)fAverageHeight;
 	}
 
-	for (int iPixel = 0; iPixel < (int)m_TerrainFileData.vHeightMapTextureRawData.size(); ++iPixel)
+	for (int iPixel = 0; iPixel < (int)m_TerrainFileData->vHeightMapTextureRawData.size(); ++iPixel)
 	{
 		int U{ iPixel % (int)m_HeightMapTextureSize.x };
 		int V{ iPixel / (int)m_HeightMapTextureSize.x };
@@ -437,30 +452,30 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 					float NewY{ (m_SetHeightValue + KHeightRangeHalf) / KHeightRange };
 					NewY = min(max(NewY, 0.0f), 1.0f);
 
-					m_TerrainFileData.vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY * 255);
+					m_TerrainFileData->vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY * 255);
 				}
 				break;
 			case EEditMode::AverageHeight:
 				{
-					int Deviation{ (int)m_TerrainFileData.vHeightMapTextureRawData[iPixel].R - AverageHeightInRange };
+					int Deviation{ (int)m_TerrainFileData->vHeightMapTextureRawData[iPixel].R - AverageHeightInRange };
 					Deviation = (int)((float)Deviation * 0.875f);
 
-					m_TerrainFileData.vHeightMapTextureRawData[iPixel].R = (uint8_t)(AverageHeightInRange + Deviation);
+					m_TerrainFileData->vHeightMapTextureRawData[iPixel].R = (uint8_t)(AverageHeightInRange + Deviation);
 				}
 				break;
 			case EEditMode::DeltaHeight:
 				{
 					if (bIsLeftButton)
 					{
-						int NewY{ m_TerrainFileData.vHeightMapTextureRawData[iPixel].R + 1 };
+						int NewY{ m_TerrainFileData->vHeightMapTextureRawData[iPixel].R + 1 };
 						NewY = min(NewY, 255);
-						m_TerrainFileData.vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY);
+						m_TerrainFileData->vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY);
 					}
 					else
 					{
-						int NewY{ m_TerrainFileData.vHeightMapTextureRawData[iPixel].R - 1 };
+						int NewY{ m_TerrainFileData->vHeightMapTextureRawData[iPixel].R - 1 };
 						NewY = max(NewY, 0);
-						m_TerrainFileData.vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY);
+						m_TerrainFileData->vHeightMapTextureRawData[iPixel].R = static_cast<uint8_t>(NewY);
 					}
 				} 
 				break;
@@ -471,7 +486,7 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 	}
 
 	// Update HeightMap Texture
-	m_HeightMapTexture->UpdateTextureRawData(&m_TerrainFileData.vHeightMapTextureRawData[0]);
+	m_HeightMapTexture->UpdateTextureRawData(&m_TerrainFileData->vHeightMapTextureRawData[0]);
 
 	RegisterChange();
 }
@@ -480,17 +495,17 @@ void CTerrain::UpdateMasking(EMaskingLayer eLayer, float Value, bool bForceSet)
 {
 	const XMMATRIX KInverseWorld{ XMMatrixInverse(nullptr, m_CBTerrainSelectionData.TerrainWorld) };
 	const float KLocalSelectionRadius{ m_CBTerrainSelectionData.SelectionRadius / XMVectorGetX(m_Object3DTerrain->ComponentTransform.Scaling) };
-	const float KDetailSquare{ (float)m_TerrainFileData.MaskingDetail * (float)m_TerrainFileData.MaskingDetail };
+	const float KDetailSquare{ (float)m_TerrainFileData->MaskingDetail * (float)m_TerrainFileData->MaskingDetail };
 	const float KLocalRadiusSquare{ KLocalSelectionRadius * KLocalSelectionRadius * KDetailSquare };
-	const int KTerrainSizeX{ (int)m_TerrainFileData.SizeX };
-	const int KTerrainSizeZ{ (int)m_TerrainFileData.SizeZ };
+	const int KTerrainSizeX{ (int)m_TerrainFileData->SizeX };
+	const int KTerrainSizeZ{ (int)m_TerrainFileData->SizeZ };
 
 	XMVECTOR LocalSelectionPosition{ m_CBTerrainSelectionData.Position.x, 0, m_CBTerrainSelectionData.Position.y, 1 };
 	LocalSelectionPosition = XMVector3TransformCoord(LocalSelectionPosition, KInverseWorld);
-	const int KCenterU{ static_cast<int>((+m_TerrainFileData.SizeX / 2.0f + XMVectorGetX(LocalSelectionPosition)) * m_TerrainFileData.MaskingDetail) };
-	const int KCenterV{ static_cast<int>(-(-m_TerrainFileData.SizeZ / 2.0f + XMVectorGetZ(LocalSelectionPosition)) * m_TerrainFileData.MaskingDetail) };
+	const int KCenterU{ static_cast<int>((+m_TerrainFileData->SizeX / 2.0f + XMVectorGetX(LocalSelectionPosition)) * m_TerrainFileData->MaskingDetail) };
+	const int KCenterV{ static_cast<int>(-(-m_TerrainFileData->SizeZ / 2.0f + XMVectorGetZ(LocalSelectionPosition)) * m_TerrainFileData->MaskingDetail) };
 
-	for (int iPixel = 0; iPixel < (int)m_TerrainFileData.vMaskingTextureRawData.size(); ++iPixel)
+	for (int iPixel = 0; iPixel < (int)m_TerrainFileData->vMaskingTextureRawData.size(); ++iPixel)
 	{
 		int U{ iPixel % (int)m_MaskingTextureSize.x };
 		int V{ iPixel / (int)m_MaskingTextureSize.x };
@@ -511,16 +526,16 @@ void CTerrain::UpdateMasking(EMaskingLayer eLayer, float Value, bool bForceSet)
 				switch (eLayer)
 				{
 				case EMaskingLayer::LayerR:
-					m_TerrainFileData.vMaskingTextureRawData[iPixel].R = static_cast<uint8_t>(Value * Factor * 255.0f);
+					m_TerrainFileData->vMaskingTextureRawData[iPixel].R = static_cast<uint8_t>(Value * Factor * 255.0f);
 					break;
 				case EMaskingLayer::LayerG:
-					m_TerrainFileData.vMaskingTextureRawData[iPixel].G = static_cast<uint8_t>(Value * Factor * 255.0f);
+					m_TerrainFileData->vMaskingTextureRawData[iPixel].G = static_cast<uint8_t>(Value * Factor * 255.0f);
 					break;
 				case EMaskingLayer::LayerB:
-					m_TerrainFileData.vMaskingTextureRawData[iPixel].B = static_cast<uint8_t>(Value * Factor * 255.0f);
+					m_TerrainFileData->vMaskingTextureRawData[iPixel].B = static_cast<uint8_t>(Value * Factor * 255.0f);
 					break;
 				case EMaskingLayer::LayerA:
-					m_TerrainFileData.vMaskingTextureRawData[iPixel].A = static_cast<uint8_t>(Value * Factor * 255.0f);
+					m_TerrainFileData->vMaskingTextureRawData[iPixel].A = static_cast<uint8_t>(Value * Factor * 255.0f);
 					break;
 				default:
 					break;
@@ -531,20 +546,20 @@ void CTerrain::UpdateMasking(EMaskingLayer eLayer, float Value, bool bForceSet)
 				switch (eLayer)
 				{
 				case EMaskingLayer::LayerR:
-					m_TerrainFileData.vMaskingTextureRawData[iPixel].R = 
-						max(m_TerrainFileData.vMaskingTextureRawData[iPixel].R, static_cast<uint8_t>(Value * Factor * 255.0f));
+					m_TerrainFileData->vMaskingTextureRawData[iPixel].R = 
+						max(m_TerrainFileData->vMaskingTextureRawData[iPixel].R, static_cast<uint8_t>(Value * Factor * 255.0f));
 					break;
 				case EMaskingLayer::LayerG:
-					m_TerrainFileData.vMaskingTextureRawData[iPixel].G = 
-						max(m_TerrainFileData.vMaskingTextureRawData[iPixel].G, static_cast<uint8_t>(Value * Factor * 255.0f));
+					m_TerrainFileData->vMaskingTextureRawData[iPixel].G = 
+						max(m_TerrainFileData->vMaskingTextureRawData[iPixel].G, static_cast<uint8_t>(Value * Factor * 255.0f));
 					break;
 				case EMaskingLayer::LayerB:
-					m_TerrainFileData.vMaskingTextureRawData[iPixel].B = 
-						max(m_TerrainFileData.vMaskingTextureRawData[iPixel].B, static_cast<uint8_t>(Value * Factor * 255.0f));
+					m_TerrainFileData->vMaskingTextureRawData[iPixel].B = 
+						max(m_TerrainFileData->vMaskingTextureRawData[iPixel].B, static_cast<uint8_t>(Value * Factor * 255.0f));
 					break;
 				case EMaskingLayer::LayerA:
-					m_TerrainFileData.vMaskingTextureRawData[iPixel].A =
-						max(m_TerrainFileData.vMaskingTextureRawData[iPixel].A, static_cast<uint8_t>(Value * Factor * 255.0f));
+					m_TerrainFileData->vMaskingTextureRawData[iPixel].A =
+						max(m_TerrainFileData->vMaskingTextureRawData[iPixel].A, static_cast<uint8_t>(Value * Factor * 255.0f));
 					break;
 				default:
 					break;
@@ -554,7 +569,7 @@ void CTerrain::UpdateMasking(EMaskingLayer eLayer, float Value, bool bForceSet)
 	}
 
 	// Update Masking Texture
-	m_MaskingTexture->UpdateTextureRawData(&m_TerrainFileData.vMaskingTextureRawData[0]);
+	m_MaskingTexture->UpdateTextureRawData(&m_TerrainFileData->vMaskingTextureRawData[0]);
 
 	RegisterChange();
 }
@@ -567,17 +582,17 @@ void CTerrain::UpdateFoliagePlacing(bool bErase)
 	const float KScalingX{ XMVectorGetX(m_Object3DTerrain->ComponentTransform.Scaling) };
 	const float KScalingZ{ XMVectorGetX(m_Object3DTerrain->ComponentTransform.Scaling) };
 	const float KLocalSelectionRadius{ m_CBTerrainSelectionData.SelectionRadius / KScalingX };
-	const float KDetailSquare{ (float)m_TerrainFileData.FoliagePlacingDetail * (float)m_TerrainFileData.FoliagePlacingDetail };
+	const float KDetailSquare{ (float)m_TerrainFileData->FoliagePlacingDetail * (float)m_TerrainFileData->FoliagePlacingDetail };
 	const float KLocalRadiusSquare{ KLocalSelectionRadius * KLocalSelectionRadius * KDetailSquare };
-	const int KTerrainSizeX{ (int)m_TerrainFileData.SizeX };
-	const int KTerrainSizeZ{ (int)m_TerrainFileData.SizeZ };
+	const int KTerrainSizeX{ (int)m_TerrainFileData->SizeX };
+	const int KTerrainSizeZ{ (int)m_TerrainFileData->SizeZ };
 
 	XMVECTOR LocalSelectionPosition{ m_CBTerrainSelectionData.Position.x, 0, m_CBTerrainSelectionData.Position.y, 1 };
 	LocalSelectionPosition = XMVector3TransformCoord(LocalSelectionPosition, KInverseWorld);
-	const int KCenterU{ static_cast<int>((+m_TerrainFileData.SizeX / 2.0f + XMVectorGetX(LocalSelectionPosition)) * m_TerrainFileData.FoliagePlacingDetail) };
-	const int KCenterV{ static_cast<int>(-(-m_TerrainFileData.SizeZ / 2.0f + XMVectorGetZ(LocalSelectionPosition)) * m_TerrainFileData.FoliagePlacingDetail) };
+	const int KCenterU{ static_cast<int>((+m_TerrainFileData->SizeX / 2.0f + XMVectorGetX(LocalSelectionPosition)) * m_TerrainFileData->FoliagePlacingDetail) };
+	const int KCenterV{ static_cast<int>(-(-m_TerrainFileData->SizeZ / 2.0f + XMVectorGetZ(LocalSelectionPosition)) * m_TerrainFileData->FoliagePlacingDetail) };
 
-	for (int iPixel = 0; iPixel < (int)m_TerrainFileData.vFoliagePlacingTextureRawData.size(); ++iPixel)
+	for (int iPixel = 0; iPixel < (int)m_TerrainFileData->vFoliagePlacingTextureRawData.size(); ++iPixel)
 	{
 		int U{ iPixel % (int)(m_FoliagePlacingTextureSize.x) };
 		int V{ iPixel / (int)(m_FoliagePlacingTextureSize.x) };
@@ -590,9 +605,9 @@ void CTerrain::UpdateFoliagePlacing(bool bErase)
 			if (bErase)
 			{
 				// 지우기
-				if (m_TerrainFileData.vFoliagePlacingTextureRawData[iPixel].R == 255)
+				if (m_TerrainFileData->vFoliagePlacingTextureRawData[iPixel].R == 255)
 				{
-					m_TerrainFileData.vFoliagePlacingTextureRawData[iPixel].R = 0;
+					m_TerrainFileData->vFoliagePlacingTextureRawData[iPixel].R = 0;
 
 					const string KInstanceName{ "Fol_" + to_string(U) + "_" + to_string(V) };
 					for (auto& Foliage : m_vFoliages)
@@ -604,15 +619,15 @@ void CTerrain::UpdateFoliagePlacing(bool bErase)
 			else
 			{
 				// 그리기
-				float InverseDenstiy{ 1.0f - m_TerrainFileData.FoliageDenstiy };
+				float InverseDenstiy{ 1.0f - m_TerrainFileData->FoliageDenstiy };
 				float Exponent{ GetRandom(6.0f, 8.0f) };
 				int DenstiyModular{ iPixel % (int)(pow(InverseDenstiy + 1.0f, Exponent)) };
-				if (m_TerrainFileData.vFoliagePlacingTextureRawData[iPixel].R != 255 && DenstiyModular == 0)
+				if (m_TerrainFileData->vFoliagePlacingTextureRawData[iPixel].R != 255 && DenstiyModular == 0)
 				{
-					m_TerrainFileData.vFoliagePlacingTextureRawData[iPixel].R = 255;
+					m_TerrainFileData->vFoliagePlacingTextureRawData[iPixel].R = 255;
 
 					const string KInstanceName{ "Fol_" + to_string(U) + "_" + to_string(V) };
-					const float Interval{ 1.0f / (float)m_TerrainFileData.FoliagePlacingDetail };
+					const float Interval{ 1.0f / (float)m_TerrainFileData->FoliagePlacingDetail };
 					for (auto& Foliage : m_vFoliages)
 					{
 						Foliage->InsertInstance(KInstanceName);
@@ -641,7 +656,7 @@ void CTerrain::UpdateFoliagePlacing(bool bErase)
 	}
 	
 	// Update Foliage Placing Texture
-	m_FoliagePlacingTexture->UpdateTextureRawData(&m_TerrainFileData.vFoliagePlacingTextureRawData[0]);
+	m_FoliagePlacingTexture->UpdateTextureRawData(&m_TerrainFileData->vFoliagePlacingTextureRawData[0]);
 
 	RegisterChange();
 }
@@ -721,12 +736,12 @@ bool CTerrain::ShouldTessellate() const
 
 void CTerrain::ShouldDrawWater(bool Value)
 {
-	m_TerrainFileData.bShouldDrawWater = Value;
+	m_TerrainFileData->bShouldDrawWater = Value;
 }
 
 bool CTerrain::ShouldDrawWater() const
 {
-	return m_TerrainFileData.bShouldDrawWater;
+	return m_TerrainFileData->bShouldDrawWater;
 }
 
 void CTerrain::ShouldShowSelection(bool Value)
@@ -746,24 +761,24 @@ CTerrain::EEditMode CTerrain::GetEditMode()
 
 void CTerrain::SetWaterHeight(float Value)
 {
-	m_TerrainFileData.WaterHeight = Value;
+	m_TerrainFileData->WaterHeight = Value;
 }
 
 float CTerrain::GetWaterHeight() const
 {
-	return m_TerrainFileData.WaterHeight;
+	return m_TerrainFileData->WaterHeight;
 }
 
 void CTerrain::SetTerrainTessFactor(float Value)
 {
-	m_TerrainFileData.TerrainTessellationFactor = Value;
+	m_TerrainFileData->TerrainTessellationFactor = Value;
 	
 	if (m_Object3DTerrain) m_Object3DTerrain->SetTessFactorData(CObject3D::SCBTessFactorData(Value));
 }
 
 float CTerrain::GetTerrainTessFactor() const
 {
-	return m_TerrainFileData.TerrainTessellationFactor;
+	return m_TerrainFileData->TerrainTessellationFactor;
 }
 
 const CObject3D::SCBTessFactorData& CTerrain::GetTerrainTessFactorData() const
@@ -778,13 +793,13 @@ const CObject3D::SCBDisplacementData& CTerrain::GetTerrainDisplacementData() con
 
 void CTerrain::SetWaterTessFactor(float Value)
 {
-	m_TerrainFileData.WaterTessellationFactor = Value;
+	m_TerrainFileData->WaterTessellationFactor = Value;
 	if (m_Object3DWater) m_Object3DWater->SetTessFactorData(CObject3D::SCBTessFactorData(Value));
 }
 
 float CTerrain::GetWaterTessFactor() const
 {
-	return m_TerrainFileData.WaterTessellationFactor;
+	return m_TerrainFileData->WaterTessellationFactor;
 }
 
 const CObject3D::SCBTessFactorData& CTerrain::GetWaterTessFactorData() const
@@ -799,7 +814,7 @@ const CObject3D::SCBDisplacementData& CTerrain::GetWaterDisplacementData() const
 
 XMFLOAT2 CTerrain::GetSize() const
 {
-	return XMFLOAT2(m_TerrainFileData.SizeX, m_TerrainFileData.SizeZ);
+	return XMFLOAT2(m_TerrainFileData->SizeX, m_TerrainFileData->SizeZ);
 }
 
 int CTerrain::GetMaterialCount() const
@@ -810,17 +825,17 @@ int CTerrain::GetMaterialCount() const
 
 int CTerrain::GetMaskingDetail() const
 {
-	return m_TerrainFileData.MaskingDetail;
+	return m_TerrainFileData->MaskingDetail;
 }
 
 bool CTerrain::HasFoliageCluster() const
 {
-	return m_TerrainFileData.bHasFoliageCluster;
+	return m_TerrainFileData->bHasFoliageCluster;
 }
 
 const string& CTerrain::GetFileName() const
 {
-	return m_TerrainFileData.FileName;
+	return m_TerrainFileData->FileName;
 }
 
 const XMFLOAT2& CTerrain::GetSelectionPosition() const
@@ -830,15 +845,15 @@ const XMFLOAT2& CTerrain::GetSelectionPosition() const
 
 uint32_t CTerrain::GetFoliagePlacingDetail() const
 {
-	return m_TerrainFileData.FoliagePlacingDetail;
+	return m_TerrainFileData->FoliagePlacingDetail;
 }
 
 float CTerrain::GetTerrainHeightAt(float X, float Z)
 {
-	if (m_TerrainFileData.vHeightMapTextureRawData.size())
+	if (m_TerrainFileData->vHeightMapTextureRawData.size())
 	{
-		int iTerrainHalfSizeX{ (int)(m_TerrainFileData.SizeX * 0.5f) };
-		int iTerrainHalfSizeZ{ (int)(m_TerrainFileData.SizeZ * 0.5f) };
+		int iTerrainHalfSizeX{ (int)(m_TerrainFileData->SizeX * 0.5f) };
+		int iTerrainHalfSizeZ{ (int)(m_TerrainFileData->SizeZ * 0.5f) };
 		int iX{ (int)floor(X) + iTerrainHalfSizeX }; // [0, TerrainSizeX + 1]
 		int iZ{ -(int)floor(Z) + iTerrainHalfSizeZ }; // [0, TerrainSizeZ + 1]
 		float dX{ X - floor(X) };
@@ -885,7 +900,7 @@ float CTerrain::GetTerrainHeightAt(float X, float Z)
 
 float CTerrain::GetTerrainHeightAt(int iX, int iZ)
 {
-	if (m_TerrainFileData.vHeightMapTextureRawData.size())
+	if (m_TerrainFileData->vHeightMapTextureRawData.size())
 	{
 		const int KHeightMapSizeX{ (int)m_HeightMapTextureSize.x };
 		const int KHeightMapSizeZ{ (int)m_HeightMapTextureSize.y };
@@ -896,7 +911,7 @@ float CTerrain::GetTerrainHeightAt(int iX, int iZ)
 		if (iZ >= KHeightMapSizeZ) iZ = 0;
 
 		int iPixel{ iZ * KHeightMapSizeX + iX };
-		float NormalizeHeight{ (float)m_TerrainFileData.vHeightMapTextureRawData[iPixel].R / 255.0f };
+		float NormalizeHeight{ (float)m_TerrainFileData->vHeightMapTextureRawData[iPixel].R / 255.0f };
 		float Height{ NormalizeHeight * KHeightRange }; // [0, KHeightRange]
 		Height += KMinHeight; // [-KMinHeight, +KMaxHeight]
 		return Height;
@@ -938,8 +953,8 @@ void CTerrain::UpdateWind(float DeltaTime)
 	xmvPosition += m_CBWindData.Velocity * DeltaTime;	
 	XMStoreFloat3(&m_CBWindData.Position, xmvPosition);
 	
-	float HalfTerrainSizeX{ m_TerrainFileData.SizeX * 0.5f };
-	float HalfTerrainSizeZ{ m_TerrainFileData.SizeZ * 0.5f };
+	float HalfTerrainSizeX{ m_TerrainFileData->SizeX * 0.5f };
+	float HalfTerrainSizeZ{ m_TerrainFileData->SizeZ * 0.5f };
 	if (m_CBWindData.Position.x < -HalfTerrainSizeX - m_CBWindData.Radius)
 	{
 		m_CBWindData.Position.x = +HalfTerrainSizeX + m_CBWindData.Radius;
@@ -983,7 +998,7 @@ void CTerrain::DrawTerrain(bool bDrawNormals)
 void CTerrain::DrawWater()
 {
 	m_Object3DWater->ComponentTransform = m_Object3DTerrain->ComponentTransform;
-	m_Object3DWater->ComponentTransform.Translation += XMVectorSet(0, m_TerrainFileData.WaterHeight, 0, 1);
+	m_Object3DWater->ComponentTransform.Translation += XMVectorSet(0, m_TerrainFileData->WaterHeight, 0, 1);
 	m_Object3DWater->UpdateWorldMatrix();
 
 	//m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);

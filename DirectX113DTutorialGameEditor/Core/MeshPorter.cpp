@@ -38,7 +38,7 @@ void CMeshPorter::ExportMESH(const std::string& FileName, const SMESHData& MESHF
 	m_BinaryData->SaveToFile(FileName);
 }
 
-void CMeshPorter::ImportTerrain(const std::string& FileName, CMeshPorter::STERRData& Data)
+void CMeshPorter::ImportTerrain(const std::string& FileName, STERRData& Data)
 {
 	uint32_t StringLength{};
 	
@@ -172,7 +172,7 @@ void CMeshPorter::ImportTerrain(const std::string& FileName, CMeshPorter::STERRD
 	Data.bShouldSave = false;
 }
 
-void CMeshPorter::ExportTerrain(const std::string& FileName, const CMeshPorter::STERRData& Data)
+void CMeshPorter::ExportTerrain(const std::string& FileName, const STERRData& Data)
 {
 	m_BinaryData->Clear();
 

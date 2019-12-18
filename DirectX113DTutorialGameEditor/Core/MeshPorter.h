@@ -71,53 +71,52 @@ struct SMESHData
 	bool									bUseMultipleTexturesInSingleMesh{ false };
 };
 
-class CMeshPorter
+struct STERRData
 {
 public:
-	struct STERRData
+	struct SFoliageData
 	{
-	public:
-		struct SFoliageData
-		{
-			std::string FileName{};
-			std::vector<SObject3DInstanceCPUData> vInstanceData{};
-		};
-
-	public:
-		STERRData() {}
-		STERRData(float _TerrainTessellationFactor, float _WaterTessellationFactor, uint32_t _MaskingDetail, uint32_t _FoliagePlacingDetail) :
-			TerrainTessellationFactor{ _TerrainTessellationFactor }, WaterTessellationFactor{ _WaterTessellationFactor },
-			MaskingDetail{ _MaskingDetail }, FoliagePlacingDetail{ _FoliagePlacingDetail } {}
-
-	public:
 		std::string FileName{};
-
-		float SizeX{};
-		float SizeZ{};
-		float HeightRange{};
-		float TerrainTessellationFactor{};
-		float UniformScalingFactor{};
-
-		std::vector<SPixel8Uint> vHeightMapTextureRawData{};
-
-		bool bShouldDrawWater{ false };
-		float WaterHeight{};
-		float WaterTessellationFactor{};
-
-		uint32_t MaskingDetail{};
-		std::vector<SPixel32Uint> vMaskingTextureRawData{};
-
-		bool bHasFoliageCluster{ false };
-		uint32_t FoliagePlacingDetail{};
-		float FoliageDenstiy{};
-		std::vector<SPixel8Uint> vFoliagePlacingTextureRawData{};
-		std::vector<SFoliageData> vFoliageData{};
-
-		std::vector<CMaterialData> vMaterialData{};
-
-		bool bShouldSave{ true };
+		std::vector<SObject3DInstanceCPUData> vInstanceData{};
 	};
 
+public:
+	STERRData() {}
+	STERRData(float _TerrainTessellationFactor, float _WaterTessellationFactor, uint32_t _MaskingDetail, uint32_t _FoliagePlacingDetail) :
+		TerrainTessellationFactor{ _TerrainTessellationFactor }, WaterTessellationFactor{ _WaterTessellationFactor },
+		MaskingDetail{ _MaskingDetail }, FoliagePlacingDetail{ _FoliagePlacingDetail } {}
+
+public:
+	std::string FileName{};
+
+	float SizeX{};
+	float SizeZ{};
+	float HeightRange{};
+	float TerrainTessellationFactor{};
+	float UniformScalingFactor{};
+
+	std::vector<SPixel8Uint> vHeightMapTextureRawData{};
+
+	bool bShouldDrawWater{ false };
+	float WaterHeight{};
+	float WaterTessellationFactor{};
+
+	uint32_t MaskingDetail{};
+	std::vector<SPixel32Uint> vMaskingTextureRawData{};
+
+	bool bHasFoliageCluster{ false };
+	uint32_t FoliagePlacingDetail{};
+	float FoliageDenstiy{};
+	std::vector<SPixel8Uint> vFoliagePlacingTextureRawData{};
+	std::vector<SFoliageData> vFoliageData{};
+
+	std::vector<CMaterialData> vMaterialData{};
+
+	bool bShouldSave{ true };
+};
+
+class CMeshPorter
+{
 public:
 	CMeshPorter();
 	CMeshPorter(const std::vector<byte>& vBytes);

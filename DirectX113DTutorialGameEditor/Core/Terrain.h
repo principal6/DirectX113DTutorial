@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Object2D.h"
+#include "SharedHeader.h"
 #include "Object3D.h"
-#include "Material.h"
-#include "MeshPorter.h"
 
 class CGame;
+class CObject2D;
+struct STERRData;
 
 class CTerrain
 {
@@ -54,13 +54,8 @@ public:
 	};
 
 public:
-	CTerrain(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext, CGame* const PtrGame) :
-		m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }, m_PtrGame{ PtrGame }
-	{
-		assert(m_PtrDevice);
-		assert(m_PtrDeviceContext);
-	}
-	~CTerrain() {}
+	CTerrain(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext, CGame* const PtrGame);
+	~CTerrain();
 
 public:
 	void Create(const XMFLOAT2& TerrainSize, const CMaterialData& MaterialData, uint32_t MaskingDetail, float UniformScaling = 1.0f);
@@ -229,45 +224,45 @@ public:
 	static constexpr float KMaxWindVelocityElement{ +8.0f };
 
 private:
-	ID3D11Device* const				m_PtrDevice{};
-	ID3D11DeviceContext* const		m_PtrDeviceContext{};
-	CGame* const					m_PtrGame{};
+	ID3D11Device* const						m_PtrDevice{};
+	ID3D11DeviceContext* const				m_PtrDeviceContext{};
+	CGame* const							m_PtrGame{};
 
 private:
-	std::unique_ptr<CObject2D>		m_Object2DTextureRep{};
-	std::unique_ptr<CObject3D>		m_Object3DTerrain{};
+	std::unique_ptr<CObject2D>				m_Object2DTextureRep{};
+	std::unique_ptr<CObject3D>				m_Object3DTerrain{};
 
 private:
-	XMFLOAT2						m_HeightMapTextureSize{};
-	std::unique_ptr<CTexture>		m_HeightMapTexture{};
+	XMFLOAT2								m_HeightMapTextureSize{};
+	std::unique_ptr<CTexture>				m_HeightMapTexture{};
 
 private:
-	XMFLOAT2						m_MaskingTextureSize{};
-	std::unique_ptr<CTexture>		m_MaskingTexture{};
-	XMMATRIX						m_MatrixMaskingSpace{};
+	XMFLOAT2								m_MaskingTextureSize{};
+	std::unique_ptr<CTexture>				m_MaskingTexture{};
+	XMMATRIX								m_MatrixMaskingSpace{};
 
 private:
-	std::unique_ptr<CObject3D>		m_Object3DWater{};
+	std::unique_ptr<CObject3D>				m_Object3DWater{};
 
 private:
 	std::vector<std::unique_ptr<CObject3D>>	m_vFoliages{};
 	XMFLOAT2								m_FoliagePlacingTextureSize{};
 	std::unique_ptr<CTexture>				m_FoliagePlacingTexture{};
 
-	SCBWindData							m_CBWindData{};
-	std::unique_ptr<CObject3D>			m_Object3DWindRep{};
+	SCBWindData								m_CBWindData{};
+	std::unique_ptr<CObject3D>				m_Object3DWindRep{};
 
 private:
-	SCBTerrainSelectionData	m_CBTerrainSelectionData{};
+	SCBTerrainSelectionData					m_CBTerrainSelectionData{};
 
-	EEditMode				m_eEditMode{};
-	float					m_SetHeightValue{};
-	float					m_DeltaHeightValue{ KHeightUnit * KHeightRange };
-	float					m_MaskingRatio{ KMaskingDefaultRatio };
+	EEditMode								m_eEditMode{};
+	float									m_SetHeightValue{};
+	float									m_DeltaHeightValue{ KHeightUnit * KHeightRange };
+	float									m_MaskingRatio{ KMaskingDefaultRatio };
 
-	EMaskingLayer			m_eMaskingLayer{};
-	float					m_MaskingAttenuation{ KMaskingMinAttenuation };
+	EMaskingLayer							m_eMaskingLayer{};
+	float									m_MaskingAttenuation{ KMaskingMinAttenuation };
 
-	CMeshPorter::STERRData	m_TerrainFileData{ KTessFactorMin, KTessFactorMin, KMaskingDefaultDetail, KDefaultFoliagePlacingDetail };
-	SCBTerrainData					m_CBTerrainData{};
+	std::unique_ptr<STERRData>				m_TerrainFileData{};
+	SCBTerrainData							m_CBTerrainData{};
 };
