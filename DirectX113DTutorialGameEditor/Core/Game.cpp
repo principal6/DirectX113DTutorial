@@ -678,47 +678,57 @@ void CGame::CreateBaseShaders()
 		m_VSAnimation = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSAnimation->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSAnimation.hlsl", "main",
 			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
-		m_VSAnimation->AttachConstantBuffer(m_CBAnimationBones.get(), KVSSharedCBCount + 0);
-		m_VSAnimation->AttachConstantBuffer(m_CBAnimation.get(), KVSSharedCBCount + 1);
+		m_VSAnimation->ReserveConstantBufferSlots(KVSSharedCBCount);
+		m_VSAnimation->AttachConstantBuffer(m_CBAnimationBones.get());
+		m_VSAnimation->AttachConstantBuffer(m_CBAnimation.get());
 
 		m_VSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSBase->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBase.hlsl", "main",
 			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
+		m_VSBase->ReserveConstantBufferSlots(KVSSharedCBCount);
 
 		m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSBase2D->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBase2D.hlsl", "main",
 			CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
+		m_VSBase2D->ReserveConstantBufferSlots(KVSSharedCBCount);
 
 		m_VSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSBillboard->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBillboard.hlsl", "main",
 			CBillboard::KInputElementDescs, ARRAYSIZE(CBillboard::KInputElementDescs));
+		m_VSBillboard->ReserveConstantBufferSlots(KVSSharedCBCount);
 
 		m_VSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSFoliage->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSFoliage.hlsl", "main",
 			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
-		m_VSFoliage->AttachConstantBuffer(m_CBTerrain.get(), KVSSharedCBCount + 0);
-		m_VSFoliage->AttachConstantBuffer(m_CBWind.get(), KVSSharedCBCount + 1);
+		m_VSFoliage->ReserveConstantBufferSlots(KVSSharedCBCount);
+		m_VSFoliage->AttachConstantBuffer(m_CBTerrain.get());
+		m_VSFoliage->AttachConstantBuffer(m_CBWind.get());
 
 		m_VSInstance = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSInstance->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSInstance.hlsl", "main",
 			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
+		m_VSInstance->ReserveConstantBufferSlots(KVSSharedCBCount);
 
 		m_VSLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSLight->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSLight.hlsl", "main",
 			CLight::KInputElementDescs, ARRAYSIZE(CLight::KInputElementDescs));
+		m_VSLight->ReserveConstantBufferSlots(KVSSharedCBCount);
 
 		m_VSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSLine->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSLine.hlsl", "main",
 			CObject3DLine::KInputElementDescs, ARRAYSIZE(CObject3DLine::KInputElementDescs));
+		m_VSLine->ReserveConstantBufferSlots(KVSSharedCBCount);
 
 		m_VSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSSky->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSSky.hlsl", "main",
 			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
+		m_VSSky->ReserveConstantBufferSlots(KVSSharedCBCount);
 
 		m_VSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSTerrain->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSTerrain.hlsl", "main",
 			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
-		m_VSTerrain->AttachConstantBuffer(m_CBTerrain.get(), KVSSharedCBCount + 0);
+		m_VSTerrain->ReserveConstantBufferSlots(KVSSharedCBCount);
+		m_VSTerrain->AttachConstantBuffer(m_CBTerrain.get());
 	}
 
 	// HS
@@ -728,24 +738,30 @@ void CGame::CreateBaseShaders()
 
 		m_HSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_HSBillboard->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSBillboard.hlsl", "main");
+		m_HSBillboard->ReserveConstantBufferSlots(KHSSharedCBCount);
 
 		m_HSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_HSPointLight->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSPointLight.hlsl", "main");
+		m_HSPointLight->ReserveConstantBufferSlots(KHSSharedCBCount);
 
 		m_HSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_HSSpotLight->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSSpotLight.hlsl", "main");
+		m_HSSpotLight->ReserveConstantBufferSlots(KHSSharedCBCount);
 
 		m_HSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_HSStatic->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSStatic.hlsl", "main");
-		m_HSStatic->AttachConstantBuffer(m_CBTessFactor.get(), KHSSharedCBCount + 0);
+		m_HSStatic->ReserveConstantBufferSlots(KHSSharedCBCount);
+		m_HSStatic->AttachConstantBuffer(m_CBTessFactor.get());
 
 		m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_HSTerrain->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSTerrain.hlsl", "main");
-		m_HSTerrain->AttachConstantBuffer(m_CBTessFactor.get(), KHSSharedCBCount + 0);
+		m_HSTerrain->ReserveConstantBufferSlots(KHSSharedCBCount);
+		m_HSTerrain->AttachConstantBuffer(m_CBTessFactor.get());
 
 		m_HSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_HSWater->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSWater.hlsl", "main");
-		m_HSWater->AttachConstantBuffer(m_CBTessFactor.get(), KHSSharedCBCount + 0);
+		m_HSWater->ReserveConstantBufferSlots(KHSSharedCBCount);
+		m_HSWater->AttachConstantBuffer(m_CBTessFactor.get());
 	}
 
 	// DS
@@ -754,25 +770,31 @@ void CGame::CreateBaseShaders()
 
 		m_DSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_DSBillboard->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSBillboard.hlsl", "main");
-		m_DSBillboard->AttachConstantBuffer(m_CBBillboard.get(), KDSSharedCBCount + 0);
+		m_DSBillboard->ReserveConstantBufferSlots(KDSSharedCBCount);
+		m_DSBillboard->AttachConstantBuffer(m_CBBillboard.get());
 
 		m_DSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_DSPointLight->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSPointLight.hlsl", "main");
+		m_DSPointLight->ReserveConstantBufferSlots(KDSSharedCBCount);
 
 		m_DSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_DSSpotLight->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSSpotLight.hlsl", "main");
+		m_DSSpotLight->ReserveConstantBufferSlots(KDSSharedCBCount);
 
 		m_DSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_DSStatic->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSStatic.hlsl", "main");
-		m_DSStatic->AttachConstantBuffer(m_CBDisplacement.get(), KDSSharedCBCount + 0);
+		m_DSStatic->ReserveConstantBufferSlots(KDSSharedCBCount);
+		m_DSStatic->AttachConstantBuffer(m_CBDisplacement.get());
 
 		m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_DSTerrain->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSTerrain.hlsl", "main");
-		m_DSTerrain->AttachConstantBuffer(m_CBDisplacement.get(), KDSSharedCBCount + 0);
+		m_DSTerrain->ReserveConstantBufferSlots(KDSSharedCBCount);
+		m_DSTerrain->AttachConstantBuffer(m_CBDisplacement.get());
 
 		m_DSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_DSWater->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSWater.hlsl", "main");
-		m_DSWater->AttachConstantBuffer(m_CBWaterTime.get(), KDSSharedCBCount + 0);
+		m_DSWater->ReserveConstantBufferSlots(KDSSharedCBCount);
+		m_DSWater->AttachConstantBuffer(m_CBWaterTime.get());
 	}
 
 	// GS
@@ -781,6 +803,7 @@ void CGame::CreateBaseShaders()
 
 		m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_GSNormal->Create(EShaderType::GeometryShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\GSNormal.hlsl", "main");
+		m_GSNormal->ReserveConstantBufferSlots(KGSSharedCBCount);
 	}
 	
 	// PS
@@ -791,101 +814,127 @@ void CGame::CreateBaseShaders()
 
 		m_PSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "main");
+		m_PSBase->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSBase_GBuffer = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase_GBuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "GBuffer");
+		m_PSBase_GBuffer->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSBase_Void = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase_Void->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "Void");
+		m_PSBase_Void->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSBase_RawVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase_RawVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "RawVertexColor");
+		m_PSBase_RawVertexColor->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSBase_RawDiffuseColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase_RawDiffuseColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "RawDiffuseColor");
+		m_PSBase_RawDiffuseColor->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase2D.hlsl", "main");
+		m_PSBase2D->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSBase2D_RawVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase2D_RawVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase2D.hlsl", "RawVertexColor");
+		m_PSBase2D_RawVertexColor->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBillboard->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBillboard.hlsl", "main");
-		m_PSBillboard->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 0);
+		m_PSBillboard->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSBillboard->AttachConstantBuffer(m_CBEditorTime.get());
 
 		m_PSCamera = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSCamera->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSCamera.hlsl", "main");
-		m_PSCamera->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 0);
-		m_PSCamera->AttachConstantBuffer(m_CBCamera.get(), KPSSharedCBCount + 1);
+		m_PSCamera->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSCamera->AttachConstantBuffer(m_CBEditorTime.get());
+		m_PSCamera->AttachConstantBuffer(m_CBCamera.get());
 
 		m_PSCloud = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSCloud->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSCloud.hlsl", "main");
-		m_PSCloud->AttachConstantBuffer(m_CBSkyTime.get(), KPSSharedCBCount + 0);
+		m_PSCloud->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSCloud->AttachConstantBuffer(m_CBSkyTime.get());
 
 		m_PSDirectionalLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSDirectionalLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompileShaders, L"Shader\\PSDirectionalLight.hlsl", "main");
-		m_PSDirectionalLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
-		m_PSDirectionalLight->AttachConstantBuffer(m_CBShadowMap.get(), KPSSharedCBCount + 1);
+		m_PSDirectionalLight->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSDirectionalLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
+		m_PSDirectionalLight->AttachConstantBuffer(m_CBShadowMap.get());
 
 		m_PSDirectionalLight_NonIBL = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSDirectionalLight_NonIBL->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompileShaders, L"Shader\\PSDirectionalLight.hlsl", "NonIBL");
-		m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
-		m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBShadowMap.get(), KPSSharedCBCount + 1);
+		m_PSDirectionalLight_NonIBL->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBGBufferUnpacking.get());
+		m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBShadowMap.get());
 
 		m_PSDynamicSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSDynamicSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSDynamicSky.hlsl", "main");
-		m_PSDynamicSky->AttachConstantBuffer(m_CBSkyTime.get(), KPSSharedCBCount + 0);
+		m_PSDynamicSky->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSDynamicSky->AttachConstantBuffer(m_CBSkyTime.get());
 
 		m_PSEdgeDetector = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSEdgeDetector->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSEdgeDetector.hlsl", "main");
+		m_PSEdgeDetector->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSFoliage->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSFoliage.hlsl", "main");
+		m_PSFoliage->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSHeightMap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSHeightMap2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSHeightMap2D.hlsl", "main");
+		m_PSHeightMap2D->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSLine->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSLine.hlsl", "main");
+		m_PSLine->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSMasking2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSMasking2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSMasking2D.hlsl", "main");
+		m_PSMasking2D->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSPointLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSPointLight.hlsl", "main");
-		m_PSPointLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
+		m_PSPointLight->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSPointLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 
 		m_PSPointLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSPointLight_Volume->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSPointLight.hlsl", "Volume");
-		m_PSPointLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
+		m_PSPointLight_Volume->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSPointLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 
 		m_PSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSSpotLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSSpotLight.hlsl", "main");
-		m_PSSpotLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
+		m_PSSpotLight->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSSpotLight->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 
 		m_PSSpotLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSSpotLight_Volume->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSSpotLight.hlsl", "Volume");
-		m_PSSpotLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
+		m_PSSpotLight_Volume->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSSpotLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get());
 
 		m_PSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSSky.hlsl", "main");
+		m_PSSky->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSTerrain->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSTerrain.hlsl", "main");
-		m_PSTerrain->AttachConstantBuffer(m_CBTerrainMaskingSpace.get(), KPSSharedCBCount + 0);
-		m_PSTerrain->AttachConstantBuffer(m_CBTerrainSelection.get(), KPSSharedCBCount + 1);
-		m_PSTerrain->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 2);
+		m_PSTerrain->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSTerrain->AttachConstantBuffer(m_CBTerrainMaskingSpace.get());
+		m_PSTerrain->AttachConstantBuffer(m_CBTerrainSelection.get());
+		m_PSTerrain->AttachConstantBuffer(m_CBEditorTime.get());
 
 		m_PSTerrain_gbuffer = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSTerrain_gbuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSTerrain.hlsl", "gbuffer");
-		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainMaskingSpace.get(), KPSSharedCBCount + 0);
-		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainSelection.get(), KPSSharedCBCount + 1);
-		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 2);
+		m_PSTerrain_gbuffer->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainMaskingSpace.get());
+		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainSelection.get());
+		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBEditorTime.get());
 
 		m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSWater->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSWater.hlsl", "main");
-		m_PSWater->AttachConstantBuffer(m_CBWaterTime.get(), KPSSharedCBCount + 0);
+		m_PSWater->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSWater->AttachConstantBuffer(m_CBWaterTime.get());
 	}
 }
 

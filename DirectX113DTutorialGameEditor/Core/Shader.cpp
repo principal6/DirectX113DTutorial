@@ -127,10 +127,17 @@ void CShader::Create(EShaderType Type, EVersion eVersion, bool bShouldCompile, c
 	}
 }
 
+void CShader::ReserveConstantBufferSlots(uint32_t Count)
+{
+	m_SlotCounter = Count;
+}
+
 void CShader::AttachConstantBuffer(CConstantBuffer* const ConstantBuffer, int32_t Slot)
 {
-	uint32_t uSlot{ (Slot == -1) ? (uint32_t)m_vAttachedConstantBuffers.size() : (uint32_t)Slot };
+	uint32_t uSlot{ (Slot == -1) ? m_SlotCounter : (uint32_t)Slot };
 	m_vAttachedConstantBuffers.emplace_back(ConstantBuffer, uSlot);
+
+	++m_SlotCounter;
 }
 
 void CShader::Use() const

@@ -1,21 +1,25 @@
 #include "Billboard.h"
+#include "Material.h"
 
 using std::string;
+using std::make_unique;
 
 void CBillboard::CreateScreenSpace(const std::string& TextureFileName)
 {
-	m_Texture.CreateTextureFromFile(TextureFileName, false);
+	m_Texture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_Texture->CreateTextureFromFile(TextureFileName, false);
 
 	m_CBBillboardData.bIsScreenSpace = TRUE;
-	m_CBBillboardData.PixelSize = m_Texture.GetTextureSize();
+	m_CBBillboardData.PixelSize = m_Texture->GetTextureSize();
 }
 
 void CBillboard::CreateWorldSpace(const std::string& TextureFileName, const XMFLOAT2& WorldSpaceSize)
 {
-	m_Texture.CreateTextureFromFile(TextureFileName, true);
+	m_Texture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
+	m_Texture->CreateTextureFromFile(TextureFileName, true);
 
 	m_CBBillboardData.bIsScreenSpace = FALSE;
-	m_CBBillboardData.PixelSize = m_Texture.GetTextureSize();
+	m_CBBillboardData.PixelSize = m_Texture->GetTextureSize();
 	m_CBBillboardData.WorldSpaceSize = WorldSpaceSize;
 }
 
@@ -176,7 +180,7 @@ size_t CBillboard::GetInstanceID(const std::string& InstanceName) const
 
 void CBillboard::Draw()
 {
-	m_Texture.Use();
+	m_Texture->Use();
 
 	m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST);
 	m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_InstanceBuffer.Buffer.GetAddressOf(), &m_InstanceBuffer.Stride, &m_InstanceBuffer.Offset);

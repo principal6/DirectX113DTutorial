@@ -30,11 +30,13 @@ void CGizmo3D::Create()
 	m_VSGizmo = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
 	m_VSGizmo->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSGizmo.hlsl", "main",
 		CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
-	m_VSGizmo->AttachConstantBuffer(m_CBGizmoSpace.get(), KVSSharedCBCount + 0);
+	m_VSGizmo->ReserveConstantBufferSlots(KVSSharedCBCount);
+	m_VSGizmo->AttachConstantBuffer(m_CBGizmoSpace.get());
 
 	m_PSGizmo = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
 	m_PSGizmo->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSGizmo.hlsl", "main");
-	m_PSGizmo->AttachConstantBuffer(m_CBGizmoColorFactor.get(), KPSSharedCBCount + 0);
+	m_PSGizmo->ReserveConstantBufferSlots(KPSSharedCBCount);
+	m_PSGizmo->AttachConstantBuffer(m_CBGizmoColorFactor.get());
 
 	if (!m_RotationX)
 	{

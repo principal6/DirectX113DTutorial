@@ -41,11 +41,15 @@ public:
 	}
 	~CShader() {}
 
+public:
 	void Create(EShaderType Type, EVersion eVersion, bool bShouldCompile, const std::wstring& FileName, const std::string& EntryPoint,
 		const D3D11_INPUT_ELEMENT_DESC* InputElementDescs = nullptr, UINT NumElements = 0);
 
+public:
+	void ReserveConstantBufferSlots(uint32_t Count);
 	void AttachConstantBuffer(CConstantBuffer* const ConstantBuffer, int32_t Slot = -1);
 
+public:
 	void Use() const;
 
 private:
@@ -67,4 +71,5 @@ private:
 
 private:
 	std::vector<SAttachedConstantBuffer>	m_vAttachedConstantBuffers{};
+	uint32_t								m_SlotCounter{};
 };

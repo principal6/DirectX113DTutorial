@@ -1,7 +1,8 @@
 #pragma once
 
 #include "SharedHeader.h"
-#include "Material.h"
+
+class CTexture;
 
 class CBillboard
 {
@@ -104,7 +105,7 @@ private:
 
 private:
 	std::string								m_Name{};
-	CTexture								m_Texture{ m_PtrDevice, m_PtrDeviceContext };
+	std::unique_ptr<CTexture>				m_Texture{};
 	SCBBillboardData						m_CBBillboardData{};
 
 private:
