@@ -20,7 +20,8 @@ public:
 
 private:
 	void LoadMeshesFromFile(const aiScene* const Scene, std::vector<SMesh>& vMeshes);
-	void LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* const Device, ID3D11DeviceContext* const DeviceContext, std::vector<CMaterialData>& vMaterialData);
+	void LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Device* const Device, ID3D11DeviceContext* const DeviceContext,
+		std::vector<CMaterialData>& vMaterialData);
 
 private:
 	void LoadTextureData(const aiScene* const Scene, const aiString* const TextureFileName, CMaterialData& MaterialData, STextureData::EType eTextureType);

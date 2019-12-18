@@ -22,6 +22,11 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 
 static const XMMATRIX KMatrixIdentity{ XMMatrixIdentity() };
+static constexpr uint32_t KVSSharedCBCount{ 1 };
+static constexpr uint32_t KHSSharedCBCount{ 2 };
+static constexpr uint32_t KDSSharedCBCount{ 1 };
+static constexpr uint32_t KGSSharedCBCount{ 1 };
+static constexpr uint32_t KPSSharedCBCount{ 3 };
 
 enum class EShaderType
 {

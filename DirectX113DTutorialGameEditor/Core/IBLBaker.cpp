@@ -17,7 +17,7 @@ CIBLBaker::~CIBLBaker()
 {
 }
 
-void CIBLBaker::Create(uint32_t PSSharedCBCount)
+void CIBLBaker::Create()
 {
 	bool bShouldCompileShaders{ false };
 
@@ -35,7 +35,7 @@ void CIBLBaker::Create(uint32_t PSSharedCBCount)
 		m_PSIrradianceGenerator = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
 		m_PSIrradianceGenerator->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders,
 			L"Shader\\PSIrradianceGenerator.hlsl", "main");
-		m_PSIrradianceGenerator->AttachConstantBuffer(m_CBIrradianceGenerator.get(), PSSharedCBCount);
+		m_PSIrradianceGenerator->AttachConstantBuffer(m_CBIrradianceGenerator.get(), KPSSharedCBCount + 0);
 	}
 
 	{
@@ -46,7 +46,7 @@ void CIBLBaker::Create(uint32_t PSSharedCBCount)
 		m_PSRadiancePrefiltering = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
 		m_PSRadiancePrefiltering->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders,
 			L"Shader\\PSRadiancePrefiltering.hlsl", "main");
-		m_PSRadiancePrefiltering->AttachConstantBuffer(m_CBRadiancePrefiltering.get(), PSSharedCBCount);
+		m_PSRadiancePrefiltering->AttachConstantBuffer(m_CBRadiancePrefiltering.get(), KPSSharedCBCount + 0);
 	}
 
 	{

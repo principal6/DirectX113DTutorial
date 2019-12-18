@@ -103,6 +103,9 @@
     <ClCompile Include="Core\IBLBaker.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Gizmo3D.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTK\Audio.h">
@@ -484,6 +487,9 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\IBLBaker.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Gizmo3D.h">
       <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>

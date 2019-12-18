@@ -1,4 +1,6 @@
 #include "Object3D.h"
+#include "Shader.h"
+#include "ConstantBuffer.h"
 #include "Game.h"
 
 using std::max;
@@ -7,6 +9,17 @@ using std::vector;
 using std::string;
 using std::to_string;
 using std::make_unique;
+
+CObject3D::CObject3D(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
+	m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
+{
+	assert(m_PtrDevice);
+	assert(m_PtrDeviceContext);
+}
+
+CObject3D::~CObject3D()
+{
+}
 
 void CObject3D::Create(const SMesh& Mesh)
 {
@@ -18,6 +31,7 @@ void CObject3D::Create(const SMesh& Mesh)
 
 	CreateMeshBuffers();
 	CreateMaterialTextures();
+	CreateConstantBuffers();
 
 	m_bIsCreated = true;
 }
@@ -32,6 +46,7 @@ void CObject3D::Create(const SMesh& Mesh, const CMaterialData& MaterialData)
 	
 	CreateMeshBuffers();
 	CreateMaterialTextures();
+	CreateConstantBuffers();
 
 	m_bIsCreated = true;
 }
@@ -44,6 +59,7 @@ void CObject3D::Create(const SMESHData& MESHData)
 
 	CreateMeshBuffers();
 	CreateMaterialTextures();
+	CreateConstantBuffers();
 
 	m_bIsCreated = true;
 }
@@ -86,6 +102,7 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 
 		CreateMeshBuffers();
 		CreateMaterialTextures();
+		CreateConstantBuffers();
 
 		for (const CMaterialData& Material : m_Model.vMaterialData)
 		{
@@ -186,6 +203,12 @@ void CObject3D::CreateMaterialTexture(size_t Index)
 		m_vMaterialTextureSets[Index] = make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext);
 	}
 	m_vMaterialTextureSets[Index]->CreateTextures(m_Model.vMaterialData[Index]);
+}
+
+void CObject3D::CreateConstantBuffers()
+{
+	m_CBMaterial = make_unique<CConstantBuffer>(m_PtrDevice, m_PtrDeviceContext, &m_CBMaterialData, sizeof(m_CBMaterialData));
+	m_CBMaterial->Create();
 }
 
 void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
@@ -916,16 +939,16 @@ void CObject3D::LimitFloatRotation(float& Value, const float Min, const float Ma
 
 void CObject3D::UpdateWorldMatrix()
 {
-	LimitFloatRotation(ComponentTransform.Pitch, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
-	LimitFloatRotation(ComponentTransform.Yaw, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
-	LimitFloatRotation(ComponentTransform.Roll, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
+	LimitFloatRotation(ComponentTransform.Pitch, KRotationMinLimit, KRotationMaxLimit);
+	LimitFloatRotation(ComponentTransform.Yaw, KRotationMinLimit, KRotationMaxLimit);
+	LimitFloatRotation(ComponentTransform.Roll, KRotationMinLimit, KRotationMaxLimit);
 
-	if (XMVectorGetX(ComponentTransform.Scaling) < CGame::KScalingMinLimit)
-		ComponentTransform.Scaling = XMVectorSetX(ComponentTransform.Scaling, CGame::KScalingMinLimit);
-	if (XMVectorGetY(ComponentTransform.Scaling) < CGame::KScalingMinLimit)
-		ComponentTransform.Scaling = XMVectorSetY(ComponentTransform.Scaling, CGame::KScalingMinLimit);
-	if (XMVectorGetZ(ComponentTransform.Scaling) < CGame::KScalingMinLimit)
-		ComponentTransform.Scaling = XMVectorSetZ(ComponentTransform.Scaling, CGame::KScalingMinLimit);
+	if (XMVectorGetX(ComponentTransform.Scaling) < KScalingMinLimit)
+		ComponentTransform.Scaling = XMVectorSetX(ComponentTransform.Scaling, KScalingMinLimit);
+	if (XMVectorGetY(ComponentTransform.Scaling) < KScalingMinLimit)
+		ComponentTransform.Scaling = XMVectorSetY(ComponentTransform.Scaling, KScalingMinLimit);
+	if (XMVectorGetZ(ComponentTransform.Scaling) < KScalingMinLimit)
+		ComponentTransform.Scaling = XMVectorSetZ(ComponentTransform.Scaling, KScalingMinLimit);
 
 	XMMATRIX Translation{ XMMatrixTranslationFromVector(ComponentTransform.Translation) };
 	XMMATRIX Rotation{ XMMatrixRotationRollPitchYaw(ComponentTransform.Pitch,
@@ -951,16 +974,16 @@ void CObject3D::UpdateInstanceWorldMatrix(const std::string& InstanceName)
 	SObject3DInstanceGPUData& InstanceGPUData{ m_vInstanceGPUData[GetInstanceID(InstanceName)] };
 
 	// Update CPU data
-	LimitFloatRotation(InstanceCPUData.Pitch, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
-	LimitFloatRotation(InstanceCPUData.Yaw, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
-	LimitFloatRotation(InstanceCPUData.Roll, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
+	LimitFloatRotation(InstanceCPUData.Pitch, KRotationMinLimit, KRotationMaxLimit);
+	LimitFloatRotation(InstanceCPUData.Yaw, KRotationMinLimit, KRotationMaxLimit);
+	LimitFloatRotation(InstanceCPUData.Roll, KRotationMinLimit, KRotationMaxLimit);
 
-	if (XMVectorGetX(InstanceCPUData.Scaling) < CGame::KScalingMinLimit)
-		InstanceCPUData.Scaling = XMVectorSetX(InstanceCPUData.Scaling, CGame::KScalingMinLimit);
-	if (XMVectorGetY(InstanceCPUData.Scaling) < CGame::KScalingMinLimit)
-		InstanceCPUData.Scaling = XMVectorSetY(InstanceCPUData.Scaling, CGame::KScalingMinLimit);
-	if (XMVectorGetZ(InstanceCPUData.Scaling) < CGame::KScalingMinLimit)
-		InstanceCPUData.Scaling = XMVectorSetZ(InstanceCPUData.Scaling, CGame::KScalingMinLimit);
+	if (XMVectorGetX(InstanceCPUData.Scaling) < KScalingMinLimit)
+		InstanceCPUData.Scaling = XMVectorSetX(InstanceCPUData.Scaling, KScalingMinLimit);
+	if (XMVectorGetY(InstanceCPUData.Scaling) < KScalingMinLimit)
+		InstanceCPUData.Scaling = XMVectorSetY(InstanceCPUData.Scaling, KScalingMinLimit);
+	if (XMVectorGetZ(InstanceCPUData.Scaling) < KScalingMinLimit)
+		InstanceCPUData.Scaling = XMVectorSetZ(InstanceCPUData.Scaling, KScalingMinLimit);
 
 	XMMATRIX Translation{ XMMatrixTranslationFromVector(InstanceCPUData.Translation) };
 	XMMATRIX Rotation{ XMMatrixRotationRollPitchYaw(InstanceCPUData.Pitch,
@@ -997,16 +1020,16 @@ void CObject3D::UpdateAllInstancesWorldMatrix()
 	// Update CPU data
 	for (uint32_t iInstance = 0; iInstance < GetInstanceCount(); ++iInstance)
 	{
-		LimitFloatRotation(m_vInstanceCPUData[iInstance].Pitch, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
-		LimitFloatRotation(m_vInstanceCPUData[iInstance].Yaw, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
-		LimitFloatRotation(m_vInstanceCPUData[iInstance].Roll, CGame::KRotationMinLimit, CGame::KRotationMaxLimit);
+		LimitFloatRotation(m_vInstanceCPUData[iInstance].Pitch, KRotationMinLimit, KRotationMaxLimit);
+		LimitFloatRotation(m_vInstanceCPUData[iInstance].Yaw, KRotationMinLimit, KRotationMaxLimit);
+		LimitFloatRotation(m_vInstanceCPUData[iInstance].Roll, KRotationMinLimit, KRotationMaxLimit);
 
-		if (XMVectorGetX(m_vInstanceCPUData[iInstance].Scaling) < CGame::KScalingMinLimit)
-			m_vInstanceCPUData[iInstance].Scaling = XMVectorSetX(m_vInstanceCPUData[iInstance].Scaling, CGame::KScalingMinLimit);
-		if (XMVectorGetY(m_vInstanceCPUData[iInstance].Scaling) < CGame::KScalingMinLimit)
-			m_vInstanceCPUData[iInstance].Scaling = XMVectorSetY(m_vInstanceCPUData[iInstance].Scaling, CGame::KScalingMinLimit);
-		if (XMVectorGetZ(m_vInstanceCPUData[iInstance].Scaling) < CGame::KScalingMinLimit)
-			m_vInstanceCPUData[iInstance].Scaling = XMVectorSetZ(m_vInstanceCPUData[iInstance].Scaling, CGame::KScalingMinLimit);
+		if (XMVectorGetX(m_vInstanceCPUData[iInstance].Scaling) < KScalingMinLimit)
+			m_vInstanceCPUData[iInstance].Scaling = XMVectorSetX(m_vInstanceCPUData[iInstance].Scaling, KScalingMinLimit);
+		if (XMVectorGetY(m_vInstanceCPUData[iInstance].Scaling) < KScalingMinLimit)
+			m_vInstanceCPUData[iInstance].Scaling = XMVectorSetY(m_vInstanceCPUData[iInstance].Scaling, KScalingMinLimit);
+		if (XMVectorGetZ(m_vInstanceCPUData[iInstance].Scaling) < KScalingMinLimit)
+			m_vInstanceCPUData[iInstance].Scaling = XMVectorSetZ(m_vInstanceCPUData[iInstance].Scaling, KScalingMinLimit);
 
 		XMMATRIX Translation{ XMMatrixTranslationFromVector(m_vInstanceCPUData[iInstance].Translation) };
 		XMMATRIX Rotation{ XMMatrixRotationRollPitchYaw(m_vInstanceCPUData[iInstance].Pitch,
@@ -1034,6 +1057,44 @@ void CObject3D::SetAllInstancesHighlightOff()
 	{
 		InstanceGPUData.IsHighlighted = 0.0f;
 	}
+}
+
+void CObject3D::UpdateCBMaterial(const CMaterialData& MaterialData, uint32_t TotalMaterialCount) const
+{
+	m_CBMaterialData.AmbientColor = MaterialData.AmbientColor();
+	m_CBMaterialData.DiffuseColor = MaterialData.DiffuseColor();
+	m_CBMaterialData.SpecularColor = MaterialData.SpecularColor();
+	m_CBMaterialData.SpecularExponent = MaterialData.SpecularExponent();
+	m_CBMaterialData.SpecularIntensity = MaterialData.SpecularIntensity();
+	m_CBMaterialData.Roughness = MaterialData.Roughness();
+	m_CBMaterialData.Metalness = MaterialData.Metalness();
+
+	uint32_t FlagsHasTexture{};
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::DiffuseTexture) ? 0x01 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::NormalTexture) ? 0x02 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::OpacityTexture) ? 0x04 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::SpecularIntensityTexture) ? 0x08 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::RoughnessTexture) ? 0x10 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::MetalnessTexture) ? 0x20 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::AmbientOcclusionTexture) ? 0x40 : 0;
+	// @empty_slot: Displacement texture is usually not used in PS
+	m_CBMaterialData.FlagsHasTexture = FlagsHasTexture;
+
+	uint32_t FlagsIsTextureSRGB{};
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::DiffuseTexture) ? 0x01 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::NormalTexture) ? 0x02 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::OpacityTexture) ? 0x04 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::SpecularIntensityTexture) ? 0x08 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::RoughnessTexture) ? 0x10 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::MetalnessTexture) ? 0x20 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::AmbientOcclusionTexture) ? 0x40 : 0;
+	// @empty_slot: Displacement texture is usually not used in PS
+	m_CBMaterialData.FlagsIsTextureSRGB = FlagsIsTextureSRGB;
+
+	m_CBMaterialData.TotalMaterialCount = TotalMaterialCount;
+
+	m_CBMaterial->Update();
+	m_CBMaterial->Use(EShaderType::PixelShader, 0); // @important
 }
 
 size_t CObject3D::GetInstanceID(const std::string& InstanceName) const
@@ -1110,8 +1171,8 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 		const CMaterialData& MaterialData{ m_Model.vMaterialData[Mesh.MaterialID] };
 
 		// per mesh
-		m_PtrGame->UpdateCBMaterialData(MaterialData, (uint32_t)m_Model.vMaterialData.size());
-
+		UpdateCBMaterial(MaterialData, (uint32_t)m_Model.vMaterialData.size());
+		
 		if (MaterialData.HasAnyTexture() && !bIgnoreOwnTexture)
 		{
 			if (m_Model.bUseMultipleTexturesInSingleMesh) // This bool is for CTerrain

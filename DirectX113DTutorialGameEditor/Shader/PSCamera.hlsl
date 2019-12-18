@@ -21,10 +21,7 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	if (Input.InstanceID == CurrentCameraID) discard;
 #endif
 
-	float4 AmbientColor = float4(MaterialAmbientColor, 1);
 	float4 DiffuseColor = float4(MaterialDiffuseColor, 1);
-	float4 SpecularColor = float4(MaterialSpecularColor, 1);
-
 	float4 OutputColor = DiffuseColor;
 
 	if (Input.IsHighlighted != 0.0)

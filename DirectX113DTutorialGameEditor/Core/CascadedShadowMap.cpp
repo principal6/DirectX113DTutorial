@@ -1,6 +1,7 @@
 #include "CascadedShadowMap.h"
 #include "Object3DLine.h"
 #include "FullScreenQuad.h"
+#include "ShadowMapFrustum.h"
 
 using std::make_unique;
 
@@ -20,7 +21,7 @@ void CCascadedShadowMap::Create(const std::vector<SLODData>& vLODData, const XMF
 	m_vLODData = vLODData;
 	size_t LODCount{ m_vLODData.size() };
 
-	assert(LODCount <= KCascadedShadowMapLODCountMax);
+	assert(LODCount <= KLODCountMax);
 	m_vShadowMaps.resize(LODCount);
 	m_vShadowMapFrustums.resize(LODCount);
 	m_vShadowMapFrustumVertices.resize(LODCount);

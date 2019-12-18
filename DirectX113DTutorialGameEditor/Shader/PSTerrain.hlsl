@@ -3,6 +3,28 @@
 #include "GBuffer.hlsli"
 #include "iPSCBs.hlsli"
 
+cbuffer cbMaskingSpace : register(b3)
+{
+	float4x4 MaskingSpaceMatrix;
+}
+
+cbuffer cbSelection : register(b4)
+{
+	bool bShowSelection;
+	float SelectionRadius;
+	float2 AnaloguePosition;
+
+	float4x4 TerrainWorld;
+	float4x4 InverseTerrainWorld;
+}
+
+cbuffer cbEditorTime : register(b5)
+{
+	float NormalizedTime;
+	float NormalizedTimeHalfSpeed;
+	float2 Pad2;
+}
+
 #define FLAG_ID_DIFFUSE 0x01
 #define FLAG_ID_NORMAL 0x02
 #define FLAG_ID_OPACITY 0x04
@@ -59,28 +81,6 @@ TextureCube EnvironmentTexture : register(t50);
 TextureCube IrradianceTexture : register(t51);
 TextureCube PrefilteredRadianceTexture : register(t52);
 Texture2D IntegratedBRDFTexture : register(t53);
-
-cbuffer cbMaskingSpace : register(b3)
-{
-	float4x4 MaskingSpaceMatrix;
-}
-
-cbuffer cbSelection : register(b4)
-{
-	bool bShowSelection;
-	float SelectionRadius;
-	float2 AnaloguePosition;
-
-	float4x4 TerrainWorld;
-	float4x4 InverseTerrainWorld;
-}
-
-cbuffer cbEditorTime : register(b5)
-{
-	float NormalizedTime;
-	float NormalizedTimeHalfSpeed;
-	float2 Pad2;
-}
 
 #define TEX_COORD Input.TexCoord.xy
 #define N BlendedNormal.xyz // Macrosurface normal

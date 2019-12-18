@@ -13,10 +13,10 @@ public:
 	~CCubemapRep();
 
 public:
-	void Create(uint32_t VSSharedCBCount, uint32_t PSSharedCBCount);
+	void Create();
 
 private:
-	void CreateShaders(uint32_t VSSharedCBCount, uint32_t PSSharedCBCount);
+	void CreateShaders();
 
 public:
 	void UnfoldCubemap(ID3D11ShaderResourceView* const CubemapSRV);

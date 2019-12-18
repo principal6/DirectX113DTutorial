@@ -1,13 +1,6 @@
 #include "DeferredLight.hlsli"
 #include "BRDF.hlsli"
 
-SamplerState PointClampSampler : register(s0);
-
-Texture2D GBuffer_DepthStencil : register(t0);
-Texture2D GBuffer_BaseColor_Rough : register(t1);
-Texture2D GBuffer_Normal : register(t2);
-Texture2D GBuffer_Metal_AO : register(t3);
-
 cbuffer cbGBufferUnpacking : register(b3)
 {
 	float4 PerspectiveValues;
@@ -15,6 +8,13 @@ cbuffer cbGBufferUnpacking : register(b3)
 	float2 ScreenSize;
 	float2 Reserved;
 }
+
+SamplerState PointClampSampler : register(s0);
+
+Texture2D GBuffer_DepthStencil : register(t0);
+Texture2D GBuffer_BaseColor_Rough : register(t1);
+Texture2D GBuffer_Normal : register(t2);
+Texture2D GBuffer_Metal_AO : register(t3);
 
 #define N WorldNormal
 #define BaseColor BaseColor_Rough.xyz

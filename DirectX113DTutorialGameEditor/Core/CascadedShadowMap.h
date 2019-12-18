@@ -1,16 +1,18 @@
 #pragma once
 
 #include "SharedHeader.h"
-#include "ShadowMapFrustum.h"
 
 class CObject3DLine;
 class CFullScreenQuad;
-
-static constexpr size_t KCascadedShadowMapLODCountMax{ 5 };
+struct SShadowMapFrustum;
+struct SFrustumVertices;
 
 // Cascaded shadow map for directional light (orthogonal projection)
 class CCascadedShadowMap final
 {
+public:
+	static constexpr size_t KLODCountMax{ 5 };
+
 public:
 	struct SLODData
 	{
@@ -26,6 +28,14 @@ public:
 
 		XMFLOAT2		TextureViewportPosition{};
 		XMFLOAT2		TextureViewportSize{};
+	};
+
+	struct SCBShadowMapData
+	{
+		XMMATRIX	ShadowMapSpaceMatrix[KLODCountMax]{ KMatrixIdentity, KMatrixIdentity, KMatrixIdentity, KMatrixIdentity, KMatrixIdentity };
+		float		ShadowMapZFars[KLODCountMax - 1]{ FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
+		uint32_t	LODCount{};
+		float		Reserved[3]{};
 	};
 
 private:

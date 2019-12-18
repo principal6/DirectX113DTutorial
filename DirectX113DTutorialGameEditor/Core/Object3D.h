@@ -5,16 +5,49 @@
 #include "AssimpLoader.h"
 #include "MeshPorter.h"
 
-class CGame;
 class CShader;
+class CConstantBuffer;
 
 class CObject3D
 {
 public:
+	static constexpr D3D11_INPUT_ELEMENT_DESC KInputElementDescs[]
+	{
+		{ "POSITION"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TANGENT"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 64, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+
+		{ "BLEND_INDICES"	, 0, DXGI_FORMAT_R32G32B32A32_UINT	, 1,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BLEND_WEIGHT"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 1, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+
+		{ "INSTANCE_WORLD"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2,  0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+		{ "INSTANCE_WORLD"	, 1, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+		{ "INSTANCE_WORLD"	, 2, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+		{ "INSTANCE_WORLD"	, 3, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+		{ "IS_HIGHLIGHTED"	, 0, DXGI_FORMAT_R32_FLOAT			, 2, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+	};
+
 	enum class EFlagsRendering
 	{
 		None = 0x00,
 		NoCulling = 0x01,
+	};
+
+	struct SCBMaterialData // Update at least per every object (even an object could have multiple materials)
+	{
+		XMFLOAT3	AmbientColor{};
+		float		SpecularExponent{ 1 };
+		XMFLOAT3	DiffuseColor{};
+		float		SpecularIntensity{ 0 };
+		XMFLOAT3	SpecularColor{};
+		float		Roughness{};
+
+		float		Metalness{};
+		uint32_t	FlagsHasTexture{};
+		uint32_t	FlagsIsTextureSRGB{};
+		uint32_t	TotalMaterialCount{};
 	};
 
 	struct SCBTessFactorData
@@ -86,14 +119,8 @@ private:
 	};
 
 public:
-	CObject3D(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext, CGame* const PtrGame) :
-		m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }, m_PtrGame{ PtrGame }
-	{
-		assert(m_PtrDevice);
-		assert(m_PtrDeviceContext);
-		assert(m_PtrGame);
-	}
-	~CObject3D() {}
+	CObject3D(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext);
+	~CObject3D();
 
 public:
 	void* operator new(size_t Size)
@@ -119,6 +146,8 @@ private:
 
 	void CreateMaterialTextures();
 	void CreateMaterialTexture(size_t Index);
+
+	void CreateConstantBuffers();
 
 public:
 	void LoadOB3D(const std::string& OB3DFileName, bool bIsRigged);
@@ -181,6 +210,9 @@ public:
 	void SetAllInstancesHighlightOff();
 
 private:
+	void UpdateCBMaterial(const CMaterialData& MaterialData, uint32_t TotalMaterialCount) const;
+
+private:
 	size_t GetInstanceID(const std::string& InstanceName) const;
 
 public:
@@ -218,6 +250,10 @@ private:
 	void LimitFloatRotation(float& Value, const float Min, const float Max);
 
 public:
+	static constexpr float KRotationMaxLimit{ +XM_2PI };
+	static constexpr float KRotationMinLimit{ -XM_2PI };
+	static constexpr float KScalingMaxLimit{ +100.0f };
+	static constexpr float KScalingMinLimit{ +0.001f };
 	static constexpr size_t KMaxAnimationNameLength{ 15 };
 	static constexpr uint32_t KMaxBoneMatrixCount{ 60 };
 
@@ -236,7 +272,6 @@ public:
 private:
 	ID3D11Device* const						m_PtrDevice{};
 	ID3D11DeviceContext* const				m_PtrDeviceContext{};
-	CGame* const							m_PtrGame{};
 
 private:
 	std::string								m_Name{};
@@ -247,6 +282,8 @@ private:
 	std::vector<std::unique_ptr<CMaterialTextureSet>> m_vMaterialTextureSets{};
 	std::vector<SMeshBuffers>				m_vMeshBuffers{};
 	std::vector<SInstanceBuffer>			m_vInstanceBuffers{};
+	std::unique_ptr<CConstantBuffer>		m_CBMaterial{};
+	mutable SCBMaterialData					m_CBMaterialData{};
 	SCBTessFactorData						m_CBTessFactorData{};
 	SCBDisplacementData						m_CBDisplacementData{};
 

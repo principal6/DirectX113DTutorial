@@ -1,24 +1,26 @@
 #include "Base.hlsli"
-#include "iVSCBs.hlsli"
+
+cbuffer cbGizmoSpace : register(b1)
+{
+	float4x4 WVP;
+}
 
 VS_OUTPUT main(VS_INPUT Input)
 {
 	VS_OUTPUT Output;
 
-	Output.WorldPosition = mul(Input.Position, World);
-	Output.Position = mul(Output.WorldPosition, ViewProjection);
+	Output.Position = mul(Input.Position, WVP);
+	Output.Position /= Output.Position.w;
 	Output.Position.z *= 0.01f;
-
 	Output.Color = Input.Color;
+
+	Output.WorldPosition = Input.Position;
 	Output.TexCoord = Input.TexCoord;
-
-	Output.WorldNormal = normalize(mul(Input.Normal, World));
-	Output.WorldTangent = normalize(mul(Input.Tangent, World));
-	Output.WorldBitangent = CalculateBitangent(Output.WorldNormal, Output.WorldTangent);
-
+	Output.WorldNormal = Input.Normal;
+	Output.WorldTangent = Input.Tangent;
+	Output.WorldBitangent = float4(1, 0, 0, 0);
 	Output.bUseVertexColor = 0;
 	Output.IsHighlighted = Input.IsHighlighted;
-
 #ifndef DEBUG_SHADER
 	Output.InstanceID = Input.InstanceID;
 #endif

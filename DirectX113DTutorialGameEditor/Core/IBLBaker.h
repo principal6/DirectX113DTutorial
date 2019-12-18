@@ -27,7 +27,7 @@ public:
 	~CIBLBaker();
 
 public:
-	void Create(uint32_t PSSharedCBCount);
+	void Create();
 
 public:
 	void ConvertHDRiToCubemap(const XMFLOAT2& HDRiSize, CTexture* const HDRiTexture);

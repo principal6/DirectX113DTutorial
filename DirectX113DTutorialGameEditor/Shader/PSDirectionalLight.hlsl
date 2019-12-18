@@ -2,25 +2,6 @@
 #include "BRDF.hlsli"
 #include "iPSCBs.hlsli"
 
-SamplerState PointClampSampler : register(s0);
-SamplerState LinearWrapSampler : register(s1);
-SamplerState LinearClampSampler : register(s2);
-
-Texture2D GBuffer_DepthStencil : register(t0);
-Texture2D GBuffer_BaseColor_Rough : register(t1);
-Texture2D GBuffer_Normal : register(t2);
-Texture2D GBuffer_Metal_AO : register(t3);
-Texture2D ShadowMap0 : register(t4);
-Texture2D ShadowMap1 : register(t5);
-Texture2D ShadowMap2 : register(t6);
-Texture2D ShadowMap3 : register(t7);
-Texture2D ShadowMap4 : register(t8);
-
-TextureCube EnvironmentTexture : register(t50);
-TextureCube IrradianceTexture : register(t51);
-TextureCube PrefilteredRadianceTexture : register(t52);
-Texture2D IntegratedBRDFTexture : register(t53);
-
 cbuffer cbGBufferUnpacking : register(b3)
 {
 	float4 PerspectiveValues;
@@ -40,6 +21,25 @@ cbuffer cbShadowMap : register(b4)
 	uint		LODCount; // @important: [1, 5]
 	float3		Reserved3;
 }
+
+SamplerState PointClampSampler : register(s0);
+SamplerState LinearWrapSampler : register(s1);
+SamplerState LinearClampSampler : register(s2);
+
+Texture2D GBuffer_DepthStencil : register(t0);
+Texture2D GBuffer_BaseColor_Rough : register(t1);
+Texture2D GBuffer_Normal : register(t2);
+Texture2D GBuffer_Metal_AO : register(t3);
+Texture2D ShadowMap0 : register(t4);
+Texture2D ShadowMap1 : register(t5);
+Texture2D ShadowMap2 : register(t6);
+Texture2D ShadowMap3 : register(t7);
+Texture2D ShadowMap4 : register(t8);
+
+TextureCube EnvironmentTexture : register(t50);
+TextureCube IrradianceTexture : register(t51);
+TextureCube PrefilteredRadianceTexture : register(t52);
+Texture2D IntegratedBRDFTexture : register(t53);
 
 #define UV Input.TexCoord.xy
 #define N WorldNormal

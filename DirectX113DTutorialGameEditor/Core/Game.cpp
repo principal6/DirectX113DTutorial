@@ -16,24 +16,6 @@ using std::stof;
 using std::make_unique;
 using std::swap;
 
-static constexpr D3D11_INPUT_ELEMENT_DESC KBaseInputElementDescs[]
-{
-	{ "POSITION"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	{ "COLOR"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	{ "TEXCOORD"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	{ "NORMAL"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	{ "TANGENT"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 0, 64, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-
-	{ "BLEND_INDICES"	, 0, DXGI_FORMAT_R32G32B32A32_UINT	, 1,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	{ "BLEND_WEIGHT"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 1, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-
-	{ "INSTANCE_WORLD"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2,  0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-	{ "INSTANCE_WORLD"	, 1, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-	{ "INSTANCE_WORLD"	, 2, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-	{ "INSTANCE_WORLD"	, 3, DXGI_FORMAT_R32G32B32A32_FLOAT	, 2, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-	{ "IS_HIGHLIGHTED"	, 0, DXGI_FORMAT_R32_FLOAT			, 2, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-};
-
 void CGame::CreateWin32(WNDPROC const WndProc, const std::string& WindowName, bool bWindowed)
 {
 	GetCurrentDirectoryA(MAX_PATH, m_WorkingDirectory);
@@ -120,7 +102,6 @@ void CGame::InitializeDirectX(bool bWindowed)
 	CreatePickingRay();
 	CreatePickedTriangle();
 	CreateBoundingSphere();
-	Create3DGizmos();
 
 	SetProjectionMatrices(KDefaultFOV, KDefaultNearZ, KDefaultFarZ);
 	InitializeViewports();
@@ -130,9 +111,15 @@ void CGame::InitializeDirectX(bool bWindowed)
 
 void CGame::InitializeEditorAssets()
 {
+	if (!m_Gizmo3D)
+	{
+		m_Gizmo3D = make_unique<CGizmo3D>(m_Device.Get(), m_DeviceContext.Get());
+		m_Gizmo3D->Create();
+	}
+
 	if (!m_CameraRep)
 	{
-		m_CameraRep = make_unique<CObject3D>("CameraRepresentation", m_Device.Get(), m_DeviceContext.Get(), this);
+		m_CameraRep = make_unique<CObject3D>("CameraRepresentation", m_Device.Get(), m_DeviceContext.Get());
 		m_CameraRep->CreateFromFile("Asset\\camera_repr.fbx", false);
 	}
 
@@ -173,7 +160,7 @@ void CGame::InitializeEditorAssets()
 		if (!m_IBLBaker)
 		{
 			m_IBLBaker = make_unique<CIBLBaker>(m_Device.Get(), m_DeviceContext.Get());
-			m_IBLBaker->Create(KPSSharedCBCount);
+			m_IBLBaker->Create();
 		}
 
 		if (!m_EnvironmentTexture)
@@ -211,19 +198,19 @@ void CGame::InitializeEditorAssets()
 		if (!m_EnvironmentCubemapRep)
 		{
 			m_EnvironmentCubemapRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get());
-			m_EnvironmentCubemapRep->Create(KVSSharedCBCount, KPSSharedCBCount);
+			m_EnvironmentCubemapRep->Create();
 		}
 
 		if (!m_IrradianceCubemapRep)
 		{
 			m_IrradianceCubemapRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get());
-			m_IrradianceCubemapRep->Create(KVSSharedCBCount, KPSSharedCBCount);
+			m_IrradianceCubemapRep->Create();
 		}
 
 		if (!m_PrefilteredRadianceCubemapRep)
 		{
 			m_PrefilteredRadianceCubemapRep = make_unique<CCubemapRep>(m_Device.Get(), m_DeviceContext.Get());
-			m_PrefilteredRadianceCubemapRep->Create(KVSSharedCBCount, KPSSharedCBCount);
+			m_PrefilteredRadianceCubemapRep->Create();
 		}
 
 		UpdateCBGlobalLightProbeData();
@@ -446,7 +433,7 @@ void CGame::CreateViews()
 	m_SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)m_BackBuffer.ReleaseAndGetAddressOf());
 	m_Device->CreateRenderTargetView(m_BackBuffer.Get(), nullptr, m_BackBufferRTV.ReleaseAndGetAddressOf());
 
-	// Create full-screen quad RTV, SRV
+	// Create EdgeDetector RTV, SRV
 	{
 		D3D11_TEXTURE2D_DESC Texture2DDesc{};
 		Texture2DDesc.ArraySize = 1;
@@ -461,18 +448,18 @@ void CGame::CreateViews()
 		Texture2DDesc.Width = static_cast<UINT>(m_WindowSize.x);
 		m_Device->CreateTexture2D(&Texture2DDesc, nullptr, m_EdgeDetectorTexture.ReleaseAndGetAddressOf());
 
+		D3D11_RENDER_TARGET_VIEW_DESC ScreenQuadRTVDesc{};
+		ScreenQuadRTVDesc.Format = Texture2DDesc.Format;
+		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
+		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		m_Device->CreateRenderTargetView(m_EdgeDetectorTexture.Get(), &ScreenQuadRTVDesc, m_EdgeDetectorRTV.ReleaseAndGetAddressOf());
+
 		D3D11_SHADER_RESOURCE_VIEW_DESC ScreenQuadSRVDesc{};
 		ScreenQuadSRVDesc.Format = Texture2DDesc.Format;
 		ScreenQuadSRVDesc.Texture2D.MipLevels = 1;
 		ScreenQuadSRVDesc.Texture2D.MostDetailedMip = 0;
 		ScreenQuadSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 		m_Device->CreateShaderResourceView(m_EdgeDetectorTexture.Get(), &ScreenQuadSRVDesc, m_EdgeDetectorSRV.ReleaseAndGetAddressOf());
-
-		D3D11_RENDER_TARGET_VIEW_DESC ScreenQuadRTVDesc{};
-		ScreenQuadRTVDesc.Format = Texture2DDesc.Format;
-		ScreenQuadRTVDesc.Texture2D.MipSlice = 0;
-		ScreenQuadRTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		m_Device->CreateRenderTargetView(m_EdgeDetectorTexture.Get(), &ScreenQuadRTVDesc, m_EdgeDetectorRTV.ReleaseAndGetAddressOf());
 	}
 }
 
@@ -537,45 +524,6 @@ void CGame::InitializeViewports()
 		D3D11_VIEWPORT& Viewport{ m_vViewports.back() };
 		Viewport.TopLeftX = m_WindowSize.x * 2.0f / 8.0f;
 		Viewport.TopLeftY = m_WindowSize.y * 7.0f / 8.0f;
-		Viewport.Width = m_WindowSize.x / 8.0f;
-		Viewport.Height = m_WindowSize.y / 8.0f;
-		Viewport.MinDepth = 0.0f;
-		Viewport.MaxDepth = 1.0f;
-	}
-
-	// #5 Directional light shadow map0
-	{
-		m_vViewports.emplace_back();
-
-		D3D11_VIEWPORT& Viewport{ m_vViewports.back() };
-		Viewport.TopLeftX = 0.0f;
-		Viewport.TopLeftY = m_WindowSize.y * 6.0f / 8.0f;
-		Viewport.Width = m_WindowSize.x / 8.0f;
-		Viewport.Height = m_WindowSize.y / 8.0f;
-		Viewport.MinDepth = 0.0f;
-		Viewport.MaxDepth = 1.0f;
-	}
-
-	// #6 Directional light shadow map1
-	{
-		m_vViewports.emplace_back();
-
-		D3D11_VIEWPORT& Viewport{ m_vViewports.back() };
-		Viewport.TopLeftX = m_WindowSize.x * 1.0f / 8.0f;
-		Viewport.TopLeftY = m_WindowSize.y * 6.0f / 8.0f;
-		Viewport.Width = m_WindowSize.x / 8.0f;
-		Viewport.Height = m_WindowSize.y / 8.0f;
-		Viewport.MinDepth = 0.0f;
-		Viewport.MaxDepth = 1.0f;
-	}
-
-	// #7 Directional light shadow map2
-	{
-		m_vViewports.emplace_back();
-
-		D3D11_VIEWPORT& Viewport{ m_vViewports.back() };
-		Viewport.TopLeftX = m_WindowSize.x * 2.0f / 8.0f;
-		Viewport.TopLeftY = m_WindowSize.y * 6.0f / 8.0f;
 		Viewport.Width = m_WindowSize.x / 8.0f;
 		Viewport.Height = m_WindowSize.y / 8.0f;
 		Viewport.MinDepth = 0.0f;
@@ -680,10 +628,6 @@ void CGame::CreateConstantBuffers()
 		&m_CBDisplacementData, sizeof(m_CBDisplacementData));
 	m_CBGlobalLight = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBGlobalLightData, sizeof(m_CBGlobalLightData));
-	m_CBMaterial = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
-		&m_CBMaterialData, sizeof(m_CBMaterialData));
-	m_CBGizmoColorFactor = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
-		&m_CBGizmoColorFactorData, sizeof(m_CBGizmoColorFactorData));
 	m_CBTerrainMaskingSpace = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBTerrainMaskingSpaceData, sizeof(m_CBTerrainMaskingSpaceData));
 	m_CBTerrainSelection = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
@@ -711,8 +655,6 @@ void CGame::CreateConstantBuffers()
 	m_CBTessFactor->Create();
 	m_CBDisplacement->Create();
 	m_CBGlobalLight->Create();
-	m_CBMaterial->Create();
-	m_CBGizmoColorFactor->Create();
 	m_CBTerrainMaskingSpace->Create();
 	m_CBTerrainSelection->Create();
 	m_CBSkyTime->Create();
@@ -727,59 +669,55 @@ void CGame::CreateConstantBuffers()
 
 void CGame::CreateBaseShaders()
 {
-	bool bShouldCompile{ false };
+	bool bShouldCompileShaders{ false };
 
 	// VS
 	{
 		m_CBSpace->Use(EShaderType::VertexShader, 0);
 
 		m_VSAnimation = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSAnimation->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSAnimation.hlsl", "main",
-			KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+		m_VSAnimation->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSAnimation.hlsl", "main",
+			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
 		m_VSAnimation->AttachConstantBuffer(m_CBAnimationBones.get(), KVSSharedCBCount + 0);
 		m_VSAnimation->AttachConstantBuffer(m_CBAnimation.get(), KVSSharedCBCount + 1);
 
 		m_VSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSBase->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSBase.hlsl", "main",
-			KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+		m_VSBase->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBase.hlsl", "main",
+			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
 
 		m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSBase2D->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSBase2D.hlsl", "main",
+		m_VSBase2D->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBase2D.hlsl", "main",
 			CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
 
 		m_VSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSBillboard->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSBillboard.hlsl", "main",
+		m_VSBillboard->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBillboard.hlsl", "main",
 			CBillboard::KInputElementDescs, ARRAYSIZE(CBillboard::KInputElementDescs));
 
 		m_VSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSFoliage->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSFoliage.hlsl", "main",
-			KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+		m_VSFoliage->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSFoliage.hlsl", "main",
+			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
 		m_VSFoliage->AttachConstantBuffer(m_CBTerrain.get(), KVSSharedCBCount + 0);
 		m_VSFoliage->AttachConstantBuffer(m_CBWind.get(), KVSSharedCBCount + 1);
 
-		m_VSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSGizmo->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSGizmo.hlsl", "main",
-			KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
-
 		m_VSInstance = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSInstance->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSInstance.hlsl", "main",
-			KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+		m_VSInstance->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSInstance.hlsl", "main",
+			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
 
 		m_VSLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSLight->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSLight.hlsl", "main",
+		m_VSLight->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSLight.hlsl", "main",
 			CLight::KInputElementDescs, ARRAYSIZE(CLight::KInputElementDescs));
 
 		m_VSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSLine->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSLine.hlsl", "main",
+		m_VSLine->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSLine.hlsl", "main",
 			CObject3DLine::KInputElementDescs, ARRAYSIZE(CObject3DLine::KInputElementDescs));
 
 		m_VSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSSky->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSSky.hlsl", "main",
-			KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+		m_VSSky->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSSky.hlsl", "main",
+			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
 
 		m_VSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSTerrain->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\VSTerrain.hlsl", "main",
-			KBaseInputElementDescs, ARRAYSIZE(KBaseInputElementDescs));
+		m_VSTerrain->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSTerrain.hlsl", "main",
+			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
 		m_VSTerrain->AttachConstantBuffer(m_CBTerrain.get(), KVSSharedCBCount + 0);
 	}
 
@@ -789,24 +727,24 @@ void CGame::CreateBaseShaders()
 		m_CBGlobalLight->Use(EShaderType::HullShader, 1);
 
 		m_HSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_HSBillboard->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSBillboard.hlsl", "main");
+		m_HSBillboard->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSBillboard.hlsl", "main");
 
 		m_HSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_HSPointLight->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSPointLight.hlsl", "main");
+		m_HSPointLight->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSPointLight.hlsl", "main");
 
 		m_HSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_HSSpotLight->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSSpotLight.hlsl", "main");
+		m_HSSpotLight->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSSpotLight.hlsl", "main");
 
 		m_HSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_HSStatic->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSStatic.hlsl", "main");
+		m_HSStatic->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSStatic.hlsl", "main");
 		m_HSStatic->AttachConstantBuffer(m_CBTessFactor.get(), KHSSharedCBCount + 0);
 
 		m_HSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_HSTerrain->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSTerrain.hlsl", "main");
+		m_HSTerrain->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSTerrain.hlsl", "main");
 		m_HSTerrain->AttachConstantBuffer(m_CBTessFactor.get(), KHSSharedCBCount + 0);
 
 		m_HSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_HSWater->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\HSWater.hlsl", "main");
+		m_HSWater->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSWater.hlsl", "main");
 		m_HSWater->AttachConstantBuffer(m_CBTessFactor.get(), KHSSharedCBCount + 0);
 	}
 
@@ -815,25 +753,25 @@ void CGame::CreateBaseShaders()
 		m_CBSpace->Use(EShaderType::DomainShader, 0);
 
 		m_DSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_DSBillboard->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSBillboard.hlsl", "main");
+		m_DSBillboard->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSBillboard.hlsl", "main");
 		m_DSBillboard->AttachConstantBuffer(m_CBBillboard.get(), KDSSharedCBCount + 0);
 
 		m_DSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_DSPointLight->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSPointLight.hlsl", "main");
+		m_DSPointLight->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSPointLight.hlsl", "main");
 
 		m_DSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_DSSpotLight->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSSpotLight.hlsl", "main");
+		m_DSSpotLight->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSSpotLight.hlsl", "main");
 
 		m_DSStatic = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_DSStatic->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSStatic.hlsl", "main");
+		m_DSStatic->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSStatic.hlsl", "main");
 		m_DSStatic->AttachConstantBuffer(m_CBDisplacement.get(), KDSSharedCBCount + 0);
 
 		m_DSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_DSTerrain->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSTerrain.hlsl", "main");
+		m_DSTerrain->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSTerrain.hlsl", "main");
 		m_DSTerrain->AttachConstantBuffer(m_CBDisplacement.get(), KDSSharedCBCount + 0);
 
 		m_DSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_DSWater->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompile, L"Shader\\DSWater.hlsl", "main");
+		m_DSWater->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSWater.hlsl", "main");
 		m_DSWater->AttachConstantBuffer(m_CBWaterTime.get(), KDSSharedCBCount + 0);
 	}
 
@@ -842,126 +780,121 @@ void CGame::CreateBaseShaders()
 		m_CBSpace->Use(EShaderType::GeometryShader, 0);
 
 		m_GSNormal = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_GSNormal->Create(EShaderType::GeometryShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\GSNormal.hlsl", "main");
+		m_GSNormal->Create(EShaderType::GeometryShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\GSNormal.hlsl", "main");
 	}
 	
 	// PS
 	{
-		m_CBGlobalLight->Use(EShaderType::PixelShader, 0);
-		m_CBMaterial->Use(EShaderType::PixelShader, 1);
+		// @important: Slot 0 is CBMaterial in CObject3D
+		m_CBGlobalLight->Use(EShaderType::PixelShader, 1);
 		m_CBSpace->Use(EShaderType::PixelShader, 2);
 
 		m_PSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBase->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase.hlsl", "main");
+		m_PSBase->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "main");
 
 		m_PSBase_GBuffer = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBase_GBuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase.hlsl", "GBuffer");
+		m_PSBase_GBuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "GBuffer");
 
 		m_PSBase_Void = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBase_Void->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase.hlsl", "Void");
+		m_PSBase_Void->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "Void");
 
 		m_PSBase_RawVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBase_RawVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase.hlsl", "RawVertexColor");
+		m_PSBase_RawVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "RawVertexColor");
 
 		m_PSBase_RawDiffuseColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBase_RawDiffuseColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase.hlsl", "RawDiffuseColor");
+		m_PSBase_RawDiffuseColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "RawDiffuseColor");
 
 		m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBase2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase2D.hlsl", "main");
+		m_PSBase2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase2D.hlsl", "main");
 
 		m_PSBase2D_RawVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBase2D_RawVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBase2D.hlsl", "RawVertexColor");
+		m_PSBase2D_RawVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase2D.hlsl", "RawVertexColor");
 
 		m_PSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBillboard->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSBillboard.hlsl", "main");
+		m_PSBillboard->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBillboard.hlsl", "main");
 		m_PSBillboard->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 0);
 
 		m_PSCamera = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSCamera->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCamera.hlsl", "main");
+		m_PSCamera->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSCamera.hlsl", "main");
 		m_PSCamera->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 0);
 		m_PSCamera->AttachConstantBuffer(m_CBCamera.get(), KPSSharedCBCount + 1);
 
 		m_PSCloud = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSCloud->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSCloud.hlsl", "main");
+		m_PSCloud->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSCloud.hlsl", "main");
 		m_PSCloud->AttachConstantBuffer(m_CBSkyTime.get(), KPSSharedCBCount + 0);
 
 		m_PSDirectionalLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSDirectionalLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "main");
+		m_PSDirectionalLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompileShaders, L"Shader\\PSDirectionalLight.hlsl", "main");
 		m_PSDirectionalLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
 		m_PSDirectionalLight->AttachConstantBuffer(m_CBShadowMap.get(), KPSSharedCBCount + 1);
 
 		m_PSDirectionalLight_NonIBL = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSDirectionalLight_NonIBL->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompile, L"Shader\\PSDirectionalLight.hlsl", "NonIBL");
+		m_PSDirectionalLight_NonIBL->Create(EShaderType::PixelShader, CShader::EVersion::_4_1, bShouldCompileShaders, L"Shader\\PSDirectionalLight.hlsl", "NonIBL");
 		m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
 		m_PSDirectionalLight_NonIBL->AttachConstantBuffer(m_CBShadowMap.get(), KPSSharedCBCount + 1);
 
 		m_PSDynamicSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSDynamicSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSDynamicSky.hlsl", "main");
+		m_PSDynamicSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSDynamicSky.hlsl", "main");
 		m_PSDynamicSky->AttachConstantBuffer(m_CBSkyTime.get(), KPSSharedCBCount + 0);
 
 		m_PSEdgeDetector = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSEdgeDetector->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSEdgeDetector.hlsl", "main");
+		m_PSEdgeDetector->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSEdgeDetector.hlsl", "main");
 
 		m_PSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSFoliage->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSFoliage.hlsl", "main");
-
-		m_PSGizmo = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSGizmo->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSGizmo.hlsl", "main");
-		m_PSGizmo->AttachConstantBuffer(m_CBGizmoColorFactor.get(), KPSSharedCBCount + 0);
+		m_PSFoliage->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSFoliage.hlsl", "main");
 
 		m_PSHeightMap2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSHeightMap2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSHeightMap2D.hlsl", "main");
+		m_PSHeightMap2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSHeightMap2D.hlsl", "main");
 
 		m_PSLine = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSLine->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSLine.hlsl", "main");
+		m_PSLine->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSLine.hlsl", "main");
 
 		m_PSMasking2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSMasking2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSMasking2D.hlsl", "main");
+		m_PSMasking2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSMasking2D.hlsl", "main");
 
 		m_PSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSPointLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSPointLight.hlsl", "main");
+		m_PSPointLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSPointLight.hlsl", "main");
 		m_PSPointLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
 
 		m_PSPointLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSPointLight_Volume->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSPointLight.hlsl", "Volume");
+		m_PSPointLight_Volume->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSPointLight.hlsl", "Volume");
 		m_PSPointLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
 
 		m_PSSpotLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSSpotLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "main");
+		m_PSSpotLight->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSSpotLight.hlsl", "main");
 		m_PSSpotLight->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
 
-		m_PSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSky.hlsl", "main");
-
 		m_PSSpotLight_Volume = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSSpotLight_Volume->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSSpotLight.hlsl", "Volume");
+		m_PSSpotLight_Volume->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSSpotLight.hlsl", "Volume");
 		m_PSSpotLight_Volume->AttachConstantBuffer(m_CBGBufferUnpacking.get(), KPSSharedCBCount + 0);
 
+		m_PSSky = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSSky->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSSky.hlsl", "main");
+
 		m_PSTerrain = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSTerrain->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSTerrain.hlsl", "main");
+		m_PSTerrain->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSTerrain.hlsl", "main");
 		m_PSTerrain->AttachConstantBuffer(m_CBTerrainMaskingSpace.get(), KPSSharedCBCount + 0);
 		m_PSTerrain->AttachConstantBuffer(m_CBTerrainSelection.get(), KPSSharedCBCount + 1);
 		m_PSTerrain->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 2);
 
 		m_PSTerrain_gbuffer = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSTerrain_gbuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSTerrain.hlsl", "gbuffer");
+		m_PSTerrain_gbuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSTerrain.hlsl", "gbuffer");
 		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainMaskingSpace.get(), KPSSharedCBCount + 0);
 		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBTerrainSelection.get(), KPSSharedCBCount + 1);
 		m_PSTerrain_gbuffer->AttachConstantBuffer(m_CBEditorTime.get(), KPSSharedCBCount + 2);
 
 		m_PSWater = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSWater->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompile, L"Shader\\PSWater.hlsl", "main");
+		m_PSWater->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSWater.hlsl", "main");
 		m_PSWater->AttachConstantBuffer(m_CBWaterTime.get(), KPSSharedCBCount + 0);
-
 	}
 }
 
 void CGame::CreateMiniAxes()
 {
 	m_vMiniAxes.clear();
-	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisX", m_Device.Get(), m_DeviceContext.Get(), this));
-	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisY", m_Device.Get(), m_DeviceContext.Get(), this));
-	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisZ", m_Device.Get(), m_DeviceContext.Get(), this));
+	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisX", m_Device.Get(), m_DeviceContext.Get()));
+	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisY", m_Device.Get(), m_DeviceContext.Get()));
+	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisZ", m_Device.Get(), m_DeviceContext.Get()));
 
 	const SMesh KAxisCone{ GenerateCone(0, 1.0f, 1.0f, 16) };
 	vector<CMaterialData> vMaterialData{};
@@ -996,7 +929,7 @@ void CGame::CreatePickingRay()
 
 void CGame::CreatePickedTriangle()
 {
-	m_PickedTriangleRep = make_unique<CObject3D>("PickedTriangle", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_PickedTriangleRep = make_unique<CObject3D>("PickedTriangle", m_Device.Get(), m_DeviceContext.Get());
 
 	m_PickedTriangleRep->Create(GenerateTriangle(XMVectorSet(0, 0, 1.5f, 1), XMVectorSet(+1.0f, 0, 0, 1), XMVectorSet(-1.0f, 0, 0, 1),
 		XMVectorSet(1.0f, 1.0f, 0.0f, 1.0f)));
@@ -1004,118 +937,9 @@ void CGame::CreatePickedTriangle()
 
 void CGame::CreateBoundingSphere()
 {
-	m_BoundingSphereRep = make_unique<CObject3D>("BoundingSphere", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_BoundingSphereRep = make_unique<CObject3D>("BoundingSphere", m_Device.Get(), m_DeviceContext.Get());
 
 	m_BoundingSphereRep->Create(GenerateSphere(16));
-}
-
-void CGame::Create3DGizmos()
-{
-	static constexpr XMVECTOR KColorX{ 1.00f, 0.25f, 0.25f, 1.0f };
-	static constexpr XMVECTOR KColorY{ 0.25f, 1.00f, 0.25f, 1.0f };
-	static constexpr XMVECTOR KColorZ{ 0.25f, 0.25f, 1.00f, 1.0f };
-
-	if (!m_Object3D_3DGizmoRotationPitch)
-	{
-		m_Object3D_3DGizmoRotationPitch = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, KColorX) };
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorX) };
-		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		m_Object3D_3DGizmoRotationPitch->Create(MergeStaticMeshes(MeshRing, MeshAxis));
-		m_Object3D_3DGizmoRotationPitch->ComponentTransform.Roll = -XM_PIDIV2;
-	}
-	
-	if (!m_Object3D_3DGizmoRotationYaw)
-	{
-		m_Object3D_3DGizmoRotationYaw = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, KColorY) };
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorY) };
-		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		m_Object3D_3DGizmoRotationYaw->Create(MergeStaticMeshes(MeshRing, MeshAxis));
-	}
-
-	if (!m_Object3D_3DGizmoRotationRoll)
-	{
-		m_Object3D_3DGizmoRotationRoll = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshRing{ GenerateTorus(K3DGizmoRadius, 16, KRotationGizmoRingSegmentCount, KColorZ) };
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorZ) };
-		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		m_Object3D_3DGizmoRotationRoll->Create(MergeStaticMeshes(MeshRing, MeshAxis));
-		m_Object3D_3DGizmoRotationRoll->ComponentTransform.Pitch = XM_PIDIV2;
-	}
-	
-	if (!m_Object3D_3DGizmoTranslationX)
-	{
-		m_Object3D_3DGizmoTranslationX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorX) };
-		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, KColorX) };
-		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
-		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
-		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		m_Object3D_3DGizmoTranslationX->Create(MeshAxis);
-		m_Object3D_3DGizmoTranslationX->ComponentTransform.Roll = -XM_PIDIV2;
-	}
-	
-	if (!m_Object3D_3DGizmoTranslationY)
-	{
-		m_Object3D_3DGizmoTranslationY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorY) };
-		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, KColorY) };
-		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
-		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
-		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		m_Object3D_3DGizmoTranslationY->Create(MeshAxis);
-	}
-	
-	if (!m_Object3D_3DGizmoTranslationZ)
-	{
-		m_Object3D_3DGizmoTranslationZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorZ) };
-		SMesh MeshCone{ GenerateCone(0, 0.1f, 0.5f, 16, KColorZ) };
-		TranslateMesh(MeshCone, XMVectorSet(0, 0.5f, 0, 0));
-		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
-		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		m_Object3D_3DGizmoTranslationZ->Create(MeshAxis);
-		m_Object3D_3DGizmoTranslationZ->ComponentTransform.Pitch = XM_PIDIV2;
-	}
-
-	if (!m_Object3D_3DGizmoScalingX)
-	{
-		m_Object3D_3DGizmoScalingX = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorX) };
-		SMesh MeshCube{ GenerateCube(KColorX) };
-		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
-		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
-		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
-		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		m_Object3D_3DGizmoScalingX->Create(MeshAxis);
-		m_Object3D_3DGizmoScalingX->ComponentTransform.Roll = -XM_PIDIV2;
-	}
-
-	if (!m_Object3D_3DGizmoScalingY)
-	{
-		m_Object3D_3DGizmoScalingY = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorY) };
-		SMesh MeshCube{ GenerateCube(KColorY) };
-		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
-		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
-		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
-		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		m_Object3D_3DGizmoScalingY->Create(MeshAxis);
-	}
-
-	if (!m_Object3D_3DGizmoScalingZ)
-	{
-		m_Object3D_3DGizmoScalingZ = make_unique<CObject3D>("Gizmo", m_Device.Get(), m_DeviceContext.Get(), this);
-		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorZ) };
-		SMesh MeshCube{ GenerateCube(KColorZ) };
-		ScaleMesh(MeshCube, XMVectorSet(0.2f, 0.2f, 0.2f, 0));
-		TranslateMesh(MeshCube, XMVectorSet(0, 0.5f, 0, 0));
-		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
-		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
-		m_Object3D_3DGizmoScalingZ->Create(MeshAxis);
-		m_Object3D_3DGizmoScalingZ->ComponentTransform.Pitch = XM_PIDIV2;
-	}
 }
 
 void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
@@ -1400,11 +1224,6 @@ void CGame::ToggleGameRenderingFlags(EFlagsRendering Flags)
 	m_eFlagsRendering ^= Flags;
 }
 
-void CGame::Set3DGizmoMode(E3DGizmoMode Mode)
-{
-	m_e3DGizmoMode = Mode;
-}
-
 void CGame::SetUniversalRSState()
 {
 	switch (m_eRasterizerState)
@@ -1496,46 +1315,6 @@ void CGame::UpdateCBDisplacementData(const CObject3D::SCBDisplacementData& Data)
 	m_CBDisplacement->Update();
 }
 
-void CGame::UpdateCBMaterialData(const CMaterialData& MaterialData, uint32_t TotalMaterialCount)
-{
-	m_CBMaterialData.AmbientColor = MaterialData.AmbientColor();
-	m_CBMaterialData.DiffuseColor = MaterialData.DiffuseColor();
-	m_CBMaterialData.SpecularColor = MaterialData.SpecularColor();
-	m_CBMaterialData.SpecularExponent = MaterialData.SpecularExponent();
-	m_CBMaterialData.SpecularIntensity = MaterialData.SpecularIntensity();
-	m_CBMaterialData.Roughness = MaterialData.Roughness();
-	m_CBMaterialData.Metalness = MaterialData.Metalness();
-
-	uint32_t FlagsHasTexture{};
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::DiffuseTexture) ? 0x01 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::NormalTexture) ? 0x02 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::OpacityTexture) ? 0x04 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::SpecularIntensityTexture) ? 0x08 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::RoughnessTexture) ? 0x10 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::MetalnessTexture) ? 0x20 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::AmbientOcclusionTexture) ? 0x40 : 0;
-	// Displacement texture is usually not used in PS
-	m_CBMaterialData.FlagsHasTexture = FlagsHasTexture;
-
-	uint32_t FlagsIsTextureSRGB{};
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::DiffuseTexture) ? 0x01 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::NormalTexture) ? 0x02 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::OpacityTexture) ? 0x04 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::SpecularIntensityTexture) ? 0x08 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::RoughnessTexture) ? 0x10 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::MetalnessTexture) ? 0x20 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::AmbientOcclusionTexture) ? 0x40 : 0;
-	// Displacement texture is usually not used in PS
-	if (m_EnvironmentTexture) FlagsIsTextureSRGB += m_EnvironmentTexture->IssRGB() ? 0x4000 : 0;
-	if (m_IrradianceTexture) FlagsIsTextureSRGB += m_IrradianceTexture->IssRGB() ? 0x8000 : 0;
-
-	m_CBMaterialData.FlagsIsTextureSRGB = FlagsIsTextureSRGB;
-
-	m_CBMaterialData.TotalMaterialCount = TotalMaterialCount;
-
-	m_CBMaterial->Update();
-}
-
 void CGame::UpdateCBTerrainMaskingSpace(const XMMATRIX& Matrix)
 {
 	m_CBTerrainMaskingSpaceData.Matrix = XMMatrixTranspose(Matrix);
@@ -1607,19 +1386,19 @@ void CGame::CreateDynamicSky(const string& SkyDataFileName, float ScalingFactor)
 
 	m_SkyMaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, m_SkyData.TextureFileName);
 
-	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get());
 	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterialData);
 	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
 	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
 
-	m_Object3DSun = make_unique<CObject3D>("Sun", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DSun = make_unique<CObject3D>("Sun", m_Device.Get(), m_DeviceContext.Get());
 	m_Object3DSun->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterialData);
 	m_Object3DSun->UpdateQuadUV(m_SkyData.Sun.UVOffset, m_SkyData.Sun.UVSize);
 	m_Object3DSun->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Sun.WidthHeightRatio, 0);
 	m_Object3DSun->ComponentRender.bIsTransparent = true;
 	m_Object3DSun->ComponentPhysics.bIsPickable = false;
 	
-	m_Object3DMoon = make_unique<CObject3D>("Moon", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DMoon = make_unique<CObject3D>("Moon", m_Device.Get(), m_DeviceContext.Get());
 	m_Object3DMoon->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterialData);
 	m_Object3DMoon->UpdateQuadUV(m_SkyData.Moon.UVOffset, m_SkyData.Moon.UVSize);
 	m_Object3DMoon->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Moon.WidthHeightRatio, 0);
@@ -1636,7 +1415,7 @@ void CGame::CreateStaticSky(float ScalingFactor)
 {
 	m_SkyScalingFactor = ScalingFactor;
 
-	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get(), this);
+	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get());
 	//m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
 	m_Object3DSkySphere->Create(GenerateCubemapSphere(KSkySphereSegmentCount));
 	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
@@ -2070,9 +1849,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::VSLine:
 		Result = m_VSLine.get();
 		break;
-	case EBaseShader::VSGizmo:
-		Result = m_VSGizmo.get();
-		break;
 	case EBaseShader::VSTerrain:
 		Result = m_VSTerrain.get();
 		break;
@@ -2144,9 +1920,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSLine:
 		Result = m_PSLine.get();
-		break;
-	case EBaseShader::PSGizmo:
-		Result = m_PSGizmo.get();
 		break;
 	case EBaseShader::PSTerrain:
 		Result = m_PSTerrain.get();
@@ -2240,7 +2013,7 @@ bool CGame::InsertObject3D(const string& Name)
 {
 	if (IsObject3DNameInsertable(Name, true))
 	{
-		m_vObject3Ds.emplace_back(make_unique<CObject3D>(Name, m_Device.Get(), m_DeviceContext.Get(), this));
+		m_vObject3Ds.emplace_back(make_unique<CObject3D>(Name, m_Device.Get(), m_DeviceContext.Get()));
 		m_mapObject3DNameToIndex[Name] = m_vObject3Ds.size() - 1;
 
 		return true;
@@ -2642,7 +2415,7 @@ void CGame::NotifyMouseLeftUp()
 
 void CGame::Select()
 {
-	if (IsGizmoSelected()) return;
+	if (m_Gizmo3D->IsInAction()) return;
 
 	if (m_eMode == EMode::Edit)
 	{	
@@ -2786,8 +2559,16 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 {
 	if (!bUseAdditiveSelection) DeselectAll();
 
+	XMVECTOR MultipleSelectionWorldCenter{};
+
 	m_vSelectionData.emplace_back(SelectionData);
 	const size_t KSelectionIndex{ m_vSelectionData.size() - 1 };
+
+	if (KSelectionIndex > 0)
+	{
+		m_MultipleSelectionWorldCenter /= XMVectorGetW(m_MultipleSelectionWorldCenter);
+		MultipleSelectionWorldCenter = m_MultipleSelectionWorldCenter * static_cast<float>(KSelectionIndex);
+	}
 
 	switch (SelectionData.eObjectType)
 	{
@@ -2803,7 +2584,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 		
 		m_umapSelectionObject3D[SelectionData.Name] = KSelectionIndex;
 
-		m_MultipleSelectionWorldCenter += KObjectTranslation;
+		MultipleSelectionWorldCenter += KObjectTranslation;
 		break;
 	}
 	case CGame::EObjectType::Object2D:
@@ -2811,7 +2592,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 	case CGame::EObjectType::EditorCamera:
 		m_EditorCameraSelectionIndex = KSelectionIndex;
 
-		m_MultipleSelectionWorldCenter += m_EditorCamera->GetTranslation();
+		MultipleSelectionWorldCenter += m_EditorCamera->GetTranslation();
 		break;
 	case CGame::EObjectType::Camera:
 		m_umapSelectionCamera[SelectionData.Name] = KSelectionIndex;
@@ -2819,7 +2600,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 		m_CameraRep->SetInstanceHighlight(SelectionData.Name, true);
 		m_CameraRep->UpdateInstanceBuffers();
 
-		m_MultipleSelectionWorldCenter += m_vCameras[GetCameraID(SelectionData.Name)]->GetTranslation();
+		MultipleSelectionWorldCenter += m_vCameras[GetCameraID(SelectionData.Name)]->GetTranslation();
 		break;
 	case CGame::EObjectType::Light:
 		m_umapSelectionLight[SelectionData.Name] = KSelectionIndex;
@@ -2827,20 +2608,21 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 		m_LightRep->SetInstanceHighlight(SelectionData.Name, true);
 		m_LightRep->UpdateInstanceBuffer();
 
-		m_MultipleSelectionWorldCenter += m_LightArray[SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position;
+		MultipleSelectionWorldCenter += m_LightArray[SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position;
 		break;
 	case CGame::EObjectType::Object3DInstance:
 	{
 		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-		const XMVECTOR KInstanceTranslation{
-			Object3D->GetInstanceCPUData(SelectionData.Name).Translation + Object3D->EditorBoundingSphere.CenterOffset };
+		const auto& Instance{ Object3D->GetInstanceCPUData(SelectionData.Name) };
+		const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.CenterOffset };
 
 		m_umapSelectionObject3DInstance[Object3D->GetName() + SelectionData.Name] = KSelectionIndex;
 
-		m_MultipleSelectionWorldCenter += KInstanceTranslation;
+		MultipleSelectionWorldCenter += KTranslation;
 		break;
 	}
 	}
+	m_MultipleSelectionWorldCenter = MultipleSelectionWorldCenter / static_cast<float>(m_vSelectionData.size());
 
 	Capture3DGizmoTranslation();
 }
@@ -3007,8 +2789,6 @@ void CGame::DeselectAll()
 
 	m_LightRep->SetAllInstancesHighlightOff();
 	m_LightRep->UpdateInstanceBuffer();
-
-	Deselect3DGizmos();
 }
 
 bool CGame::IsAnythingSelected() const
@@ -3271,15 +3051,13 @@ void CGame::Capture3DGizmoTranslation()
 			case CGame::EObjectType::Camera:
 			{
 				CCamera* const Camera{ GetCamera(SelectionData.Name) };
-
-				m_Current3DGizmoTranslation = m_Captured3DGizmoTranslation = Camera->GetTranslation();
-
+				m_Gizmo3D->CaptureTranslation(Camera->GetTranslation());
 				break;
 			}
 			case CGame::EObjectType::Light:
 			{
 				const XMVECTOR& KTranslation{ m_LightArray[(uint32_t)SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position };
-				m_Current3DGizmoTranslation = m_Captured3DGizmoTranslation = KTranslation;
+				m_Gizmo3D->CaptureTranslation(KTranslation);
 				break;
 			}
 			case CGame::EObjectType::Object3D:
@@ -3289,11 +3067,11 @@ void CGame::Capture3DGizmoTranslation()
 				if (SelectionData.eObjectType == EObjectType::Object3DInstance)
 				{
 					auto& InstanceCPUData{ Object3D->GetInstanceCPUData(SelectionData.Name) };
-					m_Current3DGizmoTranslation = m_Captured3DGizmoTranslation = InstanceCPUData.Translation;
+					m_Gizmo3D->CaptureTranslation(InstanceCPUData.Translation);
 				}
 				else
 				{
-					m_Current3DGizmoTranslation = m_Captured3DGizmoTranslation = Object3D->ComponentTransform.Translation;
+					m_Gizmo3D->CaptureTranslation(Object3D->ComponentTransform.Translation);
 				}
 
 				break;
@@ -3303,17 +3081,8 @@ void CGame::Capture3DGizmoTranslation()
 	}
 	else
 	{
-		m_Current3DGizmoTranslation = m_Captured3DGizmoTranslation = m_MultipleSelectionWorldCenter;
+		m_Gizmo3D->CaptureTranslation(m_MultipleSelectionWorldCenter);
 	}
-
-	// @important
-	// Translate 3D gizmos
-	m_Object3D_3DGizmoTranslationX->ComponentTransform.Translation =
-		m_Object3D_3DGizmoTranslationY->ComponentTransform.Translation = m_Object3D_3DGizmoTranslationZ->ComponentTransform.Translation =
-		m_Object3D_3DGizmoRotationPitch->ComponentTransform.Translation =
-		m_Object3D_3DGizmoRotationYaw->ComponentTransform.Translation = m_Object3D_3DGizmoRotationRoll->ComponentTransform.Translation =
-		m_Object3D_3DGizmoScalingX->ComponentTransform.Translation =
-		m_Object3D_3DGizmoScalingY->ComponentTransform.Translation = m_Object3D_3DGizmoScalingZ->ComponentTransform.Translation = m_Current3DGizmoTranslation;
 }
 
 void CGame::Select3DGizmos()
@@ -3323,374 +3092,76 @@ void CGame::Select3DGizmos()
 	
 	if (!IsAnythingSelected()) return;
 
-	if (IsGizmoSelected())
+	CastPickingRay();
+
+	if (m_Gizmo3D->Interact(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
+		m_PtrCurrentCamera->GetTranslation(), m_PtrCurrentCamera->GetForward(), m_CapturedMouseState.x, m_CapturedMouseState.y, m_CapturedMouseState.leftButton))
 	{
-		float DotXAxisForward{ XMVectorGetX(XMVector3Dot(XMVectorSet(1, 0, 0, 0), m_PtrCurrentCamera->GetForward())) };
-		float DotZAxisForward{ XMVectorGetX(XMVector3Dot(XMVectorSet(0, 0, 1, 0), m_PtrCurrentCamera->GetForward())) };
-
-		int DeltaX{ m_CapturedMouseState.x - m_PrevCapturedMouseX };
-		int DeltaY{ m_CapturedMouseState.y - m_PrevCapturedMouseY };
-
-		int Delta{};
-		if (m_e3DGizmoMode == E3DGizmoMode::Rotation)
+		for (const auto& SelectionData : m_vSelectionData)
 		{
-			Delta = (m_e3DGizmoSelectedAxis == E3DGizmoAxis::AxisY) ? -DeltaX : -DeltaY;
-		}
-		else // Translation & Scaling
-		{
-			switch (m_e3DGizmoSelectedAxis)
+			switch (SelectionData.eObjectType)
 			{
 			default:
-			case CGame::E3DGizmoAxis::None:
+			case CGame::EObjectType::NONE:
+			case CGame::EObjectType::EditorCamera:
 				break;
-			case CGame::E3DGizmoAxis::AxisX:
-				if (DotZAxisForward < 0.0f) DeltaX = -DeltaX;
-				Delta = DeltaX;
+			case CGame::EObjectType::Object3DLine:
 				break;
-			case CGame::E3DGizmoAxis::AxisY:
-				Delta = -DeltaY;
+			case CGame::EObjectType::Object2D:
 				break;
-			case CGame::E3DGizmoAxis::AxisZ:
-				if (DotXAxisForward >= 0.0f) DeltaX = -DeltaX;
-				Delta = DeltaX;
+			case CGame::EObjectType::Camera:
+			{
+				CCamera* const Camera{ GetCamera(SelectionData.Name) };
+				Camera->Translate(m_Gizmo3D->GetDeltaTranslation());
+				Camera->Rotate(m_Gizmo3D->GetDeltaPitch(), m_Gizmo3D->GetDeltaYaw());
+				Camera->Update();
+
+				auto& CameraRep{ m_CameraRep->GetInstanceCPUData(SelectionData.Name) };
+				CameraRep.Translation = Camera->GetEyePosition();
+				CameraRep.Pitch = Camera->GetPitch();
+				CameraRep.Yaw = Camera->GetYaw();
+				m_CameraRep->UpdateInstanceWorldMatrix(SelectionData.Name);
+
 				break;
 			}
-		}
-		int DeltaSign{};
-		if (Delta != 0)
-		{
-			if (Delta > +1) DeltaSign = +1;
-			if (Delta < -1) DeltaSign = -1;
-		}
-		if (DeltaSign != 0)
-		{
-			float DistanceObejctCamera{ XMVectorGetX(XMVector3Length(m_Captured3DGizmoTranslation - GetCurrentCamera()->GetTranslation())) };
-			float DeltaFactor{ K3DGizmoMovementFactorBase };
-			if (DistanceObejctCamera > K3DGizmoCameraDistanceThreshold4) DeltaFactor *= 32.0f; // 2.0f
-			else if (DistanceObejctCamera > K3DGizmoCameraDistanceThreshold3) DeltaFactor *= 16.0f; // 1.0f
-			else if (DistanceObejctCamera > K3DGizmoCameraDistanceThreshold2) DeltaFactor *= 8.0f; // 0.5f
-			else if (DistanceObejctCamera > K3DGizmoCameraDistanceThreshold1) DeltaFactor *= 4.0f; // 0.25f
-			else if (DistanceObejctCamera > K3DGizmoCameraDistanceThreshold0) DeltaFactor *= 2.0f; // 0.125f
-
-			float DeltaTranslationScalar{ DeltaSign * DeltaFactor };
-			float DeltaRotationScalar{ DeltaSign * KRotation360To2PI * KRotationDelta };
-			float DeltaScalingScalar{ DeltaSign * DeltaFactor };
-			switch (m_e3DGizmoMode)
+			case CGame::EObjectType::Light:
 			{
-			case CGame::E3DGizmoMode::Translation:
-				DeltaRotationScalar = 0;
-				DeltaScalingScalar = 0;
-				break;
-			case CGame::E3DGizmoMode::Rotation:
-				DeltaTranslationScalar = 0;
-				DeltaScalingScalar = 0;
-				break;
-			case CGame::E3DGizmoMode::Scaling:
-				DeltaTranslationScalar = 0;
-				DeltaRotationScalar = 0;
-				break;
-			default:
+				const XMVECTOR& KTranslation{ m_LightArray[(uint32_t)SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position };
+				m_LightArray[(uint32_t)SelectionData.Extra]->SetInstancePosition(SelectionData.Name, KTranslation + m_Gizmo3D->GetDeltaTranslation());
+				m_LightRep->SetInstancePosition(SelectionData.Name, KTranslation);
 				break;
 			}
-
-			XMVECTOR DeltaTranslation{ XMVectorSet(
-				(m_e3DGizmoSelectedAxis == E3DGizmoAxis::AxisX) ? DeltaTranslationScalar : 0,
-				(m_e3DGizmoSelectedAxis == E3DGizmoAxis::AxisY) ? DeltaTranslationScalar : 0,
-				(m_e3DGizmoSelectedAxis == E3DGizmoAxis::AxisZ) ? DeltaTranslationScalar : 0, 0) };
-			float DeltaPitch{ (m_e3DGizmoSelectedAxis == E3DGizmoAxis::AxisX) ? DeltaRotationScalar : 0 };
-			float DeltaYaw{ (m_e3DGizmoSelectedAxis == E3DGizmoAxis::AxisY) ? DeltaRotationScalar : 0 };
-			float DeltaRoll{ (m_e3DGizmoSelectedAxis == E3DGizmoAxis::AxisZ) ? DeltaRotationScalar : 0 };
-			XMVECTOR DeltaScaling{ XMVectorSet(
-				(m_e3DGizmoSelectedAxis == E3DGizmoAxis::AxisX) ? DeltaScalingScalar : 0,
-				(m_e3DGizmoSelectedAxis == E3DGizmoAxis::AxisY) ? DeltaScalingScalar : 0,
-				(m_e3DGizmoSelectedAxis == E3DGizmoAxis::AxisZ) ? DeltaScalingScalar : 0, 0) };
-
-			for (const auto& SelectionData : m_vSelectionData)
+			case CGame::EObjectType::Object3D:
+			case CGame::EObjectType::Object3DInstance:
 			{
-				switch (SelectionData.eObjectType)
+				CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
+				if (SelectionData.eObjectType == EObjectType::Object3DInstance)
 				{
-				default:
-				case CGame::EObjectType::NONE:
-				case CGame::EObjectType::EditorCamera:
-					break;
-				case CGame::EObjectType::Object3DLine:
-					break;
-				case CGame::EObjectType::Object2D:
-					break;
-				case CGame::EObjectType::Camera:
-				{
-					CCamera* const Camera{ GetCamera(SelectionData.Name) };
-					Camera->Translate(DeltaTranslation);
-					Camera->Rotate(DeltaPitch, DeltaYaw);
-					Camera->Update();
+					auto& InstanceCPUData{ Object3D->GetInstanceCPUData(SelectionData.Name) };
+					InstanceCPUData.Translation += m_Gizmo3D->GetDeltaTranslation();
+					InstanceCPUData.Pitch += m_Gizmo3D->GetDeltaPitch();
+					InstanceCPUData.Yaw += m_Gizmo3D->GetDeltaYaw();
+					InstanceCPUData.Roll += m_Gizmo3D->GetDeltaRoll();
+					InstanceCPUData.Scaling += m_Gizmo3D->GetDeltaScaling();
 
-					auto& CameraRep{ m_CameraRep->GetInstanceCPUData(SelectionData.Name) };
-					CameraRep.Translation = Camera->GetEyePosition();
-					CameraRep.Pitch = Camera->GetPitch();
-					CameraRep.Yaw = Camera->GetYaw();
-					m_CameraRep->UpdateInstanceWorldMatrix(SelectionData.Name);
-
-					break;
+					Object3D->UpdateInstanceWorldMatrix(SelectionData.Name);
 				}
-				case CGame::EObjectType::Light:
+				else
 				{
-					const XMVECTOR& KTranslation{ m_LightArray[(uint32_t)SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position };
-					m_LightArray[(uint32_t)SelectionData.Extra]->SetInstancePosition(SelectionData.Name, KTranslation + DeltaTranslation);
-					m_LightRep->SetInstancePosition(SelectionData.Name, KTranslation);
-					break;
-				}
-				case CGame::EObjectType::Object3D:
-				case CGame::EObjectType::Object3DInstance:
-				{
-					CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-					if (SelectionData.eObjectType == EObjectType::Object3DInstance)
-					{
-						auto& InstanceCPUData{ Object3D->GetInstanceCPUData(SelectionData.Name) };
-						InstanceCPUData.Translation += DeltaTranslation;
-						InstanceCPUData.Pitch += DeltaPitch;
-						InstanceCPUData.Yaw += DeltaYaw;
-						InstanceCPUData.Roll += DeltaRoll;
-						InstanceCPUData.Scaling += DeltaScaling;
+					Object3D->ComponentTransform.Translation += m_Gizmo3D->GetDeltaTranslation();
+					Object3D->ComponentTransform.Pitch += m_Gizmo3D->GetDeltaPitch();
+					Object3D->ComponentTransform.Yaw += m_Gizmo3D->GetDeltaYaw();
+					Object3D->ComponentTransform.Roll += m_Gizmo3D->GetDeltaRoll();
+					Object3D->ComponentTransform.Scaling += m_Gizmo3D->GetDeltaScaling();
 
-						Object3D->UpdateInstanceWorldMatrix(SelectionData.Name);
-					}
-					else
-					{
-						Object3D->ComponentTransform.Translation += DeltaTranslation;
-						Object3D->ComponentTransform.Pitch += DeltaPitch;
-						Object3D->ComponentTransform.Yaw += DeltaYaw;
-						Object3D->ComponentTransform.Roll += DeltaRoll;
-						Object3D->ComponentTransform.Scaling += DeltaScaling;
-
-						Object3D->UpdateWorldMatrix();
-					}
-
-					break;
-				}
+					Object3D->UpdateWorldMatrix();
 				}
 
-				m_PrevCapturedMouseX = m_CapturedMouseState.x;
-				m_PrevCapturedMouseY = m_CapturedMouseState.y;
+				break;
 			}
-
-			m_Current3DGizmoTranslation += DeltaTranslation;
+			}
 		}
 	}
-	else
-	{
-		// Gizmo is not selected.
-
-		m_PrevCapturedMouseX = m_CapturedMouseState.x;
-		m_PrevCapturedMouseY = m_CapturedMouseState.y;
-
-		CastPickingRay();
-
-		switch (m_e3DGizmoMode)
-		{
-		case E3DGizmoMode::Translation:
-			m_bIsGizmoHovered = true;
-			if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationX.get(), E3DGizmoAxis::AxisX))
-			{
-				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
-			}
-			else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationY.get(), E3DGizmoAxis::AxisY))
-			{
-				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
-			}
-			else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoTranslationZ.get(), E3DGizmoAxis::AxisZ))
-			{
-				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
-			}
-			else
-			{
-				m_bIsGizmoHovered = false;
-			}
-			break;
-		case E3DGizmoMode::Rotation:
-		{
-			XMVECTOR T{ KVectorGreatest };
-			m_bIsGizmoHovered = false;
-			if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationPitch.get(), E3DGizmoAxis::AxisX, &T))
-			{
-				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
-				m_bIsGizmoHovered = true;
-			}
-			if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationYaw.get(), E3DGizmoAxis::AxisY, &T))
-			{
-				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
-				m_bIsGizmoHovered = true;
-			}
-			if (ShouldSelectRotationGizmo(m_Object3D_3DGizmoRotationRoll.get(), E3DGizmoAxis::AxisZ, &T))
-			{
-				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
-				m_bIsGizmoHovered = true;
-			}
-			break;
-		}
-		case E3DGizmoMode::Scaling:
-			m_bIsGizmoHovered = true;
-			if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingX.get(), E3DGizmoAxis::AxisX))
-			{
-				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisX;
-			}
-			else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingY.get(), E3DGizmoAxis::AxisY))
-			{
-				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisY;
-			}
-			else if (ShouldSelectTranslationScalingGizmo(m_Object3D_3DGizmoScalingZ.get(), E3DGizmoAxis::AxisZ))
-			{
-				m_e3DGizmoSelectedAxis = E3DGizmoAxis::AxisZ;
-			}
-			else
-			{
-				m_bIsGizmoHovered = false;
-			}
-			break;
-		default:
-			break;
-		}
-
-		if (m_bIsGizmoHovered && m_CapturedMouseState.leftButton)
-		{
-			m_bIsGizmoSelected = true;
-		}
-	}
-
-	// @important
-	// Translate 3D gizmos
-	m_Object3D_3DGizmoTranslationX->ComponentTransform.Translation =
-		m_Object3D_3DGizmoTranslationY->ComponentTransform.Translation = m_Object3D_3DGizmoTranslationZ->ComponentTransform.Translation =
-		m_Object3D_3DGizmoRotationPitch->ComponentTransform.Translation =
-		m_Object3D_3DGizmoRotationYaw->ComponentTransform.Translation = m_Object3D_3DGizmoRotationRoll->ComponentTransform.Translation =
-		m_Object3D_3DGizmoScalingX->ComponentTransform.Translation =
-		m_Object3D_3DGizmoScalingY->ComponentTransform.Translation = m_Object3D_3DGizmoScalingZ->ComponentTransform.Translation = m_Current3DGizmoTranslation;
-
-	// @important
-	// Calculate scalar IAW the distance from the camera	
-	m_3DGizmoDistanceScalar = XMVectorGetX(XMVector3Length(
-		m_PtrCurrentCamera->GetTranslation() - m_Object3D_3DGizmoTranslationX->ComponentTransform.Translation)) * 0.1f;
-	m_3DGizmoDistanceScalar = pow(m_3DGizmoDistanceScalar, 0.7f);
-}
-
-void CGame::Deselect3DGizmos()
-{
-	m_bIsGizmoSelected = false;
-}
-
-bool CGame::IsGizmoHovered() const
-{
-	return m_bIsGizmoHovered;
-}
-
-bool CGame::IsGizmoSelected() const
-{
-	return m_bIsGizmoSelected;
-}
-
-bool CGame::ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis, XMVECTOR* const OutPtrT)
-{
-	static constexpr float KHollowCylinderInnerRaidus{ 0.9375f };
-	static constexpr float KHollowCylinderOuterRaidus{ 1.0625f };
-	static constexpr float KHollowCylinderHeight{ 0.125f };
-
-	XMVECTOR CylinderSpaceRayOrigin{ m_PickingRayWorldSpaceOrigin - Gizmo->ComponentTransform.Translation };
-	XMVECTOR CylinderSpaceRayDirection{ m_PickingRayWorldSpaceDirection };
-
-	XMVECTOR NewT{ KVectorGreatest };
-	switch (Axis)
-	{
-	case E3DGizmoAxis::None:
-	{
-		return false;
-	}
-	case E3DGizmoAxis::AxisX:
-	{
-		XMMATRIX RotationMatrix{ XMMatrixRotationZ(XM_PIDIV2) };
-		CylinderSpaceRayOrigin = XMVector3TransformCoord(CylinderSpaceRayOrigin, RotationMatrix);
-		CylinderSpaceRayDirection = XMVector3TransformNormal(CylinderSpaceRayDirection, RotationMatrix);
-		if (IntersectRayHollowCylinderCentered(CylinderSpaceRayOrigin, CylinderSpaceRayDirection, KHollowCylinderHeight,
-			KHollowCylinderInnerRaidus * m_3DGizmoDistanceScalar, KHollowCylinderOuterRaidus * m_3DGizmoDistanceScalar, &NewT))
-		{
-			if (XMVector3Less(NewT, *OutPtrT))
-			{
-				*OutPtrT = NewT;
-				return true;
-			}
-		}
-		break;
-	}
-	case E3DGizmoAxis::AxisY:
-	{
-		if (IntersectRayHollowCylinderCentered(CylinderSpaceRayOrigin, CylinderSpaceRayDirection, KHollowCylinderHeight,
-			KHollowCylinderInnerRaidus * m_3DGizmoDistanceScalar, KHollowCylinderOuterRaidus * m_3DGizmoDistanceScalar, &NewT))
-		{
-			if (XMVector3Less(NewT, *OutPtrT))
-			{
-				*OutPtrT = NewT;
-				return true;
-			}
-		}
-		break;
-	}
-	case E3DGizmoAxis::AxisZ:
-	{
-		XMMATRIX RotationMatrix{ XMMatrixRotationX(XM_PIDIV2) };
-		CylinderSpaceRayOrigin = XMVector3TransformCoord(CylinderSpaceRayOrigin, RotationMatrix);
-		CylinderSpaceRayDirection = XMVector3TransformNormal(CylinderSpaceRayDirection, RotationMatrix);
-		if (IntersectRayHollowCylinderCentered(CylinderSpaceRayOrigin, CylinderSpaceRayDirection, KHollowCylinderHeight,
-			KHollowCylinderInnerRaidus * m_3DGizmoDistanceScalar, KHollowCylinderOuterRaidus * m_3DGizmoDistanceScalar, &NewT))
-		{
-			if (XMVector3Less(NewT, *OutPtrT))
-			{
-				*OutPtrT = NewT;
-				return true;
-			}
-		}
-		break;
-	}
-	default:
-		break;
-	}
-	return false;
-}
-
-bool CGame::ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis)
-{
-	static constexpr float KGizmoLengthFactor{ 1.1875f };
-	static constexpr float KGizmoRaidus{ 0.05859375f };
-	XMVECTOR CylinderSpaceRayOrigin{ m_PickingRayWorldSpaceOrigin - Gizmo->ComponentTransform.Translation };
-	XMVECTOR CylinderSpaceRayDirection{ m_PickingRayWorldSpaceDirection };
-	switch (Axis)
-	{
-	case E3DGizmoAxis::None:
-		return false;
-		break;
-	case E3DGizmoAxis::AxisX:
-		{
-			XMMATRIX RotationMatrix{ XMMatrixRotationZ(XM_PIDIV2) };
-			CylinderSpaceRayOrigin = XMVector3TransformCoord(CylinderSpaceRayOrigin, RotationMatrix);
-			CylinderSpaceRayDirection = XMVector3TransformNormal(CylinderSpaceRayDirection, RotationMatrix);
-			if (IntersectRayCylinder(CylinderSpaceRayOrigin, CylinderSpaceRayDirection, 
-				KGizmoLengthFactor * m_3DGizmoDistanceScalar, KGizmoRaidus * m_3DGizmoDistanceScalar)) return true;
-		}
-		break;
-	case E3DGizmoAxis::AxisY:
-		if (IntersectRayCylinder(CylinderSpaceRayOrigin, CylinderSpaceRayDirection, 
-			KGizmoLengthFactor * m_3DGizmoDistanceScalar, KGizmoRaidus * m_3DGizmoDistanceScalar)) return true;
-		break;
-	case E3DGizmoAxis::AxisZ:
-		{
-			XMMATRIX RotationMatrix{ XMMatrixRotationX(-XM_PIDIV2) };
-			CylinderSpaceRayOrigin = XMVector3TransformCoord(CylinderSpaceRayOrigin, RotationMatrix);
-			CylinderSpaceRayDirection = XMVector3TransformNormal(CylinderSpaceRayDirection, RotationMatrix);
-			if (IntersectRayCylinder(CylinderSpaceRayOrigin, CylinderSpaceRayDirection, 
-				KGizmoLengthFactor * m_3DGizmoDistanceScalar, KGizmoRaidus * m_3DGizmoDistanceScalar)) return true;
-		}
-		break;
-	default:
-		break;
-	}
-	return false;
 }
 
 void CGame::BeginRendering(const FLOAT* ClearColor)
@@ -3796,15 +3267,15 @@ void CGame::Update()
 
 			if (m_CapturedKeyboardState.D1)
 			{
-				Set3DGizmoMode(E3DGizmoMode::Translation);
+				m_Gizmo3D->SetMode(CGizmo3D::EMode::Translation);
 			}
 			if (m_CapturedKeyboardState.D2)
 			{
-				Set3DGizmoMode(E3DGizmoMode::Rotation);
+				m_Gizmo3D->SetMode(CGizmo3D::EMode::Rotation);
 			}
 			if (m_CapturedKeyboardState.D3)
 			{
-				Set3DGizmoMode(E3DGizmoMode::Scaling);
+				m_Gizmo3D->SetMode(CGizmo3D::EMode::Scaling);
 			}
 		}
 
@@ -3827,7 +3298,7 @@ void CGame::Update()
 					m_MultipleSelectionChanging = true;
 				}
 
-				if (IsGizmoSelected()) m_MultipleSelectionChanging = false;
+				if (m_Gizmo3D->IsInAction()) m_MultipleSelectionChanging = false;
 
 				if (m_MultipleSelectionChanging)
 				{
@@ -3841,7 +3312,7 @@ void CGame::Update()
 					Select();
 				}
 
-				if (!m_CapturedMouseState.leftButton) Deselect3DGizmos();
+				if (!m_CapturedMouseState.leftButton) m_Gizmo3D->QuitAction();
 				if (m_CapturedMouseState.rightButton) DeselectAll();
 
 				if (bMouseMoved)
@@ -3864,7 +3335,7 @@ void CGame::Update()
 			if (bMouseMoved)
 			{
 				if (m_CapturedMouseState.middleButton)
-					//if (m_CapturedMouseState.rightButton)
+				//if (m_CapturedMouseState.rightButton)
 				{
 					m_PtrCurrentCamera->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, m_DeltaTimeF);
 
@@ -3924,7 +3395,7 @@ void CGame::Draw()
 					m_MatrixView = m_CascadedShadowMap->GetViewMatrix(iLOD);
 					m_MatrixProjection = m_CascadedShadowMap->GetProjectionMatrix(iLOD);
 					m_CBShadowMapData.ShadowMapSpaceMatrix[iLOD] = m_CascadedShadowMap->GetTransposedSpaceMatrix(iLOD);
-					if (iLOD < KCascadedShadowMapLODCountMax) m_CBShadowMapData.ShadowMapZFars[iLOD] = m_CascadedShadowMap->GetZFar(iLOD);
+					if (iLOD < CCascadedShadowMap::KLODCountMax) m_CBShadowMapData.ShadowMapZFars[iLOD] = m_CascadedShadowMap->GetZFar(iLOD);
 
 					DrawOpaqueObject3Ds(true, true);
 				}
@@ -4586,125 +4057,7 @@ void CGame::Draw3DGizmos()
 		}
 	}
 
-	m_VSGizmo->Use();
-	m_PSGizmo->Use();
-
-	switch (m_e3DGizmoMode)
-	{
-	case E3DGizmoMode::Translation:
-		Draw3DGizmoTranslations(m_e3DGizmoSelectedAxis);
-		break;
-	case E3DGizmoMode::Rotation:
-		Draw3DGizmoRotations(m_e3DGizmoSelectedAxis);
-		break;
-	case E3DGizmoMode::Scaling:
-		Draw3DGizmoScalings(m_e3DGizmoSelectedAxis);
-		break;
-	default:
-		break;
-	}
-}
-
-void CGame::Draw3DGizmoTranslations(E3DGizmoAxis Axis)
-{
-	bool bHighlightX{ false };
-	bool bHighlightY{ false };
-	bool bHighlightZ{ false };
-
-	if (IsGizmoHovered())
-	{
-		switch (Axis)
-		{
-		case E3DGizmoAxis::AxisX:
-			bHighlightX = true;
-			break;
-		case E3DGizmoAxis::AxisY:
-			bHighlightY = true;
-			break;
-		case E3DGizmoAxis::AxisZ:
-			bHighlightZ = true;
-			break;
-		default:
-			break;
-		}
-	}
-
-	Draw3DGizmo(m_Object3D_3DGizmoTranslationX.get(), bHighlightX);
-	Draw3DGizmo(m_Object3D_3DGizmoTranslationY.get(), bHighlightY);
-	Draw3DGizmo(m_Object3D_3DGizmoTranslationZ.get(), bHighlightZ);
-}
-
-void CGame::Draw3DGizmoRotations(E3DGizmoAxis Axis)
-{
-	bool bHighlightX{ false };
-	bool bHighlightY{ false };
-	bool bHighlightZ{ false };
-
-	if (IsGizmoHovered())
-	{
-		switch (Axis)
-		{
-		case E3DGizmoAxis::AxisX:
-			bHighlightX = true;
-			break;
-		case E3DGizmoAxis::AxisY:
-			bHighlightY = true;
-			break;
-		case E3DGizmoAxis::AxisZ:
-			bHighlightZ = true;
-			break;
-		default:
-			break;
-		}
-	}
-
-	Draw3DGizmo(m_Object3D_3DGizmoRotationPitch.get(), bHighlightX);
-	Draw3DGizmo(m_Object3D_3DGizmoRotationYaw.get(), bHighlightY);
-	Draw3DGizmo(m_Object3D_3DGizmoRotationRoll.get(), bHighlightZ);
-}
-
-void CGame::Draw3DGizmoScalings(E3DGizmoAxis Axis)
-{
-	bool bHighlightX{ false };
-	bool bHighlightY{ false };
-	bool bHighlightZ{ false };
-
-	if (IsGizmoHovered())
-	{
-		switch (Axis)
-		{
-		case E3DGizmoAxis::AxisX:
-			bHighlightX = true;
-			break;
-		case E3DGizmoAxis::AxisY:
-			bHighlightY = true;
-			break;
-		case E3DGizmoAxis::AxisZ:
-			bHighlightZ = true;
-			break;
-		default:
-			break;
-		}
-	}
-
-	Draw3DGizmo(m_Object3D_3DGizmoScalingX.get(), bHighlightX);
-	Draw3DGizmo(m_Object3D_3DGizmoScalingY.get(), bHighlightY);
-	Draw3DGizmo(m_Object3D_3DGizmoScalingZ.get(), bHighlightZ);
-}
-
-void CGame::Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight)
-{
-	float Scalar{ XMVectorGetX(XMVector3Length(m_PtrCurrentCamera->GetTranslation() - Gizmo->ComponentTransform.Translation)) * 0.1f };
-	Scalar = pow(Scalar, 0.7f);
-
-	Gizmo->ComponentTransform.Scaling = XMVectorSet(Scalar, Scalar, Scalar, 0.0f);
-	Gizmo->UpdateWorldMatrix();
-	UpdateCBSpace(Gizmo->ComponentTransform.MatrixWorld);
-
-	m_CBGizmoColorFactorData.ColorFactor = (bShouldHighlight) ? XMVectorSet(2.0f, 2.0f, 2.0f, 0.95f) : XMVectorSet(0.75f, 0.75f, 0.75f, 0.75f);
-	m_CBGizmoColorFactor->Update();
-
-	Gizmo->Draw();
+	m_Gizmo3D->Draw(m_MatrixView * m_MatrixProjection);
 }
 
 void CGame::DrawCameraRep()
@@ -5506,7 +4859,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									float Scaling[3]{ XMVectorGetX(InstanceCPUData.Scaling),
 										XMVectorGetY(InstanceCPUData.Scaling), XMVectorGetZ(InstanceCPUData.Scaling) };
 									if (ImGui::DragFloat3(u8"##크기", Scaling, KScalingDelta,
-										KScalingMinLimit, KScalingMaxLimit, "%.3f"))
+										CObject3D::KScalingMinLimit, CObject3D::KScalingMaxLimit, "%.3f"))
 									{
 										InstanceCPUData.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
 										Object3D->UpdateInstanceWorldMatrix(SelectionData.Name);
@@ -5562,7 +4915,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										float Scaling[3]{ XMVectorGetX(Object3D->ComponentTransform.Scaling),
 											XMVectorGetY(Object3D->ComponentTransform.Scaling), XMVectorGetZ(Object3D->ComponentTransform.Scaling) };
 										if (ImGui::DragFloat3(u8"##크기", Scaling, KScalingDelta,
-											KScalingMinLimit, KScalingMaxLimit, "%.3f"))
+											CObject3D::KScalingMinLimit, CObject3D::KScalingMaxLimit, "%.3f"))
 										{
 											Object3D->ComponentTransform.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
 											Object3D->UpdateWorldMatrix();

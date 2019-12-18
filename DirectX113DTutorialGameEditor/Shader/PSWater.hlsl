@@ -2,6 +2,12 @@
 #include "BRDF.hlsli"
 #include "iPSCBs.hlsli"
 
+cbuffer cbTime : register(b3)
+{
+	float Time;
+	float3 Pads;
+}
+
 SamplerState CurrentSampler : register(s0);
 
 Texture2D DiffuseTexture : register(t0);
@@ -12,12 +18,6 @@ Texture2D RoughnessTexture : register(t4);
 Texture2D MetalnessTexture : register(t5);
 Texture2D AmbientOcclusionTexture : register(t6);
 // Displacement texture slot
-
-cbuffer cbTime : register(b3)
-{
-	float Time;
-	float3 Pads;
-}
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {

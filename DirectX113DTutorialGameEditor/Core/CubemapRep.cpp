@@ -16,7 +16,7 @@ CCubemapRep::~CCubemapRep()
 {
 }
 
-void CCubemapRep::Create(uint32_t VSSharedCBCount, uint32_t PSSharedCBCount)
+void CCubemapRep::Create()
 {
 	m_Viewport.Width = KRepWidth;
 	m_Viewport.Height = KRepHeight;
@@ -70,10 +70,10 @@ void CCubemapRep::Create(uint32_t VSSharedCBCount, uint32_t PSSharedCBCount)
 		m_CommonStates = make_unique<CommonStates>(m_PtrDevice);
 	}
 
-	CreateShaders(VSSharedCBCount, PSSharedCBCount);
+	CreateShaders();
 }
 
-void CCubemapRep::CreateShaders(uint32_t VSSharedCBCount, uint32_t PSSharedCBCount)
+void CCubemapRep::CreateShaders()
 {
 	bool bShouldCompileShaders{ false };
 

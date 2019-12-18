@@ -22,6 +22,7 @@
 #include "CascadedShadowMap.h"
 #include "FullScreenQuad.h"
 #include "IBLBaker.h"
+#include "Gizmo3D.h"
 
 #include "TinyXml2/tinyxml2.h"
 #include "ImGui/imgui.h"
@@ -38,7 +39,6 @@ public:
 		VSAnimation,
 		VSSky,
 		VSLine,
-		VSGizmo,
 		VSTerrain,
 		VSFoliage,
 		VSBase2D,
@@ -69,7 +69,6 @@ public:
 		PSDynamicSky,
 		PSCloud,
 		PSLine,
-		PSGizmo,
 		PSTerrain,
 		PSTerrain_GBuffer,
 		PSWater,
@@ -126,21 +125,6 @@ public:
 		XMFLOAT2	Reserved{};
 	};
 
-	struct SCBMaterialData // Update at least per every object (even an object could have multiple materials)
-	{
-		XMFLOAT3	AmbientColor{};
-		float		SpecularExponent{ 1 };
-		XMFLOAT3	DiffuseColor{};
-		float		SpecularIntensity{ 0 };
-		XMFLOAT3	SpecularColor{};
-		float		Roughness{};
-
-		float		Metalness{};
-		uint32_t	FlagsHasTexture{};
-		uint32_t	FlagsIsTextureSRGB{};
-		uint32_t	TotalMaterialCount{};
-	};
-
 	struct SCBAnimationBonesData // Update every frame (when CPU skinning is used)
 	{
 		XMMATRIX	BoneMatrices[CObject3D::KMaxBoneMatrixCount]{};
@@ -150,11 +134,6 @@ public:
 	{
 		float		SkyTime{};
 		float		Pads[3]{};
-	};
-
-	struct SCBGizmoColorFactorData
-	{
-		XMVECTOR	ColorFactor{};
 	};
 
 	struct SCBTerrainMaskingSpaceData
@@ -189,14 +168,6 @@ public:
 		float		Reserved[2]{};
 	};
 
-	struct SCBShadowMapData
-	{
-		XMMATRIX	ShadowMapSpaceMatrix[KCascadedShadowMapLODCountMax]{ KMatrixIdentity, KMatrixIdentity, KMatrixIdentity, KMatrixIdentity, KMatrixIdentity };
-		float		ShadowMapZFars[KCascadedShadowMapLODCountMax - 1]{ FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
-		uint32_t	LODCount{};
-		float		Reserved[3]{};
-	};
-
 	enum class EFlagsRendering
 	{
 		None = 0x0000,
@@ -223,21 +194,6 @@ public:
 		CullClockwise,
 		CullCounterClockwise,
 		WireFrame
-	};
-
-	enum class E3DGizmoMode
-	{
-		Translation,
-		Rotation,
-		Scaling
-	};
-
-	enum class E3DGizmoAxis
-	{
-		None,
-		AxisX,
-		AxisY,
-		AxisZ
 	};
 
 	enum class EMode
@@ -415,7 +371,6 @@ private:
 	void CreatePickingRay();
 	void CreatePickedTriangle();
 	void CreateBoundingSphere();
-	void Create3DGizmos();
 
 public:
 	void LoadScene(const std::string& FileName, const std::string& SceneDirectory);
@@ -426,14 +381,8 @@ public:
 	void SetProjectionMatrices(float FOV, float NearZ, float FarZ);
 	void SetRenderingFlags(EFlagsRendering Flags);
 	void ToggleGameRenderingFlags(EFlagsRendering Flags);
-	void Set3DGizmoMode(E3DGizmoMode Mode);
 	void SetUniversalRSState();
-	E3DGizmoMode Get3DGizmoMode() const { return m_e3DGizmoMode; }
 	CommonStates* GetCommonStates() const { return m_CommonStates.get(); }
-
-	// Shader-related settings
-public:
-	void UpdateCBMaterialData(const CMaterialData& MaterialData, uint32_t TotalMaterialCount);
 
 private:
 	void UpdateCBSpace(const XMMATRIX& World = KMatrixIdentity);
@@ -573,11 +522,6 @@ private:
 public:
 	void Capture3DGizmoTranslation();
 	void Select3DGizmos();
-	void Deselect3DGizmos();
-	bool IsGizmoHovered() const;
-	bool IsGizmoSelected() const;
-	bool ShouldSelectRotationGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis, XMVECTOR* const OutPtrT);
-	bool ShouldSelectTranslationScalingGizmo(const CObject3D* const Gizmo, E3DGizmoAxis Axis);
 
 private:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);
@@ -632,11 +576,6 @@ private:
 	void DrawTerrainTransparentParts();
 
 	void Draw3DGizmos();
-	void Draw3DGizmoTranslations(E3DGizmoAxis Axis);
-	void Draw3DGizmoRotations(E3DGizmoAxis Axis);
-	void Draw3DGizmoScalings(E3DGizmoAxis Axis);
-	void Draw3DGizmo(CObject3D* const Gizmo, bool bShouldHighlight);
-
 	void DrawCameraRep();
 	void DrawLightRep();
 	void DrawMultipleSelectionRep();
@@ -662,33 +601,16 @@ private:
 	void GenerateIntegratedBRDFMap();
 
 public:
-	static constexpr float K3DGizmoRadius{ 0.05f };
-	static constexpr float K3DGizmoSelectionRadius{ 1.1f };
-	static constexpr float K3DGizmoSelectionLowBoundary{ 0.8f };
-	static constexpr float K3DGizmoSelectionHighBoundary{ 1.2f };
-	static constexpr float K3DGizmoMovementFactorBase{ 0.0625f };
-	static constexpr float K3DGizmoCameraDistanceThreshold0{ 2.0f };
-	static constexpr float K3DGizmoCameraDistanceThreshold1{ 4.0f };
-	static constexpr float K3DGizmoCameraDistanceThreshold2{ 8.0f };
-	static constexpr float K3DGizmoCameraDistanceThreshold3{ 16.0f };
-	static constexpr float K3DGizmoCameraDistanceThreshold4{ 32.0f };
-	static constexpr float K3DGizmoDistanceFactorExponent{ 0.75f };
-	static constexpr int KRotationGizmoRingSegmentCount{ 36 };
-
 	static constexpr float KTranslationMinLimit{ -1000.0f };
 	static constexpr float KTranslationMaxLimit{ +1000.0f };
-	static constexpr float KTranslationDelta{ K3DGizmoMovementFactorBase };
-	static constexpr float KRotationMaxLimit{ +XM_2PI };
-	static constexpr float KRotationMinLimit{ -XM_2PI };
+	static constexpr float KTranslationDelta{ CGizmo3D::KMovementFactorBase };
 	static constexpr float KRotationDelta{ 22.5f };
 	static constexpr int KRotation360MaxLimit{ 360 };
 	static constexpr int KRotation360MinLimit{ 360 };
 	static constexpr int KRotation360Unit{ 1 };
 	static constexpr float KRotation360To2PI{ 1.0f / 360.0f * XM_2PI };
 	static constexpr float KRotation2PITo360{ 1.0f / XM_2PI * 360.0f };
-	static constexpr float KScalingMaxLimit{ +100.0f };
-	static constexpr float KScalingMinLimit{ +0.001f };
-	static constexpr float KScalingDelta{ K3DGizmoMovementFactorBase };
+	static constexpr float KScalingDelta{ CGizmo3D::KMovementFactorBase };
 	static constexpr float KBSCenterOffsetMinLimit{ -10.0f };
 	static constexpr float KBSCenterOffsetMaxLimit{ +10.0f };
 	static constexpr float KBSCenterOffsetDelta{ +0.01f };
@@ -723,13 +645,6 @@ private:
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
 
-private:
-	static constexpr uint32_t KVSSharedCBCount{ 1 };
-	static constexpr uint32_t KHSSharedCBCount{ 2 };
-	static constexpr uint32_t KDSSharedCBCount{ 1 };
-	static constexpr uint32_t KGSSharedCBCount{ 1 };
-	static constexpr uint32_t KPSSharedCBCount{ 3 };
-
 // Shader
 private:
 	std::vector<std::unique_ptr<CShader>>	m_vCustomShaders{};
@@ -739,7 +654,6 @@ private:
 	std::unique_ptr<CShader>	m_VSAnimation{};
 	std::unique_ptr<CShader>	m_VSSky{};
 	std::unique_ptr<CShader>	m_VSLine{};
-	std::unique_ptr<CShader>	m_VSGizmo{};
 	std::unique_ptr<CShader>	m_VSTerrain{};
 	std::unique_ptr<CShader>	m_VSFoliage{};
 	std::unique_ptr<CShader>	m_VSBase2D{};
@@ -770,7 +684,6 @@ private:
 	std::unique_ptr<CShader>	m_PSDynamicSky{};
 	std::unique_ptr<CShader>	m_PSCloud{};
 	std::unique_ptr<CShader>	m_PSLine{};
-	std::unique_ptr<CShader>	m_PSGizmo{};
 	std::unique_ptr<CShader>	m_PSTerrain{};
 	std::unique_ptr<CShader>	m_PSTerrain_gbuffer{};
 	std::unique_ptr<CShader>	m_PSWater{};
@@ -793,45 +706,41 @@ private:
 
 // Constant buffer
 private:
-	std::unique_ptr<CConstantBuffer>	m_CBSpace{};
-	std::unique_ptr<CConstantBuffer>	m_CBAnimationBones{};
-	std::unique_ptr<CConstantBuffer>	m_CBAnimation{};
-	std::unique_ptr<CConstantBuffer>	m_CBTerrain{};
-	std::unique_ptr<CConstantBuffer>	m_CBWind{};
-	std::unique_ptr<CConstantBuffer>	m_CBTessFactor{};
-	std::unique_ptr<CConstantBuffer>	m_CBDisplacement{};
-	std::unique_ptr<CConstantBuffer>	m_CBGlobalLight{};
-	std::unique_ptr<CConstantBuffer>	m_CBMaterial{};
-	std::unique_ptr<CConstantBuffer>	m_CBGizmoColorFactor{};
-	std::unique_ptr<CConstantBuffer>	m_CBTerrainMaskingSpace{};
-	std::unique_ptr<CConstantBuffer>	m_CBTerrainSelection{};
-	std::unique_ptr<CConstantBuffer>	m_CBSkyTime{};
-	std::unique_ptr<CConstantBuffer>	m_CBWaterTime{};
-	std::unique_ptr<CConstantBuffer>	m_CBEditorTime{};
-	std::unique_ptr<CConstantBuffer>	m_CBCamera{};
-	std::unique_ptr<CConstantBuffer>	m_CBBillboard{};
-	std::unique_ptr<CConstantBuffer>	m_CBGBufferUnpacking{};
-	std::unique_ptr<CConstantBuffer>	m_CBShadowMap{};
+	std::unique_ptr<CConstantBuffer>		m_CBSpace{};
+	std::unique_ptr<CConstantBuffer>		m_CBAnimationBones{};
+	std::unique_ptr<CConstantBuffer>		m_CBAnimation{};
+	std::unique_ptr<CConstantBuffer>		m_CBTerrain{};
+	std::unique_ptr<CConstantBuffer>		m_CBWind{};
+	std::unique_ptr<CConstantBuffer>		m_CBTessFactor{};
+	std::unique_ptr<CConstantBuffer>		m_CBDisplacement{};
+	std::unique_ptr<CConstantBuffer>		m_CBGlobalLight{};
+	std::unique_ptr<CConstantBuffer>		m_CBTerrainMaskingSpace{};
+	std::unique_ptr<CConstantBuffer>		m_CBTerrainSelection{};
+	std::unique_ptr<CConstantBuffer>		m_CBSkyTime{};
+	std::unique_ptr<CConstantBuffer>		m_CBWaterTime{};
+	std::unique_ptr<CConstantBuffer>		m_CBEditorTime{};
+	std::unique_ptr<CConstantBuffer>		m_CBCamera{};
+	std::unique_ptr<CConstantBuffer>		m_CBBillboard{};
+	std::unique_ptr<CConstantBuffer>		m_CBGBufferUnpacking{};
+	std::unique_ptr<CConstantBuffer>		m_CBShadowMap{};
 
-	SCBSpaceData						m_CBSpaceData{};
-	SCBAnimationBonesData				m_CBAnimationBonesData{};
-	CObject3D::SCBAnimationData			m_CBAnimationData{};
-	CTerrain::SCBTerrainData			m_CBTerrainData{};
-	CTerrain::SCBWindData				m_CBWindData{};
-	CObject3D::SCBTessFactorData		m_CBTessFactorData{};
-	CObject3D::SCBDisplacementData		m_CBDisplacementData{};
-	SCBGlobalLightData					m_CBGlobalLightData{};
-	SCBMaterialData						m_CBMaterialData{};
-	SCBGizmoColorFactorData				m_CBGizmoColorFactorData{};
-	SCBTerrainMaskingSpaceData			m_CBTerrainMaskingSpaceData{};
-	CTerrain::SCBTerrainSelectionData	m_CBTerrainSelectionData{};
-	SCBSkyTimeData						m_CBSkyTimeData{};
-	SCBWaterTimeData					m_CBWaterTimeData{};
-	SCBEditorTimeData					m_CBEditorTimeData{};
-	SCBCameraData						m_CBCameraData{};
-	CBillboard::SCBBillboardData		m_CBBillboardData{};
-	SCBGBufferUnpackingData				m_CBGBufferUnpackingData{};
-	SCBShadowMapData					m_CBShadowMapData{};
+	SCBSpaceData							m_CBSpaceData{};
+	SCBAnimationBonesData					m_CBAnimationBonesData{};
+	CObject3D::SCBAnimationData				m_CBAnimationData{};
+	CTerrain::SCBTerrainData				m_CBTerrainData{};
+	CTerrain::SCBWindData					m_CBWindData{};
+	CObject3D::SCBTessFactorData			m_CBTessFactorData{};
+	CObject3D::SCBDisplacementData			m_CBDisplacementData{};
+	SCBGlobalLightData						m_CBGlobalLightData{};
+	SCBTerrainMaskingSpaceData				m_CBTerrainMaskingSpaceData{};
+	CTerrain::SCBTerrainSelectionData		m_CBTerrainSelectionData{};
+	SCBSkyTimeData							m_CBSkyTimeData{};
+	SCBWaterTimeData						m_CBWaterTimeData{};
+	SCBEditorTimeData						m_CBEditorTimeData{};
+	SCBCameraData							m_CBCameraData{};
+	CBillboard::SCBBillboardData			m_CBBillboardData{};
+	SCBGBufferUnpackingData					m_CBGBufferUnpackingData{};
+	CCascadedShadowMap::SCBShadowMapData	m_CBShadowMapData{};
 
 // Object pool
 private:
@@ -877,25 +786,8 @@ private:
 
 // 3D Gizmo
 private:
-	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationPitch{};
-	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationYaw{};
-	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoRotationRoll{};
+	std::unique_ptr<CGizmo3D>		m_Gizmo3D{};
 
-	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationX{};
-	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationY{};
-	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoTranslationZ{};
-
-	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingX{};
-	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingY{};
-	std::unique_ptr<CObject3D>		m_Object3D_3DGizmoScalingZ{};
-
-	bool							m_bIsGizmoHovered{ false };
-	bool							m_bIsGizmoSelected{ false };
-	E3DGizmoAxis					m_e3DGizmoSelectedAxis{};
-	E3DGizmoMode					m_e3DGizmoMode{};
-	float							m_3DGizmoDistanceScalar{};
-	XMVECTOR						m_Captured3DGizmoTranslation{};
-	XMVECTOR						m_Current3DGizmoTranslation{};
 
 // Camera
 private:

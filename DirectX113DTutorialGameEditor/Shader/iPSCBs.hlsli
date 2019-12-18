@@ -1,18 +1,6 @@
 // Shared constant buffers for PS
 
-cbuffer cbGlobalLight : register(b0)
-{
-	float4		DirectionalLightDirection;
-	float3		DirectionalLightColor;
-	float		Exposure;
-	float3		AmbientLightColor;
-	float		AmbientLightIntensity;
-	uint		IrradianceTextureMipLevels;
-	uint		PrefilteredRadianceTextureMipLevels;
-	float2		Reserved;
-}
-
-cbuffer cbMaterial : register(b1)
+cbuffer cbMaterial : register(b0)
 {
 	float3	MaterialAmbientColor; // Classical
 	float	MaterialSpecularExponent; // Classical
@@ -25,6 +13,18 @@ cbuffer cbMaterial : register(b1)
 	uint	FlagsHasTexture;
 	uint	FlagsIsTextureSRGB;
 	uint	TotalMaterialCount; // for Terrain this is texture layer count
+}
+
+cbuffer cbGlobalLight : register(b1)
+{
+	float4		DirectionalLightDirection;
+	float3		DirectionalLightColor;
+	float		Exposure;
+	float3		AmbientLightColor;
+	float		AmbientLightIntensity;
+	uint		IrradianceTextureMipLevels;
+	uint		PrefilteredRadianceTextureMipLevels;
+	float2		Reserved;
 }
 
 cbuffer cbSpace : register(b2)

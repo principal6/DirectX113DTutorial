@@ -127,7 +127,7 @@ void CTerrain::CreateFoliageCluster()
 	m_vFoliages.clear();
 	for (const auto& FoliageData : m_TerrainFileData.vFoliageData)
 	{
-		m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext, m_PtrGame));
+		m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext));
 		m_vFoliages.back()->CreateFromFile(FoliageData.FileName, false);
 		m_vFoliages.back()->CreateInstances(FoliageData.vInstanceData);
 	}
@@ -157,7 +157,7 @@ void CTerrain::CreateFoliageCluster(const std::vector<std::string>& vFoliageFile
 	m_vFoliages.clear();
 	for (const auto& FoliageData : m_TerrainFileData.vFoliageData)
 	{
-		m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext, m_PtrGame));
+		m_vFoliages.emplace_back(make_unique<CObject3D>("Foliage", m_PtrDevice, m_PtrDeviceContext));
 		m_vFoliages.back()->CreateFromFile(FoliageData.FileName, false);
 		m_vFoliages.back()->CreateInstances(FoliageData.vInstanceData);
 	}
@@ -220,7 +220,7 @@ void CTerrain::CreateTerrainObject3D(const std::vector<CMaterialData>& vMaterial
 	Model.vMaterialData = vMaterialData;
 	Model.bUseMultipleTexturesInSingleMesh = true; // @important
 
-	m_Object3DTerrain = make_unique<CObject3D>("Terrain", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	m_Object3DTerrain = make_unique<CObject3D>("Terrain", m_PtrDevice, m_PtrDeviceContext);
 	m_Object3DTerrain->Create(Model);
 	m_Object3DTerrain->ShouldTessellate(true); // @important
 }
@@ -276,7 +276,7 @@ void CTerrain::CreateWater()
 {
 	static constexpr XMVECTOR KWaterColor{ 0.0f, 0.5f, 0.75f, 0.8125f };
 
-	m_Object3DWater = make_unique<CObject3D>("Water", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	m_Object3DWater = make_unique<CObject3D>("Water", m_PtrDevice, m_PtrDeviceContext);
 
 	SMesh WaterMesh{ GenerateTerrainBase(XMFLOAT2(m_TerrainFileData.SizeX, m_TerrainFileData.SizeZ), KTextureSubdivisionDetail, KWaterColor) };
 
@@ -311,7 +311,7 @@ void CTerrain::CreateFoliagePlacingTexutre(bool bShouldClear)
 
 void CTerrain::CreateWindRepresentation()
 {
-	m_Object3DWindRep = make_unique<CObject3D>("WindRepr", m_PtrDevice, m_PtrDeviceContext, m_PtrGame);
+	m_Object3DWindRep = make_unique<CObject3D>("WindRepr", m_PtrDevice, m_PtrDeviceContext);
 	m_Object3DWindRep->Create(GenerateSphere());
 }
 
