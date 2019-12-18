@@ -1701,7 +1701,7 @@ void CGame::PasteCopiedObject()
 	Capture3DGizmoTranslation();
 }
 
-void CGame::DeleteSelectedObject()
+void CGame::DeleteSelectedObjects()
 {
 	// Object3D
 	if (IsAnythingSelected())
@@ -6735,7 +6735,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 			// 오브젝트 제거
 			if (ImGui::Button(u8"오브젝트 제거"))
 			{
-				DeleteSelectedObject();
+				DeleteSelectedObjects();
 			}
 
 			ImGui::Separator();

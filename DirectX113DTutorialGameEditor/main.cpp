@@ -65,7 +65,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 			if (KeyDown == VK_DELETE)
 			{
-				Game.DeleteSelectedObject();
+				Game.DeleteSelectedObjects();
 			}
 
 			if (GetKeyState(VK_CONTROL) && (KeyDown == 'c' || KeyDown == 'C'))

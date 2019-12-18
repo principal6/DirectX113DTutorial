@@ -429,7 +429,7 @@ public:
 	void ClearCopyList();
 	void CopySelectedObject();
 	void PasteCopiedObject();
-	void DeleteSelectedObject();
+	void DeleteSelectedObjects();
 
 public:
 	bool InsertCamera(const std::string& Name, CCamera::EType eType);
