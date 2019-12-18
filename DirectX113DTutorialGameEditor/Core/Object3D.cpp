@@ -1,8 +1,10 @@
 #include "Object3D.h"
+#include "AssimpLoader.h"
 #include "BinaryData.h"
 #include "ConstantBuffer.h"
+#include "Material.h"
+#include "MeshPorter.h"
 #include "Shader.h"
-#include "Game.h"
 
 using std::max;
 using std::min;
@@ -24,11 +26,9 @@ CObject3D::~CObject3D()
 
 void CObject3D::Create(const SMesh& Mesh)
 {
-	m_Model.vMeshes.clear();
-	m_Model.vMeshes.emplace_back(Mesh);
-
-	m_Model.vMaterialData.clear();
-	m_Model.vMaterialData.emplace_back();
+	m_Model = make_unique<SMESHData>();
+	m_Model->vMeshes.emplace_back(Mesh);
+	m_Model->vMaterialData.emplace_back();
 
 	CreateMeshBuffers();
 	CreateMaterialTextures();
@@ -39,11 +39,9 @@ void CObject3D::Create(const SMesh& Mesh)
 
 void CObject3D::Create(const SMesh& Mesh, const CMaterialData& MaterialData)
 {
-	m_Model.vMeshes.clear();
-	m_Model.vMeshes.emplace_back(Mesh);
-
-	m_Model.vMaterialData.clear();
-	m_Model.vMaterialData.emplace_back(MaterialData);
+	m_Model = make_unique<SMESHData>();
+	m_Model->vMeshes.emplace_back(Mesh);
+	m_Model->vMaterialData.emplace_back(MaterialData);
 	
 	CreateMeshBuffers();
 	CreateMaterialTextures();
@@ -54,7 +52,7 @@ void CObject3D::Create(const SMesh& Mesh, const CMaterialData& MaterialData)
 
 void CObject3D::Create(const SMESHData& MESHData)
 {
-	m_Model = MESHData;
+	m_Model = make_unique<SMESHData>(MESHData);
 
 	EditorBoundingSphere = MESHData.EditorBoundingSphereData;
 
@@ -85,19 +83,22 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 		Create(MESHData);
 
 		m_bIsCreated = true;
-		m_Model.bIsModelRigged = bIsModelRigged;
+		m_Model->bIsModelRigged = bIsModelRigged;
 	}
 	else
 	{
 		// non-MESH file
+		if (!m_AssimpLoader) m_AssimpLoader = make_unique<CAssimpLoader>();
+		m_Model = make_unique<SMESHData>();
+
 		ULONGLONG StartTimePoint{ GetTickCount64() };
 		if (bIsModelRigged)
 		{
-			m_AssimpLoader.LoadAnimatedModelFromFile(FileName, &m_Model, m_PtrDevice, m_PtrDeviceContext);
+			m_AssimpLoader->LoadAnimatedModelFromFile(FileName, m_Model.get(), m_PtrDevice, m_PtrDeviceContext);
 		}
 		else
 		{
-			m_AssimpLoader.LoadStaticModelFromFile(FileName, &m_Model, m_PtrDevice, m_PtrDeviceContext);
+			m_AssimpLoader->LoadStaticModelFromFile(FileName, m_Model.get(), m_PtrDevice, m_PtrDeviceContext);
 		}
 		OutputDebugString(("- Model [" + FileName + "] loaded. [" + to_string(GetTickCount64() - StartTimePoint) + "] elapsed.\n").c_str());
 
@@ -105,7 +106,7 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 		CreateMaterialTextures();
 		CreateConstantBuffers();
 
-		for (const CMaterialData& Material : m_Model.vMaterialData)
+		for (const CMaterialData& Material : m_Model->vMaterialData)
 		{
 			// @important
 			if (Material.HasTexture(ETextureType::OpacityTexture))
@@ -122,16 +123,16 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 void CObject3D::CreateMeshBuffers()
 {
 	m_vMeshBuffers.clear();
-	m_vMeshBuffers.resize(m_Model.vMeshes.size());
-	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
+	m_vMeshBuffers.resize(m_Model->vMeshes.size());
+	for (size_t iMesh = 0; iMesh < m_Model->vMeshes.size(); ++iMesh)
 	{
-		CreateMeshBuffer(iMesh, m_Model.bIsModelRigged);
+		CreateMeshBuffer(iMesh, m_Model->bIsModelRigged);
 	}
 }
 
 void CObject3D::CreateMeshBuffer(size_t MeshIndex, bool IsAnimated)
 {
-	const SMesh& Mesh{ m_Model.vMeshes[MeshIndex] };
+	const SMesh& Mesh{ m_Model->vMeshes[MeshIndex] };
 
 	{
 		D3D11_BUFFER_DESC BufferDesc{};
@@ -181,7 +182,7 @@ void CObject3D::CreateMaterialTextures()
 {
 	m_vMaterialTextureSets.clear();
 
-	for (CMaterialData& MaterialData : m_Model.vMaterialData)
+	for (CMaterialData& MaterialData : m_Model->vMaterialData)
 	{
 		// @important
 		m_vMaterialTextureSets.emplace_back(make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext));
@@ -203,7 +204,7 @@ void CObject3D::CreateMaterialTexture(size_t Index)
 	{
 		m_vMaterialTextureSets[Index] = make_unique<CMaterialTextureSet>(m_PtrDevice, m_PtrDeviceContext);
 	}
-	m_vMaterialTextureSets[Index]->CreateTextures(m_Model.vMaterialData[Index]);
+	m_vMaterialTextureSets[Index]->CreateTextures(m_Model->vMaterialData[Index]);
 }
 
 void CObject3D::CreateConstantBuffers()
@@ -345,7 +346,7 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 			// 4B (uint32_t) Mesh byte count
 			// ?? (byte) Mesh bytes
 			CMeshPorter MeshPorter{};
-			MeshPorter.WriteMESHData(m_Model);
+			MeshPorter.WriteMESHData(*m_Model);
 			vector<byte> MeshBytes{ MeshPorter.GetBytes() };
 
 			Object3DBinary.WriteUint32((uint32_t)MeshBytes.size());
@@ -408,20 +409,21 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 
 bool CObject3D::HasAnimations()
 {
-	return (m_Model.vAnimations.size()) ? true : false;
+	return (m_Model->vAnimations.size()) ? true : false;
 }
 
 void CObject3D::AddAnimationFromFile(const string& FileName, const string& AnimationName)
 {
-	if (!m_Model.bIsModelRigged) return;
+	if (!m_Model->bIsModelRigged) return;
 
-	m_AssimpLoader.AddAnimationFromFile(FileName, &m_Model);
-	m_Model.vAnimations.back().Name = AnimationName;
+	if (!m_AssimpLoader) m_AssimpLoader = make_unique<CAssimpLoader>();
+	m_AssimpLoader->AddAnimationFromFile(FileName, m_Model.get());
+	m_Model->vAnimations.back().Name = AnimationName;
 }
 
 void CObject3D::SetAnimationID(int ID)
 {
-	ID = max(min(ID, (int)(m_Model.vAnimations.size() - 1)), 0);
+	ID = max(min(ID, (int)(m_Model->vAnimations.size() - 1)), 0);
 
 	m_CurrentAnimationID = ID;
 }
@@ -433,12 +435,12 @@ int CObject3D::GetAnimationID() const
 
 int CObject3D::GetAnimationCount() const
 {
-	return (int)m_Model.vAnimations.size();
+	return (int)m_Model->vAnimations.size();
 }
 
 void CObject3D::SetAnimationName(int ID, const string& Name)
 {
-	if (m_Model.vAnimations.empty())
+	if (m_Model->vAnimations.empty())
 	{
 		MB_WARN("애니메이션이 존재하지 않습니다.", "애니메이션 이름 지정 실패");
 		return;
@@ -450,12 +452,12 @@ void CObject3D::SetAnimationName(int ID, const string& Name)
 		return;
 	}
 
-	m_Model.vAnimations[ID].Name = Name;
+	m_Model->vAnimations[ID].Name = Name;
 }
 
 const string& CObject3D::GetAnimationName(int ID) const
 {
-	return m_Model.vAnimations[ID].Name;
+	return m_Model->vAnimations[ID].Name;
 }
 
 const CObject3D::SCBAnimationData& CObject3D::GetAnimationData() const
@@ -480,12 +482,12 @@ bool CObject3D::CanBakeAnimationTexture() const
 
 void CObject3D::BakeAnimationTexture()
 {
-	if (m_Model.vAnimations.empty()) return;
+	if (m_Model->vAnimations.empty()) return;
 
-	int32_t AnimationCount{ (int32_t)m_Model.vAnimations.size() };
+	int32_t AnimationCount{ (int32_t)m_Model->vAnimations.size() };
 	int32_t TextureHeight{ KAnimationTextureReservedHeight };
 	vector<int32_t> vAnimationHeights{};
-	for (const auto& Animation : m_Model.vAnimations)
+	for (const auto& Animation : m_Model->vAnimations)
 	{
 		vAnimationHeights.emplace_back((int32_t)Animation.Duration + 1);
 		TextureHeight += vAnimationHeights.back();
@@ -513,32 +515,32 @@ void CObject3D::BakeAnimationTexture()
 		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].R,
 			&fAnimationHeightSum, sizeof(float));
 		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].G,
-			&m_Model.vAnimations[iAnimation].Duration, sizeof(float));
+			&m_Model->vAnimations[iAnimation].Duration, sizeof(float));
 		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].B,
-			&m_Model.vAnimations[iAnimation].TicksPerSecond, sizeof(float));
+			&m_Model->vAnimations[iAnimation].TicksPerSecond, sizeof(float));
 		//A
 
 		// RGBA = 4 floats = 16 chars!
 		memcpy(&vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 1].R,
-			m_Model.vAnimations[iAnimation].Name.c_str(), sizeof(char) * 16);
+			m_Model->vAnimations[iAnimation].Name.c_str(), sizeof(char) * 16);
 
 		AnimationHeightSum += vAnimationHeights[iAnimation];
 	}
 
-	for (int32_t iAnimation = 0; iAnimation < (int32_t)m_Model.vAnimations.size(); ++iAnimation)
+	for (int32_t iAnimation = 0; iAnimation < (int32_t)m_Model->vAnimations.size(); ++iAnimation)
 	{
 		float fAnimationOffset{};
 		memcpy(&fAnimationOffset, &vRawData[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].R, sizeof(float));
 
 		const int32_t KAnimationYOffset{ (int32_t)fAnimationOffset };
 		const int32_t KAnimationOffset{ (int32_t)((int64_t)KAnimationYOffset * KAnimationTextureWidth) };
-		const SMESHData::SAnimation& Animation{ m_Model.vAnimations[iAnimation] };
+		const SMeshAnimation& Animation{ m_Model->vAnimations[iAnimation] };
 		
 		int32_t Duration{ (int32_t)Animation.Duration + 1 };
 		for (int32_t iTime = 0; iTime < Duration; ++iTime)
 		{
 			const int32_t KTimeOffset{ (int32_t)((int64_t)iTime * KAnimationTextureWidth) };
-			CalculateAnimatedBoneMatrices(Animation, (float)iTime, m_Model.vTreeNodes[0], XMMatrixIdentity());
+			CalculateAnimatedBoneMatrices(Animation, (float)iTime, m_Model->vTreeNodes[0], XMMatrixIdentity());
 
 			for (int32_t iBoneMatrix = 0; iBoneMatrix < (int32_t)KMaxBoneMatrixCount; ++iBoneMatrix)
 			{
@@ -586,13 +588,13 @@ void CObject3D::LoadBakedAnimationTexture(const string& FileName)
 		memcpy(&vPixels[0], MappedSubresource.pData, sizeof(SPixel128Float) * KAnimationTextureWidth);
 
 		// Animation count
-		m_Model.vAnimations.clear();
-		m_Model.vAnimations.resize((size_t)vPixels[1].R);
+		m_Model->vAnimations.clear();
+		m_Model->vAnimations.resize((size_t)vPixels[1].R);
 
-		for (int32_t iAnimation = 0; iAnimation < (int32_t)m_Model.vAnimations.size(); ++iAnimation)
+		for (int32_t iAnimation = 0; iAnimation < (int32_t)m_Model->vAnimations.size(); ++iAnimation)
 		{
-			m_Model.vAnimations[iAnimation].Duration = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].G;
-			m_Model.vAnimations[iAnimation].TicksPerSecond = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].B;
+			m_Model->vAnimations[iAnimation].Duration = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].G;
+			m_Model->vAnimations[iAnimation].TicksPerSecond = vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 0].B;
 
 			float NameR{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 1].R };
 			float NameG{ vPixels[(int64_t)KAnimationTextureReservedFirstPixelCount + (int64_t)iAnimation * 2 + 1].G };
@@ -605,7 +607,7 @@ void CObject3D::LoadBakedAnimationTexture(const string& FileName)
 			memcpy(&Name[8], &NameB, 4);
 			memcpy(&Name[12], &NameA, 4);
 
-			m_Model.vAnimations[iAnimation].Name = Name;
+			m_Model->vAnimations[iAnimation].Name = Name;
 		}
 
 		m_PtrDeviceContext->Unmap(ReadableAnimationTexture.Get(), 0);
@@ -618,25 +620,25 @@ void CObject3D::LoadBakedAnimationTexture(const string& FileName)
 
 void CObject3D::AddMaterial(const CMaterialData& MaterialData)
 {
-	m_Model.vMaterialData.emplace_back(MaterialData);
-	m_Model.vMaterialData.back().Index(m_Model.vMaterialData.size() - 1);
+	m_Model->vMaterialData.emplace_back(MaterialData);
+	m_Model->vMaterialData.back().Index(m_Model->vMaterialData.size() - 1);
 
-	CreateMaterialTexture(m_Model.vMaterialData.size() - 1);
+	CreateMaterialTexture(m_Model->vMaterialData.size() - 1);
 }
 
 void CObject3D::SetMaterial(size_t Index, const CMaterialData& MaterialData)
 {
-	assert(Index < m_Model.vMaterialData.size());
+	assert(Index < m_Model->vMaterialData.size());
 
-	m_Model.vMaterialData[Index] = MaterialData;
-	m_Model.vMaterialData[Index].Index(Index);
+	m_Model->vMaterialData[Index] = MaterialData;
+	m_Model->vMaterialData[Index].Index(Index);
 
 	CreateMaterialTexture(Index);
 }
 
 size_t CObject3D::GetMaterialCount() const
 {
-	return m_Model.vMaterialData.size();
+	return m_Model->vMaterialData.size();
 }
 
 void CObject3D::CreateInstances(size_t InstanceCount)
@@ -861,8 +863,8 @@ void CObject3D::CreateInstanceBuffers()
 	if (m_vInstanceCPUData.empty()) return;
 
 	m_vInstanceBuffers.clear();
-	m_vInstanceBuffers.resize(m_Model.vMeshes.size());
-	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
+	m_vInstanceBuffers.resize(m_Model->vMeshes.size());
+	for (size_t iMesh = 0; iMesh < m_Model->vMeshes.size(); ++iMesh)
 	{
 		CreateInstanceBuffer(iMesh);
 	}
@@ -885,7 +887,7 @@ void CObject3D::CreateInstanceBuffer(size_t MeshIndex)
 
 void CObject3D::UpdateInstanceBuffers()
 {
-	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
+	for (size_t iMesh = 0; iMesh < m_Model->vMeshes.size(); ++iMesh)
 	{
 		UpdateInstanceBuffer(iMesh);
 	}
@@ -913,10 +915,10 @@ void CObject3D::UpdateQuadUV(const XMFLOAT2& UVOffset, const XMFLOAT2& UVSize)
 	float U1{ U0 + UVSize.x };
 	float V1{ V0 + UVSize.y };
 
-	m_Model.vMeshes[0].vVertices[0].TexCoord = XMVectorSet(U0, V0, 0, 0);
-	m_Model.vMeshes[0].vVertices[1].TexCoord = XMVectorSet(U1, V0, 0, 0);
-	m_Model.vMeshes[0].vVertices[2].TexCoord = XMVectorSet(U0, V1, 0, 0);
-	m_Model.vMeshes[0].vVertices[3].TexCoord = XMVectorSet(U1, V1, 0, 0);
+	m_Model->vMeshes[0].vVertices[0].TexCoord = XMVectorSet(U0, V0, 0, 0);
+	m_Model->vMeshes[0].vVertices[1].TexCoord = XMVectorSet(U1, V0, 0, 0);
+	m_Model->vMeshes[0].vVertices[2].TexCoord = XMVectorSet(U0, V1, 0, 0);
+	m_Model->vMeshes[0].vVertices[3].TexCoord = XMVectorSet(U1, V1, 0, 0);
 
 	UpdateMeshBuffer();
 }
@@ -926,7 +928,7 @@ void CObject3D::UpdateMeshBuffer(size_t MeshIndex)
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_vMeshBuffers[MeshIndex].VertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
 	{
-		memcpy(MappedSubresource.pData, &m_Model.vMeshes[MeshIndex].vVertices[0], sizeof(SVertex3D) * m_Model.vMeshes[MeshIndex].vVertices.size());
+		memcpy(MappedSubresource.pData, &m_Model->vMeshes[MeshIndex].vVertices[0], sizeof(SVertex3D) * m_Model->vMeshes[MeshIndex].vVertices.size());
 
 		m_PtrDeviceContext->Unmap(m_vMeshBuffers[MeshIndex].VertexBuffer.Get(), 0);
 	}
@@ -1128,9 +1130,59 @@ const CObject3D::SCBDisplacementData& CObject3D::GetDisplacementData() const
 	return m_CBDisplacementData;
 }
 
+bool CObject3D::IsCreated() const
+{
+	return m_bIsCreated;
+}
+
+bool CObject3D::IsRigged() const
+{
+	return m_Model->bIsModelRigged;
+}
+
+bool CObject3D::IsInstanced() const
+{
+	return (m_vInstanceCPUData.size() > 0) ? true : false;
+}
+
+size_t CObject3D::GetInstanceCount() const
+{
+	return m_vInstanceCPUData.size();
+}
+
+const SMESHData& CObject3D::GetModel() const
+{
+	return *m_Model;
+}
+
+SMESHData& CObject3D::GetModel()
+{
+	return *m_Model;
+}
+
 void CObject3D::SetName(const std::string& Name)
 {
 	m_Name = Name;
+}
+
+const std::string& CObject3D::GetName() const
+{
+	return m_Name;
+}
+
+const std::string& CObject3D::GetModelFileName() const
+{
+	return m_ModelFileName;
+}
+
+const std::string& CObject3D::GetOB3DFileName() const
+{
+	return m_OB3DFileName;
+}
+
+const std::map<std::string, size_t>& CObject3D::GetInstanceNameToIndexMap() const
+{
+	return m_mapInstanceNameToIndex;
 }
 
 CMaterialTextureSet* CObject3D::GetMaterialTextureSet(size_t iMaterial)
@@ -1141,9 +1193,9 @@ CMaterialTextureSet* CObject3D::GetMaterialTextureSet(size_t iMaterial)
 
 void CObject3D::Animate(float DeltaTime)
 {
-	if (!m_Model.vAnimations.size()) return;
+	if (!m_Model->vAnimations.size()) return;
 
-	SMESHData::SAnimation& CurrentAnimation{ m_Model.vAnimations[m_CurrentAnimationID] };
+	SMeshAnimation& CurrentAnimation{ m_Model->vAnimations[m_CurrentAnimationID] };
 	m_CurrentAnimationTick += CurrentAnimation.TicksPerSecond * DeltaTime;
 	if (m_CurrentAnimationTick > CurrentAnimation.Duration)
 	{
@@ -1158,7 +1210,7 @@ void CObject3D::Animate(float DeltaTime)
 	}
 	else
 	{
-		CalculateAnimatedBoneMatrices(m_Model.vAnimations[m_CurrentAnimationID], m_CurrentAnimationTick, m_Model.vTreeNodes[0], XMMatrixIdentity());
+		CalculateAnimatedBoneMatrices(m_Model->vAnimations[m_CurrentAnimationID], m_CurrentAnimationTick, m_Model->vTreeNodes[0], XMMatrixIdentity());
 	}
 }
 
@@ -1166,19 +1218,19 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 {
 	if (HasBakedAnimationTexture()) m_BakedAnimationTexture->Use();
 
-	for (size_t iMesh = 0; iMesh < m_Model.vMeshes.size(); ++iMesh)
+	for (size_t iMesh = 0; iMesh < m_Model->vMeshes.size(); ++iMesh)
 	{
-		const SMesh& Mesh{ m_Model.vMeshes[iMesh] };
-		const CMaterialData& MaterialData{ m_Model.vMaterialData[Mesh.MaterialID] };
+		const SMesh& Mesh{ m_Model->vMeshes[iMesh] };
+		const CMaterialData& MaterialData{ m_Model->vMaterialData[Mesh.MaterialID] };
 
 		// per mesh
-		UpdateCBMaterial(MaterialData, (uint32_t)m_Model.vMaterialData.size());
+		UpdateCBMaterial(MaterialData, (uint32_t)m_Model->vMaterialData.size());
 		
 		if (MaterialData.HasAnyTexture() && !bIgnoreOwnTexture)
 		{
-			if (m_Model.bUseMultipleTexturesInSingleMesh) // This bool is for CTerrain
+			if (m_Model->bUseMultipleTexturesInSingleMesh) // This bool is for CTerrain
 			{
-				for (const CMaterialData& MaterialDatum : m_Model.vMaterialData)
+				for (const CMaterialData& MaterialDatum : m_Model->vMaterialData)
 				{
 					const CMaterialTextureSet* MaterialTextureSet{ m_vMaterialTextureSets[MaterialDatum.Index()].get() };
 					MaterialTextureSet->UseTextures();
@@ -1225,8 +1277,8 @@ void CObject3D::Draw(bool bIgnoreOwnTexture, bool bIgnoreInstances) const
 	}
 }
 
-void CObject3D::CalculateAnimatedBoneMatrices(const SMESHData::SAnimation& CurrentAnimation, float AnimationTick,
-	const SMESHData::STreeNode& Node, XMMATRIX ParentTransform)
+void CObject3D::CalculateAnimatedBoneMatrices(const SMeshAnimation& CurrentAnimation, float AnimationTick,
+	const SMeshTreeNode& Node, XMMATRIX ParentTransform)
 {
 	XMMATRIX MatrixTransformation{ Node.MatrixTransformation * ParentTransform };
 
@@ -1238,16 +1290,16 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SMESHData::SAnimation& Curre
 			{
 				size_t NodeAnimationIndex{ CurrentAnimation.umapNodeAnimationNameToIndex.at(Node.Name) };
 
-				const SMESHData::SAnimation::SNodeAnimation& NodeAnimation{ CurrentAnimation.vNodeAnimations[NodeAnimationIndex] };
+				const SMeshAnimation::SNodeAnimation& NodeAnimation{ CurrentAnimation.vNodeAnimations[NodeAnimationIndex] };
 
 				XMMATRIX MatrixPosition{ XMMatrixIdentity() };
 				XMMATRIX MatrixRotation{ XMMatrixIdentity() };
 				XMMATRIX MatrixScaling{ XMMatrixIdentity() };
 
 				{
-					const vector<SMESHData::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vPositionKeys };
-					SMESHData::SAnimation::SNodeAnimation::SKey KeyA{};
-					SMESHData::SAnimation::SNodeAnimation::SKey KeyB{};
+					const vector<SMeshAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vPositionKeys };
+					SMeshAnimation::SNodeAnimation::SKey KeyA{};
+					SMeshAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
 						if (vKeys[iKey].Time <= AnimationTick)
@@ -1261,9 +1313,9 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SMESHData::SAnimation& Curre
 				}
 
 				{
-					const vector<SMESHData::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vRotationKeys };
-					SMESHData::SAnimation::SNodeAnimation::SKey KeyA{};
-					SMESHData::SAnimation::SNodeAnimation::SKey KeyB{};
+					const vector<SMeshAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vRotationKeys };
+					SMeshAnimation::SNodeAnimation::SKey KeyA{};
+					SMeshAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
 						if (vKeys[iKey].Time <= AnimationTick)
@@ -1277,9 +1329,9 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SMESHData::SAnimation& Curre
 				}
 
 				{
-					const vector<SMESHData::SAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vScalingKeys };
-					SMESHData::SAnimation::SNodeAnimation::SKey KeyA{};
-					SMESHData::SAnimation::SNodeAnimation::SKey KeyB{};
+					const vector<SMeshAnimation::SNodeAnimation::SKey>& vKeys{ NodeAnimation.vScalingKeys };
+					SMeshAnimation::SNodeAnimation::SKey KeyA{};
+					SMeshAnimation::SNodeAnimation::SKey KeyB{};
 					for (uint32_t iKey = 0; iKey < (uint32_t)vKeys.size(); ++iKey)
 					{
 						if (vKeys[iKey].Time <= AnimationTick)
@@ -1304,7 +1356,7 @@ void CObject3D::CalculateAnimatedBoneMatrices(const SMESHData::SAnimation& Curre
 	{
 		for (auto iChild : Node.vChildNodeIndices)
 		{
-			CalculateAnimatedBoneMatrices(CurrentAnimation, AnimationTick, m_Model.vTreeNodes[iChild], MatrixTransformation);
+			CalculateAnimatedBoneMatrices(CurrentAnimation, AnimationTick, m_Model->vTreeNodes[iChild], MatrixTransformation);
 		}
 	}
 }

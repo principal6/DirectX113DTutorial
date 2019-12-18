@@ -1,12 +1,16 @@
 #pragma once
 
 #include "SharedHeader.h"
-#include "Material.h"
-#include "AssimpLoader.h"
-#include "MeshPorter.h"
 
-class CShader;
+class CAssimpLoader;
 class CConstantBuffer;
+class CMaterialData;
+class CMaterialTextureSet;
+class CShader;
+class CTexture;
+struct SMeshAnimation;
+struct SMeshTreeNode;
+struct SMESHData;
 
 class CObject3D
 {
@@ -220,7 +224,7 @@ public:
 	void Draw(bool bIgnoreOwnTexture = false, bool bIgnoreInstances = false) const;
 
 private:
-	void CalculateAnimatedBoneMatrices(const SMESHData::SAnimation& CurrentAnimation, float AnimationTick, const SMESHData::STreeNode& Node, XMMATRIX ParentTransform);
+	void CalculateAnimatedBoneMatrices(const SMeshAnimation& CurrentAnimation, float AnimationTick, const SMeshTreeNode& Node, XMMATRIX ParentTransform);
 
 public:
 	bool ShouldTessellate() const { return m_bShouldTesselate; }
@@ -233,17 +237,17 @@ public:
 	const CObject3D::SCBDisplacementData& GetDisplacementData() const;
 
 public:
-	bool IsCreated() const { return m_bIsCreated; }
-	bool IsRigged() const { return m_Model.bIsModelRigged; }
-	bool IsInstanced() const { return (m_vInstanceCPUData.size() > 0) ? true : false; }
-	size_t GetInstanceCount() const { return m_vInstanceCPUData.size(); }
-	const SMESHData& GetModel() const { return m_Model; }
-	SMESHData& GetModel() { return m_Model; }
+	bool IsCreated() const;
+	bool IsRigged() const;
+	bool IsInstanced() const;
+	size_t GetInstanceCount() const;
+	const SMESHData& GetModel() const;
+	SMESHData& GetModel();
 	void SetName(const std::string& Name);
-	const std::string& GetName() const { return m_Name; }
-	const std::string& GetModelFileName() const { return m_ModelFileName; }
-	const std::string& GetOB3DFileName() const { return m_OB3DFileName; }
-	const std::map<std::string, size_t>& GetInstanceNameToIndexMap() const { return m_mapInstanceNameToIndex; }
+	const std::string& GetName() const;
+	const std::string& GetModelFileName() const;
+	const std::string& GetOB3DFileName() const;
+	const std::map<std::string, size_t>& GetInstanceNameToIndexMap() const;
 	CMaterialTextureSet* GetMaterialTextureSet(size_t iMaterial);
 
 private:
@@ -263,46 +267,46 @@ private:
 	static constexpr int32_t KAnimationTextureReservedFirstPixelCount{ 2 };
 
 public:
-	SComponentTransform						ComponentTransform{};
-	SComponentRender						ComponentRender{};
-	SComponentPhysics						ComponentPhysics{};
-	EFlagsRendering							eFlagsRendering{};
-	SEditorBoundingSphere					EditorBoundingSphere{};
+	SComponentTransform									ComponentTransform{};
+	SComponentRender									ComponentRender{};
+	SComponentPhysics									ComponentPhysics{};
+	EFlagsRendering										eFlagsRendering{};
+	SEditorBoundingSphere								EditorBoundingSphere{};
 
 private:
-	ID3D11Device* const						m_PtrDevice{};
-	ID3D11DeviceContext* const				m_PtrDeviceContext{};
+	ID3D11Device* const									m_PtrDevice{};
+	ID3D11DeviceContext* const							m_PtrDeviceContext{};
 
 private:
-	std::string								m_Name{};
-	std::string								m_ModelFileName{};
-	std::string								m_OB3DFileName{};
-	bool									m_bIsCreated{ false };
-	SMESHData								m_Model{};
-	std::vector<std::unique_ptr<CMaterialTextureSet>> m_vMaterialTextureSets{};
-	std::vector<SMeshBuffers>				m_vMeshBuffers{};
-	std::vector<SInstanceBuffer>			m_vInstanceBuffers{};
-	std::unique_ptr<CConstantBuffer>		m_CBMaterial{};
-	mutable SCBMaterialData					m_CBMaterialData{};
-	SCBTessFactorData						m_CBTessFactorData{};
-	SCBDisplacementData						m_CBDisplacementData{};
+	std::string											m_Name{};
+	std::string											m_ModelFileName{};
+	std::string											m_OB3DFileName{};
+	bool												m_bIsCreated{ false };
+	std::unique_ptr<SMESHData>							m_Model{};
+	std::vector<std::unique_ptr<CMaterialTextureSet>>	m_vMaterialTextureSets{};
+	std::vector<SMeshBuffers>							m_vMeshBuffers{};
+	std::vector<SInstanceBuffer>						m_vInstanceBuffers{};
+	std::unique_ptr<CConstantBuffer>					m_CBMaterial{};
+	mutable SCBMaterialData								m_CBMaterialData{};
+	SCBTessFactorData									m_CBTessFactorData{};
+	SCBDisplacementData									m_CBDisplacementData{};
 
-	XMMATRIX								m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
-	int										m_CurrentAnimationID{};
-	float									m_CurrentAnimationTick{};
-	bool									m_bShouldTesselate{ false };
+	XMMATRIX											m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
+	int													m_CurrentAnimationID{};
+	float												m_CurrentAnimationTick{};
+	bool												m_bShouldTesselate{ false };
 
-	std::unique_ptr<CTexture>				m_BakedAnimationTexture{};
-	SCBAnimationData						m_CBAnimationData{};
-	bool									m_bIsBakedAnimationLoaded{ false };
-
-private:
-	std::vector<SObject3DInstanceGPUData>	m_vInstanceGPUData{};
-	std::vector<SObject3DInstanceCPUData>	m_vInstanceCPUData{};
-	std::map<std::string, size_t>			m_mapInstanceNameToIndex{};
+	std::unique_ptr<CTexture>							m_BakedAnimationTexture{};
+	SCBAnimationData									m_CBAnimationData{};
+	bool												m_bIsBakedAnimationLoaded{ false };
 
 private:
-	CAssimpLoader							m_AssimpLoader{};
+	std::vector<SObject3DInstanceGPUData>				m_vInstanceGPUData{};
+	std::vector<SObject3DInstanceCPUData>				m_vInstanceCPUData{};
+	std::map<std::string, size_t>						m_mapInstanceNameToIndex{};
+
+private:
+	std::unique_ptr<CAssimpLoader>						m_AssimpLoader{};
 };
 
 ENUM_CLASS_FLAG(CObject3D::EFlagsRendering)

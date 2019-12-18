@@ -7,66 +7,66 @@ class CMaterialData;
 struct SPixel8Uint;
 struct SPixel32Uint;
 
+struct SMeshAnimation
+{
+	struct SNodeAnimation
+	{
+		struct SKey
+		{
+			float		Time{};
+			XMVECTOR	Value{};
+		};
+
+		uint32_t			Index{};
+		std::string			Name{};
+		std::vector<SKey>	vPositionKeys{};
+		std::vector<SKey>	vRotationKeys{};
+		std::vector<SKey>	vScalingKeys{};
+	};
+
+	std::vector<SNodeAnimation>				vNodeAnimations{};
+
+	float									Duration{};
+	float									TicksPerSecond{};
+
+	std::unordered_map<std::string, size_t>	umapNodeAnimationNameToIndex{};
+
+	std::string								Name{};
+};
+
+struct SMeshTreeNode
+{
+	struct SBlendWeight
+	{
+		uint32_t	MeshIndex{};
+		uint32_t	VertexID{};
+		float		Weight{};
+	};
+
+	int32_t						Index{};
+	std::string					Name{};
+
+	int32_t						ParentNodeIndex{};
+	std::vector<int32_t>		vChildNodeIndices{};
+	XMMATRIX					MatrixTransformation{};
+
+	bool						bIsBone{ false };
+	uint32_t					BoneIndex{};
+	std::vector<SBlendWeight>	vBlendWeights{};
+	XMMATRIX					MatrixBoneOffset{};
+};
+
 struct SMESHData
 {
-	struct STreeNode
-	{
-		struct SBlendWeight
-		{
-			uint32_t	MeshIndex{};
-			uint32_t	VertexID{};
-			float		Weight{};
-		};
-
-		int32_t						Index{};
-		std::string					Name{};
-
-		int32_t						ParentNodeIndex{};
-		std::vector<int32_t>		vChildNodeIndices{};
-		XMMATRIX					MatrixTransformation{};
-
-		bool						bIsBone{ false };
-		uint32_t					BoneIndex{};
-		std::vector<SBlendWeight>	vBlendWeights{};
-		XMMATRIX					MatrixBoneOffset{};
-	};
-
-	struct SAnimation
-	{
-		struct SNodeAnimation
-		{
-			struct SKey
-			{
-				float		Time{};
-				XMVECTOR	Value{};
-			};
-
-			uint32_t			Index{};
-			std::string			Name{};
-			std::vector<SKey>	vPositionKeys{};
-			std::vector<SKey>	vRotationKeys{};
-			std::vector<SKey>	vScalingKeys{};
-		};
-
-		std::vector<SNodeAnimation>				vNodeAnimations{};
-
-		float									Duration{};
-		float									TicksPerSecond{};
-
-		std::unordered_map<std::string, size_t>	umapNodeAnimationNameToIndex{};
-
-		std::string								Name{};
-	};
-
 	std::vector<SMesh>						vMeshes{};
 	std::vector<CMaterialData>				vMaterialData{};
 	SEditorBoundingSphere					EditorBoundingSphereData{};
 
 	bool									bIsModelRigged{};
-	std::vector<STreeNode>					vTreeNodes{};
+	std::vector<SMeshTreeNode>				vTreeNodes{};
 	std::unordered_map<std::string, size_t>	umapTreeNodeNameToIndex{};
 	uint32_t								ModelBoneCount{};
-	std::vector<SAnimation>					vAnimations{};
+	std::vector<SMeshAnimation>				vAnimations{};
 
 	bool									bUseMultipleTexturesInSingleMesh{ false };
 };
