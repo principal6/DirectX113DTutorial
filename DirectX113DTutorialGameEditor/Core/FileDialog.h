@@ -8,9 +8,11 @@ public:
 	CFileDialog(const char* const WorkingDirectory) : m_WorkingDirectory{ WorkingDirectory } {}
 	~CFileDialog() {}
 
+public:
 	bool OpenFileDialog(const char* const Filter, const char* const Title);
 	bool SaveFileDialog(const char* const Filter, const char* const Title, const char* const DefaultExtension);
 
+public:
 	const std::string& GetFileName() const { return m_FileName; }
 	const std::string& GetFileNameWithoutPath() const { return m_FileNameWithoutPath; }
 	const std::string& GetFileNameOnly() const { return m_FileNameOnly; }
