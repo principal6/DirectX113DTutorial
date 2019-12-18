@@ -1,9 +1,6 @@
 #pragma once
 
-#include <d3dcompiler.h>
 #include "SharedHeader.h"
-
-#pragma comment(lib, "d3dcompiler.lib")
 
 class CConstantBuffer;
 
