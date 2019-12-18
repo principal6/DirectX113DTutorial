@@ -132,7 +132,7 @@ void CShader::ReserveConstantBufferSlots(uint32_t Count)
 	m_SlotCounter = Count;
 }
 
-void CShader::AttachConstantBuffer(CConstantBuffer* const ConstantBuffer, int32_t Slot)
+void CShader::AttachConstantBuffer(const CConstantBuffer* const ConstantBuffer, int32_t Slot)
 {
 	uint32_t uSlot{ (Slot == -1) ? m_SlotCounter : (uint32_t)Slot };
 	m_vAttachedConstantBuffers.emplace_back(ConstantBuffer, uSlot);

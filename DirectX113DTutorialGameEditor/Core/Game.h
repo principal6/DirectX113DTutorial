@@ -34,60 +34,55 @@ class CGame
 public:
 	enum class EBaseShader
 	{
-		VSBase,
-		VSInstance,
 		VSAnimation,
-		VSSky,
-		VSLine,
-		VSTerrain,
-		VSFoliage,
+		VSBase,
 		VSBase2D,
-		VSBillboard,
+		VSFoliage,
+		VSInstance,
 		VSLight,
+		VSLine,
+		VSSky,
+		VSTerrain,
 
-		HSTerrain,
-		HSWater,
-		HSStatic,
-		HSBillboard,
 		HSPointLight,
 		HSSpotLight,
+		HSStatic,
+		HSTerrain,
+		HSWater,
 
-		DSTerrain,
-		DSWater,
-		DSStatic,
-		DSBillboard,
 		DSPointLight,
 		DSSpotLight,
+		DSStatic,
+		DSTerrain,
+		DSWater,
 
 		GSNormal,
 
 		PSBase,
 		PSBase_GBuffer,
-		PSBase_Void,
 		PSBase_RawVertexColor,
 		PSBase_RawDiffuseColor,
-		PSDynamicSky,
-		PSCloud,
-		PSLine,
-		PSTerrain,
-		PSTerrain_GBuffer,
-		PSWater,
-		PSFoliage,
-		PSCamera,
-		PSEdgeDetector,
-		PSSky,
-		PSBillboard,
-		PSDirectionalLight,
-		PSDirectionalLight_NonIBL,
-		PSPointLight,
-		PSPointLight_Volume,
-		PSSpotLight,
-		PSSpotLight_Volume,
-
+		PSBase_Void,
 		PSBase2D,
 		PSBase2D_RawVertexColor,
+		PSCamera,
+		PSCloud,
+		PSDirectionalLight,
+		PSDirectionalLight_NonIBL,
+		PSDynamicSky,
+		PSFoliage,
+		PSEdgeDetector,
+		PSHeightMap2D,
+		PSLine,
 		PSMasking2D,
-		PSHeightMap2D
+		PSPointLight,
+		PSPointLight_Volume,
+		PSSky,
+		PSSpotLight,
+		PSSpotLight_Volume,
+		PSTerrain,
+		PSTerrain_GBuffer,
+		PSWater
 	};
 
 	enum class EObjectType
@@ -400,8 +395,6 @@ private:
 	// This function also updates terrain's world matrix by calling UpdateCBSpace() from inside.
 	void UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Selection);
 
-	void UpdateCBBillboard(const CBillboard::SCBBillboardData& Data);
-
 	void UpdateCBGlobalLightProbeData();
 
 public:
@@ -649,30 +642,27 @@ private:
 private:
 	std::vector<std::unique_ptr<CShader>>	m_vCustomShaders{};
 
-	std::unique_ptr<CShader>	m_VSBase{};
-	std::unique_ptr<CShader>	m_VSInstance{};
 	std::unique_ptr<CShader>	m_VSAnimation{};
-	std::unique_ptr<CShader>	m_VSSky{};
-	std::unique_ptr<CShader>	m_VSLine{};
-	std::unique_ptr<CShader>	m_VSTerrain{};
-	std::unique_ptr<CShader>	m_VSFoliage{};
+	std::unique_ptr<CShader>	m_VSBase{};
 	std::unique_ptr<CShader>	m_VSBase2D{};
-	std::unique_ptr<CShader>	m_VSBillboard{};
+	std::unique_ptr<CShader>	m_VSInstance{};
+	std::unique_ptr<CShader>	m_VSFoliage{};
 	std::unique_ptr<CShader>	m_VSLight{};
+	std::unique_ptr<CShader>	m_VSLine{};
+	std::unique_ptr<CShader>	m_VSSky{};
+	std::unique_ptr<CShader>	m_VSTerrain{};
 
-	std::unique_ptr<CShader>	m_HSTerrain{};
-	std::unique_ptr<CShader>	m_HSWater{};
-	std::unique_ptr<CShader>	m_HSStatic{};
-	std::unique_ptr<CShader>	m_HSBillboard{};
 	std::unique_ptr<CShader>	m_HSPointLight{};
 	std::unique_ptr<CShader>	m_HSSpotLight{};
+	std::unique_ptr<CShader>	m_HSStatic{};
+	std::unique_ptr<CShader>	m_HSTerrain{};
+	std::unique_ptr<CShader>	m_HSWater{};
 
-	std::unique_ptr<CShader>	m_DSTerrain{};
-	std::unique_ptr<CShader>	m_DSWater{};
-	std::unique_ptr<CShader>	m_DSStatic{};
-	std::unique_ptr<CShader>	m_DSBillboard{};
 	std::unique_ptr<CShader>	m_DSPointLight{};
 	std::unique_ptr<CShader>	m_DSSpotLight{};
+	std::unique_ptr<CShader>	m_DSStatic{};
+	std::unique_ptr<CShader>	m_DSTerrain{};
+	std::unique_ptr<CShader>	m_DSWater{};
 
 	std::unique_ptr<CShader>	m_GSNormal{};
 
@@ -681,28 +671,26 @@ private:
 	std::unique_ptr<CShader>	m_PSBase_Void{};
 	std::unique_ptr<CShader>	m_PSBase_RawVertexColor{};
 	std::unique_ptr<CShader>	m_PSBase_RawDiffuseColor{};
-	std::unique_ptr<CShader>	m_PSDynamicSky{};
+	std::unique_ptr<CShader>	m_PSBase2D{};
+	std::unique_ptr<CShader>	m_PSBase2D_RawVertexColor{};
+	std::unique_ptr<CShader>	m_PSCamera{};
 	std::unique_ptr<CShader>	m_PSCloud{};
+	std::unique_ptr<CShader>	m_PSDirectionalLight{};
+	std::unique_ptr<CShader>	m_PSDirectionalLight_NonIBL{};
+	std::unique_ptr<CShader>	m_PSDynamicSky{};
+	std::unique_ptr<CShader>	m_PSEdgeDetector{};
+	std::unique_ptr<CShader>	m_PSFoliage{};
+	std::unique_ptr<CShader>	m_PSHeightMap2D{};
 	std::unique_ptr<CShader>	m_PSLine{};
+	std::unique_ptr<CShader>	m_PSMasking2D{};
+	std::unique_ptr<CShader>	m_PSPointLight{};
+	std::unique_ptr<CShader>	m_PSPointLight_Volume{};
+	std::unique_ptr<CShader>	m_PSSky{};
+	std::unique_ptr<CShader>	m_PSSpotLight{};
+	std::unique_ptr<CShader>	m_PSSpotLight_Volume{};
 	std::unique_ptr<CShader>	m_PSTerrain{};
 	std::unique_ptr<CShader>	m_PSTerrain_gbuffer{};
 	std::unique_ptr<CShader>	m_PSWater{};
-	std::unique_ptr<CShader>	m_PSFoliage{};
-	std::unique_ptr<CShader>	m_PSCamera{};
-	std::unique_ptr<CShader>	m_PSEdgeDetector{};
-	std::unique_ptr<CShader>	m_PSSky{};
-	std::unique_ptr<CShader>	m_PSBillboard{};
-	std::unique_ptr<CShader>	m_PSDirectionalLight{};
-	std::unique_ptr<CShader>	m_PSDirectionalLight_NonIBL{};
-	std::unique_ptr<CShader>	m_PSPointLight{};
-	std::unique_ptr<CShader>	m_PSPointLight_Volume{};
-	std::unique_ptr<CShader>	m_PSSpotLight{};
-	std::unique_ptr<CShader>	m_PSSpotLight_Volume{};
-
-	std::unique_ptr<CShader>	m_PSBase2D{};
-	std::unique_ptr<CShader>	m_PSBase2D_RawVertexColor{};
-	std::unique_ptr<CShader>	m_PSMasking2D{};
-	std::unique_ptr<CShader>	m_PSHeightMap2D{};
 
 // Constant buffer
 private:
@@ -720,7 +708,6 @@ private:
 	std::unique_ptr<CConstantBuffer>		m_CBWaterTime{};
 	std::unique_ptr<CConstantBuffer>		m_CBEditorTime{};
 	std::unique_ptr<CConstantBuffer>		m_CBCamera{};
-	std::unique_ptr<CConstantBuffer>		m_CBBillboard{};
 	std::unique_ptr<CConstantBuffer>		m_CBGBufferUnpacking{};
 	std::unique_ptr<CConstantBuffer>		m_CBShadowMap{};
 
@@ -738,7 +725,6 @@ private:
 	SCBWaterTimeData						m_CBWaterTimeData{};
 	SCBEditorTimeData						m_CBEditorTimeData{};
 	SCBCameraData							m_CBCameraData{};
-	CBillboard::SCBBillboardData			m_CBBillboardData{};
 	SCBGBufferUnpackingData					m_CBGBufferUnpackingData{};
 	CCascadedShadowMap::SCBShadowMapData	m_CBShadowMapData{};
 

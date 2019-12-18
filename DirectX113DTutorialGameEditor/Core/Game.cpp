@@ -132,7 +132,7 @@ void CGame::InitializeEditorAssets()
 	if (!m_LightRep)
 	{
 		m_LightRep = make_unique<CBillboard>("LightRepresentation", m_Device.Get(), m_DeviceContext.Get());
-		m_LightRep->CreateWorldSpace("Asset\\light.png", XMFLOAT2(0.5f, 0.5f));
+		m_LightRep->CreateWorldSpace("Asset\\light.png", XMFLOAT2(0.5f, 0.5f), m_CBEditorTime.get());
 	}
 
 	if (!m_EditorCamera)
@@ -640,8 +640,6 @@ void CGame::CreateConstantBuffers()
 		&m_CBEditorTimeData, sizeof(m_CBEditorTimeData));
 	m_CBCamera = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBCameraData, sizeof(m_CBCameraData));
-	m_CBBillboard = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
-		&m_CBBillboardData, sizeof(m_CBBillboardData));
 	m_CBGBufferUnpacking = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBGBufferUnpackingData, sizeof(m_CBGBufferUnpackingData));
 	m_CBShadowMap = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
@@ -661,8 +659,6 @@ void CGame::CreateConstantBuffers()
 	m_CBWaterTime->Create();
 	m_CBEditorTime->Create();
 	m_CBCamera->Create();
-	
-	m_CBBillboard->Create();
 	m_CBGBufferUnpacking->Create();
 	m_CBShadowMap->Create();
 }
@@ -691,11 +687,6 @@ void CGame::CreateBaseShaders()
 		m_VSBase2D->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBase2D.hlsl", "main",
 			CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
 		m_VSBase2D->ReserveConstantBufferSlots(KVSSharedCBCount);
-
-		m_VSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSBillboard->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBillboard.hlsl", "main",
-			CBillboard::KInputElementDescs, ARRAYSIZE(CBillboard::KInputElementDescs));
-		m_VSBillboard->ReserveConstantBufferSlots(KVSSharedCBCount);
 
 		m_VSFoliage = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSFoliage->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSFoliage.hlsl", "main",
@@ -736,10 +727,6 @@ void CGame::CreateBaseShaders()
 		m_CBSpace->Use(EShaderType::HullShader, 0);
 		m_CBGlobalLight->Use(EShaderType::HullShader, 1);
 
-		m_HSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_HSBillboard->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSBillboard.hlsl", "main");
-		m_HSBillboard->ReserveConstantBufferSlots(KHSSharedCBCount);
-
 		m_HSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_HSPointLight->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSPointLight.hlsl", "main");
 		m_HSPointLight->ReserveConstantBufferSlots(KHSSharedCBCount);
@@ -767,11 +754,6 @@ void CGame::CreateBaseShaders()
 	// DS
 	{
 		m_CBSpace->Use(EShaderType::DomainShader, 0);
-
-		m_DSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_DSBillboard->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSBillboard.hlsl", "main");
-		m_DSBillboard->ReserveConstantBufferSlots(KDSSharedCBCount);
-		m_DSBillboard->AttachConstantBuffer(m_CBBillboard.get());
 
 		m_DSPointLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_DSPointLight->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSPointLight.hlsl", "main");
@@ -820,10 +802,6 @@ void CGame::CreateBaseShaders()
 		m_PSBase_GBuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "GBuffer");
 		m_PSBase_GBuffer->ReserveConstantBufferSlots(KPSSharedCBCount);
 
-		m_PSBase_Void = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBase_Void->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "Void");
-		m_PSBase_Void->ReserveConstantBufferSlots(KPSSharedCBCount);
-
 		m_PSBase_RawVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase_RawVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "RawVertexColor");
 		m_PSBase_RawVertexColor->ReserveConstantBufferSlots(KPSSharedCBCount);
@@ -831,6 +809,10 @@ void CGame::CreateBaseShaders()
 		m_PSBase_RawDiffuseColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase_RawDiffuseColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "RawDiffuseColor");
 		m_PSBase_RawDiffuseColor->ReserveConstantBufferSlots(KPSSharedCBCount);
+		
+		m_PSBase_Void = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_PSBase_Void->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "Void");
+		m_PSBase_Void->ReserveConstantBufferSlots(KPSSharedCBCount);
 
 		m_PSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase2D->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase2D.hlsl", "main");
@@ -839,11 +821,6 @@ void CGame::CreateBaseShaders()
 		m_PSBase2D_RawVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase2D_RawVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase2D.hlsl", "RawVertexColor");
 		m_PSBase2D_RawVertexColor->ReserveConstantBufferSlots(KPSSharedCBCount);
-
-		m_PSBillboard = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_PSBillboard->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBillboard.hlsl", "main");
-		m_PSBillboard->ReserveConstantBufferSlots(KPSSharedCBCount);
-		m_PSBillboard->AttachConstantBuffer(m_CBEditorTime.get());
 
 		m_PSCamera = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSCamera->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSCamera.hlsl", "main");
@@ -1378,13 +1355,6 @@ void CGame::UpdateCBTerrainSelection(const CTerrain::SCBTerrainSelectionData& Se
 	UpdateCBSpace(m_CBTerrainSelectionData.TerrainWorld);
 }
 
-void CGame::UpdateCBBillboard(const CBillboard::SCBBillboardData& Data)
-{
-	m_CBBillboardData = Data;
-	m_CBBillboardData.ScreenSize = m_WindowSize; // @important
-	m_CBBillboard->Update();
-}
-
 void CGame::UpdateCBGlobalLightProbeData()
 {
 	if (m_IrradianceTexture) m_CBGlobalLightData.IrradianceTextureMipLevels = m_IrradianceTexture->GetMipLevels();
@@ -1907,9 +1877,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	case EBaseShader::VSBase2D:
 		Result = m_VSBase2D.get();
 		break;
-	case EBaseShader::VSBillboard:
-		Result = m_VSBillboard.get();
-		break;
 	case EBaseShader::VSLight:
 		Result = m_VSLight.get();
 		break;
@@ -1921,9 +1888,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::HSStatic:
 		Result = m_HSStatic.get();
-		break;
-	case EBaseShader::HSBillboard:
-		Result = m_HSBillboard.get();
 		break;
 	case EBaseShader::HSPointLight:
 		Result = m_HSPointLight.get();
@@ -1939,9 +1903,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::DSStatic:
 		Result = m_DSStatic.get();
-		break;
-	case EBaseShader::DSBillboard:
-		Result = m_DSBillboard.get();
 		break;
 	case EBaseShader::DSPointLight:
 		Result = m_DSPointLight.get();
@@ -1987,9 +1948,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 		break;
 	case EBaseShader::PSSky:
 		Result = m_PSSky.get();
-		break;
-	case EBaseShader::PSBillboard:
-		Result = m_PSBillboard.get();
 		break;
 	case EBaseShader::PSBase_GBuffer:
 		Result = m_PSBase_GBuffer.get();
@@ -4132,21 +4090,9 @@ void CGame::DrawLightRep()
 {
 	if (!m_LightRep) return;
 
-	ID3D11SamplerState* const Samplers[]{ m_CommonStates->LinearClamp(), m_CommonStates->PointClamp() };
-	m_DeviceContext->PSSetSamplers(0, 2, Samplers);
-
-	UpdateCBBillboard(m_LightRep->GetCBBillboard());
 	UpdateCBSpace();
 
-	m_VSBillboard->Use();
-	m_HSBillboard->Use();
-	m_DSBillboard->Use();
-	m_PSBillboard->Use();
-
 	m_LightRep->Draw();
-
-	m_DeviceContext->HSSetShader(nullptr, nullptr, 0);
-	m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
 }
 
 void CGame::DrawMultipleSelectionRep()

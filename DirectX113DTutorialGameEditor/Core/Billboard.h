@@ -2,6 +2,8 @@
 
 #include "SharedHeader.h"
 
+class CConstantBuffer;
+class CShader;
 class CTexture;
 
 class CBillboard
@@ -18,7 +20,7 @@ public:
 	struct SCBBillboardData
 	{
 		XMFLOAT2	PixelSize{};
-		XMFLOAT2	ScreenSize{}; // @important: this will be updated in CGame
+		XMFLOAT2	ScreenSize{};
 		XMFLOAT2	WorldSpaceSize{ 1.0f, 1.0f };
 		BOOL		bIsScreenSpace{ FALSE };
 		float		Reserved{};
@@ -49,13 +51,8 @@ private:
 	};
 
 public:
-	CBillboard(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
-		m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
-	{
-		assert(m_PtrDevice);
-		assert(m_PtrDeviceContext);
-	}
-	~CBillboard() {}
+	CBillboard(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext);
+	~CBillboard();
 
 public:
 	void* operator new(size_t Size)
@@ -69,8 +66,11 @@ public:
 	}
 
 public:
-	void CreateScreenSpace(const std::string& TextureFileName);
-	void CreateWorldSpace(const std::string& TextureFileName, const XMFLOAT2& WorldSpaceSize);
+	void CreateScreenSpace(const std::string& TextureFileName, const XMFLOAT2& ScreenSize, const CConstantBuffer* const CBEditorTime);
+	void CreateWorldSpace(const std::string& TextureFileName, const XMFLOAT2& WorldSpaceSize, const CConstantBuffer* const CBEditorTime);
+
+private:
+	void CreateShaders(const CConstantBuffer* const CBEditorTime);
 
 public:
 	void InsertInstance(const std::string& InstanceName);
@@ -91,7 +91,6 @@ public:
 	void SetAllInstancesHighlightOff();
 
 	size_t GetInstanceCount() const;
-	const CBillboard::SCBBillboardData& GetCBBillboard() const;
 
 private:
 	size_t GetInstanceID(const std::string& InstanceName) const;
@@ -104,9 +103,20 @@ private:
 	ID3D11DeviceContext* const				m_PtrDeviceContext{};
 
 private:
+	std::unique_ptr<CommonStates>			m_CommonStates{};
+
+private:
 	std::string								m_Name{};
 	std::unique_ptr<CTexture>				m_Texture{};
+
+private:
 	SCBBillboardData						m_CBBillboardData{};
+	std::unique_ptr<CConstantBuffer>		m_CBBillboard{};
+
+	std::unique_ptr<CShader>				m_VSBillboard{};
+	std::unique_ptr<CShader>				m_HSBillboard{};
+	std::unique_ptr<CShader>				m_DSBillboard{};
+	std::unique_ptr<CShader>				m_PSBillboard{};
 
 private:
 	SInstanceBuffer							m_InstanceBuffer{};

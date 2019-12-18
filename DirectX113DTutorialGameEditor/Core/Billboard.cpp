@@ -1,19 +1,35 @@
 #include "Billboard.h"
 #include "Material.h"
+#include "ConstantBuffer.h"
+#include "Shader.h"
 
 using std::string;
 using std::make_unique;
 
-void CBillboard::CreateScreenSpace(const std::string& TextureFileName)
+CBillboard::CBillboard(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
+	m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
+{
+	assert(m_PtrDevice);
+	assert(m_PtrDeviceContext);
+}
+
+CBillboard::~CBillboard()
+{
+}
+
+void CBillboard::CreateScreenSpace(const std::string& TextureFileName, const XMFLOAT2& ScreenSize, const CConstantBuffer* const CBEditorTime)
 {
 	m_Texture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_Texture->CreateTextureFromFile(TextureFileName, false);
 
 	m_CBBillboardData.bIsScreenSpace = TRUE;
 	m_CBBillboardData.PixelSize = m_Texture->GetTextureSize();
+	m_CBBillboardData.ScreenSize = ScreenSize;
+
+	CreateShaders(CBEditorTime);
 }
 
-void CBillboard::CreateWorldSpace(const std::string& TextureFileName, const XMFLOAT2& WorldSpaceSize)
+void CBillboard::CreateWorldSpace(const std::string& TextureFileName, const XMFLOAT2& WorldSpaceSize, const CConstantBuffer* const CBEditorTime)
 {
 	m_Texture = make_unique<CTexture>(m_PtrDevice, m_PtrDeviceContext);
 	m_Texture->CreateTextureFromFile(TextureFileName, true);
@@ -21,6 +37,37 @@ void CBillboard::CreateWorldSpace(const std::string& TextureFileName, const XMFL
 	m_CBBillboardData.bIsScreenSpace = FALSE;
 	m_CBBillboardData.PixelSize = m_Texture->GetTextureSize();
 	m_CBBillboardData.WorldSpaceSize = WorldSpaceSize;
+
+	CreateShaders(CBEditorTime);
+}
+
+void CBillboard::CreateShaders(const CConstantBuffer* const CBEditorTime)
+{
+	m_CommonStates = make_unique<CommonStates>(m_PtrDevice);
+
+	m_CBBillboard = make_unique<CConstantBuffer>(m_PtrDevice, m_PtrDeviceContext, &m_CBBillboardData, sizeof(m_CBBillboardData));
+	m_CBBillboard->Create();
+
+	bool bShouldCompileShaders{ false };
+
+	m_VSBillboard = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
+	m_VSBillboard->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBillboard.hlsl", "main",
+		CBillboard::KInputElementDescs, ARRAYSIZE(CBillboard::KInputElementDescs));
+	m_VSBillboard->ReserveConstantBufferSlots(KVSSharedCBCount);
+
+	m_HSBillboard = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
+	m_HSBillboard->Create(EShaderType::HullShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\HSBillboard.hlsl", "main");
+	m_HSBillboard->ReserveConstantBufferSlots(KHSSharedCBCount);
+
+	m_DSBillboard = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
+	m_DSBillboard->Create(EShaderType::DomainShader, CShader::EVersion::_5_0, bShouldCompileShaders, L"Shader\\DSBillboard.hlsl", "main");
+	m_DSBillboard->ReserveConstantBufferSlots(KDSSharedCBCount);
+	m_DSBillboard->AttachConstantBuffer(m_CBBillboard.get());
+
+	m_PSBillboard = make_unique<CShader>(m_PtrDevice, m_PtrDeviceContext);
+	m_PSBillboard->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBillboard.hlsl", "main");
+	m_PSBillboard->ReserveConstantBufferSlots(KPSSharedCBCount);
+	m_PSBillboard->AttachConstantBuffer(CBEditorTime);
 }
 
 void CBillboard::InsertInstance(const std::string& InstanceName)
@@ -168,11 +215,6 @@ size_t CBillboard::GetInstanceCount() const
 	return m_vInstanceCPUData.size();
 }
 
-const CBillboard::SCBBillboardData& CBillboard::GetCBBillboard() const
-{
-	return m_CBBillboardData;
-}
-
 size_t CBillboard::GetInstanceID(const std::string& InstanceName) const
 {
 	return m_mapInstanceNameToIndex.at(InstanceName);
@@ -180,9 +222,20 @@ size_t CBillboard::GetInstanceID(const std::string& InstanceName) const
 
 void CBillboard::Draw()
 {
+	ID3D11SamplerState* const SamplerStates[]{ m_CommonStates->LinearClamp(), m_CommonStates->PointClamp() };
+	m_PtrDeviceContext->PSSetSamplers(0, 2, SamplerStates);
+
 	m_Texture->Use();
+
+	m_VSBillboard->Use();
+	m_HSBillboard->Use();
+	m_DSBillboard->Use();
+	m_PSBillboard->Use();
 
 	m_PtrDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST);
 	m_PtrDeviceContext->IASetVertexBuffers(0, 1, m_InstanceBuffer.Buffer.GetAddressOf(), &m_InstanceBuffer.Stride, &m_InstanceBuffer.Offset);
 	m_PtrDeviceContext->DrawInstanced(1, (UINT)m_vInstanceCPUData.size(), 0, 0);
+
+	m_PtrDeviceContext->HSSetShader(nullptr, nullptr, 0);
+	m_PtrDeviceContext->DSSetShader(nullptr, nullptr, 0);
 }

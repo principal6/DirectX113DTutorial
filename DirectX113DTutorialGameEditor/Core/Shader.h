@@ -22,14 +22,14 @@ private:
 	struct SAttachedConstantBuffer
 	{
 		SAttachedConstantBuffer() {}
-		SAttachedConstantBuffer(CConstantBuffer* const _PtrConstantBuffer, uint32_t _AttachedSlot) :
+		SAttachedConstantBuffer(const CConstantBuffer* const _PtrConstantBuffer, uint32_t _AttachedSlot) :
 			PtrConstantBuffer{ _PtrConstantBuffer }, AttachedSlot{ _AttachedSlot } 
 		{
 			assert(PtrConstantBuffer);
 		}
 
-		CConstantBuffer*	PtrConstantBuffer{};
-		uint32_t			AttachedSlot{};
+		const CConstantBuffer*	PtrConstantBuffer{};
+		uint32_t				AttachedSlot{};
 	};
 
 public:
@@ -47,7 +47,7 @@ public:
 
 public:
 	void ReserveConstantBufferSlots(uint32_t Count);
-	void AttachConstantBuffer(CConstantBuffer* const ConstantBuffer, int32_t Slot = -1);
+	void AttachConstantBuffer(const CConstantBuffer* const ConstantBuffer, int32_t Slot = -1);
 
 public:
 	void Use() const;
