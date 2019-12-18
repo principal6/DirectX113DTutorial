@@ -249,6 +249,11 @@ public:
 	const std::string& GetOB3DFileName() const;
 	const std::map<std::string, size_t>& GetInstanceNameToIndexMap() const;
 	CMaterialTextureSet* GetMaterialTextureSet(size_t iMaterial);
+	void SetEditorBoundingSphereCenterOffset(const XMVECTOR& Center);
+	void SetEditorBoundingSphereRadiusBias(float Radius);
+	const XMVECTOR& GetEditorBoundingSphereCenterOffset() const;
+	float GetEditorBoundingSphereRadius() const;
+	float GetEditorBoundingSphereRadiusBias() const;
 
 private:
 	void LimitFloatRotation(float& Value, const float Min, const float Max);
@@ -271,6 +276,8 @@ public:
 	SComponentRender									ComponentRender{};
 	SComponentPhysics									ComponentPhysics{};
 	EFlagsRendering										eFlagsRendering{};
+
+private:
 	SEditorBoundingSphere								EditorBoundingSphere{};
 
 private:

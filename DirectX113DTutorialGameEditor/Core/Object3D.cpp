@@ -29,6 +29,7 @@ void CObject3D::Create(const SMesh& Mesh)
 	m_Model = make_unique<SMESHData>();
 	m_Model->vMeshes.emplace_back(Mesh);
 	m_Model->vMaterialData.emplace_back();
+	m_Model->EditorBoundingSphereData = EditorBoundingSphere;
 
 	CreateMeshBuffers();
 	CreateMaterialTextures();
@@ -42,6 +43,7 @@ void CObject3D::Create(const SMesh& Mesh, const CMaterialData& MaterialData)
 	m_Model = make_unique<SMESHData>();
 	m_Model->vMeshes.emplace_back(Mesh);
 	m_Model->vMaterialData.emplace_back(MaterialData);
+	m_Model->EditorBoundingSphereData = EditorBoundingSphere;
 	
 	CreateMeshBuffers();
 	CreateMaterialTextures();
@@ -1189,6 +1191,33 @@ CMaterialTextureSet* CObject3D::GetMaterialTextureSet(size_t iMaterial)
 {
 	if (iMaterial >= m_vMaterialTextureSets.size()) return nullptr;
 	return m_vMaterialTextureSets[iMaterial].get();
+}
+
+void CObject3D::SetEditorBoundingSphereCenterOffset(const XMVECTOR& Center)
+{
+	EditorBoundingSphere.CenterOffset = Center;
+	if (m_Model) m_Model->EditorBoundingSphereData.CenterOffset = EditorBoundingSphere.CenterOffset;
+}
+
+void CObject3D::SetEditorBoundingSphereRadiusBias(float Radius)
+{
+	EditorBoundingSphere.RadiusBias = Radius;
+	if (m_Model) m_Model->EditorBoundingSphereData.RadiusBias = EditorBoundingSphere.RadiusBias;
+}
+
+const XMVECTOR& CObject3D::GetEditorBoundingSphereCenterOffset() const
+{
+	return EditorBoundingSphere.CenterOffset;
+}
+
+float CObject3D::GetEditorBoundingSphereRadius() const
+{
+	return EditorBoundingSphere.Radius;
+}
+
+float CObject3D::GetEditorBoundingSphereRadiusBias() const
+{
+	return EditorBoundingSphere.RadiusBias;
 }
 
 void CObject3D::Animate(float DeltaTime)

@@ -2499,7 +2499,7 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 		}
 		else
 		{
-			const XMVECTOR KTranslation{ Object3D->ComponentTransform.Translation + Object3D->EditorBoundingSphere.CenterOffset };
+			const XMVECTOR KTranslation{ Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset() };
 			const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(KTranslation, KViewProjection) };
 			const XMFLOAT2 KProjectionXY{ XMVectorGetX(KProjectionCenter), XMVectorGetY(KProjectionCenter) };
 
@@ -2588,7 +2588,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 	case CGame::EObjectType::Object3D:
 	{
 		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-		const XMVECTOR KObjectTranslation{ Object3D->ComponentTransform.Translation + Object3D->EditorBoundingSphere.CenterOffset };
+		const XMVECTOR KObjectTranslation{ Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset() };
 		
 		m_umapSelectionObject3D[SelectionData.Name] = KSelectionIndex;
 
@@ -2893,8 +2893,8 @@ void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
 			{
 				XMVECTOR NewT{ KVectorGreatest };
 				if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-					Object3D->EditorBoundingSphere.Radius, 
-					Object3D->ComponentTransform.Translation + Object3D->EditorBoundingSphere.CenterOffset, &NewT))
+					Object3D->GetEditorBoundingSphereRadius(), 
+					Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset(), &NewT))
 				{
 					m_vObject3DPickingCandidates.emplace_back(Object3D.get(), NewT);
 				}
@@ -3755,9 +3755,9 @@ void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
 	m_VSBase->Use();
 
 	XMMATRIX Translation{ XMMatrixTranslationFromVector(PtrObject3D->ComponentTransform.Translation + 
-		PtrObject3D->EditorBoundingSphere.CenterOffset) };
-	XMMATRIX Scaling{ XMMatrixScaling(PtrObject3D->EditorBoundingSphere.Radius,
-		PtrObject3D->EditorBoundingSphere.Radius, PtrObject3D->EditorBoundingSphere.Radius) };
+		PtrObject3D->GetEditorBoundingSphereCenterOffset()) };
+	XMMATRIX Scaling{ XMMatrixScaling(PtrObject3D->GetEditorBoundingSphereRadius(),
+		PtrObject3D->GetEditorBoundingSphereRadius(), PtrObject3D->GetEditorBoundingSphereRadius()) };
 	UpdateCBSpace(Scaling * Translation);
 
 	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
@@ -4586,17 +4586,17 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 						case 0:
 							Mesh = GenerateSquareXYPlane();
 							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, HeightScalar3D, 1.0f, 0));
-							Object3D->EditorBoundingSphere.Radius = sqrt(2.0f);
+							Object3D->SetEditorBoundingSphereRadiusBias(sqrt(2.0f));
 							break;
 						case 1:
 							Mesh = GenerateSquareXZPlane();
 							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, 1.0f, HeightScalar3D, 0));
-							Object3D->EditorBoundingSphere.Radius = sqrt(2.0f);
+							Object3D->SetEditorBoundingSphereRadiusBias(sqrt(2.0f));
 							break;
 						case 2:
 							Mesh = GenerateSquareYZPlane();
 							ScaleMesh(Mesh, XMVectorSet(1.0f, WidthScalar3D, HeightScalar3D, 0));
-							Object3D->EditorBoundingSphere.Radius = sqrt(2.0f);
+							Object3D->SetEditorBoundingSphereRadiusBias(sqrt(2.0f));
 							break;
 						case 3:
 							Mesh = GenerateCircleXZPlane(SideCount);
@@ -4607,18 +4607,18 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 							break;
 						case 5:
 							Mesh = GenerateCone(RadiusFactor, 1.0f, 1.0f, SideCount);
-							Object3D->EditorBoundingSphere.CenterOffset = XMVectorSetY(Object3D->EditorBoundingSphere.CenterOffset, -0.5f);
+							Object3D->SetEditorBoundingSphereCenterOffset(XMVectorSet(0, -0.5f, 0, 1));
 							break;
 						case 6:
 							Mesh = GenerateCylinder(1.0f, 1.0f, SideCount);
-							Object3D->EditorBoundingSphere.Radius = sqrt(1.5f);
+							Object3D->SetEditorBoundingSphereRadiusBias(sqrt(1.5f));
 							break;
 						case 7:
 							Mesh = GenerateSphere(SegmentCount);
 							break;
 						case 8:
 							Mesh = GenerateTorus(InnerRadius, SideCount, SegmentCount);
-							Object3D->EditorBoundingSphere.Radius += InnerRadius;
+							Object3D->SetEditorBoundingSphereRadiusBias(1.0f + InnerRadius);
 							break;
 						default:
 							break;
@@ -4927,30 +4927,29 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::Text(u8"오브젝트 BS 중심");
 								ImGui::SameLine(ItemsOffsetX);
 								float BSCenterOffset[3]{
-									XMVectorGetX(Object3D->EditorBoundingSphere.CenterOffset),
-									XMVectorGetY(Object3D->EditorBoundingSphere.CenterOffset),
-									XMVectorGetZ(Object3D->EditorBoundingSphere.CenterOffset) };
+									XMVectorGetX(Object3D->GetEditorBoundingSphereCenterOffset()),
+									XMVectorGetY(Object3D->GetEditorBoundingSphereCenterOffset()),
+									XMVectorGetZ(Object3D->GetEditorBoundingSphereCenterOffset()) };
 								if (ImGui::DragFloat3(u8"##오브젝트 BS 중심", BSCenterOffset, KBSCenterOffsetDelta,
 									KBSCenterOffsetMinLimit, KBSCenterOffsetMaxLimit, "%.2f"))
 								{
-									Object3D->EditorBoundingSphere.CenterOffset =
-										XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f);
+									Object3D->SetEditorBoundingSphereCenterOffset(XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f));
 								}
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"오브젝트 BS 반지름 편중치");
 								ImGui::SameLine(ItemsOffsetX);
-								float BSRadiusBias{ Object3D->EditorBoundingSphere.RadiusBias };
+								float BSRadiusBias{ Object3D->GetEditorBoundingSphereRadiusBias() };
 								if (ImGui::DragFloat(u8"##오브젝트 BS반지름 편중치", &BSRadiusBias, KBSRadiusBiasDelta,
 									KBSRadiusBiasMinLimit, KBSRadiusBiasMaxLimit, "%.2f"))
 								{
-									Object3D->EditorBoundingSphere.RadiusBias = BSRadiusBias;
+									Object3D->SetEditorBoundingSphereRadiusBias(BSRadiusBias);
 								}
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"오브젝트 BS 반지름 (자동)");
 								ImGui::SameLine(ItemsOffsetX);
-								float BSRadius{ Object3D->EditorBoundingSphere.Radius };
+								float BSRadius{ Object3D->GetEditorBoundingSphereRadius() };
 								ImGui::DragFloat(u8"##오브젝트 BS반지름 (자동)", &BSRadius, KBSRadiusDelta,
 									KBSRadiusMinLimit, KBSRadiusMaxLimit, "%.2f");
 
