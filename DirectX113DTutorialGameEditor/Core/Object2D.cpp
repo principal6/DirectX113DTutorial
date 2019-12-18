@@ -1,6 +1,18 @@
 #include "Object2D.h"
+#include "Material.h"
 
 using std::make_unique;
+
+CObject2D::CObject2D(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
+	m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
+{
+	assert(m_PtrDevice);
+	assert(m_PtrDeviceContext);
+}
+
+CObject2D::~CObject2D()
+{
+}
 
 void CObject2D::Create(const SModel2D& Model2D, bool bIsDynamic)
 {

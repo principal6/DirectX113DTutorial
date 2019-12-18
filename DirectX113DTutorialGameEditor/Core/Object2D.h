@@ -1,7 +1,8 @@
 #pragma once
 
 #include "SharedHeader.h"
-#include "Material.h"
+
+class CTexture;
 
 class CObject2D
 {
@@ -35,13 +36,8 @@ public:
 	};
 
 public:
-	CObject2D(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :
-		m_Name{ Name }, m_PtrDevice{ PtrDevice }, m_PtrDeviceContext{ PtrDeviceContext }
-	{
-		assert(m_PtrDevice);
-		assert(m_PtrDeviceContext);
-	}
-	~CObject2D() {}
+	CObject2D(const std::string& Name, ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext);
+	~CObject2D();
 
 public:
 	void* operator new(size_t Size)
