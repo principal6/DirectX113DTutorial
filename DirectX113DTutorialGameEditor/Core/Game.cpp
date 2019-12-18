@@ -7093,57 +7093,23 @@ void CGame::EndRendering()
 		m_DeviceContext->ClearRenderTargetView(m_EdgeDetectorRTV.Get(), Colors::Transparent);
 		m_DeviceContext->ClearDepthStencilView(m_GBuffers.DepthStencilDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-		if (m_vSelectionData.size())
+		if (IsAnythingSelected())
 		{
-			for (const auto& RegionSelection : m_vSelectionData)
+			for (const auto& SelectionData : m_vSelectionData)
 			{
-				if (RegionSelection.eObjectType == EObjectType::Object3D || RegionSelection.eObjectType == EObjectType::Object3DInstance)
+				if (SelectionData.eObjectType == EObjectType::Object3D || SelectionData.eObjectType == EObjectType::Object3DInstance)
 				{
-					CObject3D* const Object3D{ (CObject3D*)RegionSelection.PtrObject };
-
-					if (RegionSelection.eObjectType == EObjectType::Object3DInstance)
+					CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
+					if (SelectionData.eObjectType == EObjectType::Object3DInstance)
 					{
-						Object3D->ComponentTransform.MatrixWorld = Object3D->GetInstanceGPUData(RegionSelection.Name).WorldMatrix;
+						const auto& InstanceGPUData{ Object3D->GetInstanceGPUData(SelectionData.Name) };
+						Object3D->ComponentTransform.MatrixWorld = InstanceGPUData.WorldMatrix;
+						DrawObject3D(Object3D, true);
 					}
-					
-					DrawObject3D(Object3D, true);
-				}
-			}
-		}
-		else
-		{
-			// @TODO
-			// This is very slow....
-			if (IsAnythingSelected())
-			{
-				for (const auto& SelectionData : m_vSelectionData)
-				{
-					if (SelectionData.eObjectType == EObjectType::Object3D || SelectionData.eObjectType == EObjectType::Object3DInstance)
+					else
 					{
-						CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-						if (SelectionData.eObjectType == EObjectType::Object3DInstance)
-						{
-							const auto& InstanceGPUData{ Object3D->GetInstanceGPUData(SelectionData.Name) };
-							Object3D->ComponentTransform.MatrixWorld = InstanceGPUData.WorldMatrix;
-							DrawObject3D(Object3D, true);
-						}
-						else
-						{
-							size_t InstanceCount{ Object3D->GetInstanceCount() };
-							if (InstanceCount)
-							{
-								for (const auto& InstancePair : Object3D->GetInstanceNameToIndexMap())
-								{
-									Object3D->ComponentTransform.MatrixWorld = Object3D->GetInstanceGPUData(InstancePair.first).WorldMatrix;
-									DrawObject3D(Object3D);
-								}
-							}
-							else
-							{
-								Object3D->UpdateWorldMatrix();
-								DrawObject3D(Object3D);
-							}
-						}
+						Object3D->UpdateWorldMatrix();
+						DrawObject3D(Object3D);
 					}
 				}
 			}
