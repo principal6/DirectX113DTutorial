@@ -1,8 +1,11 @@
 #pragma once
 
 #include "SharedHeader.h"
-#include "BinaryData.h"
-#include "Material.h"
+
+class CBinaryData;
+class CMaterialData;
+struct SPixel8Uint;
+struct SPixel32Uint;
 
 struct SMESHData
 {
@@ -95,19 +98,19 @@ public:
 		float TerrainTessellationFactor{};
 		float UniformScalingFactor{};
 
-		std::vector<SPixel8UInt> vHeightMapTextureRawData{};
+		std::vector<SPixel8Uint> vHeightMapTextureRawData{};
 
 		bool bShouldDrawWater{ false };
 		float WaterHeight{};
 		float WaterTessellationFactor{};
 
 		uint32_t MaskingDetail{};
-		std::vector<SPixel32UInt> vMaskingTextureRawData{};
+		std::vector<SPixel32Uint> vMaskingTextureRawData{};
 
 		bool bHasFoliageCluster{ false };
 		uint32_t FoliagePlacingDetail{};
 		float FoliageDenstiy{};
-		std::vector<SPixel8UInt> vFoliagePlacingTextureRawData{};
+		std::vector<SPixel8Uint> vFoliagePlacingTextureRawData{};
 		std::vector<SFoliageData> vFoliageData{};
 
 		std::vector<CMaterialData> vMaterialData{};
@@ -116,9 +119,9 @@ public:
 	};
 
 public:
-	CMeshPorter() {}
-	CMeshPorter(const std::vector<byte>& vBytes) : m_BinaryData{ vBytes } {}
-	~CMeshPorter() {}
+	CMeshPorter();
+	CMeshPorter(const std::vector<byte>& vBytes);
+	~CMeshPorter();
 
 public:
 	void ImportMESH(const std::string& FileName, SMESHData& MESHFile);
@@ -139,5 +142,5 @@ public:
 	const std::vector<byte> GetBytes() const;
 
 private:
-	CBinaryData m_BinaryData{};
+	std::unique_ptr<CBinaryData> m_BinaryData{};
 };

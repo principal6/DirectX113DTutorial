@@ -1,7 +1,8 @@
 #include <thread>
 
 #include "Game.h"
-#include "Core/FileDialog.h"
+#include "BinaryData.h"
+#include "FileDialog.h"
 
 using std::max;
 using std::min;

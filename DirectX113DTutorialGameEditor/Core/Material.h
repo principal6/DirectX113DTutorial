@@ -2,12 +2,12 @@
 
 #include "SharedHeader.h"
 
-struct SPixel8UInt
+struct SPixel8Uint
 {
 	uint8_t R{};
 };
 
-struct SPixel32UInt
+struct SPixel32Uint
 {
 	uint8_t R{};
 	uint8_t G{};
@@ -163,8 +163,8 @@ private:
 	void UpdateTextureInfo();
 
 public:
-	void UpdateTextureRawData(const SPixel8UInt* const PtrData);
-	void UpdateTextureRawData(const SPixel32UInt* const PtrData);
+	void UpdateTextureRawData(const SPixel8Uint* const PtrData);
+	void UpdateTextureRawData(const SPixel32Uint* const PtrData);
 	void UpdateTextureRawData(const SPixel128Float* const PtrData);
 	void SetSlot(UINT Slot);
 	void SetShaderType(EShaderType eShaderType);

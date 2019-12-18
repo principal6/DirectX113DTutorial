@@ -250,7 +250,7 @@ void CTexture::UpdateTextureInfo()
 	m_TextureSize.y = static_cast<float>(m_Texture2DDesc.Height);
 }
 
-void CTexture::UpdateTextureRawData(const SPixel8UInt* const PtrData)
+void CTexture::UpdateTextureRawData(const SPixel8Uint* const PtrData)
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
@@ -265,14 +265,14 @@ void CTexture::UpdateTextureRawData(const SPixel8UInt* const PtrData)
 		{
 			memcpy(PtrDest + (static_cast<size_t>(iRow)* MappedSubresource.RowPitch),
 				PtrData + (static_cast<size_t>(iRow)* SrcRowPixelCount),
-				SrcRowPixelCount * sizeof(SPixel8UInt));
+				SrcRowPixelCount * sizeof(SPixel8Uint));
 		}
 
 		m_PtrDeviceContext->Unmap(m_Texture2D.Get(), 0);
 	}
 }
 
-void CTexture::UpdateTextureRawData(const SPixel32UInt* const PtrData)
+void CTexture::UpdateTextureRawData(const SPixel32Uint* const PtrData)
 {
 	D3D11_MAPPED_SUBRESOURCE MappedSubresource{};
 	if (SUCCEEDED(m_PtrDeviceContext->Map(m_Texture2D.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource)))
@@ -287,7 +287,7 @@ void CTexture::UpdateTextureRawData(const SPixel32UInt* const PtrData)
 		{
 			memcpy(PtrDest + (static_cast<size_t>(iRow) * MappedSubresource.RowPitch), 
 				PtrData + (static_cast<size_t>(iRow) * SrcRowPixelCount),
-				SrcRowPixelCount * sizeof(SPixel32UInt));
+				SrcRowPixelCount * sizeof(SPixel32Uint));
 		}
 
 		m_PtrDeviceContext->Unmap(m_Texture2D.Get(), 0);

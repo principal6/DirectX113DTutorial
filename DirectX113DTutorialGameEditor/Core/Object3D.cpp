@@ -1,6 +1,7 @@
 #include "Object3D.h"
-#include "Shader.h"
+#include "BinaryData.h"
 #include "ConstantBuffer.h"
+#include "Shader.h"
 #include "Game.h"
 
 using std::max;
