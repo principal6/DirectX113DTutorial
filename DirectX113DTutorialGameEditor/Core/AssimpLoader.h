@@ -1,12 +1,14 @@
 #pragma once
 
 #include "SharedHeader.h"
-#include "Material.h"
 
 struct aiScene;
 struct aiString;
 struct aiNode;
 struct SMESHData;
+class CMaterialData;
+struct STextureData;
+enum class ETextureType;
 
 class CAssimpLoader
 {
@@ -24,7 +26,7 @@ private:
 		std::vector<CMaterialData>& vMaterialData);
 
 private:
-	void LoadTextureData(const aiScene* const Scene, const aiString* const TextureFileName, CMaterialData& MaterialData, STextureData::EType eTextureType);
+	void LoadTextureData(const aiScene* const Scene, const aiString* const TextureFileName, CMaterialData& MaterialData, ETextureType eTextureType);
 
 private:
 	void LoadNodes(const aiScene* const Scene, aiNode* const aiCurrentNode, int32_t ParentNodeIndex, SMESHData* const Model);

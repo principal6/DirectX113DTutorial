@@ -25,25 +25,25 @@ struct alignas(4) SPixel128Float
 
 static constexpr int KMaxTextureCountPerMaterial{ 8 };
 
+enum class ETextureType
+{
+	DiffuseTexture,  // #0
+	BaseColorTexture = DiffuseTexture,
+
+	NormalTexture,  // #1
+	OpacityTexture, // #2
+	SpecularIntensityTexture, // #3
+
+	RoughnessTexture, // #4
+	MetalnessTexture, // #5
+
+	AmbientOcclusionTexture, // #6
+
+	DisplacementTexture // #7
+};
+
 struct STextureData
 {
-	enum class EType
-	{
-		DiffuseTexture,  // #0
-		BaseColorTexture = DiffuseTexture,
-
-		NormalTexture,  // #1
-		OpacityTexture, // #2
-		SpecularIntensityTexture, // #3
-
-		RoughnessTexture, // #4
-		MetalnessTexture, // #5
-
-		AmbientOcclusionTexture, // #6
-
-		DisplacementTexture // #7
-	};
-
 	bool					bHasTexture{ false };
 	bool					bIsSRGB{ false };
 	std::string				FileName{};
@@ -84,10 +84,10 @@ public:
 	void Metalness(float Value);
 	float Metalness() const;
 
-	void ClearTextureData(STextureData::EType eType);
-	STextureData& GetTextureData(STextureData::EType eType);
-	void SetTextureFileName(STextureData::EType eType, const std::string& FileName);
-	const std::string GetTextureFileName(STextureData::EType eType) const;
+	void ClearTextureData(ETextureType eType);
+	STextureData& GetTextureData(ETextureType eType);
+	void SetTextureFileName(ETextureType eType, const std::string& FileName);
+	const std::string GetTextureFileName(ETextureType eType) const;
 
 	void ShouldGenerateMipMap(bool Value);
 	bool ShouldGenerateMipMap() const;
@@ -95,8 +95,8 @@ public:
 public:
 	void HasAnyTexture(bool Value);
 	bool HasAnyTexture() const;
-	bool HasTexture(STextureData::EType eType) const { return m_TextureData[(int)eType].bHasTexture; }
-	bool IsTextureSRGB(STextureData::EType eType) const { return m_TextureData[(int)eType].bIsSRGB; }
+	bool HasTexture(ETextureType eType) const { return m_TextureData[(int)eType].bHasTexture; }
+	bool IsTextureSRGB(ETextureType eType) const { return m_TextureData[(int)eType].bIsSRGB; }
 
 public:
 	void SetUniformColor(const XMFLOAT3& Color);
@@ -212,13 +212,13 @@ public:
 
 public:
 	void CreateTextures(CMaterialData& MaterialData);
-	void CreateTexture(STextureData::EType eType, CMaterialData& MaterialData);
-	void DestroyTexture(STextureData::EType eType);
+	void CreateTexture(ETextureType eType, CMaterialData& MaterialData);
+	void DestroyTexture(ETextureType eType);
 
 	void UseTextures() const;
 
 public:
-	ID3D11ShaderResourceView* GetTextureSRV(STextureData::EType eType);
+	ID3D11ShaderResourceView* GetTextureSRV(ETextureType eType);
 
 private:
 	ID3D11Device* const			m_PtrDevice{};

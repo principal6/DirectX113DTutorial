@@ -5,6 +5,7 @@
 #include "AssimpLoader.h"
 #include "PrimitiveGenerator.h"
 #include "Object3D.h"
+#include "Material.h"
 
 #pragma comment(lib, "assimp-vc142-mtd.lib")
 
@@ -231,10 +232,10 @@ void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Devi
 
 			aiGetMaterialTexture(_aiMaterial, aiTextureType_DISPLACEMENT, 0, &DisplacementTextureFileName);
 
-			LoadTextureData(Scene, &DiffuseTextureFileName, MaterialData, STextureData::EType::DiffuseTexture);
-			LoadTextureData(Scene, &NormalTextureFileName, MaterialData, STextureData::EType::NormalTexture);
-			LoadTextureData(Scene, &OpacityTextureFileName, MaterialData, STextureData::EType::OpacityTexture);
-			LoadTextureData(Scene, &DisplacementTextureFileName, MaterialData, STextureData::EType::DisplacementTexture);
+			LoadTextureData(Scene, &DiffuseTextureFileName, MaterialData, ETextureType::DiffuseTexture);
+			LoadTextureData(Scene, &NormalTextureFileName, MaterialData, ETextureType::NormalTexture);
+			LoadTextureData(Scene, &OpacityTextureFileName, MaterialData, ETextureType::OpacityTexture);
+			LoadTextureData(Scene, &DisplacementTextureFileName, MaterialData, ETextureType::DisplacementTexture);
 
 			MaterialData.HasAnyTexture(true);
 		}
@@ -255,7 +256,7 @@ void CAssimpLoader::LoadMaterialsFromFile(const aiScene* const Scene, ID3D11Devi
 }
 
 void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString* const TextureFileName, CMaterialData& MaterialData,
-	STextureData::EType eTextureType)
+	ETextureType eTextureType)
 {
 	const aiTexture* const _aiTexture{ Scene->GetEmbeddedTexture(TextureFileName->C_Str()) };
 	if (TextureFileName->length == 0 && _aiTexture == nullptr) return; // No texture

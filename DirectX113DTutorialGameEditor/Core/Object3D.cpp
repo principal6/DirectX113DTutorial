@@ -107,7 +107,7 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 		for (const CMaterialData& Material : m_Model.vMaterialData)
 		{
 			// @important
-			if (Material.HasTexture(STextureData::EType::OpacityTexture))
+			if (Material.HasTexture(ETextureType::OpacityTexture))
 			{
 				ComponentRender.bIsTransparent = true;
 				break;
@@ -1070,24 +1070,24 @@ void CObject3D::UpdateCBMaterial(const CMaterialData& MaterialData, uint32_t Tot
 	m_CBMaterialData.Metalness = MaterialData.Metalness();
 
 	uint32_t FlagsHasTexture{};
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::DiffuseTexture) ? 0x01 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::NormalTexture) ? 0x02 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::OpacityTexture) ? 0x04 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::SpecularIntensityTexture) ? 0x08 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::RoughnessTexture) ? 0x10 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::MetalnessTexture) ? 0x20 : 0;
-	FlagsHasTexture += MaterialData.HasTexture(STextureData::EType::AmbientOcclusionTexture) ? 0x40 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(ETextureType::DiffuseTexture) ? 0x01 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(ETextureType::NormalTexture) ? 0x02 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(ETextureType::OpacityTexture) ? 0x04 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(ETextureType::SpecularIntensityTexture) ? 0x08 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(ETextureType::RoughnessTexture) ? 0x10 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(ETextureType::MetalnessTexture) ? 0x20 : 0;
+	FlagsHasTexture += MaterialData.HasTexture(ETextureType::AmbientOcclusionTexture) ? 0x40 : 0;
 	// @empty_slot: Displacement texture is usually not used in PS
 	m_CBMaterialData.FlagsHasTexture = FlagsHasTexture;
 
 	uint32_t FlagsIsTextureSRGB{};
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::DiffuseTexture) ? 0x01 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::NormalTexture) ? 0x02 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::OpacityTexture) ? 0x04 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::SpecularIntensityTexture) ? 0x08 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::RoughnessTexture) ? 0x10 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::MetalnessTexture) ? 0x20 : 0;
-	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(STextureData::EType::AmbientOcclusionTexture) ? 0x40 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(ETextureType::DiffuseTexture) ? 0x01 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(ETextureType::NormalTexture) ? 0x02 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(ETextureType::OpacityTexture) ? 0x04 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(ETextureType::SpecularIntensityTexture) ? 0x08 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(ETextureType::RoughnessTexture) ? 0x10 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(ETextureType::MetalnessTexture) ? 0x20 : 0;
+	FlagsIsTextureSRGB += MaterialData.IsTextureSRGB(ETextureType::AmbientOcclusionTexture) ? 0x40 : 0;
 	// @empty_slot: Displacement texture is usually not used in PS
 	m_CBMaterialData.FlagsIsTextureSRGB = FlagsIsTextureSRGB;
 

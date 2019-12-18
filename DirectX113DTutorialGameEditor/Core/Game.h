@@ -481,7 +481,7 @@ public:
 	size_t GetMaterialCount() const;
 	bool ChangeMaterialName(const std::string& OldName, const std::string& NewName);
 	const std::map<std::string, size_t>& GetMaterialMap() const { return m_mapMaterialNameToIndex; }
-	ID3D11ShaderResourceView* GetMaterialTextureSRV(STextureData::EType eType, const std::string& Name) const;
+	ID3D11ShaderResourceView* GetMaterialTextureSRV(ETextureType eType, const std::string& Name) const;
 
 public:
 	bool InsertLight(CLight::EType eType, const std::string& Name);
@@ -588,10 +588,10 @@ private:
 
 	// return true if any interaction is required
 	bool DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& MaterialData, CMaterialTextureSet* const TextureSet,
-		STextureData::EType& eSeletedTextureType, float ItemsOffsetX);
+		ETextureType& eSeletedTextureType, float ItemsOffsetX);
 	void DrawEditorGUIPopupMaterialNameChanger(CMaterialData*& capturedMaterialData, bool bIsEditorMaterial);
 	void DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const capturedMaterialData, CMaterialTextureSet* const capturedMaterialTextureSet,
-		STextureData::EType eSelectedTextureType);
+		ETextureType eSelectedTextureType);
 	void DrawEditorGUIWindowSceneEditor();
 
 private:

@@ -359,12 +359,12 @@ void CMaterialTextureSet::CreateTextures(CMaterialData& MaterialData)
 	UINT SlotOffset{ (UINT)(MaterialData.Index() * KMaxTextureCountPerMaterial) };
 	for (int iTexture = 0; iTexture < KMaxTextureCountPerMaterial; ++iTexture)
 	{
-		STextureData::EType eTextureType{ (STextureData::EType)iTexture };
+		ETextureType eTextureType{ (ETextureType)iTexture };
 		CreateTexture(eTextureType, MaterialData);
 	}
 }
 
-void CMaterialTextureSet::CreateTexture(STextureData::EType eType, CMaterialData& MaterialData)
+void CMaterialTextureSet::CreateTexture(ETextureType eType, CMaterialData& MaterialData)
 {
 	UINT SlotOffset{ (UINT)(MaterialData.Index() * KMaxTextureCountPerMaterial) };
 	if (MaterialData.HasTexture(eType))
@@ -391,7 +391,7 @@ void CMaterialTextureSet::CreateTexture(STextureData::EType eType, CMaterialData
 		m_Textures[iTexture].SetSlot(static_cast<UINT>(SlotOffset + iTexture));
 
 		// @important
-		if (eType == STextureData::EType::DisplacementTexture)
+		if (eType == ETextureType::DisplacementTexture)
 		{
 			m_Textures[iTexture].SetShaderType(EShaderType::DomainShader);
 			m_Textures[iTexture].SetSlot((UINT)MaterialData.Index()); // @warning
@@ -402,7 +402,7 @@ void CMaterialTextureSet::CreateTexture(STextureData::EType eType, CMaterialData
 	}
 }
 
-void CMaterialTextureSet::DestroyTexture(STextureData::EType eType)
+void CMaterialTextureSet::DestroyTexture(ETextureType eType)
 {
 	size_t iTexture{ (size_t)eType };
 	m_Textures[iTexture].ReleaseResources();
@@ -416,7 +416,7 @@ void CMaterialTextureSet::UseTextures() const
 	}
 }
 
-ID3D11ShaderResourceView* CMaterialTextureSet::GetTextureSRV(STextureData::EType eType)
+ID3D11ShaderResourceView* CMaterialTextureSet::GetTextureSRV(ETextureType eType)
 {
 	return m_Textures[(int)eType].GetShaderResourceViewPtr();
 }
@@ -511,7 +511,7 @@ float CMaterialData::Metalness() const
 	return m_Metalness;
 }
 
-void CMaterialData::ClearTextureData(STextureData::EType eType)
+void CMaterialData::ClearTextureData(ETextureType eType)
 {
 	if (m_bHasAnyTexture)
 	{
@@ -527,12 +527,12 @@ void CMaterialData::ClearTextureData(STextureData::EType eType)
 	}
 }
 
-STextureData& CMaterialData::GetTextureData(STextureData::EType eType)
+STextureData& CMaterialData::GetTextureData(ETextureType eType)
 {
 	return m_TextureData[(int)eType];
 }
 
-void CMaterialData::SetTextureFileName(STextureData::EType eType, const string& FileName)
+void CMaterialData::SetTextureFileName(ETextureType eType, const string& FileName)
 {
 	if (FileName.empty()) return;
 
@@ -541,7 +541,7 @@ void CMaterialData::SetTextureFileName(STextureData::EType eType, const string& 
 	m_TextureData[(int)eType].FileName = FileName;
 }
 
-const std::string CMaterialData::GetTextureFileName(STextureData::EType eType) const
+const std::string CMaterialData::GetTextureFileName(ETextureType eType) const
 {
 	return m_TextureData[(int)eType].FileName;
 }

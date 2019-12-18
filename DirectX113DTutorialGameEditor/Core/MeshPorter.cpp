@@ -563,35 +563,35 @@ void CMeshPorter::ReadModelMaterials(std::vector<CMaterialData>& vMaterialData)
 
 		// # <@PrefString> Diffuse texture file name (Classical) // BaseColor texture file name (PBR)
 		if (m_BinaryData.ReadStringWithPrefixedLength(ReadStringLength, ReadString))
-			MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, ReadString);
+			MaterialData.SetTextureFileName(ETextureType::DiffuseTexture, ReadString);
 
 		// # <@PrefString> Normal texture file name
 		if (m_BinaryData.ReadStringWithPrefixedLength(ReadStringLength, ReadString))
-			MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, ReadString);
+			MaterialData.SetTextureFileName(ETextureType::NormalTexture, ReadString);
 
 		// # <@PrefString> Opacity texture file name
 		if (m_BinaryData.ReadStringWithPrefixedLength(ReadStringLength, ReadString))
-			MaterialData.SetTextureFileName(STextureData::EType::OpacityTexture, ReadString);
+			MaterialData.SetTextureFileName(ETextureType::OpacityTexture, ReadString);
 
 		// # <@PrefString> Specular intensity texture file name
 		if (m_BinaryData.ReadStringWithPrefixedLength(ReadStringLength, ReadString))
-			MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, ReadString);
+			MaterialData.SetTextureFileName(ETextureType::SpecularIntensityTexture, ReadString);
 
 		// # <@PrefString> Roughness texture file name (PBR only)
 		if (m_BinaryData.ReadStringWithPrefixedLength(ReadStringLength, ReadString))
-			MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, ReadString);
+			MaterialData.SetTextureFileName(ETextureType::RoughnessTexture, ReadString);
 
 		// # <@PrefString> Metalness texture file name (PBR only)
 		if (m_BinaryData.ReadStringWithPrefixedLength(ReadStringLength, ReadString))
-			MaterialData.SetTextureFileName(STextureData::EType::MetalnessTexture, ReadString);
+			MaterialData.SetTextureFileName(ETextureType::MetalnessTexture, ReadString);
 
 		// # <@PrefString> Ambient occlusion texture file name (PBR only)
 		if (m_BinaryData.ReadStringWithPrefixedLength(ReadStringLength, ReadString))
-			MaterialData.SetTextureFileName(STextureData::EType::AmbientOcclusionTexture, ReadString);
+			MaterialData.SetTextureFileName(ETextureType::AmbientOcclusionTexture, ReadString);
 
 		// # <@PrefString> Displacement texture file name
 		if (m_BinaryData.ReadStringWithPrefixedLength(ReadStringLength, ReadString))
-			MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, ReadString);
+			MaterialData.SetTextureFileName(ETextureType::DisplacementTexture, ReadString);
 	}
 }
 
@@ -863,28 +863,28 @@ void CMeshPorter::WriteModelMaterials(const std::vector<CMaterialData>& vMateria
 		m_BinaryData.WriteBool(MaterialData.ShouldGenerateMipMap());
 
 		// # <@PrefString> Diffuse texture file name (Classical) // BaseColor texture file name (PBR)
-		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(STextureData::EType::DiffuseTexture));
+		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(ETextureType::DiffuseTexture));
 		
 		// # <@PrefString> Normal texture file name
-		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(STextureData::EType::NormalTexture));
+		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(ETextureType::NormalTexture));
 
 		// # <@PrefString> Opacity texture file name
-		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(STextureData::EType::OpacityTexture));
+		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(ETextureType::OpacityTexture));
 
 		// # <@PrefString> Specular intensity texture file name
-		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(STextureData::EType::SpecularIntensityTexture));
+		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(ETextureType::SpecularIntensityTexture));
 
 		// # <@PrefString> Roughness texture file name (PBR only)
-		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(STextureData::EType::RoughnessTexture));
+		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(ETextureType::RoughnessTexture));
 
 		// # <@PrefString> Metalness texture file name (PBR only)
-		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(STextureData::EType::MetalnessTexture));
+		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(ETextureType::MetalnessTexture));
 
 		// # <@PrefString> Ambient occlusion texture file name (PBR only)
-		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(STextureData::EType::AmbientOcclusionTexture));
+		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(ETextureType::AmbientOcclusionTexture));
 
 		// # <@PrefString> Displacement texture file name
-		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(STextureData::EType::DisplacementTexture));
+		m_BinaryData.WriteStringWithPrefixedLength(MaterialData.GetTextureFileName(ETextureType::DisplacementTexture));
 
 		++iMaterial;
 	}

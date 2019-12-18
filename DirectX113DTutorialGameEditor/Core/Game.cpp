@@ -255,46 +255,46 @@ void CGame::InitializeEditorAssets()
 
 	{
 		CMaterialData MaterialData{ "test" };
-		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\test_diffuse.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\test_normal.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\test_displacement.jpg");
+		MaterialData.SetTextureFileName(ETextureType::DiffuseTexture, "Asset\\test_diffuse.jpg");
+		MaterialData.SetTextureFileName(ETextureType::NormalTexture, "Asset\\test_normal.jpg");
+		MaterialData.SetTextureFileName(ETextureType::DisplacementTexture, "Asset\\test_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
 	}
 
 	{
 		CMaterialData MaterialData{ "cobblestone_large" };
-		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\cobblestone_large_base_color.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\cobblestone_large_roughness.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::AmbientOcclusionTexture, "Asset\\cobblestone_large_occlusion.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\cobblestone_large_displacement.jpg");
+		MaterialData.SetTextureFileName(ETextureType::DiffuseTexture, "Asset\\cobblestone_large_base_color.jpg");
+		MaterialData.SetTextureFileName(ETextureType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
+		MaterialData.SetTextureFileName(ETextureType::RoughnessTexture, "Asset\\cobblestone_large_roughness.jpg");
+		MaterialData.SetTextureFileName(ETextureType::AmbientOcclusionTexture, "Asset\\cobblestone_large_occlusion.jpg");
+		MaterialData.SetTextureFileName(ETextureType::DisplacementTexture, "Asset\\cobblestone_large_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
 	}
 
 	{
 		CMaterialData MaterialData{ "burned_ground" };
-		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\burned_ground_base_color.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\burned_ground_normal.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\burned_ground_specular.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\burned_ground_roughness.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::MetalnessTexture, "Asset\\burned_ground_specular.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::AmbientOcclusionTexture, "Asset\\burned_ground_occlusion.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
+		MaterialData.SetTextureFileName(ETextureType::DiffuseTexture, "Asset\\burned_ground_base_color.jpg");
+		MaterialData.SetTextureFileName(ETextureType::NormalTexture, "Asset\\burned_ground_normal.jpg");
+		MaterialData.SetTextureFileName(ETextureType::SpecularIntensityTexture, "Asset\\burned_ground_specular.jpg");
+		MaterialData.SetTextureFileName(ETextureType::RoughnessTexture, "Asset\\burned_ground_roughness.jpg");
+		MaterialData.SetTextureFileName(ETextureType::MetalnessTexture, "Asset\\burned_ground_specular.jpg");
+		MaterialData.SetTextureFileName(ETextureType::AmbientOcclusionTexture, "Asset\\burned_ground_occlusion.jpg");
+		MaterialData.SetTextureFileName(ETextureType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
 	}
 
 	{
 		CMaterialData MaterialData{ "brown_mud_dry" };
-		MaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\brown_mud_dry_base_color.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::SpecularIntensityTexture, "Asset\\brown_mud_dry_specular.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::RoughnessTexture, "Asset\\brown_mud_dry_roughness.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::MetalnessTexture, "Asset\\brown_mud_dry_specular.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::AmbientOcclusionTexture, "Asset\\brown_mud_dry_occlusion.jpg");
-		MaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
+		MaterialData.SetTextureFileName(ETextureType::DiffuseTexture, "Asset\\brown_mud_dry_base_color.jpg");
+		MaterialData.SetTextureFileName(ETextureType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
+		MaterialData.SetTextureFileName(ETextureType::SpecularIntensityTexture, "Asset\\brown_mud_dry_specular.jpg");
+		MaterialData.SetTextureFileName(ETextureType::RoughnessTexture, "Asset\\brown_mud_dry_roughness.jpg");
+		MaterialData.SetTextureFileName(ETextureType::MetalnessTexture, "Asset\\brown_mud_dry_specular.jpg");
+		MaterialData.SetTextureFileName(ETextureType::AmbientOcclusionTexture, "Asset\\brown_mud_dry_occlusion.jpg");
+		MaterialData.SetTextureFileName(ETextureType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
 
 		InsertMaterialCreateTextures(MaterialData);
 	}
@@ -1384,7 +1384,7 @@ void CGame::CreateDynamicSky(const string& SkyDataFileName, float ScalingFactor)
 		LoadSkyObjectData(xmlCloud, m_SkyData.Cloud);
 	}
 
-	m_SkyMaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, m_SkyData.TextureFileName);
+	m_SkyMaterialData.SetTextureFileName(ETextureType::DiffuseTexture, m_SkyData.TextureFileName);
 
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get());
 	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterialData);
@@ -2317,7 +2317,7 @@ bool CGame::ChangeMaterialName(const string& OldName, const string& NewName)
 	return true;
 }
 
-ID3D11ShaderResourceView* CGame::GetMaterialTextureSRV(STextureData::EType eType, const string& Name) const
+ID3D11ShaderResourceView* CGame::GetMaterialTextureSRV(ETextureType eType, const string& Name) const
 {
 	assert(m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end());
 	size_t iMaterial{ m_mapMaterialNameToIndex.at(Name) };
@@ -5027,7 +5027,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								{
 									static CMaterialData* capturedMaterialData{};
 									static CMaterialTextureSet* capturedMaterialTextureSet{};
-									static STextureData::EType ecapturedTextureType{};
+									static ETextureType ecapturedTextureType{};
 									if (!ImGui::IsPopupOpen(u8"텍스처탐색기")) m_EditorGUIBools.bShowPopupMaterialTextureExplorer = false;
 
 									for (size_t iMaterial = 0; iMaterial < Object3D->GetMaterialCount(); ++iMaterial)
@@ -5890,7 +5890,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 						static CMaterialData* capturedMaterialData{};
 						static CMaterialTextureSet* capturedMaterialTextureSet{};
-						static STextureData::EType ecapturedTextureType{};
+						static ETextureType ecapturedTextureType{};
 						if (!ImGui::IsPopupOpen(u8"텍스처탐색기")) m_EditorGUIBools.bShowPopupMaterialTextureExplorer = false;
 
 						const auto& mapMaterialList{ GetMaterialMap() };
@@ -6371,7 +6371,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 }
 
 bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& MaterialData, CMaterialTextureSet* const TextureSet, 
-	STextureData::EType& eSeletedTextureType, float ItemsOffsetX)
+	ETextureType& eSeletedTextureType, float ItemsOffsetX)
 {
 	bool Result{ false };
 	bool bUsePhysicallyBasedRendering{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UsePhysicallyBasedRendering) };
@@ -6482,9 +6482,9 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 			ImGui::Text(u8"Diffuse");
 		}
 		ImGui::SameLine(ItemsOffsetX);
-		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::DiffuseTexture) : nullptr, KTextureSmallViewSize))
+		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(ETextureType::DiffuseTexture) : nullptr, KTextureSmallViewSize))
 		{
-			eSeletedTextureType = STextureData::EType::DiffuseTexture;
+			eSeletedTextureType = ETextureType::DiffuseTexture;
 			m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
 			Result = true;
 		}
@@ -6494,9 +6494,9 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text(u8"Normal");
 		ImGui::SameLine(ItemsOffsetX);
-		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::NormalTexture) : nullptr, KTextureSmallViewSize))
+		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(ETextureType::NormalTexture) : nullptr, KTextureSmallViewSize))
 		{
-			eSeletedTextureType = STextureData::EType::NormalTexture;
+			eSeletedTextureType = ETextureType::NormalTexture;
 			m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
 			Result = true;
 		}
@@ -6506,9 +6506,9 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text(u8"Opacity");
 		ImGui::SameLine(ItemsOffsetX);
-		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::OpacityTexture) : nullptr, KTextureSmallViewSize))
+		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(ETextureType::OpacityTexture) : nullptr, KTextureSmallViewSize))
 		{
-			eSeletedTextureType = STextureData::EType::OpacityTexture;
+			eSeletedTextureType = ETextureType::OpacityTexture;
 			m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
 			Result = true;
 		}
@@ -6518,9 +6518,9 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text(u8"Specular Intensity");
 		ImGui::SameLine(ItemsOffsetX);
-		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::SpecularIntensityTexture) : nullptr, KTextureSmallViewSize))
+		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(ETextureType::SpecularIntensityTexture) : nullptr, KTextureSmallViewSize))
 		{
-			eSeletedTextureType = STextureData::EType::SpecularIntensityTexture;
+			eSeletedTextureType = ETextureType::SpecularIntensityTexture;
 			m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
 			Result = true;
 		}
@@ -6532,9 +6532,9 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 			ImGui::AlignTextToFramePadding();
 			ImGui::Text(u8"Roughness");
 			ImGui::SameLine(ItemsOffsetX);
-			if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::RoughnessTexture) : nullptr, KTextureSmallViewSize))
+			if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(ETextureType::RoughnessTexture) : nullptr, KTextureSmallViewSize))
 			{
-				eSeletedTextureType = STextureData::EType::RoughnessTexture;
+				eSeletedTextureType = ETextureType::RoughnessTexture;
 				m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
 				Result = true;
 			}
@@ -6544,9 +6544,9 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 			ImGui::AlignTextToFramePadding();
 			ImGui::Text(u8"Metalness");
 			ImGui::SameLine(ItemsOffsetX);
-			if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::MetalnessTexture) : nullptr, KTextureSmallViewSize))
+			if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(ETextureType::MetalnessTexture) : nullptr, KTextureSmallViewSize))
 			{
-				eSeletedTextureType = STextureData::EType::MetalnessTexture;
+				eSeletedTextureType = ETextureType::MetalnessTexture;
 				m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
 				Result = true;
 			}
@@ -6556,9 +6556,9 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 			ImGui::AlignTextToFramePadding();
 			ImGui::Text(u8"Ambient Occlusion");
 			ImGui::SameLine(ItemsOffsetX);
-			if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::AmbientOcclusionTexture) : nullptr, KTextureSmallViewSize))
+			if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(ETextureType::AmbientOcclusionTexture) : nullptr, KTextureSmallViewSize))
 			{
-				eSeletedTextureType = STextureData::EType::AmbientOcclusionTexture;
+				eSeletedTextureType = ETextureType::AmbientOcclusionTexture;
 				m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
 				Result = true;
 			}
@@ -6569,9 +6569,9 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text(u8"Displacement");
 		ImGui::SameLine(ItemsOffsetX);
-		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(STextureData::EType::DisplacementTexture) : nullptr, KTextureSmallViewSize))
+		if (ImGui::ImageButton((TextureSet) ? TextureSet->GetTextureSRV(ETextureType::DisplacementTexture) : nullptr, KTextureSmallViewSize))
 		{
-			eSeletedTextureType = STextureData::EType::DisplacementTexture;
+			eSeletedTextureType = ETextureType::DisplacementTexture;
 			m_EditorGUIBools.bShowPopupMaterialTextureExplorer = true;
 			Result = true;
 		}
@@ -6635,7 +6635,7 @@ void CGame::DrawEditorGUIPopupMaterialNameChanger(CMaterialData*& capturedMateri
 }
 
 void CGame::DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const capturedMaterialData, CMaterialTextureSet* const capturedMaterialTextureSet,
-	STextureData::EType eSelectedTextureType)
+	ETextureType eSelectedTextureType)
 {
 	// ### 텍스처 탐색기 윈도우 ###
 	if (m_EditorGUIBools.bShowPopupMaterialTextureExplorer) ImGui::OpenPopup(u8"텍스처탐색기");

@@ -281,9 +281,9 @@ void CTerrain::CreateWater()
 	SMesh WaterMesh{ GenerateTerrainBase(XMFLOAT2(m_TerrainFileData.SizeX, m_TerrainFileData.SizeZ), KTextureSubdivisionDetail, KWaterColor) };
 
 	CMaterialData WaterMaterialData{};
-	WaterMaterialData.SetTextureFileName(STextureData::EType::DiffuseTexture, "Asset\\water_diffuse.jpg");
-	WaterMaterialData.SetTextureFileName(STextureData::EType::NormalTexture, "Asset\\water_normal.jpg");
-	WaterMaterialData.SetTextureFileName(STextureData::EType::DisplacementTexture, "Asset\\water_displacement.jpg");
+	WaterMaterialData.SetTextureFileName(ETextureType::DiffuseTexture, "Asset\\water_diffuse.jpg");
+	WaterMaterialData.SetTextureFileName(ETextureType::NormalTexture, "Asset\\water_normal.jpg");
+	WaterMaterialData.SetTextureFileName(ETextureType::DisplacementTexture, "Asset\\water_displacement.jpg");
 
 	m_Object3DWater->Create(WaterMesh, WaterMaterialData);
 	m_Object3DWater->ShouldTessellate(true);
