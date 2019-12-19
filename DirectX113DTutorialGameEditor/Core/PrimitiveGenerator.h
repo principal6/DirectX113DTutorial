@@ -56,6 +56,10 @@ static std::string ConvertXMVECTORToString(const XMVECTOR& Vector)
 	float Y{ XMVectorGetY(Vector) };
 	float Z{ XMVectorGetZ(Vector) };
 	float W{ XMVectorGetW(Vector) };
+	if (X == -0.0f) X = 0;
+	if (Y == -0.0f) Y = 0;
+	if (Z == -0.0f) Z = 0;
+	if (W == -0.0f) W = 0;
 
 	std::string Result{ to_string(X) + "#" + to_string(Y) + "#" + to_string(Z) + "#" + to_string(W) };
 	return Result;

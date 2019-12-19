@@ -3367,6 +3367,16 @@ void CGame::Draw()
 
 	m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 
+	bool bShouldDrawNormals{ m_eMode == EMode::Edit && EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals) };
+	if (bShouldDrawNormals)
+	{
+		if (EFLAG_HAS_NO(m_eFlagsRendering, EFlagsRendering::DrawWireFrame)) m_DeviceContext->RSSetState(m_CommonStates->CullNone());
+	}
+	else
+	{
+		SetUniversalRSState();
+	}
+
 	// Deferred shading
 	{
 		// @important
@@ -3375,11 +3385,22 @@ void CGame::Draw()
 
 		m_DeviceContext->OMSetBlendState(m_CommonStates->Opaque(), nullptr, 0xFFFFFFFF);
 
+		if (bShouldDrawNormals)
+		{
+			UpdateCBSpace();
+			m_GSNormal->Use();
+		}
+
 		// Terrain
 		DrawTerrainOpaqueParts(m_DeltaTimeF);
 
 		// Opaque Object3Ds
 		DrawOpaqueObject3Ds();
+
+		if (bShouldDrawNormals)
+		{
+			m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
+		}
 
 		// Directional light shadow map
 		{
@@ -3573,13 +3594,10 @@ void CGame::Draw()
 			DrawSky(m_DeltaTimeF);
 		}
 
-		if (m_eMode == EMode::Edit)
+		if (bShouldDrawNormals)
 		{
-			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals))
-			{
-				UpdateCBSpace();
-				m_GSNormal->Use();
-			}
+			UpdateCBSpace();
+			m_GSNormal->Use();
 		}
 
 		// Terrain
@@ -3600,6 +3618,11 @@ void CGame::Draw()
 			{
 				DrawObject3DBoundingSphere(Object3D.get());
 			}
+		}
+
+		if (bShouldDrawNormals)
+		{
+			m_DeviceContext->GSSetShader(nullptr, nullptr, 0);
 		}
 	}
 
@@ -6224,7 +6247,6 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							ToggleGameRenderingFlags(EFlagsRendering::DrawWireFrame);
 						}
 
-						/*
 						ImGui::AlignTextToFramePadding();
 						ImGui::Text(u8"법선 표시");
 						ImGui::SameLine(ItemsOffsetX);
@@ -6233,7 +6255,6 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						{
 							ToggleGameRenderingFlags(EFlagsRendering::DrawNormals);
 						}
-						*/
 
 						ImGui::AlignTextToFramePadding();
 						ImGui::Text(u8"화면 상단에 좌표축 표시");

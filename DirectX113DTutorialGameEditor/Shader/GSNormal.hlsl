@@ -4,7 +4,7 @@
 [maxvertexcount(30)]
 void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 {
-	const float KLineLength = 0.2f;
+	const float KLineLength			= 0.2;
 	const float4 KTangentColor		= float4(1, 0, 0, 1);
 	const float4 KBitangentColor	= float4(0, 1, 0, 1);
 	const float4 KNormalColor		= float4(0, 0, 1, 1);
@@ -26,6 +26,8 @@ void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 
 		Vertex.Position = mul(Vertex.WorldPosition + normalize(Input[i].WorldNormal) * KLineLength, ViewProjection);
 		Output.Append(Vertex);
+
+		Vertex.Position.x += 0.01171875;
 		Output.Append(Vertex);
 
 		Output.RestartStrip();
@@ -41,6 +43,8 @@ void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 
 		Vertex.Position = mul(Vertex.WorldPosition + normalize(Input[j].WorldTangent) * KLineLength, ViewProjection);
 		Output.Append(Vertex);
+
+		Vertex.Position.y -= 0.01171875;
 		Output.Append(Vertex);
 
 		Output.RestartStrip();
@@ -56,6 +60,8 @@ void main(triangle VS_OUTPUT Input[3], inout TriangleStream<VS_OUTPUT> Output)
 
 		Vertex.Position = mul(Vertex.WorldPosition + normalize(Input[k].WorldBitangent) * KLineLength, ViewProjection);		
 		Output.Append(Vertex);
+
+		Vertex.Position.y += 0.01171875;
 		Output.Append(Vertex);
 
 		Output.RestartStrip();

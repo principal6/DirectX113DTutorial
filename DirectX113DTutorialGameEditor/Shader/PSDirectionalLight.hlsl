@@ -42,7 +42,7 @@ TextureCube PrefilteredRadianceTexture : register(t52);
 Texture2D IntegratedBRDFTexture : register(t53);
 
 #define UV Input.TexCoord.xy
-#define N WorldNormal
+#define N WorldNormal.xyz
 #define BaseColor BaseColor_Rough.xyz
 #define Roughness BaseColor_Rough.a
 #define Metalness Metal_AO.x
@@ -72,8 +72,11 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	float4 ObjectWorldPosition = mul(float4(Input.ScreenPosition * PerspectiveValues.xy * ViewSpaceDepth, ViewSpaceDepth, 1.0), InverseViewMatrix);
 
 	float4 BaseColor_Rough = GBuffer_BaseColor_Rough.SampleLevel(PointClampSampler, UV, 0);
-	float3 WorldNormal = normalize((GBuffer_Normal.SampleLevel(PointClampSampler, UV, 0).xyz * 2.0) - 1.0);
+	float4 WorldNormal = GBuffer_Normal.SampleLevel(PointClampSampler, UV, 0);
+	WorldNormal.xyz = normalize((WorldNormal.xyz * 2.0) - 1.0);
 	float4 Metal_AO = GBuffer_Metal_AO.SampleLevel(PointClampSampler, UV, 0);
+
+	if (WorldNormal.a == 1) return float4(BaseColor, 1);
 
 	float4 OutputColor = float4(0, 0, 0, 1);
 	{

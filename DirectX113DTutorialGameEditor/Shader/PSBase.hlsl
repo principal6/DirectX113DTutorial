@@ -237,10 +237,15 @@ GBufferOutput GBuffer(VS_OUTPUT Input)
 	if (FlagsHasTexture & FLAG_ID_AMBIENTOCCLUSION) AmbientOcclusion = AmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 
 	float3 BaseColor = float3(1.0, 1.0, 1.0) - exp(-DiffuseColor * Exposure);
-
+	float NormalA = 0;
+	if (Input.bUseVertexColor != 0)
+	{
+		BaseColor = Input.Color.xyz;
+		NormalA = 1;
+	}
 	GBufferOutput Output;
 	Output.BaseColor_Rough = float4(BaseColor, Roughness);
-	Output.Normal = float4(N * 0.5 + 0.5, 0);
+	Output.Normal = float4(N * 0.5 + 0.5, NormalA);
 	Output.MetalAO = float4(Metalness, AmbientOcclusion, 0, 0);
 	return Output;
 }
