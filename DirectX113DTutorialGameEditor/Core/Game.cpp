@@ -2399,10 +2399,11 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 				if (IsInsideSelectionRegion(KProjectionXY))
 				{
 					m_vSelectionData.emplace_back(EObjectType::Object3DInstance, Instance.Name, Object3D.get());
-					m_MultipleSelectionWorldCenter += KTranslation;
 
 					// @important
 					m_umapSelectionObject3DInstance[Object3D->GetName() + Instance.Name] = m_vSelectionData.size() - 1;
+					
+					m_MultipleSelectionWorldCenter += XMVectorSetW(KTranslation, 1);
 				}
 			}
 		}
@@ -2415,10 +2416,11 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 			if (IsInsideSelectionRegion(KProjectionXY))
 			{
 				m_vSelectionData.emplace_back(EObjectType::Object3D, Object3D->GetName(), Object3D.get());
-				m_MultipleSelectionWorldCenter += KTranslation;
 
 				// @important
 				m_umapSelectionObject3D[Object3D->GetName()] = m_vSelectionData.size() - 1;
+
+				m_MultipleSelectionWorldCenter += XMVectorSetW(KTranslation, 1);
 			}
 		}
 	}
@@ -2426,19 +2428,20 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 	size_t iCamera{};
 	for (auto& Camera : m_vCameras)
 	{
-		const string& CameraName{ Camera->GetName() };
-		const XMVECTOR& WorldPosition{ Camera->GetEyePosition() };
-		const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(WorldPosition, KViewProjection) };
+		const string& KCameraName{ Camera->GetName() };
+		const XMVECTOR& KWorldPosition{ Camera->GetEyePosition() };
+		const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(KWorldPosition, KViewProjection) };
 		const XMFLOAT2 KProjectionXY{ XMVectorGetX(KProjectionCenter), XMVectorGetY(KProjectionCenter) };
 
 		if (IsInsideSelectionRegion(KProjectionXY))
 		{
-			m_vSelectionData.emplace_back(EObjectType::Camera, CameraName);
-			m_MultipleSelectionWorldCenter += Camera->GetTranslation();
+			m_vSelectionData.emplace_back(EObjectType::Camera, KCameraName);
 
 			// @important
-			m_umapSelectionCamera[CameraName] = m_vSelectionData.size() - 1;
-			m_CameraRep->SetInstanceHighlight(CameraName, true);
+			m_umapSelectionCamera[KCameraName] = m_vSelectionData.size() - 1;
+			m_CameraRep->SetInstanceHighlight(KCameraName, true);
+
+			m_MultipleSelectionWorldCenter += XMVectorSetW(Camera->GetTranslation(), 1);
 		}
 		++iCamera;
 	}
@@ -2450,24 +2453,25 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 
 		for (const auto& LightPair : Light->GetInstanceNameToIndexMap())
 		{
-			const XMVECTOR& WorldPosition{ Light->GetInstanceGPUData(LightPair.first).Position };
-			const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(WorldPosition, KViewProjection) };
+			const XMVECTOR& KWorldPosition{ Light->GetInstanceGPUData(LightPair.first).Position };
+			const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(KWorldPosition, KViewProjection) };
 			const XMFLOAT2 KProjectionXY{ XMVectorGetX(KProjectionCenter), XMVectorGetY(KProjectionCenter) };
 
 			if (IsInsideSelectionRegion(KProjectionXY))
 			{
 				m_vSelectionData.emplace_back(EObjectType::Light, LightPair.first, (uint32_t)eType);
-				m_MultipleSelectionWorldCenter += WorldPosition;
 
 				// @important
 				m_umapSelectionLight[LightPair.first] = m_vSelectionData.size() - 1;
 				m_LightRep->SetInstanceHighlight(LightPair.first, true);
+
+				m_MultipleSelectionWorldCenter += XMVectorSetW(KWorldPosition, 1);
 			}
 		}
 	}
 	m_LightRep->UpdateInstanceBuffer();
 
-	m_MultipleSelectionWorldCenter /= (float)m_vSelectionData.size();
+	m_MultipleSelectionWorldCenter /= static_cast<float>(m_vSelectionData.size());
 
 	Capture3DGizmoTranslation();
 }
@@ -2483,7 +2487,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 
 	if (KSelectionIndex > 0)
 	{
-		m_MultipleSelectionWorldCenter /= XMVectorGetW(m_MultipleSelectionWorldCenter);
+		m_MultipleSelectionWorldCenter /= XMVectorGetW(m_MultipleSelectionWorldCenter); // @important
 		MultipleSelectionWorldCenter = m_MultipleSelectionWorldCenter * static_cast<float>(KSelectionIndex);
 	}
 
@@ -2497,11 +2501,11 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 	case CGame::EObjectType::Object3D:
 	{
 		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-		const XMVECTOR KObjectTranslation{ Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset() };
+		const XMVECTOR KTranslation{ Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset() };
 		
 		m_umapSelectionObject3D[SelectionData.Name] = KSelectionIndex;
 
-		MultipleSelectionWorldCenter += KObjectTranslation;
+		MultipleSelectionWorldCenter += XMVectorSetW(KTranslation, 1);
 		break;
 	}
 	case CGame::EObjectType::Object2D:
@@ -2509,7 +2513,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 	case CGame::EObjectType::EditorCamera:
 		m_EditorCameraSelectionIndex = KSelectionIndex;
 
-		MultipleSelectionWorldCenter += m_EditorCamera->GetTranslation();
+		MultipleSelectionWorldCenter += XMVectorSetW(m_EditorCamera->GetTranslation(), 1);
 		break;
 	case CGame::EObjectType::Camera:
 		m_umapSelectionCamera[SelectionData.Name] = KSelectionIndex;
@@ -2517,7 +2521,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 		m_CameraRep->SetInstanceHighlight(SelectionData.Name, true);
 		m_CameraRep->UpdateInstanceBuffers();
 
-		MultipleSelectionWorldCenter += m_vCameras[GetCameraID(SelectionData.Name)]->GetTranslation();
+		MultipleSelectionWorldCenter += XMVectorSetW(m_vCameras[GetCameraID(SelectionData.Name)]->GetTranslation(), 1);
 		break;
 	case CGame::EObjectType::Light:
 		m_umapSelectionLight[SelectionData.Name] = KSelectionIndex;
@@ -2525,7 +2529,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 		m_LightRep->SetInstanceHighlight(SelectionData.Name, true);
 		m_LightRep->UpdateInstanceBuffer();
 
-		MultipleSelectionWorldCenter += m_LightArray[SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position;
+		MultipleSelectionWorldCenter += XMVectorSetW(m_LightArray[SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position, 1);
 		break;
 	case CGame::EObjectType::Object3DInstance:
 	{
@@ -2535,7 +2539,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 
 		m_umapSelectionObject3DInstance[Object3D->GetName() + SelectionData.Name] = KSelectionIndex;
 
-		MultipleSelectionWorldCenter += KTranslation;
+		MultipleSelectionWorldCenter += XMVectorSetW(KTranslation, 1);
 		break;
 	}
 	}
@@ -2691,7 +2695,7 @@ void CGame::DeselectAll()
 {
 	m_vSelectionData.clear();
 
-	m_MultipleSelectionWorldCenter = XMVectorSet(0, 0, 0, 1);
+	m_MultipleSelectionWorldCenter = XMVectorSet(0, 0, 0, 0); // @important
 
 	m_umapSelectionObject3D.clear();
 	m_umapSelectionObject3DInstance.clear();
@@ -4541,7 +4545,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 							break;
 						case 5:
 							Mesh = GenerateCone(RadiusFactor, 1.0f, 1.0f, SideCount);
-							Object3D->SetEditorBoundingSphereCenterOffset(XMVectorSet(0, -0.5f, 0, 1));
+							Object3D->SetEditorBoundingSphereCenterOffset(XMVectorSet(0, -0.5f, 0, 0));
 							break;
 						case 6:
 							Mesh = GenerateCylinder(1.0f, 1.0f, SideCount);
