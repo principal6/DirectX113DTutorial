@@ -163,6 +163,13 @@ public:
 		float		Reserved[2]{};
 	};
 
+	struct SCBSceneMaterialData
+	{
+		uint32_t	FlagsHasSceneTexture;
+		uint32_t	FlagsIsSceneTextureSRGB;
+		float		Reserved[2]{};
+	};
+
 	enum class EFlagsRendering
 	{
 		None = 0x0000,
@@ -397,6 +404,8 @@ private:
 
 	void UpdateCBGlobalLightProbeData();
 
+	void UpdateSceneMaterial();
+
 public:
 	void CreateDynamicSky(const std::string& SkyDataFileName, float ScalingFactor);
 	void CreateStaticSky(float ScalingFactor);
@@ -463,18 +472,6 @@ public:
 	void ClearObject2Ds();
 	CObject2D* GetObject2D(const std::string& Name, bool bShowWarning = true) const;
 	const std::map<std::string, size_t>& GetObject2DMap() const { return m_mapObject2DNameToIndex; }
-
-	bool InsertMaterial(const std::string& Name, bool bShowWarning = true);
-	bool InsertMaterialCreateTextures(const CMaterialData& MaterialData, bool bShowWarning = true);
-	void DeleteMaterial(const std::string& Name);
-	void CreateMaterialTextures(CMaterialData& MaterialData);
-	void ClearMaterials();
-	CMaterialData* GetMaterial(const std::string& Name, bool bShowWarning = true);
-	CMaterialTextureSet* GetMaterialTextureSet(const std::string& Name, bool bShowWarning = true);
-	size_t GetMaterialCount() const;
-	bool ChangeMaterialName(const std::string& OldName, const std::string& NewName);
-	const std::map<std::string, size_t>& GetMaterialMap() const { return m_mapMaterialNameToIndex; }
-	ID3D11ShaderResourceView* GetMaterialTextureSRV(ETextureType eType, const std::string& Name) const;
 
 public:
 	bool InsertLight(CLight::EType eType, const std::string& Name);
@@ -581,9 +578,9 @@ private:
 
 	// return true if any interaction is required
 	bool DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& MaterialData, CMaterialTextureSet* const TextureSet,
-		ETextureType& eSeletedTextureType, float ItemsOffsetX);
-	void DrawEditorGUIPopupMaterialNameChanger(CMaterialData*& capturedMaterialData, bool bIsEditorMaterial);
-	void DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const capturedMaterialData, CMaterialTextureSet* const capturedMaterialTextureSet,
+		ETextureType& eSeletedTextureType, float ItemsOffsetX, bool bShowOnlyTextureData = false);
+	void DrawEditorGUIPopupMaterialNameChanger(CMaterialData*& capturedMaterialData);
+	bool DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const capturedMaterialData, CMaterialTextureSet* const capturedMaterialTextureSet,
 		ETextureType eSelectedTextureType);
 	void DrawEditorGUIWindowSceneEditor();
 
@@ -710,6 +707,7 @@ private:
 	std::unique_ptr<CConstantBuffer>		m_CBCamera{};
 	std::unique_ptr<CConstantBuffer>		m_CBGBufferUnpacking{};
 	std::unique_ptr<CConstantBuffer>		m_CBShadowMap{};
+	std::unique_ptr<CConstantBuffer>		m_CBSceneMaterial{};
 
 	SCBSpaceData							m_CBSpaceData{};
 	SCBAnimationBonesData					m_CBAnimationBonesData{};
@@ -727,6 +725,7 @@ private:
 	SCBCameraData							m_CBCameraData{};
 	SCBGBufferUnpackingData					m_CBGBufferUnpackingData{};
 	CCascadedShadowMap::SCBShadowMapData	m_CBShadowMapData{};
+	SCBSceneMaterialData						m_CBSceneMaterialData{};
 
 // Object pool
 private:
@@ -823,10 +822,8 @@ private:
 	
 // Terrain
 private:
-	std::unique_ptr<CTerrain>							m_Terrain{};
-	std::vector<CMaterialData>							m_vMaterialData{};
-	std::vector<std::unique_ptr<CMaterialTextureSet>>	m_vMaterialTextureSets{};
-	std::map<std::string, size_t>						m_mapMaterialNameToIndex{};
+	std::unique_ptr<CTerrain>			m_Terrain{};
+	std::unique_ptr<CMaterialData>		m_TerrainMaterialDefault{};
 
 // Time
 private:
@@ -849,6 +846,11 @@ private:
 	SEditorGUIBools				m_EditorGUIBools{};
 	EMode						m_eMode{};
 	EEditMode					m_eEditMode{};
+
+// Scene
+private:
+	std::unique_ptr<CMaterialData>			m_SceneMaterial{};
+	std::unique_ptr<CMaterialTextureSet>	m_SceneMaterialTextureSet{};
 
 // IBL
 private:

@@ -42,7 +42,9 @@ public:
 public:
 	void Create();
 
+public:
 	void CaptureTranslation(const XMVECTOR& Translation);
+	void UpdateTranslation(const XMVECTOR& CameraPosition);
 	void SetMode(EMode eMode);
 
 public:
@@ -99,7 +101,7 @@ private:
 	XMVECTOR							m_GizmoTranslation{};
 	XMVECTOR							m_PickingRayOrigin{};
 	XMVECTOR							m_PickingRayDirection{};
-	float								m_GizmoDistanceScalar{};
+	float								m_GizmoDistanceScalar{ 1.0f };
 	bool								m_bIsHovered{};
 	bool								m_bIsInAction{};
 	int									m_CapturedMouseX{};

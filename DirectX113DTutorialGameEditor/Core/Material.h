@@ -85,6 +85,7 @@ public:
 	float Metalness() const;
 
 	void ClearTextureData(ETextureType eType);
+	void ClearAllTexturesData();
 	STextureData& GetTextureData(ETextureType eType);
 	void SetTextureFileName(ETextureType eType, const std::string& FileName);
 	const std::string GetTextureFileName(ETextureType eType) const;
@@ -213,11 +214,16 @@ public:
 public:
 	void CreateTextures(CMaterialData& MaterialData);
 	void CreateTexture(ETextureType eType, CMaterialData& MaterialData);
+	void DestroyAllTextures();
 	void DestroyTexture(ETextureType eType);
 
+public:
+	void SetSlot(ETextureType eType, uint32_t Slot);
 	void UseTextures() const;
 
 public:
+	bool HasTexture(ETextureType eType) const;
+	bool IssRGB(ETextureType eType) const;
 	ID3D11ShaderResourceView* GetTextureSRV(ETextureType eType);
 
 private:

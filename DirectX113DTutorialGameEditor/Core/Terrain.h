@@ -92,7 +92,10 @@ private:
 public:
 	void AddMaterial(const CMaterialData& MaterialData);
 	void SetMaterial(int MaterialID, const CMaterialData& NewMaterialData);
-	const CMaterialData& GetMaterial(int Index) const;
+	const CMaterialData& GetMaterial(size_t Index) const;
+	CMaterialData& GetMaterial(size_t Index);
+	CMaterialTextureSet* GetMaterialTextureSet(size_t MaterialID) const;
+	size_t GetMaterialCount() const;
 	
 public:
 	void Select(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton);
@@ -140,7 +143,6 @@ public:
 
 
 	XMFLOAT2 GetSize() const;
-	int GetMaterialCount() const;
 	int GetMaskingDetail() const;
 
 	bool HasFoliageCluster() const;

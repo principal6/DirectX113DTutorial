@@ -254,50 +254,26 @@ void CGame::InitializeEditorAssets()
 		//m_DirectionalLightFSQ->OverridePixelShader(m_PSDirectionalLight_NonIBL.get());
 	}
 
+	if (!m_TerrainMaterialDefault)
 	{
-		CMaterialData MaterialData{ "test" };
-		MaterialData.SetTextureFileName(ETextureType::DiffuseTexture, "Asset\\test_diffuse.jpg");
-		MaterialData.SetTextureFileName(ETextureType::NormalTexture, "Asset\\test_normal.jpg");
-		MaterialData.SetTextureFileName(ETextureType::DisplacementTexture, "Asset\\test_displacement.jpg");
-
-		InsertMaterialCreateTextures(MaterialData);
+		m_TerrainMaterialDefault = make_unique<CMaterialData>("BrownMudDry");
+		m_TerrainMaterialDefault->SetTextureFileName(ETextureType::DiffuseTexture, "Asset\\brown_mud_dry_base_color.jpg");
+		m_TerrainMaterialDefault->SetTextureFileName(ETextureType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
+		m_TerrainMaterialDefault->SetTextureFileName(ETextureType::SpecularIntensityTexture, "Asset\\brown_mud_dry_specular.jpg");
+		m_TerrainMaterialDefault->SetTextureFileName(ETextureType::RoughnessTexture, "Asset\\brown_mud_dry_roughness.jpg");
+		m_TerrainMaterialDefault->SetTextureFileName(ETextureType::MetalnessTexture, "Asset\\brown_mud_dry_specular.jpg");
+		m_TerrainMaterialDefault->SetTextureFileName(ETextureType::AmbientOcclusionTexture, "Asset\\brown_mud_dry_occlusion.jpg");
+		m_TerrainMaterialDefault->SetTextureFileName(ETextureType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
 	}
 
+	if (!m_SceneMaterial)
 	{
-		CMaterialData MaterialData{ "cobblestone_large" };
-		MaterialData.SetTextureFileName(ETextureType::DiffuseTexture, "Asset\\cobblestone_large_base_color.jpg");
-		MaterialData.SetTextureFileName(ETextureType::NormalTexture, "Asset\\cobblestone_large_normal.jpg");
-		MaterialData.SetTextureFileName(ETextureType::RoughnessTexture, "Asset\\cobblestone_large_roughness.jpg");
-		MaterialData.SetTextureFileName(ETextureType::AmbientOcclusionTexture, "Asset\\cobblestone_large_occlusion.jpg");
-		MaterialData.SetTextureFileName(ETextureType::DisplacementTexture, "Asset\\cobblestone_large_displacement.jpg");
-
-		InsertMaterialCreateTextures(MaterialData);
+		m_SceneMaterial = make_unique<CMaterialData>("SceneMaterial");
 	}
 
+	if (!m_SceneMaterialTextureSet)
 	{
-		CMaterialData MaterialData{ "burned_ground" };
-		MaterialData.SetTextureFileName(ETextureType::DiffuseTexture, "Asset\\burned_ground_base_color.jpg");
-		MaterialData.SetTextureFileName(ETextureType::NormalTexture, "Asset\\burned_ground_normal.jpg");
-		MaterialData.SetTextureFileName(ETextureType::SpecularIntensityTexture, "Asset\\burned_ground_specular.jpg");
-		MaterialData.SetTextureFileName(ETextureType::RoughnessTexture, "Asset\\burned_ground_roughness.jpg");
-		MaterialData.SetTextureFileName(ETextureType::MetalnessTexture, "Asset\\burned_ground_specular.jpg");
-		MaterialData.SetTextureFileName(ETextureType::AmbientOcclusionTexture, "Asset\\burned_ground_occlusion.jpg");
-		MaterialData.SetTextureFileName(ETextureType::DisplacementTexture, "Asset\\burned_ground_displacement.jpg");
-
-		InsertMaterialCreateTextures(MaterialData);
-	}
-
-	{
-		CMaterialData MaterialData{ "brown_mud_dry" };
-		MaterialData.SetTextureFileName(ETextureType::DiffuseTexture, "Asset\\brown_mud_dry_base_color.jpg");
-		MaterialData.SetTextureFileName(ETextureType::NormalTexture, "Asset\\brown_mud_dry_normal.jpg");
-		MaterialData.SetTextureFileName(ETextureType::SpecularIntensityTexture, "Asset\\brown_mud_dry_specular.jpg");
-		MaterialData.SetTextureFileName(ETextureType::RoughnessTexture, "Asset\\brown_mud_dry_roughness.jpg");
-		MaterialData.SetTextureFileName(ETextureType::MetalnessTexture, "Asset\\brown_mud_dry_specular.jpg");
-		MaterialData.SetTextureFileName(ETextureType::AmbientOcclusionTexture, "Asset\\brown_mud_dry_occlusion.jpg");
-		MaterialData.SetTextureFileName(ETextureType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
-
-		InsertMaterialCreateTextures(MaterialData);
+		m_SceneMaterialTextureSet = make_unique<CMaterialTextureSet>(m_Device.Get(), m_DeviceContext.Get());
 	}
 }
 
@@ -645,6 +621,8 @@ void CGame::CreateConstantBuffers()
 		&m_CBGBufferUnpackingData, sizeof(m_CBGBufferUnpackingData));
 	m_CBShadowMap = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBShadowMapData, sizeof(m_CBShadowMapData));
+	m_CBSceneMaterial = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBSceneMaterialData, sizeof(m_CBSceneMaterialData));
 
 	m_CBSpace->Create();
 	m_CBAnimationBones->Create();
@@ -662,6 +640,7 @@ void CGame::CreateConstantBuffers()
 	m_CBCamera->Create();
 	m_CBGBufferUnpacking->Create();
 	m_CBShadowMap->Create();
+	m_CBSceneMaterial->Create();
 }
 
 void CGame::CreateBaseShaders()
@@ -798,10 +777,12 @@ void CGame::CreateBaseShaders()
 		m_PSBase = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "main");
 		m_PSBase->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSBase->AttachConstantBuffer(m_CBSceneMaterial.get());
 
 		m_PSBase_GBuffer = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase_GBuffer->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "GBuffer");
 		m_PSBase_GBuffer->ReserveConstantBufferSlots(KPSSharedCBCount);
+		m_PSBase_GBuffer->AttachConstantBuffer(m_CBSceneMaterial.get());
 
 		m_PSBase_RawVertexColor = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSBase_RawVertexColor->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSBase.hlsl", "RawVertexColor");
@@ -1078,6 +1059,34 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 		}
 	}
 
+	// Scene material
+	{
+		m_SceneMaterial->ClearAllTexturesData();
+		m_SceneMaterialTextureSet->DestroyAllTextures();
+
+		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+		m_SceneMaterial->SetTextureFileName(ETextureType::BaseColorTexture, ReadString);
+
+		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+		m_SceneMaterial->SetTextureFileName(ETextureType::NormalTexture, ReadString);
+		
+		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+		m_SceneMaterial->SetTextureFileName(ETextureType::OpacityTexture, ReadString);
+		
+		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+		m_SceneMaterial->SetTextureFileName(ETextureType::RoughnessTexture, ReadString);
+		
+		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+		m_SceneMaterial->SetTextureFileName(ETextureType::MetalnessTexture, ReadString);
+		
+		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+		m_SceneMaterial->SetTextureFileName(ETextureType::AmbientOcclusionTexture, ReadString);
+
+		m_SceneMaterialTextureSet->CreateTextures(*m_SceneMaterial);
+
+		UpdateSceneMaterial();
+	}
+
 	// Light probe
 	{
 		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
@@ -1210,6 +1219,16 @@ void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 				}
 			}
 		}
+	}
+
+	// Scene material
+	{
+		SceneBinaryData.WriteStringWithPrefixedLength(m_SceneMaterial->GetTextureFileName(ETextureType::BaseColorTexture));
+		SceneBinaryData.WriteStringWithPrefixedLength(m_SceneMaterial->GetTextureFileName(ETextureType::NormalTexture));
+		SceneBinaryData.WriteStringWithPrefixedLength(m_SceneMaterial->GetTextureFileName(ETextureType::OpacityTexture));
+		SceneBinaryData.WriteStringWithPrefixedLength(m_SceneMaterial->GetTextureFileName(ETextureType::RoughnessTexture));
+		SceneBinaryData.WriteStringWithPrefixedLength(m_SceneMaterial->GetTextureFileName(ETextureType::MetalnessTexture));
+		SceneBinaryData.WriteStringWithPrefixedLength(m_SceneMaterial->GetTextureFileName(ETextureType::AmbientOcclusionTexture));
 	}
 
 	// Light probe
@@ -1361,6 +1380,39 @@ void CGame::UpdateCBGlobalLightProbeData()
 	if (m_IrradianceTexture) m_CBGlobalLightData.IrradianceTextureMipLevels = m_IrradianceTexture->GetMipLevels();
 	if (m_PrefilteredRadianceTexture) m_CBGlobalLightData.PrefilteredRadianceTextureMipLevels = m_PrefilteredRadianceTexture->GetMipLevels();
 	m_CBGlobalLight->Update();
+}
+
+void CGame::UpdateSceneMaterial()
+{
+	uint32_t FlagsHasSceneTexture{};
+	FlagsHasSceneTexture += m_SceneMaterialTextureSet->HasTexture(ETextureType::DiffuseTexture) ? 0x01 : 0;
+	FlagsHasSceneTexture += m_SceneMaterialTextureSet->HasTexture(ETextureType::NormalTexture) ? 0x02 : 0;
+	FlagsHasSceneTexture += m_SceneMaterialTextureSet->HasTexture(ETextureType::OpacityTexture) ? 0x04 : 0;
+	FlagsHasSceneTexture += m_SceneMaterialTextureSet->HasTexture(ETextureType::SpecularIntensityTexture) ? 0x08 : 0;
+	FlagsHasSceneTexture += m_SceneMaterialTextureSet->HasTexture(ETextureType::RoughnessTexture) ? 0x10 : 0;
+	FlagsHasSceneTexture += m_SceneMaterialTextureSet->HasTexture(ETextureType::MetalnessTexture) ? 0x20 : 0;
+	FlagsHasSceneTexture += m_SceneMaterialTextureSet->HasTexture(ETextureType::AmbientOcclusionTexture) ? 0x40 : 0;
+
+	uint32_t FlagsIsSceneTextureSRGB{};
+	FlagsIsSceneTextureSRGB += m_SceneMaterialTextureSet->IssRGB(ETextureType::DiffuseTexture) ? 0x01 : 0;
+	FlagsIsSceneTextureSRGB += m_SceneMaterialTextureSet->IssRGB(ETextureType::NormalTexture) ? 0x02 : 0;
+	FlagsIsSceneTextureSRGB += m_SceneMaterialTextureSet->IssRGB(ETextureType::OpacityTexture) ? 0x04 : 0;
+	FlagsIsSceneTextureSRGB += m_SceneMaterialTextureSet->IssRGB(ETextureType::SpecularIntensityTexture) ? 0x08 : 0;
+	FlagsIsSceneTextureSRGB += m_SceneMaterialTextureSet->IssRGB(ETextureType::RoughnessTexture) ? 0x10 : 0;
+	FlagsIsSceneTextureSRGB += m_SceneMaterialTextureSet->IssRGB(ETextureType::MetalnessTexture) ? 0x20 : 0;
+	FlagsIsSceneTextureSRGB += m_SceneMaterialTextureSet->IssRGB(ETextureType::AmbientOcclusionTexture) ? 0x40 : 0;
+
+	m_SceneMaterialTextureSet->SetSlot(ETextureType::BaseColorTexture, 60);
+	m_SceneMaterialTextureSet->SetSlot(ETextureType::NormalTexture, 61);
+	m_SceneMaterialTextureSet->SetSlot(ETextureType::OpacityTexture, 62);
+	m_SceneMaterialTextureSet->SetSlot(ETextureType::RoughnessTexture, 63);
+	m_SceneMaterialTextureSet->SetSlot(ETextureType::MetalnessTexture, 64);
+	m_SceneMaterialTextureSet->SetSlot(ETextureType::AmbientOcclusionTexture, 65);
+	m_SceneMaterialTextureSet->UseTextures();
+
+	m_CBSceneMaterialData.FlagsHasSceneTexture = FlagsHasSceneTexture;
+	m_CBSceneMaterialData.FlagsIsSceneTextureSRGB = FlagsIsSceneTextureSRGB;
+	m_CBSceneMaterial->Update();
 }
 
 void CGame::CreateDynamicSky(const string& SkyDataFileName, float ScalingFactor)
@@ -1525,10 +1577,8 @@ float CGame::GetExposure()
 
 void CGame::CreateTerrain(const XMFLOAT2& TerrainSize, uint32_t MaskingDetail, float UniformScaling)
 {
-	if (!GetMaterial("brown_mud_dry")) InitializeEditorAssets();
-
 	m_Terrain = make_unique<CTerrain>(m_Device.Get(), m_DeviceContext.Get(), this);
-	m_Terrain->Create(TerrainSize, *GetMaterial("brown_mud_dry"), MaskingDetail, UniformScaling);
+	m_Terrain->Create(TerrainSize, *m_TerrainMaterialDefault, MaskingDetail, UniformScaling);
 	UpdateCBTerrainData(m_Terrain->GetTerrainData());
 	UpdateCBTerrainMaskingSpace(m_Terrain->GetMaskingSpaceData());
 	
@@ -1549,13 +1599,6 @@ void CGame::LoadTerrain(const string& TerrainFileName)
 	m_Terrain->Load(TerrainFileName);
 	UpdateCBTerrainData(m_Terrain->GetTerrainData());
 	UpdateCBTerrainMaskingSpace(m_Terrain->GetMaskingSpaceData());
-	
-	int MaterialCount{ m_Terrain->GetMaterialCount() };
-	for (int iMaterial = 0; iMaterial < MaterialCount; ++iMaterial)
-	{
-		const CMaterialData& TerrainMaterialData{ m_Terrain->GetMaterial(iMaterial) };
-		InsertMaterialCreateTextures(TerrainMaterialData, false);
-	}
 }
 
 void CGame::SaveTerrain(const string& TerrainFileName)
@@ -2198,140 +2241,6 @@ CObject2D* CGame::GetObject2D(const string& Name, bool bShowWarning) const
 		return nullptr;
 	}
 	return m_vObject2Ds[m_mapObject2DNameToIndex.at(Name)].get();
-}
-
-bool CGame::InsertMaterial(const string& Name, bool bShowWarning)
-{
-	if (m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end())
-	{
-		if (bShowWarning) MB_WARN(("이미 존재하는 이름입니다. (" + Name + ")").c_str(), "Material 생성 실패");
-		return false;
-	}
-
-	if (Name.size() >= KAssetNameMaxLength)
-	{
-		if (bShowWarning) MB_WARN(("이름이 너무 깁니다. (" + Name + ")").c_str(), "Material 생성 실패");
-		return false;
-	}
-	else if (Name.size() == 0)
-	{
-		if (bShowWarning) MB_WARN("이름은 공백일 수 없습니다.", "Material 생성 실패");
-		return false;
-	}
-
-	m_vMaterialData.emplace_back();
-	m_vMaterialData.back().Name(Name);
-	m_vMaterialTextureSets.emplace_back();
-	
-	m_mapMaterialNameToIndex[Name] = m_vMaterialData.size() - 1;
-	
-	return true;
-}
-
-bool CGame::InsertMaterialCreateTextures(const CMaterialData& MaterialData, bool bShowWarning)
-{
-	if (InsertMaterial(MaterialData.Name(), bShowWarning))
-	{
-		CMaterialData* const Material{ GetMaterial(MaterialData.Name()) };
-		*Material = MaterialData; // copy it!
-
-		CreateMaterialTextures(*Material);
-		return true;
-	}
-	return false;
-}
-
-void CGame::DeleteMaterial(const std::string& Name)
-{
-	if (!m_vMaterialData.size()) return;
-	if (Name.length() == 0) return;
-	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end())
-	{
-		MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Material 삭제 실패");
-		return;
-	}
-
-	size_t iMaterial{ m_mapMaterialNameToIndex[Name] };
-	if (iMaterial < m_vMaterialData.size() - 1)
-	{
-		const string& SwappedName{ m_vMaterialData.back().Name() };
-
-		swap(m_vMaterialData[iMaterial], m_vMaterialData.back());
-		swap(m_vMaterialTextureSets[iMaterial], m_vMaterialTextureSets.back());
-
-		m_mapMaterialNameToIndex[SwappedName] = iMaterial;
-	}
-
-	m_mapMaterialNameToIndex.erase(Name);
-	m_vMaterialData.pop_back();
-	m_vMaterialTextureSets.pop_back();
-}
-
-void CGame::CreateMaterialTextures(CMaterialData& MaterialData)
-{
-	size_t iMaterial{ m_mapMaterialNameToIndex[MaterialData.Name()] };
-	m_vMaterialTextureSets[iMaterial] = make_unique<CMaterialTextureSet>(m_Device.Get(), m_DeviceContext.Get());
-	m_vMaterialTextureSets[iMaterial]->CreateTextures(MaterialData);
-}
-
-CMaterialData* CGame::GetMaterial(const string& Name, bool bShowWarning)
-{
-	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end())
-	{
-		if (bShowWarning) MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Material 얻어오기 실패");
-		return nullptr;
-	}
-	return &m_vMaterialData[m_mapMaterialNameToIndex.at(Name)];
-}
-
-CMaterialTextureSet* CGame::GetMaterialTextureSet(const std::string& Name, bool bShowWarning)
-{
-	if (m_mapMaterialNameToIndex.find(Name) == m_mapMaterialNameToIndex.end())
-	{
-		if (bShowWarning) MB_WARN(("존재하지 않는 이름입니다. (" + Name + ")").c_str(), "Material 얻어오기 실패");
-		return nullptr;
-	}
-	return m_vMaterialTextureSets[m_mapMaterialNameToIndex.at(Name)].get();
-}
-
-void CGame::ClearMaterials()
-{
-	m_vMaterialData.clear();
-	m_vMaterialTextureSets.clear();
-	m_mapMaterialNameToIndex.clear();
-}
-
-size_t CGame::GetMaterialCount() const
-{
-	return m_vMaterialData.size();
-}
-
-bool CGame::ChangeMaterialName(const string& OldName, const string& NewName)
-{
-	if (GetMaterial(NewName, false))
-	{
-		MB_WARN(("[" + NewName + "] 은 이미 존재하는 이름입니다. 다른 이름을 골라주세요.").c_str(), "재질 이름 충돌");
-		return false;
-	}
-
-	size_t iMaterial{ m_mapMaterialNameToIndex.at(OldName) };
-	CMaterialData* Material{ GetMaterial(OldName) };
-	
-	m_mapMaterialNameToIndex.erase(OldName);
-	m_mapMaterialNameToIndex[NewName] = iMaterial;
-
-	Material->Name(NewName);
-
-	return true;
-}
-
-ID3D11ShaderResourceView* CGame::GetMaterialTextureSRV(ETextureType eType, const string& Name) const
-{
-	assert(m_mapMaterialNameToIndex.find(Name) != m_mapMaterialNameToIndex.end());
-	size_t iMaterial{ m_mapMaterialNameToIndex.at(Name) };
-
-	if (m_vMaterialTextureSets[iMaterial]) return m_vMaterialTextureSets[iMaterial]->GetTextureSRV(eType);
-	return nullptr;
 }
 
 bool CGame::InsertLight(CLight::EType eType, const std::string& Name)
@@ -3091,6 +3000,8 @@ void CGame::Capture3DGizmoTranslation()
 	{
 		m_Gizmo3D->CaptureTranslation(m_MultipleSelectionWorldCenter);
 	}
+
+	m_Gizmo3D->UpdateTranslation(m_PtrCurrentCamera->GetTranslation()); // @important
 }
 
 void CGame::Select3DGizmos()
@@ -5065,7 +4976,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									}
 
 									DrawEditorGUIPopupMaterialTextureExplorer(capturedMaterialData, capturedMaterialTextureSet, ecapturedTextureType);
-									DrawEditorGUIPopupMaterialNameChanger(capturedMaterialData, false);
+									DrawEditorGUIPopupMaterialNameChanger(capturedMaterialData);
 								}
 
 								// Rigged model
@@ -5706,84 +5617,44 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 							ImGui::Separator();
 						}
-						ImGui::PopItemWidth();
-
-						static bool bShowMaterialSelection{ false };
-						static int iSelectedMaterialID{};
+						
 						if (Terrain)
 						{
 							if (ImGui::Button(u8"재질 추가"))
 							{
-								iSelectedMaterialID = -1;
-								ImGui::OpenPopup(u8"재질 선택");
+								Terrain->AddMaterial(CMaterialData());
 							}
 
-							for (int iMaterial = 0; iMaterial < Terrain->GetMaterialCount(); ++iMaterial)
+							static CMaterialData* capturedMaterialData{};
+							static CMaterialTextureSet* capturedMaterialTextureSet{};
+							static ETextureType ecapturedTextureType{};
+							if (!ImGui::IsPopupOpen(u8"텍스처탐색기")) m_EditorGUIBools.bShowPopupMaterialTextureExplorer = false;
+
+							for (size_t iMaterial = 0; iMaterial < Terrain->GetMaterialCount(); ++iMaterial)
 							{
-								ImGui::PushItemWidth(100);
-								ImGui::PushID(iMaterial);
-								if (ImGui::Button(u8"변경"))
+								CMaterialData& MaterialData{ Terrain->GetMaterial(iMaterial) };
+								CMaterialTextureSet* const MaterialTextureSet{ Terrain->GetMaterialTextureSet(iMaterial) };
+
+								ImGui::PushID((int)iMaterial);
+
+								if (DrawEditorGUIWindowPropertyEditor_MaterialData(MaterialData, MaterialTextureSet, ecapturedTextureType, ItemsOffsetX))
 								{
-									iSelectedMaterialID = iMaterial;
-									bShowMaterialSelection = true;
+									capturedMaterialData = &MaterialData;
+									capturedMaterialTextureSet = MaterialTextureSet;
 								}
+
 								ImGui::PopID();
-								ImGui::PopItemWidth();
-
-								ImGui::SameLine();
-
-								const CMaterialData& MaterialData{ Terrain->GetMaterial(iMaterial) };
-								ImGui::Text(u8"재질[%d] %s", iMaterial, MaterialData.Name().c_str());
 							}
+
+							DrawEditorGUIPopupMaterialTextureExplorer(capturedMaterialData, capturedMaterialTextureSet, ecapturedTextureType);
+							DrawEditorGUIPopupMaterialNameChanger(capturedMaterialData);
 						}
 						else
 						{
 							ImGui::Text(u8"텍스쳐: 없음");
 						}
 
-						if (bShowMaterialSelection) ImGui::OpenPopup(u8"재질 선택");
-						if (ImGui::BeginPopup(u8"재질 선택", ImGuiWindowFlags_AlwaysAutoResize))
-						{
-							static int ListIndex{};
-							static const string* SelectedMaterialName{};
-							const auto& mapMaterial{ GetMaterialMap() };
-
-							if (ImGui::ListBoxHeader("", (int)mapMaterial.size()))
-							{
-								int iListItem{};
-								for (const auto& pairMaterial : mapMaterial)
-								{
-									if (ImGui::Selectable(pairMaterial.first.c_str(), (iListItem == ListIndex) ? true : false))
-									{
-										ListIndex = iListItem;
-										SelectedMaterialName = &pairMaterial.first;
-									}
-									++iListItem;
-								}
-								ImGui::ListBoxFooter();
-							}
-
-							if (ImGui::Button(u8"결정"))
-							{
-								if (SelectedMaterialName)
-								{
-									if (iSelectedMaterialID == -1)
-									{
-										Terrain->AddMaterial(*GetMaterial(*SelectedMaterialName));
-									}
-									else
-									{
-										Terrain->SetMaterial(iSelectedMaterialID, *GetMaterial(*SelectedMaterialName));
-									}
-								}
-
-								ImGui::CloseCurrentPopup();
-							}
-
-							bShowMaterialSelection = false;
-
-							ImGui::EndPopup();
-						}
+						ImGui::PopItemWidth();
 					}
 					else
 					{
@@ -5898,33 +5769,24 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					ImGui::PushItemWidth(ItemsWidth);
 
 					{
-						ImGui::PushID(0);
-						if (ImGui::Button(u8"새 재질 추가"))
-						{
-							size_t Count{ GetMaterialCount() };
-							InsertMaterial("Material" + to_string(Count));
-						}
-						ImGui::PopID();
-
 						static CMaterialData* capturedMaterialData{};
 						static CMaterialTextureSet* capturedMaterialTextureSet{};
-						static ETextureType ecapturedTextureType{};
+						static ETextureType eCapturedTextureType{};
 						if (!ImGui::IsPopupOpen(u8"텍스처탐색기")) m_EditorGUIBools.bShowPopupMaterialTextureExplorer = false;
 
-						const auto& mapMaterialList{ GetMaterialMap() };
-						for (auto& pairMaterial : mapMaterialList)
+						if (DrawEditorGUIWindowPropertyEditor_MaterialData(*m_SceneMaterial, m_SceneMaterialTextureSet.get(), 
+							eCapturedTextureType, ItemsWidth, true))
 						{
-							CMaterialData* MaterialData{ GetMaterial(pairMaterial.first) };
-							CMaterialTextureSet* MaterialTextureSet{ GetMaterialTextureSet(pairMaterial.first) };
-							if (DrawEditorGUIWindowPropertyEditor_MaterialData(*MaterialData, MaterialTextureSet, ecapturedTextureType, ItemsWidth))
-							{
-								capturedMaterialData = MaterialData;
-								capturedMaterialTextureSet = MaterialTextureSet;
-							}
+							capturedMaterialData = m_SceneMaterial.get();
+							capturedMaterialTextureSet = m_SceneMaterialTextureSet.get();
+
+							UpdateSceneMaterial();
 						}
 
-						DrawEditorGUIPopupMaterialTextureExplorer(capturedMaterialData, capturedMaterialTextureSet, ecapturedTextureType);
-						DrawEditorGUIPopupMaterialNameChanger(capturedMaterialData, true);
+						if (DrawEditorGUIPopupMaterialTextureExplorer(capturedMaterialData, capturedMaterialTextureSet, eCapturedTextureType))
+						{
+							UpdateSceneMaterial();
+						}
 
 						ImGui::EndTabItem();
 					}
@@ -6387,103 +6249,113 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 }
 
 bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& MaterialData, CMaterialTextureSet* const TextureSet, 
-	ETextureType& eSeletedTextureType, float ItemsOffsetX)
+	ETextureType& eSeletedTextureType, float ItemsOffsetX, bool bShowOnlyTextureData)
 {
 	bool Result{ false };
 	bool bUsePhysicallyBasedRendering{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::UsePhysicallyBasedRendering) };
 
 	if (ImGui::TreeNodeEx(MaterialData.Name().c_str(), ImGuiTreeNodeFlags_SpanAvailWidth))
 	{
-		if (ImGui::Button(u8"재질 이름 변경"))
+		if (!bShowOnlyTextureData)
 		{
-			m_EditorGUIBools.bShowPopupMaterialNameChanger = true;
-			Result = true;
-		}
-
-		if (bUsePhysicallyBasedRendering)
-		{
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text(u8"Base color 색상");
-		}
-		else
-		{
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text(u8"Diffuse 색상");
-		}
-		ImGui::SameLine(ItemsOffsetX);
-		XMFLOAT3 DiffuseColor{ MaterialData.DiffuseColor() };
-		if (ImGui::ColorEdit3(u8"##Diffuse 색상", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
-		{
-			MaterialData.DiffuseColor(DiffuseColor);
-		}
-
-		if (!bUsePhysicallyBasedRendering)
-		{
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text(u8"Ambient 색상");
-			ImGui::SameLine(ItemsOffsetX);
-			XMFLOAT3 AmbientColor{ MaterialData.AmbientColor() };
-			if (ImGui::ColorEdit3(u8"##Ambient 색상", &AmbientColor.x, ImGuiColorEditFlags_RGB))
+			if (ImGui::Button(u8"재질 이름 변경"))
 			{
-				MaterialData.AmbientColor(AmbientColor);
-			}
-		}
-
-		if (!bUsePhysicallyBasedRendering)
-		{
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text(u8"Specular 색상");
-			ImGui::SameLine(ItemsOffsetX);
-			XMFLOAT3 SpecularColor{ MaterialData.SpecularColor() };
-			if (ImGui::ColorEdit3(u8"##Specular 색상", &SpecularColor.x, ImGuiColorEditFlags_RGB))
-			{
-				MaterialData.SpecularColor(SpecularColor);
+				m_EditorGUIBools.bShowPopupMaterialNameChanger = true;
+				Result = true;
 			}
 
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text(u8"Specular 지수");
-			ImGui::SameLine(ItemsOffsetX);
-			float SpecularExponent{ MaterialData.SpecularExponent() };
-			if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, CMaterialData::KSpecularMinExponent, CMaterialData::KSpecularMaxExponent, "%.1f"))
+			if (bUsePhysicallyBasedRendering)
 			{
-				MaterialData.SpecularExponent(SpecularExponent);
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"Base color 색상");
+			}
+			else
+			{
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"Diffuse 색상");
+			}
+			ImGui::SameLine(ItemsOffsetX);
+			XMFLOAT3 DiffuseColor{ MaterialData.DiffuseColor() };
+			if (ImGui::ColorEdit3(u8"##Diffuse 색상", &DiffuseColor.x, ImGuiColorEditFlags_RGB))
+			{
+				MaterialData.DiffuseColor(DiffuseColor);
 			}
 
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text(u8"Specular 강도");
-			ImGui::SameLine(ItemsOffsetX);
-			float SpecularIntensity{ MaterialData.SpecularIntensity() };
-			if (ImGui::DragFloat(u8"##Specular 강도", &SpecularIntensity, 0.01f, 0.0f, 1.0f, "%.2f"))
+			if (!bUsePhysicallyBasedRendering)
 			{
-				MaterialData.SpecularIntensity(SpecularIntensity);
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"Ambient 색상");
+				ImGui::SameLine(ItemsOffsetX);
+				XMFLOAT3 AmbientColor{ MaterialData.AmbientColor() };
+				if (ImGui::ColorEdit3(u8"##Ambient 색상", &AmbientColor.x, ImGuiColorEditFlags_RGB))
+				{
+					MaterialData.AmbientColor(AmbientColor);
+				}
 			}
+
+			if (!bUsePhysicallyBasedRendering)
+			{
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"Specular 색상");
+				ImGui::SameLine(ItemsOffsetX);
+				XMFLOAT3 SpecularColor{ MaterialData.SpecularColor() };
+				if (ImGui::ColorEdit3(u8"##Specular 색상", &SpecularColor.x, ImGuiColorEditFlags_RGB))
+				{
+					MaterialData.SpecularColor(SpecularColor);
+				}
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"Specular 지수");
+				ImGui::SameLine(ItemsOffsetX);
+				float SpecularExponent{ MaterialData.SpecularExponent() };
+				if (ImGui::DragFloat(u8"##Specular 지수", &SpecularExponent, 0.1f, CMaterialData::KSpecularMinExponent, CMaterialData::KSpecularMaxExponent, "%.1f"))
+				{
+					MaterialData.SpecularExponent(SpecularExponent);
+				}
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"Specular 강도");
+				ImGui::SameLine(ItemsOffsetX);
+				float SpecularIntensity{ MaterialData.SpecularIntensity() };
+				if (ImGui::DragFloat(u8"##Specular 강도", &SpecularIntensity, 0.01f, 0.0f, 1.0f, "%.2f"))
+				{
+					MaterialData.SpecularIntensity(SpecularIntensity);
+				}
+			}
+
+			if (bUsePhysicallyBasedRendering)
+			{
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"Roughness");
+				ImGui::SameLine(ItemsOffsetX);
+				float Roughness{ MaterialData.Roughness() };
+				if (ImGui::DragFloat(u8"##Roughness", &Roughness, 0.01f, 0.0f, 1.0f, "%.2f"))
+				{
+					MaterialData.Roughness(Roughness);
+				}
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"Metalness");
+				ImGui::SameLine(ItemsOffsetX);
+				float Metalness{ MaterialData.Metalness() };
+				if (ImGui::DragFloat(u8"##Metalness", &Metalness, 0.01f, 0.0f, 1.0f, "%.2f"))
+				{
+					MaterialData.Metalness(Metalness);
+				}
+			}
+
+			ImGui::Separator();
 		}
-
-		if (bUsePhysicallyBasedRendering)
-		{
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text(u8"Roughness");
-			ImGui::SameLine(ItemsOffsetX);
-			float Roughness{ MaterialData.Roughness() };
-			if (ImGui::DragFloat(u8"##Roughness", &Roughness, 0.01f, 0.0f, 1.0f, "%.2f"))
-			{
-				MaterialData.Roughness(Roughness);
-			}
-
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text(u8"Metalness");
-			ImGui::SameLine(ItemsOffsetX);
-			float Metalness{ MaterialData.Metalness() };
-			if (ImGui::DragFloat(u8"##Metalness", &Metalness, 0.01f, 0.0f, 1.0f, "%.2f"))
-			{
-				MaterialData.Metalness(Metalness);
-			}
-		}
-
-		ImGui::Separator();
 
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text(u8"텍스처");
+
+		if (ImGui::Button(u8"모든 텍스처 해제"))
+		{
+			MaterialData.ClearAllTexturesData();
+			TextureSet->DestroyAllTextures();
+			Result = true;
+		}
 
 		static const ImVec2 KTextureSmallViewSize{ 60.0f, 60.0f };
 		ImGui::PushID(0);
@@ -6599,7 +6471,7 @@ bool CGame::DrawEditorGUIWindowPropertyEditor_MaterialData(CMaterialData& Materi
 	return Result;
 }
 
-void CGame::DrawEditorGUIPopupMaterialNameChanger(CMaterialData*& capturedMaterialData, bool bIsEditorMaterial)
+void CGame::DrawEditorGUIPopupMaterialNameChanger(CMaterialData*& capturedMaterialData)
 {
 	static char OldName[KAssetNameMaxLength]{};
 	static char NewName[KAssetNameMaxLength]{};
@@ -6611,30 +6483,18 @@ void CGame::DrawEditorGUIPopupMaterialNameChanger(CMaterialData*& capturedMateri
 	if (ImGui::BeginPopupModal(u8"재질 이름 변경", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
 	{
 		ImGui::SetNextItemWidth(160);
-		ImGui::InputText(u8"새 이름", NewName, KAssetNameMaxLength, ImGuiInputTextFlags_EnterReturnsTrue);
+		bool bOK{ ImGui::InputText(u8"새 이름", NewName, KAssetNameMaxLength, ImGuiInputTextFlags_EnterReturnsTrue) };
 
 		ImGui::Separator();
 
-		if (ImGui::Button(u8"결정") || ImGui::IsKeyDown(VK_RETURN))
+		if (ImGui::Button(u8"결정") || bOK)
 		{
 			strcpy_s(OldName, capturedMaterialData->Name().c_str());
 
-			if (bIsEditorMaterial)
-			{
-				if (ChangeMaterialName(OldName, NewName))
-				{
-					ImGui::CloseCurrentPopup();
-					m_EditorGUIBools.bShowPopupMaterialNameChanger = false;
-					capturedMaterialData = nullptr;
-				}
-			}
-			else
-			{
-				// TODO: 이름 충돌 검사
-				// 에디터 재질이 아니면.. 이름 충돌해도 괜찮을까?
+			capturedMaterialData->Name(NewName);
 
-				capturedMaterialData->Name(NewName);
-			}
+			ImGui::CloseCurrentPopup();
+			m_EditorGUIBools.bShowPopupMaterialNameChanger = false;
 		}
 
 		ImGui::SameLine();
@@ -6650,9 +6510,11 @@ void CGame::DrawEditorGUIPopupMaterialNameChanger(CMaterialData*& capturedMateri
 	}
 }
 
-void CGame::DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const capturedMaterialData, CMaterialTextureSet* const capturedMaterialTextureSet,
+bool CGame::DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const capturedMaterialData, CMaterialTextureSet* const capturedMaterialTextureSet,
 	ETextureType eSelectedTextureType)
 {
+	bool bResult{ false };
+
 	// ### 텍스처 탐색기 윈도우 ###
 	if (m_EditorGUIBools.bShowPopupMaterialTextureExplorer) ImGui::OpenPopup(u8"텍스처탐색기");
 	if (ImGui::BeginPopup(u8"텍스처탐색기", ImGuiWindowFlags_AlwaysAutoResize))
@@ -6667,6 +6529,8 @@ void CGame::DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const captu
 			{
 				capturedMaterialData->SetTextureFileName(eSelectedTextureType, FileDialog.GetRelativeFileName());
 				capturedMaterialTextureSet->CreateTexture(eSelectedTextureType, *capturedMaterialData);
+
+				bResult = true;
 			}
 		}
 
@@ -6676,12 +6540,16 @@ void CGame::DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const captu
 		{
 			capturedMaterialData->ClearTextureData(eSelectedTextureType);
 			capturedMaterialTextureSet->DestroyTexture(eSelectedTextureType);
+
+			bResult = true;
 		}
 
 		ImGui::Image(SRV, ImVec2(600, 600));
 
 		ImGui::EndPopup();
 	}
+
+	return bResult;
 }
 
 void CGame::DrawEditorGUIWindowSceneEditor()

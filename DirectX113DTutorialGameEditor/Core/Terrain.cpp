@@ -350,10 +350,27 @@ void CTerrain::SetMaterial(int MaterialID, const CMaterialData& NewMaterialData)
 	RegisterChange();
 }
 
-const CMaterialData& CTerrain::GetMaterial(int Index) const
+const CMaterialData& CTerrain::GetMaterial(size_t Index) const
 {
 	assert(m_Object3DTerrain);
 	return m_Object3DTerrain->GetModel().vMaterialData[Index];
+}
+
+CMaterialData& CTerrain::GetMaterial(size_t Index)
+{
+	assert(m_Object3DTerrain);
+	return m_Object3DTerrain->GetModel().vMaterialData[Index];
+}
+
+CMaterialTextureSet* CTerrain::GetMaterialTextureSet(size_t MaterialID) const
+{
+	return m_Object3DTerrain->GetMaterialTextureSet(MaterialID);
+}
+
+size_t CTerrain::GetMaterialCount() const
+{
+	assert(m_Object3DTerrain);
+	return m_Object3DTerrain->GetMaterialCount();
 }
 
 void CTerrain::Select(const XMVECTOR& PickingRayOrigin, const XMVECTOR& PickingRayDirection, bool bShouldEdit, bool bIsLeftButton)
@@ -815,12 +832,6 @@ const CObject3D::SCBDisplacementData& CTerrain::GetWaterDisplacementData() const
 XMFLOAT2 CTerrain::GetSize() const
 {
 	return XMFLOAT2(m_TerrainFileData->SizeX, m_TerrainFileData->SizeZ);
-}
-
-int CTerrain::GetMaterialCount() const
-{
-	assert(m_Object3DTerrain);
-	return (int)m_Object3DTerrain->GetMaterialCount();
 }
 
 int CTerrain::GetMaskingDetail() const

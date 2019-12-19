@@ -146,6 +146,21 @@ void CGizmo3D::CaptureTranslation(const XMVECTOR& Translation)
 	m_GizmoTranslation = Translation / XMVectorGetW(Translation);
 }
 
+void CGizmo3D::UpdateTranslation(const XMVECTOR& CameraPosition)
+{
+	// @important
+	// Translate gizmos
+	m_TranslationX->ComponentTransform.Translation = m_TranslationY->ComponentTransform.Translation = m_TranslationZ->ComponentTransform.Translation =
+		m_RotationX->ComponentTransform.Translation = m_RotationY->ComponentTransform.Translation = m_RotationZ->ComponentTransform.Translation =
+		m_ScalingX->ComponentTransform.Translation = m_ScalingY->ComponentTransform.Translation = m_ScalingZ->ComponentTransform.Translation =
+		m_GizmoTranslation;
+
+	// @important
+	// Calculate scalar IAW the distance from the camera	
+	m_GizmoDistanceScalar = XMVectorGetX(XMVector3Length(CameraPosition - m_GizmoTranslation)) * 0.1f;
+	m_GizmoDistanceScalar = pow(m_GizmoDistanceScalar, 0.7f);
+}
+
 void CGizmo3D::SetMode(EMode eMode)
 {
 	m_eCurrentMode = eMode;
@@ -327,18 +342,8 @@ bool CGizmo3D::Interact(const XMVECTOR& PickingRayOrigin, const XMVECTOR& Pickin
 		}
 	}
 
-	// @important
-	// Translate gizmos
-	m_TranslationX->ComponentTransform.Translation = m_TranslationY->ComponentTransform.Translation = m_TranslationZ->ComponentTransform.Translation =
-		m_RotationX->ComponentTransform.Translation = m_RotationY->ComponentTransform.Translation = m_RotationZ->ComponentTransform.Translation =
-		m_ScalingX->ComponentTransform.Translation = m_ScalingY->ComponentTransform.Translation = m_ScalingZ->ComponentTransform.Translation =
-		m_GizmoTranslation;
-
-	// @important
-	// Calculate scalar IAW the distance from the camera	
-	m_GizmoDistanceScalar = XMVectorGetX(XMVector3Length(CameraPosition - m_GizmoTranslation)) * 0.1f;
-	m_GizmoDistanceScalar = pow(m_GizmoDistanceScalar, 0.7f);
-
+	UpdateTranslation(CameraPosition);
+	
 	return bResult;
 }
 

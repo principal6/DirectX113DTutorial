@@ -3,6 +3,13 @@
 #include "GBuffer.hlsli"
 #include "iPSCBs.hlsli"
 
+cbuffer cbSceneMaterial : register(b3)
+{
+	uint FlagsHasSceneTexture;
+	uint FlagsIsSceneTextureSRGB;
+	float2 Reserved2;
+}
+
 #define FLAG_ID_DIFFUSE 0x01
 #define FLAG_ID_NORMAL 0x02
 #define FLAG_ID_OPACITY 0x04
@@ -31,6 +38,13 @@ TextureCube IrradianceTexture : register(t51);
 TextureCube PrefilteredRadianceTexture : register(t52);
 Texture2D IntegratedBRDFTexture : register(t53);
 
+Texture2D SceneDiffuseTexture : register(t60);
+Texture2D SceneNormalTexture : register(t61);
+Texture2D SceneOpacityTexture : register(t62);
+Texture2D SceneRoughnessTexture : register(t63);
+Texture2D SceneMetalnessTexture : register(t64);
+Texture2D SceneAmbientOcclusionTexture : register(t65);
+
 #define N WorldNormal.xyz // Macrosurface normal
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
@@ -56,12 +70,27 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 			DiffuseColor = pow(DiffuseColor, 2.2);
 		}
 	}
+	else if (FlagsHasSceneTexture & FLAG_ID_DIFFUSE)
+	{
+		DiffuseColor = SceneDiffuseTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).xyz;
+
+		if (!(FlagsIsSceneTextureSRGB & FLAG_ID_DIFFUSE))
+		{
+			DiffuseColor = pow(DiffuseColor, 2.2);
+		}
+	}
 
 	if (FlagsHasTexture & FLAG_ID_NORMAL)
 	{
 		WorldNormal = NormalTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
 		WorldNormal = normalize((WorldNormal * 2.0) - 1.0);
-
+		float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
+		WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
+	}
+	else if (FlagsHasSceneTexture & FLAG_ID_NORMAL)
+	{
+		WorldNormal = SceneNormalTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
+		WorldNormal = normalize((WorldNormal * 2.0) - 1.0);
 		float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
 		WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
 	}
@@ -69,6 +98,18 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	if (FlagsHasTexture & FLAG_ID_OPACITY)
 	{
 		float4 Sampled = OpacityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
+		if (Sampled.r == Sampled.g && Sampled.g == Sampled.b)
+		{
+			Opacity = Sampled.r;
+		}
+		else
+		{
+			Opacity = Sampled.a;
+		}
+	}
+	else if (FlagsHasSceneTexture & FLAG_ID_OPACITY)
+	{
+		float4 Sampled = SceneOpacityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
 		if (Sampled.r == Sampled.g && Sampled.g == Sampled.b)
 		{
 			Opacity = Sampled.r;
@@ -88,15 +129,27 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 	{
 		Roughness = RoughnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 	}
+	else if (FlagsHasSceneTexture & FLAG_ID_ROUGHNESS)
+	{
+		Roughness = SceneRoughnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
 
 	if (FlagsHasTexture & FLAG_ID_METALNESS)
 	{
 		Metalness = MetalnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 	}
+	else if (FlagsHasSceneTexture & FLAG_ID_METALNESS)
+	{
+		Metalness = SceneMetalnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
 
 	if (FlagsHasTexture & FLAG_ID_AMBIENTOCCLUSION)
 	{
 		AmbientOcclusion = AmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
+	else if (FlagsHasSceneTexture & FLAG_ID_AMBIENTOCCLUSION)
+	{
+		AmbientOcclusion = SceneAmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 	}
 
 	if (FlagsHasTexture & FLAG_ID_DIFFUSE)
@@ -221,20 +274,58 @@ GBufferOutput GBuffer(VS_OUTPUT Input)
 			DiffuseColor = pow(DiffuseColor, 2.2);
 		}
 	}
+	else if (FlagsHasSceneTexture & FLAG_ID_DIFFUSE)
+	{
+		DiffuseColor = SceneDiffuseTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).xyz;
+		if (!(FlagsIsSceneTextureSRGB & FLAG_ID_DIFFUSE))
+		{
+			DiffuseColor = pow(DiffuseColor, 2.2);
+		}
+	}
 
 	if (FlagsHasTexture & FLAG_ID_NORMAL)
 	{
 		WorldNormal = NormalTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
 		WorldNormal = normalize((WorldNormal * 2.0f) - 1.0f);
-
+		float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
+		WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
+	}
+	else if (FlagsHasSceneTexture & FLAG_ID_NORMAL)
+	{
+		WorldNormal = SceneNormalTexture.Sample(LinearWrapSampler, Input.TexCoord.xy);
+		WorldNormal = normalize((WorldNormal * 2.0f) - 1.0f);
 		float3x3 TextureSpace = float3x3(Input.WorldTangent.xyz, Input.WorldBitangent.xyz, Input.WorldNormal.xyz);
 		WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
 	}
 
 	if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY) SpecularIntensity = SpecularIntensityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
-	if (FlagsHasTexture & FLAG_ID_ROUGHNESS) Roughness = RoughnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
-	if (FlagsHasTexture & FLAG_ID_METALNESS) Metalness = MetalnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
-	if (FlagsHasTexture & FLAG_ID_AMBIENTOCCLUSION) AmbientOcclusion = AmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	
+	if (FlagsHasTexture & FLAG_ID_ROUGHNESS)
+	{
+		Roughness = RoughnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
+	else if (FlagsHasSceneTexture & FLAG_ID_ROUGHNESS)
+	{
+		Roughness = SceneRoughnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
+
+	if (FlagsHasTexture & FLAG_ID_METALNESS)
+	{
+		Metalness = MetalnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
+	else if (FlagsHasSceneTexture & FLAG_ID_METALNESS)
+	{
+		Metalness = SceneMetalnessTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
+	
+	if (FlagsHasTexture & FLAG_ID_AMBIENTOCCLUSION)
+	{
+		AmbientOcclusion = AmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
+	else if (FlagsHasSceneTexture & FLAG_ID_AMBIENTOCCLUSION)
+	{
+		AmbientOcclusion = SceneAmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	}
 
 	float3 BaseColor = float3(1.0, 1.0, 1.0) - exp(-DiffuseColor * Exposure);
 	float NormalA = 0;

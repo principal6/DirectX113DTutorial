@@ -356,7 +356,6 @@ void CTexture::Use(int ForcedSlot) const
 
 void CMaterialTextureSet::CreateTextures(CMaterialData& MaterialData)
 {
-	UINT SlotOffset{ (UINT)(MaterialData.Index() * KMaxTextureCountPerMaterial) };
 	for (int iTexture = 0; iTexture < KMaxTextureCountPerMaterial; ++iTexture)
 	{
 		ETextureType eTextureType{ (ETextureType)iTexture };
@@ -402,10 +401,23 @@ void CMaterialTextureSet::CreateTexture(ETextureType eType, CMaterialData& Mater
 	}
 }
 
+void CMaterialTextureSet::DestroyAllTextures()
+{
+	for (int iTexture = 0; iTexture < KMaxTextureCountPerMaterial; ++iTexture)
+	{
+		DestroyTexture((ETextureType)iTexture);
+	}
+}
+
 void CMaterialTextureSet::DestroyTexture(ETextureType eType)
 {
 	size_t iTexture{ (size_t)eType };
 	m_Textures[iTexture].ReleaseResources();
+}
+
+void CMaterialTextureSet::SetSlot(ETextureType eType, uint32_t Slot)
+{
+	m_Textures[(size_t)eType].SetSlot(Slot);
 }
 
 void CMaterialTextureSet::UseTextures() const
@@ -414,6 +426,16 @@ void CMaterialTextureSet::UseTextures() const
 	{
 		if (m_Textures[iTexture].IsCreated()) m_Textures[iTexture].Use();
 	}
+}
+
+bool CMaterialTextureSet::HasTexture(ETextureType eType) const
+{
+	return m_Textures[(size_t)eType].IsCreated();
+}
+
+bool CMaterialTextureSet::IssRGB(ETextureType eType) const
+{
+	return m_Textures[(size_t)eType].IssRGB();
 }
 
 ID3D11ShaderResourceView* CMaterialTextureSet::GetTextureSRV(ETextureType eType)
@@ -525,6 +547,18 @@ void CMaterialData::ClearTextureData(ETextureType eType)
 			if (TextureData.bHasTexture) m_bHasAnyTexture = true;
 		}
 	}
+}
+
+void CMaterialData::ClearAllTexturesData()
+{
+	if (!m_bHasAnyTexture) return;
+	for (int iTexture = 0; iTexture < KMaxTextureCountPerMaterial; ++iTexture)
+	{
+		m_TextureData[iTexture].bHasTexture = false;
+		m_TextureData[iTexture].FileName.clear();
+		m_TextureData[iTexture].vRawData.clear();
+	}
+	m_bHasAnyTexture = false;
 }
 
 STextureData& CMaterialData::GetTextureData(ETextureType eType)

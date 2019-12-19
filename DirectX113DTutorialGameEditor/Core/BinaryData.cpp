@@ -343,7 +343,12 @@ bool CBinaryData::ReadXMMATRIX(XMMATRIX& Out)
 
 bool CBinaryData::ReadString(std::string& Out, uint32_t Length)
 {
-	if (Length == 0) return false;
+	// @important
+	if (Length == 0)
+	{
+		Out.clear();
+		return false;
+	}
 	if (m_ReadByteOffset + Length - 1 >= m_vBytes.size()) return false;
 
 	Out.clear();
