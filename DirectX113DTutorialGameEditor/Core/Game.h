@@ -500,7 +500,6 @@ private:
 
 private:
 	void CastPickingRay();
-	void UpdatePickingRay();
 	void PickBoundingSphere(bool bUseAdditiveSelection = false);
 	bool PickObject3DTriangle(bool bUseAdditiveSelection = false);
 
@@ -530,18 +529,18 @@ private:
 	void SetDeferredRenderTargets(bool bClearViews = false);
 
 public:
-	auto GethWnd() const->HWND { return m_hWnd; }
-	auto GetDevicePtr() const->ID3D11Device* { return m_Device.Get(); }
-	auto GetDeviceContextPtr() const->ID3D11DeviceContext* { return m_DeviceContext.Get(); }
+	auto GethWnd() const->HWND;
+	auto GetDevicePtr() const->ID3D11Device*;
+	auto GetDeviceContextPtr() const->ID3D11DeviceContext*;
 	auto GetKeyState() const->Keyboard::State;
 	auto GetMouseState() const->Mouse::State;
-	auto GetSpriteBatchPtr() const->SpriteBatch* { return m_SpriteBatch.get(); }
-	auto GetSpriteFontPtr() const->SpriteFont* { return m_SpriteFont.get(); }
+	auto GetSpriteBatchPtr() const->SpriteBatch*;
+	auto GetSpriteFontPtr() const->SpriteFont*;
 	auto GetWindowSize() const->const XMFLOAT2&;
-	auto GetDepthStencilStateLessEqualNoWrite() const->ID3D11DepthStencilState* { return m_DepthStencilStateLessEqualNoWrite.Get(); }
-	auto GetBlendStateAlphaToCoverage() const->ID3D11BlendState* { return m_BlendAlphaToCoverage.Get(); }
-	auto GetWorkingDirectory() const->const char* { return m_WorkingDirectory; }
-	auto GetDeltaTime() const->float { return m_DeltaTimeF; }
+	auto GetDepthStencilStateLessEqualNoWrite() const->ID3D11DepthStencilState*;
+	auto GetBlendStateAlphaToCoverage() const->ID3D11BlendState*;
+	auto GetWorkingDirectory() const->const char*;
+	auto GetDeltaTime() const->float;
 
 private:
 	void DrawOpaqueObject3Ds(bool bIgnoreOwnTexture = false, bool bUseVoidPS = false);
@@ -639,55 +638,55 @@ private:
 private:
 	std::vector<std::unique_ptr<CShader>>	m_vCustomShaders{};
 
-	std::unique_ptr<CShader>	m_VSAnimation{};
-	std::unique_ptr<CShader>	m_VSBase{};
-	std::unique_ptr<CShader>	m_VSBase2D{};
-	std::unique_ptr<CShader>	m_VSInstance{};
-	std::unique_ptr<CShader>	m_VSFoliage{};
-	std::unique_ptr<CShader>	m_VSLight{};
-	std::unique_ptr<CShader>	m_VSLine{};
-	std::unique_ptr<CShader>	m_VSSky{};
-	std::unique_ptr<CShader>	m_VSTerrain{};
+	std::unique_ptr<CShader>				m_VSAnimation{};
+	std::unique_ptr<CShader>				m_VSBase{};
+	std::unique_ptr<CShader>				m_VSBase2D{};
+	std::unique_ptr<CShader>				m_VSInstance{};
+	std::unique_ptr<CShader>				m_VSFoliage{};
+	std::unique_ptr<CShader>				m_VSLight{};
+	std::unique_ptr<CShader>				m_VSLine{};
+	std::unique_ptr<CShader>				m_VSSky{};
+	std::unique_ptr<CShader>				m_VSTerrain{};
 
-	std::unique_ptr<CShader>	m_HSPointLight{};
-	std::unique_ptr<CShader>	m_HSSpotLight{};
-	std::unique_ptr<CShader>	m_HSStatic{};
-	std::unique_ptr<CShader>	m_HSTerrain{};
-	std::unique_ptr<CShader>	m_HSWater{};
+	std::unique_ptr<CShader>				m_HSPointLight{};
+	std::unique_ptr<CShader>				m_HSSpotLight{};
+	std::unique_ptr<CShader>				m_HSStatic{};
+	std::unique_ptr<CShader>				m_HSTerrain{};
+	std::unique_ptr<CShader>				m_HSWater{};
 
-	std::unique_ptr<CShader>	m_DSPointLight{};
-	std::unique_ptr<CShader>	m_DSSpotLight{};
-	std::unique_ptr<CShader>	m_DSStatic{};
-	std::unique_ptr<CShader>	m_DSTerrain{};
-	std::unique_ptr<CShader>	m_DSWater{};
+	std::unique_ptr<CShader>				m_DSPointLight{};
+	std::unique_ptr<CShader>				m_DSSpotLight{};
+	std::unique_ptr<CShader>				m_DSStatic{};
+	std::unique_ptr<CShader>				m_DSTerrain{};
+	std::unique_ptr<CShader>				m_DSWater{};
 
-	std::unique_ptr<CShader>	m_GSNormal{};
+	std::unique_ptr<CShader>				m_GSNormal{};
 
-	std::unique_ptr<CShader>	m_PSBase{};
-	std::unique_ptr<CShader>	m_PSBase_GBuffer{};
-	std::unique_ptr<CShader>	m_PSBase_Void{};
-	std::unique_ptr<CShader>	m_PSBase_RawVertexColor{};
-	std::unique_ptr<CShader>	m_PSBase_RawDiffuseColor{};
-	std::unique_ptr<CShader>	m_PSBase2D{};
-	std::unique_ptr<CShader>	m_PSBase2D_RawVertexColor{};
-	std::unique_ptr<CShader>	m_PSCamera{};
-	std::unique_ptr<CShader>	m_PSCloud{};
-	std::unique_ptr<CShader>	m_PSDirectionalLight{};
-	std::unique_ptr<CShader>	m_PSDirectionalLight_NonIBL{};
-	std::unique_ptr<CShader>	m_PSDynamicSky{};
-	std::unique_ptr<CShader>	m_PSEdgeDetector{};
-	std::unique_ptr<CShader>	m_PSFoliage{};
-	std::unique_ptr<CShader>	m_PSHeightMap2D{};
-	std::unique_ptr<CShader>	m_PSLine{};
-	std::unique_ptr<CShader>	m_PSMasking2D{};
-	std::unique_ptr<CShader>	m_PSPointLight{};
-	std::unique_ptr<CShader>	m_PSPointLight_Volume{};
-	std::unique_ptr<CShader>	m_PSSky{};
-	std::unique_ptr<CShader>	m_PSSpotLight{};
-	std::unique_ptr<CShader>	m_PSSpotLight_Volume{};
-	std::unique_ptr<CShader>	m_PSTerrain{};
-	std::unique_ptr<CShader>	m_PSTerrain_gbuffer{};
-	std::unique_ptr<CShader>	m_PSWater{};
+	std::unique_ptr<CShader>				m_PSBase{};
+	std::unique_ptr<CShader>				m_PSBase_GBuffer{};
+	std::unique_ptr<CShader>				m_PSBase_Void{};
+	std::unique_ptr<CShader>				m_PSBase_RawVertexColor{};
+	std::unique_ptr<CShader>				m_PSBase_RawDiffuseColor{};
+	std::unique_ptr<CShader>				m_PSBase2D{};
+	std::unique_ptr<CShader>				m_PSBase2D_RawVertexColor{};
+	std::unique_ptr<CShader>				m_PSCamera{};
+	std::unique_ptr<CShader>				m_PSCloud{};
+	std::unique_ptr<CShader>				m_PSDirectionalLight{};
+	std::unique_ptr<CShader>				m_PSDirectionalLight_NonIBL{};
+	std::unique_ptr<CShader>				m_PSDynamicSky{};
+	std::unique_ptr<CShader>				m_PSEdgeDetector{};
+	std::unique_ptr<CShader>				m_PSFoliage{};
+	std::unique_ptr<CShader>				m_PSHeightMap2D{};
+	std::unique_ptr<CShader>				m_PSLine{};
+	std::unique_ptr<CShader>				m_PSMasking2D{};
+	std::unique_ptr<CShader>				m_PSPointLight{};
+	std::unique_ptr<CShader>				m_PSPointLight_Volume{};
+	std::unique_ptr<CShader>				m_PSSky{};
+	std::unique_ptr<CShader>				m_PSSpotLight{};
+	std::unique_ptr<CShader>				m_PSSpotLight_Volume{};
+	std::unique_ptr<CShader>				m_PSTerrain{};
+	std::unique_ptr<CShader>				m_PSTerrain_gbuffer{};
+	std::unique_ptr<CShader>				m_PSWater{};
 
 // Constant buffer
 private:
@@ -725,7 +724,7 @@ private:
 	SCBCameraData							m_CBCameraData{};
 	SCBGBufferUnpackingData					m_CBGBufferUnpackingData{};
 	CCascadedShadowMap::SCBShadowMapData	m_CBShadowMapData{};
-	SCBSceneMaterialData						m_CBSceneMaterialData{};
+	SCBSceneMaterialData					m_CBSceneMaterialData{};
 
 // Object pool
 private:
@@ -755,24 +754,23 @@ private:
 private:
 	std::unique_ptr<CLight>					m_LightArray[2]{}; // 0 for PointLight, 1 for SpotLight
 	std::unique_ptr<CBillboard>				m_LightRep{};
+	size_t									m_LightCreationCounter{};
 	std::unordered_map<std::string, size_t>	m_umapLightNames{};
-	size_t									m_LightCounter{};
 
 // Sky
 private:
-	std::string						m_SkyFileName{};
-	float							m_SkyScalingFactor{};
-	SSkyData						m_SkyData{};
-	CMaterialData					m_SkyMaterialData{};
-	std::unique_ptr<CObject3D>		m_Object3DSkySphere{};
-	std::unique_ptr<CObject3D>		m_Object3DSun{};
-	std::unique_ptr<CObject3D>		m_Object3DMoon{};
-	std::unique_ptr<CObject3D>		m_Object3DCloud{};
+	std::string								m_SkyFileName{};
+	float									m_SkyScalingFactor{};
+	SSkyData								m_SkyData{};
+	CMaterialData							m_SkyMaterialData{};
+	std::unique_ptr<CObject3D>				m_Object3DSkySphere{};
+	std::unique_ptr<CObject3D>				m_Object3DSun{};
+	std::unique_ptr<CObject3D>				m_Object3DMoon{};
+	std::unique_ptr<CObject3D>				m_Object3DCloud{};
 
 // 3D Gizmo
 private:
-	std::unique_ptr<CGizmo3D>		m_Gizmo3D{};
-
+	std::unique_ptr<CGizmo3D>				m_Gizmo3D{};
 
 // Camera
 private:
@@ -794,14 +792,14 @@ private:
 	XMVECTOR								m_PickedTriangleV2{};
 
 	// Multiple selection
-	bool						m_MultipleSelectionChanging{ false };
-	std::unique_ptr<CObject2D>	m_MultipleSelectionRep{};
-	XMFLOAT2					m_MultipleSelectionTopLeft{};
-	XMFLOAT2					m_MultipleSelectionBottomRight{};
-	XMFLOAT2					m_MultipleSelectionXYNormalized{};
-	XMFLOAT2					m_MultipleSelectionXYPrimeNormalized{};
-	XMFLOAT2					m_MultipleSelectionSizeNormalized{};
-	XMVECTOR					m_MultipleSelectionWorldCenter{};
+	bool									m_bIsMultipleSelectionChanging{ false };
+	XMFLOAT2								m_MultipleSelectionTopLeft{};
+	XMFLOAT2								m_MultipleSelectionBottomRight{};
+	XMFLOAT2								m_MultipleSelectionXYNormalized{};
+	XMFLOAT2								m_MultipleSelectionXYPrimeNormalized{};
+	XMFLOAT2								m_MultipleSelectionSizeNormalized{};
+	XMVECTOR								m_MultipleSelectionWorldCenter{};
+	std::unique_ptr<CObject2D>				m_MultipleSelectionRep{};
 
 	std::vector<SSelectionData>				m_vSelectionData{};
 	// @important: below are for faster search & display in Editor GUI!
@@ -816,36 +814,36 @@ private:
 
 // Copy & paste
 private:
-	std::vector<SCopyObject3D>			m_vCopyObject3Ds{};
-	std::vector<SCopyObject3DInstance>	m_vCopyObject3DInstances{};
-	std::vector<SCopyLight>				m_vCopyLights{};
+	std::vector<SCopyObject3D>				m_vCopyObject3Ds{};
+	std::vector<SCopyObject3DInstance>		m_vCopyObject3DInstances{};
+	std::vector<SCopyLight>					m_vCopyLights{};
 	
 // Terrain
 private:
-	std::unique_ptr<CTerrain>			m_Terrain{};
-	std::unique_ptr<CMaterialData>		m_TerrainMaterialDefault{};
+	std::unique_ptr<CTerrain>				m_Terrain{};
+	std::unique_ptr<CMaterialData>			m_TerrainMaterialDefault{};
 
 // Time
 private:
-	std::chrono::steady_clock	m_Clock{};
-	long long					m_TimeNow{};
-	long long					m_TimePrev{};
-	long long					m_PreviousFrameTime{};
-	long long					m_FPS{};
-	long long					m_FrameCount{};
-	float						m_DeltaTimeF{};
+	std::chrono::steady_clock				m_Clock{};
+	long long								m_TimeNow{};
+	long long								m_TimePrev{};
+	long long								m_PreviousFrameTime{};
+	long long								m_FPS{};
+	long long								m_FrameCount{};
+	float									m_DeltaTimeF{};
 
 // Editor
 private:
-	ERasterizerState			m_eRasterizerState{ ERasterizerState::CullCounterClockwise };
-	EFlagsRendering				m_eFlagsRendering{};
-	bool						m_bIsDeferredRenderTargetsSet{ false };
-	bool						m_IsDestroyed{ false };
-	CMeshPorter					m_MeshPorter{};
-	ImFont*						m_EditorGUIFont{};
-	SEditorGUIBools				m_EditorGUIBools{};
-	EMode						m_eMode{};
-	EEditMode					m_eEditMode{};
+	ERasterizerState						m_eRasterizerState{ ERasterizerState::CullCounterClockwise };
+	EFlagsRendering							m_eFlagsRendering{};
+	bool									m_bIsDeferredRenderTargetsSet{ false };
+	bool									m_IsDestroyed{ false };
+	CMeshPorter								m_MeshPorter{};
+	ImFont*									m_EditorGUIFont{};
+	SEditorGUIBools							m_EditorGUIBools{};
+	EMode									m_eMode{};
+	EEditMode								m_eEditMode{};
 
 // Scene
 private:
@@ -854,73 +852,73 @@ private:
 
 // IBL
 private:
-	std::unique_ptr<CTexture>		m_EnvironmentTexture{};
-	std::unique_ptr<CTexture>		m_IrradianceTexture{};
-	std::unique_ptr<CTexture>		m_PrefilteredRadianceTexture{};
-	std::unique_ptr<CTexture>		m_IntegratedBRDFTexture{};
+	std::unique_ptr<CTexture>				m_EnvironmentTexture{};
+	std::unique_ptr<CTexture>				m_IrradianceTexture{};
+	std::unique_ptr<CTexture>				m_PrefilteredRadianceTexture{};
+	std::unique_ptr<CTexture>				m_IntegratedBRDFTexture{};
 
-	std::unique_ptr<CCubemapRep>	m_EnvironmentCubemapRep{};
-	std::unique_ptr<CCubemapRep>	m_IrradianceCubemapRep{};
-	std::unique_ptr<CCubemapRep>	m_PrefilteredRadianceCubemapRep{};
+	std::unique_ptr<CCubemapRep>			m_EnvironmentCubemapRep{};
+	std::unique_ptr<CCubemapRep>			m_IrradianceCubemapRep{};
+	std::unique_ptr<CCubemapRep>			m_PrefilteredRadianceCubemapRep{};
 
-	std::unique_ptr<CIBLBaker>		m_IBLBaker{};
+	std::unique_ptr<CIBLBaker>				m_IBLBaker{};
 
 private:
-	std::unique_ptr<CFullScreenQuad>	m_EdgeDetectorFSQ{};
-	std::unique_ptr<CFullScreenQuad>	m_DirectionalLightFSQ{};
+	std::unique_ptr<CFullScreenQuad>		m_EdgeDetectorFSQ{};
+	std::unique_ptr<CFullScreenQuad>		m_DirectionalLightFSQ{};
 
 // DirectX
 private:
-	ComPtr<IDXGISwapChain>				m_SwapChain{};
-	ComPtr<ID3D11Device>				m_Device{};
-	ComPtr<ID3D11DeviceContext>			m_DeviceContext{};
+	ComPtr<IDXGISwapChain>					m_SwapChain{};
+	ComPtr<ID3D11Device>					m_Device{};
+	ComPtr<ID3D11DeviceContext>				m_DeviceContext{};
 
-	ComPtr<ID3D11Texture2D>				m_BackBuffer{};
-	ComPtr<ID3D11RenderTargetView>		m_BackBufferRTV{};
+	ComPtr<ID3D11Texture2D>					m_BackBuffer{};
+	ComPtr<ID3D11RenderTargetView>			m_BackBufferRTV{};
 
-	ComPtr<ID3D11Texture2D>				m_EdgeDetectorTexture{};
-	ComPtr<ID3D11RenderTargetView>		m_EdgeDetectorRTV{};
-	ComPtr<ID3D11ShaderResourceView>	m_EdgeDetectorSRV{};
+	ComPtr<ID3D11Texture2D>					m_EdgeDetectorTexture{};
+	ComPtr<ID3D11RenderTargetView>			m_EdgeDetectorRTV{};
+	ComPtr<ID3D11ShaderResourceView>		m_EdgeDetectorSRV{};
 
-	SGeometryBuffers					m_GBuffers{};
+	SGeometryBuffers						m_GBuffers{};
 
-	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateLessEqualNoWrite{};
-	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateGreaterEqual{};
-	ComPtr<ID3D11DepthStencilState>		m_DepthStencilStateAlways{};
+	ComPtr<ID3D11DepthStencilState>			m_DepthStencilStateLessEqualNoWrite{};
+	ComPtr<ID3D11DepthStencilState>			m_DepthStencilStateGreaterEqual{};
+	ComPtr<ID3D11DepthStencilState>			m_DepthStencilStateAlways{};
 
-	ComPtr<ID3D11BlendState>			m_BlendAlphaToCoverage{};
-	ComPtr<ID3D11BlendState>			m_BlendAdditiveLighting{};
+	ComPtr<ID3D11BlendState>				m_BlendAlphaToCoverage{};
+	ComPtr<ID3D11BlendState>				m_BlendAdditiveLighting{};
 
-	ComPtr<ID3D11RasterizerState>		m_RSCCWCullFront{};
+	ComPtr<ID3D11RasterizerState>			m_RSCCWCullFront{};
 
-	std::unique_ptr<SpriteBatch>		m_SpriteBatch{};
-	std::unique_ptr<SpriteFont>			m_SpriteFont{};
-	std::unique_ptr<CommonStates>		m_CommonStates{};
+	std::unique_ptr<SpriteBatch>			m_SpriteBatch{};
+	std::unique_ptr<SpriteFont>				m_SpriteFont{};
+	std::unique_ptr<CommonStates>			m_CommonStates{};
 
-	std::vector<D3D11_VIEWPORT>			m_vViewports{};
-	XMMATRIX							m_MatrixProjection{};
-	XMMATRIX							m_MatrixProjection2D{};
-	float								m_NearZ{};
-	float								m_FarZ{};
-	XMMATRIX							m_MatrixView{};
+	std::vector<D3D11_VIEWPORT>				m_vViewports{};
+	XMMATRIX								m_MatrixProjection{};
+	XMMATRIX								m_MatrixProjection2D{};
+	float									m_NearZ{};
+	float									m_FarZ{};
+	XMMATRIX								m_MatrixView{};
 
 // Input
 private:
-	std::unique_ptr<Keyboard>		m_Keyboard{};
-	std::unique_ptr<Mouse>			m_Mouse{};
-	Keyboard::State					m_CapturedKeyboardState{};
-	Mouse::State					m_CapturedMouseState{};
-	bool							m_bLeftButtonPressedOnce{ false };
-	bool							m_bLeftButtonUpOnce{ false };
-	int								m_PrevCapturedMouseX{};
-	int								m_PrevCapturedMouseY{};
+	std::unique_ptr<Keyboard>				m_Keyboard{};
+	std::unique_ptr<Mouse>					m_Mouse{};
+	Keyboard::State							m_CapturedKeyboardState{};
+	Mouse::State							m_CapturedMouseState{};
+	bool									m_bLeftButtonPressedOnce{ false };
+	bool									m_bLeftButtonUpOnce{ false };
+	int										m_PrevCapturedMouseX{};
+	int										m_PrevCapturedMouseY{};
 
 // Windows
 private:
-	HWND			m_hWnd{};
-	HINSTANCE		m_hInstance{};
-	XMFLOAT2		m_WindowSize{};
-	char			m_WorkingDirectory[MAX_PATH]{};
+	HWND									m_hWnd{};
+	HINSTANCE								m_hInstance{};
+	XMFLOAT2								m_WindowSize{};
+	char									m_WorkingDirectory[MAX_PATH]{};
 };
 
 ENUM_CLASS_FLAG(CGame::EFlagsRendering)

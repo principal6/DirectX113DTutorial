@@ -1722,7 +1722,7 @@ void CGame::PasteCopiedObject()
 		string NewName{ CopyLight.InstanceCPUData.Name + "_" + to_string(CopyLight.PasteCounter) };
 		while ((m_umapLightNames.find(NewName) != m_umapLightNames.end()))
 		{
-			++m_LightCounter;
+			++m_LightCreationCounter;
 			NewName = CopyLight.InstanceCPUData.Name + "_" + to_string(CopyLight.PasteCounter);
 		}
 
@@ -2249,8 +2249,8 @@ bool CGame::InsertLight(CLight::EType eType, const std::string& Name)
 	
 	while ((m_umapLightNames.find(InstanceName) != m_umapLightNames.end()) || InstanceName.empty())
 	{
-		InstanceName = "light" + to_string(m_LightCounter);
-		++m_LightCounter;
+		InstanceName = "light" + to_string(m_LightCreationCounter);
+		++m_LightCreationCounter;
 	}
 	m_umapLightNames[InstanceName] = 0xE;
 
@@ -2275,7 +2275,7 @@ void CGame::DeleteLight(CLight::EType eType, const std::string& Name)
 void CGame::ClearLights()
 {
 	m_umapLightNames.clear();
-	m_LightCounter = 0;
+	m_LightCreationCounter = 0;
 
 	for (auto& Light : m_LightArray)
 	{
@@ -2344,7 +2344,6 @@ void CGame::Select()
 			// Single ray-selection
 
 			CastPickingRay();
-			UpdatePickingRay();
 
 			PickBoundingSphere(m_CapturedKeyboardState.LeftShift || m_CapturedKeyboardState.RightShift);
 			PickObject3DTriangle(m_CapturedKeyboardState.LeftShift || m_CapturedKeyboardState.RightShift);
@@ -2372,8 +2371,6 @@ void CGame::Select()
 
 		CastPickingRay();
 
-		UpdatePickingRay();
-
 		PickBoundingSphere();
 	}
 }
@@ -2384,7 +2381,6 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 
 	if (!bUseAdditiveSelection) DeselectAll();
 
-	//OutputDebugString("\n\n=== Capturing current projection space ... ===\n");
 	for (const auto& Object3D : m_vObject3Ds)
 	{
 		if (Object3D->IsInstanced())
@@ -2719,8 +2715,11 @@ bool CGame::IsAnythingSelected() const
 
 void CGame::CastPickingRay()
 {
-	float ViewSpaceRayDirectionX{ (m_CapturedMouseState.x / (m_WindowSize.x / 2.0f) - 1.0f) / XMVectorGetX(m_MatrixProjection.r[0]) };
-	float ViewSpaceRayDirectionY{ (-(m_CapturedMouseState.y / (m_WindowSize.y / 2.0f) - 1.0f)) / XMVectorGetY(m_MatrixProjection.r[1]) };
+	float NormalizedX{ m_CapturedMouseState.x / (m_WindowSize.x / 2.0f) - 1.0f };
+	float NormalizedY{ -(m_CapturedMouseState.y / (m_WindowSize.y / 2.0f) - 1.0f) };
+
+	float ViewSpaceRayDirectionX{ NormalizedX / XMVectorGetX(m_MatrixProjection.r[0]) };
+	float ViewSpaceRayDirectionY{ NormalizedY / XMVectorGetY(m_MatrixProjection.r[1]) };
 	static float ViewSpaceRayDirectionZ{ 1.0f };
 
 	static XMVECTOR ViewSpaceRayOrigin{ XMVectorSet(0, 0, 0, 1) };
@@ -2729,13 +2728,13 @@ void CGame::CastPickingRay()
 	XMMATRIX MatrixViewInverse{ XMMatrixInverse(nullptr, m_MatrixView) };
 	m_PickingRayWorldSpaceOrigin = XMVector3TransformCoord(ViewSpaceRayOrigin, MatrixViewInverse);
 	m_PickingRayWorldSpaceDirection = XMVector3TransformNormal(ViewSpaceRayDirection, MatrixViewInverse);
-}
 
-void CGame::UpdatePickingRay()
-{
-	m_PickingRayRep->GetVertices().at(0).Position = m_PickingRayWorldSpaceOrigin;
-	m_PickingRayRep->GetVertices().at(1).Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
-	m_PickingRayRep->UpdateVertexBuffer();
+	if (m_PickingRayRep)
+	{
+		m_PickingRayRep->GetVertices().at(0).Position = m_PickingRayWorldSpaceOrigin;
+		m_PickingRayRep->GetVertices().at(1).Position = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * KPickingRayLength;
+		m_PickingRayRep->UpdateVertexBuffer();
+	}	
 }
 
 void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
@@ -3218,19 +3217,19 @@ void CGame::Update()
 				if (m_bLeftButtonPressedOnce)
 				{
 					m_MultipleSelectionTopLeft = XMFLOAT2((float)m_CapturedMouseState.x, (float)m_CapturedMouseState.y);
-					m_MultipleSelectionChanging = true;
+					m_bIsMultipleSelectionChanging = true;
 				}
 
-				if (m_Gizmo3D->IsInAction()) m_MultipleSelectionChanging = false;
+				if (m_Gizmo3D->IsInAction()) m_bIsMultipleSelectionChanging = false;
 
-				if (m_MultipleSelectionChanging)
+				if (m_bIsMultipleSelectionChanging)
 				{
 					m_MultipleSelectionBottomRight = XMFLOAT2((float)m_CapturedMouseState.x, (float)m_CapturedMouseState.y);
 				}
 
 				if (m_bLeftButtonUpOnce)
 				{
-					m_MultipleSelectionChanging = false;
+					m_bIsMultipleSelectionChanging = false;
 
 					Select();
 				}
@@ -4036,7 +4035,7 @@ void CGame::DrawLightRep()
 
 void CGame::DrawMultipleSelectionRep()
 {
-	if (!m_MultipleSelectionChanging) return;
+	if (!m_bIsMultipleSelectionChanging) return;
 	if (m_eEditMode == EEditMode::EditTerrain) return;
 
 	m_VSBase2D->Use();
@@ -7070,6 +7069,21 @@ void CGame::SetDeferredRenderTargets(bool bClearViews)
 	m_bIsDeferredRenderTargetsSet = true;
 }
 
+auto CGame::GethWnd() const -> HWND
+{
+	return m_hWnd;
+}
+
+auto CGame::GetDevicePtr() const -> ID3D11Device*
+{
+	return m_Device.Get();
+}
+
+auto CGame::GetDeviceContextPtr() const -> ID3D11DeviceContext*
+{
+	return m_DeviceContext.Get();
+}
+
 Keyboard::State CGame::GetKeyState() const
 {
 	return m_Keyboard->GetState();
@@ -7084,7 +7098,37 @@ Mouse::State CGame::GetMouseState() const
 	return ResultState;
 }
 
+auto CGame::GetSpriteBatchPtr() const -> SpriteBatch*
+{
+	return m_SpriteBatch.get();
+}
+
+auto CGame::GetSpriteFontPtr() const -> SpriteFont*
+{
+	return m_SpriteFont.get();
+}
+
 const XMFLOAT2& CGame::GetWindowSize() const
 {
 	return m_WindowSize;
+}
+
+auto CGame::GetDepthStencilStateLessEqualNoWrite() const -> ID3D11DepthStencilState*
+{
+	return m_DepthStencilStateLessEqualNoWrite.Get();
+}
+
+auto CGame::GetBlendStateAlphaToCoverage() const -> ID3D11BlendState*
+{
+	return m_BlendAlphaToCoverage.Get();
+}
+
+auto CGame::GetWorkingDirectory() const -> const char*
+{
+	return m_WorkingDirectory;
+}
+
+auto CGame::GetDeltaTime() const -> float
+{
+	return m_DeltaTimeF;
 }
