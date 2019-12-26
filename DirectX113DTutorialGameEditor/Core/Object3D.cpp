@@ -118,6 +118,14 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 			}
 		}
 
+		for (const auto& Mesh : m_Model->vMeshes)
+		{
+			for (const auto& Vertex : Mesh.vVertices)
+			{
+
+			}
+		}
+
 		m_bIsCreated = true;
 	}
 }
@@ -1066,11 +1074,11 @@ void CObject3D::SetAllInstancesHighlightOff()
 
 void CObject3D::UpdateCBMaterial(const CMaterialData& MaterialData, uint32_t TotalMaterialCount) const
 {
-	m_CBMaterialData.AmbientColor = MaterialData.AmbientColor();
+	//m_CBMaterialData.AmbientColor = MaterialData.AmbientColor();
 	m_CBMaterialData.DiffuseColor = MaterialData.DiffuseColor();
-	m_CBMaterialData.SpecularColor = MaterialData.SpecularColor();
-	m_CBMaterialData.SpecularExponent = MaterialData.SpecularExponent();
-	m_CBMaterialData.SpecularIntensity = MaterialData.SpecularIntensity();
+	//m_CBMaterialData.SpecularColor = MaterialData.SpecularColor();
+	//m_CBMaterialData.SpecularExponent = MaterialData.SpecularExponent();
+	//m_CBMaterialData.SpecularIntensity = MaterialData.SpecularIntensity();
 	m_CBMaterialData.Roughness = MaterialData.Roughness();
 	m_CBMaterialData.Metalness = MaterialData.Metalness();
 

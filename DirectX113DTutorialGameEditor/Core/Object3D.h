@@ -41,11 +41,11 @@ public:
 
 	struct SCBMaterialData // Update at least per every object (even an object could have multiple materials)
 	{
-		XMFLOAT3	AmbientColor{};
-		float		SpecularExponent{ 1 };
+		//XMFLOAT3	AmbientColor{};
+		//float		SpecularExponent{ 1 };
 		XMFLOAT3	DiffuseColor{};
-		float		SpecularIntensity{ 0 };
-		XMFLOAT3	SpecularColor{};
+		//float		SpecularIntensity{ 0 };
+		//XMFLOAT3	SpecularColor{};
 		float		Roughness{};
 
 		float		Metalness{};

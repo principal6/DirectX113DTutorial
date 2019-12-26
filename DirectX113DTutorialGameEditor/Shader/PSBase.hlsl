@@ -49,11 +49,11 @@ Texture2D SceneAmbientOcclusionTexture : register(t65);
 
 float4 main(VS_OUTPUT Input) : SV_TARGET
 {
-	float3 AmbientColor = MaterialAmbientColor;
+	//float3 AmbientColor = MaterialAmbientColor;
 	float3 DiffuseColor = MaterialDiffuseColor;
-	float3 SpecularColor = MaterialSpecularColor;
+	//float3 SpecularColor = MaterialSpecularColor;
 	float4 WorldNormal = normalize(Input.WorldNormal);
-	float SpecularIntensity = MaterialSpecularIntensity;
+	//float SpecularIntensity = MaterialSpecularIntensity;
 	float Roughness = MaterialRoughness;
 	float Metalness = MaterialMetalness;
 	float Opacity = 1.0;
@@ -120,10 +120,10 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		}
 	}
 
-	if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY)
-	{
-		SpecularIntensity = SpecularIntensityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
-	}
+	//if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY)
+	//{
+	//	SpecularIntensity = SpecularIntensityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	//}
 
 	if (FlagsHasTexture & FLAG_ID_ROUGHNESS)
 	{
@@ -152,10 +152,10 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		AmbientOcclusion = SceneAmbientOcclusionTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 	}
 
-	if (FlagsHasTexture & FLAG_ID_DIFFUSE)
-	{
-		AmbientColor = SpecularColor = DiffuseColor;
-	}
+	//if (FlagsHasTexture & FLAG_ID_DIFFUSE)
+	//{
+	//	AmbientColor = SpecularColor = DiffuseColor;
+	//}
 
 	float4 OutputColor = float4(DiffuseColor, 1);
 	{
@@ -258,7 +258,7 @@ GBufferOutput GBuffer(VS_OUTPUT Input)
 {
 	float3 DiffuseColor = MaterialDiffuseColor;
 	float4 WorldNormal = normalize(Input.WorldNormal);
-	float SpecularIntensity = MaterialSpecularIntensity;
+	//float SpecularIntensity = MaterialSpecularIntensity;
 	float Roughness = MaterialRoughness;
 	float Metalness = MaterialMetalness;
 	float AmbientOcclusion = 1.0;
@@ -298,7 +298,7 @@ GBufferOutput GBuffer(VS_OUTPUT Input)
 		WorldNormal = normalize(float4(mul(WorldNormal.xyz, TextureSpace), 0.0f));
 	}
 
-	if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY) SpecularIntensity = SpecularIntensityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
+	//if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY) SpecularIntensity = SpecularIntensityTexture.Sample(LinearWrapSampler, Input.TexCoord.xy).r;
 	
 	if (FlagsHasTexture & FLAG_ID_ROUGHNESS)
 	{

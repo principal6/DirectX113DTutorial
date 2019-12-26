@@ -2,11 +2,11 @@
 
 cbuffer cbMaterial : register(b0)
 {
-	float3	MaterialAmbientColor; // Classical
-	float	MaterialSpecularExponent; // Classical
+	//float3	MaterialAmbientColor; // Classical
+	//float	MaterialSpecularExponent; // Classical
 	float3	MaterialDiffuseColor;
-	float	MaterialSpecularIntensity; // Classical
-	float3	MaterialSpecularColor; // Classical
+	//float	MaterialSpecularIntensity; // Classical
+	//float3	MaterialSpecularColor; // Classical
 	float	MaterialRoughness;
 
 	float	MaterialMetalness;

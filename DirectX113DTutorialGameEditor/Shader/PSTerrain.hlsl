@@ -134,19 +134,19 @@ float4 main(VS_OUTPUT Input) : SV_TARGET
 		BlendedNormal = normalize(float4(mul(BlendedNormal.xyz, KTextureSpace), 0.0f));
 	}
 
-	float BlendedSpecularIntensity = MaterialSpecularIntensity;
-	if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY)
-	{
-		float SpecularIntensityLayer0 = (TotalMaterialCount >= 1) ? Layer0SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
-		float SpecularIntensityLayer1 = (TotalMaterialCount >= 2) ? Layer1SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
-		float SpecularIntensityLayer2 = (TotalMaterialCount >= 3) ? Layer2SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
-		float SpecularIntensityLayer3 = (TotalMaterialCount >= 4) ? Layer3SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+	//float BlendedSpecularIntensity = MaterialSpecularIntensity;
+	//if (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY)
+	//{
+	//	float SpecularIntensityLayer0 = (TotalMaterialCount >= 1) ? Layer0SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+	//	float SpecularIntensityLayer1 = (TotalMaterialCount >= 2) ? Layer1SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+	//	float SpecularIntensityLayer2 = (TotalMaterialCount >= 3) ? Layer2SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
+	//	float SpecularIntensityLayer3 = (TotalMaterialCount >= 4) ? Layer3SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : 0;
 
-		if (TotalMaterialCount >= 1) BlendedSpecularIntensity = SpecularIntensityLayer0;
-		if (TotalMaterialCount >= 2) BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer1, Masking.r);
-		if (TotalMaterialCount >= 3) BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer2, Masking.g);
-		if (TotalMaterialCount >= 4) BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer3, Masking.b);
-	}
+	//	if (TotalMaterialCount >= 1) BlendedSpecularIntensity = SpecularIntensityLayer0;
+	//	if (TotalMaterialCount >= 2) BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer1, Masking.r);
+	//	if (TotalMaterialCount >= 3) BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer2, Masking.g);
+	//	if (TotalMaterialCount >= 4) BlendedSpecularIntensity = lerp(BlendedSpecularIntensity, SpecularIntensityLayer3, Masking.b);
+	//}
 
 	float BlendedRoughness = MaterialRoughness;
 	if (FlagsHasTexture & FLAG_ID_ROUGHNESS)
@@ -312,8 +312,8 @@ GBufferOutput gbuffer(VS_OUTPUT Input)
 		Normal = normalize(mul(Normal, KTextureSpace));
 	}
 
-	float SpecularIntensity = (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY) ? 
-		Layer0SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : MaterialSpecularIntensity;
+	//float SpecularIntensity = (FlagsHasTexture & FLAG_ID_SPECULARINTENSITY) ? 
+	//	Layer0SpecularIntensityTexture.Sample(LinearWrapSampler, TEX_COORD).r : MaterialSpecularIntensity;
 	float Roughness = (FlagsHasTexture & FLAG_ID_ROUGHNESS) ? Layer0RoughnessTexture.Sample(LinearWrapSampler, TEX_COORD).r : MaterialRoughness;
 	float AmbientOcclusion = (FlagsHasTexture & FLAG_ID_METALNESS) ? Layer0AmbientOcclusionTexture.Sample(LinearWrapSampler, TEX_COORD).r : 1.0;
 
