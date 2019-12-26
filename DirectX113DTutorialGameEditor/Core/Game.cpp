@@ -1,4 +1,5 @@
 #include <thread>
+#include <filesystem>
 
 #include "Game.h"
 #include "BinaryData.h"
@@ -1125,7 +1126,8 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 
 void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 {
-	CreateDirectoryA(SceneDirectory.c_str(), nullptr);
+	std::filesystem::remove_all(SceneDirectory.c_str());
+	std::filesystem::create_directory(SceneDirectory.c_str());
 
 	CBinaryData SceneBinaryData{};
 	

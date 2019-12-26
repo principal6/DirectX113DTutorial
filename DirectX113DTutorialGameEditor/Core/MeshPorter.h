@@ -60,7 +60,7 @@ struct SMESHData
 {
 	std::vector<SMesh>						vMeshes{};
 	std::vector<CMaterialData>				vMaterialData{};
-	SEditorBoundingSphere					EditorBoundingSphereData{};
+	SBoundingSphere							EditorBoundingSphereData{};
 
 	bool									bIsModelRigged{};
 	std::vector<SMeshTreeNode>				vTreeNodes{};

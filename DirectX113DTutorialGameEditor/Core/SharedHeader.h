@@ -27,6 +27,7 @@ static constexpr uint32_t KHSSharedCBCount{ 2 };
 static constexpr uint32_t KDSSharedCBCount{ 1 };
 static constexpr uint32_t KGSSharedCBCount{ 1 };
 static constexpr uint32_t KPSSharedCBCount{ 3 };
+static constexpr float KBoundingSphereDefaultRadius{ 1.0f };
 
 enum class EShaderType
 {
@@ -78,13 +79,32 @@ struct SMesh
 	uint8_t							MaterialID{};
 };
 
-struct SEditorBoundingSphere
+enum class EBoundingVolumeType
 {
-	static constexpr float KDefaultRadius{ 1.0f };
+	BoundingSphere,
+	AxisAlignedBoundingBox,
+	CollisionMesh // Convex polygon
+};
 
-	float		Radius{ KDefaultRadius };
-	float		RadiusBias{ KDefaultRadius };
+struct SAxisAlignedBoundingBox
+{
+	XMVECTOR	Center{};
+	float		HalfSizeX{};
+	float		HalfSizeY{};
+	float		HalfSizeZ{};
+};
+
+struct SBoundingSphere
+{
+	float		Radius{ KBoundingSphereDefaultRadius };
+	float		RadiusBias{ KBoundingSphereDefaultRadius };
 	XMVECTOR	CenterOffset{};
+};
+
+struct SCollisionMesh
+{
+	std::vector<SVertex3D>	vVertices{};
+	std::vector<STriangle>	vTriangles{};
 };
 
 struct SObject3DInstanceCPUData
@@ -97,7 +117,7 @@ struct SObject3DInstanceCPUData
 	float					Pitch{};
 	float					Yaw{};
 	float					Roll{};
-	SEditorBoundingSphere	EditorBoundingSphere{};
+	SBoundingSphere			EditorBoundingSphere{};
 };
 
 struct SObject3DInstanceGPUData

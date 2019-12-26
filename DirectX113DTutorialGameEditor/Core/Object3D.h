@@ -278,7 +278,7 @@ public:
 	EFlagsRendering										eFlagsRendering{};
 
 private:
-	SEditorBoundingSphere								EditorBoundingSphere{};
+	SBoundingSphere										EditorBoundingSphere{};
 
 private:
 	ID3D11Device* const									m_PtrDevice{};
