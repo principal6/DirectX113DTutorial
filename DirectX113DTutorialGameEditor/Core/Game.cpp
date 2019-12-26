@@ -2993,7 +2993,23 @@ void CGame::Capture3DGizmoTranslation()
 				}
 				else
 				{
-					m_Gizmo3D->CaptureTranslation(Object3D->ComponentTransform.Translation);
+					if (Object3D->IsInstanced())
+					{
+						XMVECTOR Center{};
+						const auto& mapNameToIndex{ Object3D->GetInstanceNameToIndexMap() };
+						for (const auto& InstancePair : mapNameToIndex)
+						{
+							auto& InstanceCPUData{ Object3D->GetInstanceCPUData(InstancePair.first) };
+							XMVECTOR InstanceTranslation{ InstanceCPUData.Translation / XMVectorGetW(InstanceCPUData.Translation) };
+							Center += InstanceTranslation;
+						}
+						Center /= static_cast<float>(Object3D->GetInstanceCount());
+						m_Gizmo3D->CaptureTranslation(Center);
+					}
+					else
+					{
+						m_Gizmo3D->CaptureTranslation(Object3D->ComponentTransform.Translation);
+					}
 				}
 
 				break;
@@ -3072,13 +3088,30 @@ void CGame::Select3DGizmos()
 				}
 				else
 				{
-					Object3D->ComponentTransform.Translation += m_Gizmo3D->GetDeltaTranslation();
-					Object3D->ComponentTransform.Pitch += m_Gizmo3D->GetDeltaPitch();
-					Object3D->ComponentTransform.Yaw += m_Gizmo3D->GetDeltaYaw();
-					Object3D->ComponentTransform.Roll += m_Gizmo3D->GetDeltaRoll();
-					Object3D->ComponentTransform.Scaling += m_Gizmo3D->GetDeltaScaling();
+					if (Object3D->IsInstanced())
+					{
+						const auto& mapNameToIndex{ Object3D->GetInstanceNameToIndexMap() };
+						for (const auto& InstancePair : mapNameToIndex)
+						{
+							auto& InstanceCPUData{ Object3D->GetInstanceCPUData(InstancePair.first) };
+							InstanceCPUData.Translation += m_Gizmo3D->GetDeltaTranslation();
+							InstanceCPUData.Pitch += m_Gizmo3D->GetDeltaPitch();
+							InstanceCPUData.Yaw += m_Gizmo3D->GetDeltaYaw();
+							InstanceCPUData.Roll += m_Gizmo3D->GetDeltaRoll();
+							InstanceCPUData.Scaling += m_Gizmo3D->GetDeltaScaling();
+						}
+						Object3D->UpdateAllInstancesWorldMatrix();
+					}
+					else
+					{
+						Object3D->ComponentTransform.Translation += m_Gizmo3D->GetDeltaTranslation();
+						Object3D->ComponentTransform.Pitch += m_Gizmo3D->GetDeltaPitch();
+						Object3D->ComponentTransform.Yaw += m_Gizmo3D->GetDeltaYaw();
+						Object3D->ComponentTransform.Roll += m_Gizmo3D->GetDeltaRoll();
+						Object3D->ComponentTransform.Scaling += m_Gizmo3D->GetDeltaScaling();
 
-					Object3D->UpdateWorldMatrix();
+						Object3D->UpdateWorldMatrix();
+					}
 				}
 
 				break;
@@ -3995,12 +4028,6 @@ void CGame::Draw3DGizmos()
 		if (m_vSelectionData.back().eObjectType == EObjectType::Camera)
 		{
 			if (GetCamera(m_vSelectionData.back().Name) == GetCurrentCamera()) return;
-		}
-
-		if (m_vSelectionData.back().eObjectType == EObjectType::Object3D)
-		{
-			CObject3D* const Object3D{ (CObject3D*)m_vSelectionData.back().PtrObject };
-			if (Object3D->IsInstanced()) return;
 		}
 	}
 
