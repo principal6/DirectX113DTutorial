@@ -118,12 +118,33 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 			}
 		}
 
-		for (const auto& Mesh : m_Model->vMeshes)
+		// @important
+		// Editor bounding sphere calculation
 		{
-			for (const auto& Vertex : Mesh.vVertices)
+			size_t VertexCount{};
+			XMVECTOR VertexCenter{};
+			for (const auto& Mesh : m_Model->vMeshes)
 			{
-
+				for (const auto& Vertex : Mesh.vVertices)
+				{
+					VertexCenter += Vertex.Position;
+					++VertexCount;
+				}
 			}
+			VertexCenter /= static_cast<float>(VertexCount);
+
+			float MaxLengthSqaure{};
+			for (const auto& Mesh : m_Model->vMeshes)
+			{
+				for (const auto& Vertex : Mesh.vVertices)
+				{
+					float LengthSquare{ XMVectorGetX(XMVector3LengthSq(Vertex.Position - VertexCenter)) };
+					if (LengthSquare > MaxLengthSqaure) MaxLengthSqaure = LengthSquare;
+				}
+			}
+
+			EditorBoundingSphere.RadiusBias = m_Model->EditorBoundingSphereData.RadiusBias = sqrt(MaxLengthSqaure);
+			EditorBoundingSphere.CenterOffset = m_Model->EditorBoundingSphereData.CenterOffset = VertexCenter;
 		}
 
 		m_bIsCreated = true;

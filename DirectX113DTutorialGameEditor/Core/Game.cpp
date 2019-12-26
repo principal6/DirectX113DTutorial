@@ -646,7 +646,7 @@ void CGame::CreateConstantBuffers()
 
 void CGame::CreateBaseShaders()
 {
-	bool bShouldCompileShaders{ true };
+	bool bShouldCompileShaders{ false };
 
 	// VS
 	{
