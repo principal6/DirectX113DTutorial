@@ -340,13 +340,21 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
 
 		CreateInstances(vInstanceCPUData);
 	}
+
+	// ### Animation ###
+	if (Version >= 0x10001)
+	{
+		// 4B (int32_t) Current animation ID
+		Object3DBinary.ReadInt32(m_CurrentAnimationID);
+	}
 }
 
 void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 {
-	static uint16_t KVersionMajor{ 0x0001 };
-	static uint8_t KVersionMinor{ 0x00 };
-	static uint8_t KVersionSubminor{ 0x00 };
+	static constexpr uint16_t KVersionMajor{ 0x0001 };
+	static constexpr uint8_t KVersionMinor{ 0x00 };
+	static constexpr uint8_t KVersionSubminor{ 0x01 };
+	uint32_t Version{ (uint32_t)(KVersionSubminor | (KVersionMinor << 8) | (KVersionMajor << 16)) };
 
 	m_OB3DFileName = OB3DFileName;
 
@@ -437,6 +445,13 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 		}
 	}
 
+	// ### Animation ###
+	if (Version >= 0x10001)
+	{
+		// 4B (int32_t) Current animation ID
+		Object3DBinary.WriteInt32(m_CurrentAnimationID);
+	}
+
 	Object3DBinary.SaveToFile(OB3DFileName);
 }
 
@@ -454,14 +469,14 @@ void CObject3D::AddAnimationFromFile(const string& FileName, const string& Anima
 	m_Model->vAnimations.back().Name = AnimationName;
 }
 
-void CObject3D::SetAnimationID(int ID)
+void CObject3D::SetAnimationID(int32_t ID)
 {
 	ID = max(min(ID, (int)(m_Model->vAnimations.size() - 1)), 0);
 
 	m_CurrentAnimationID = ID;
 }
 
-int CObject3D::GetAnimationID() const
+int32_t CObject3D::GetAnimationID() const
 {
 	return m_CurrentAnimationID;
 }

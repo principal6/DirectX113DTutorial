@@ -162,8 +162,8 @@ public:
 public:
 	bool HasAnimations();
 	void AddAnimationFromFile(const std::string& FileName, const std::string& AnimationName);
-	void SetAnimationID(int ID);
-	int GetAnimationID() const;
+	void SetAnimationID(int32_t ID);
+	int32_t GetAnimationID() const;
 	int GetAnimationCount() const;
 	void SetAnimationName(int ID, const std::string& Name);
 	const std::string& GetAnimationName(int ID) const;
@@ -296,21 +296,27 @@ private:
 	bool												m_bIsCreated{ false };
 	std::unique_ptr<SMESHData>							m_Model{};
 	std::vector<std::unique_ptr<CMaterialTextureSet>>	m_vMaterialTextureSets{};
+
+private:
 	std::vector<SMeshBuffers>							m_vMeshBuffers{};
 	std::vector<SInstanceBuffer>						m_vInstanceBuffers{};
+
+private:
 	std::unique_ptr<CConstantBuffer>					m_CBMaterial{};
 	mutable SCBMaterialData								m_CBMaterialData{};
 	SCBTessFactorData									m_CBTessFactorData{};
 	SCBDisplacementData									m_CBDisplacementData{};
 
+private:
 	XMMATRIX											m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
-	int													m_CurrentAnimationID{};
+	int32_t												m_CurrentAnimationID{};
 	float												m_CurrentAnimationTick{};
-	bool												m_bShouldTesselate{ false };
 
 	std::unique_ptr<CTexture>							m_BakedAnimationTexture{};
 	SCBAnimationData									m_CBAnimationData{};
 	bool												m_bIsBakedAnimationLoaded{ false };
+
+	bool												m_bShouldTesselate{ false };
 
 private:
 	std::vector<SObject3DInstanceGPUData>				m_vInstanceGPUData{};
