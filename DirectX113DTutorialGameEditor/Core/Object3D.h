@@ -153,6 +153,8 @@ private:
 
 	void CreateConstantBuffers();
 
+	void CalculateEditorBoundingSphereData();
+
 public:
 	void LoadOB3D(const std::string& OB3DFileName, bool bIsRigged);
 	void SaveOB3D(const std::string& OB3DFileName);
@@ -178,6 +180,9 @@ public:
 	void AddMaterial(const CMaterialData& MaterialData);
 	void SetMaterial(size_t Index, const CMaterialData& MaterialData);
 	size_t GetMaterialCount() const;
+
+	void ShouldIgnoreSceneMaterial(bool bShouldIgnore);
+	bool ShouldIgnoreSceneMaterial() const;
 
 public:
 	void CreateInstances(size_t InstanceCount);

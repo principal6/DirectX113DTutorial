@@ -82,6 +82,7 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 		CMeshPorter MeshPorter{};
 		SMESHData MESHData{};
 		MeshPorter.ImportMESH(m_ModelFileName, MESHData);
+		
 		Create(MESHData);
 
 		m_bIsCreated = true;
@@ -118,34 +119,7 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 			}
 		}
 
-		// @important
-		// Editor bounding sphere calculation
-		{
-			size_t VertexCount{};
-			XMVECTOR VertexCenter{};
-			for (const auto& Mesh : m_Model->vMeshes)
-			{
-				for (const auto& Vertex : Mesh.vVertices)
-				{
-					VertexCenter += Vertex.Position;
-					++VertexCount;
-				}
-			}
-			VertexCenter /= static_cast<float>(VertexCount);
-
-			float MaxLengthSqaure{};
-			for (const auto& Mesh : m_Model->vMeshes)
-			{
-				for (const auto& Vertex : Mesh.vVertices)
-				{
-					float LengthSquare{ XMVectorGetX(XMVector3LengthSq(Vertex.Position - VertexCenter)) };
-					if (LengthSquare > MaxLengthSqaure) MaxLengthSqaure = LengthSquare;
-				}
-			}
-
-			EditorBoundingSphere.RadiusBias = m_Model->EditorBoundingSphereData.RadiusBias = sqrt(MaxLengthSqaure);
-			EditorBoundingSphere.CenterOffset = m_Model->EditorBoundingSphereData.CenterOffset = VertexCenter;
-		}
+		CalculateEditorBoundingSphereData();
 
 		m_bIsCreated = true;
 	}
@@ -242,6 +216,34 @@ void CObject3D::CreateConstantBuffers()
 {
 	m_CBMaterial = make_unique<CConstantBuffer>(m_PtrDevice, m_PtrDeviceContext, &m_CBMaterialData, sizeof(m_CBMaterialData));
 	m_CBMaterial->Create();
+}
+
+void CObject3D::CalculateEditorBoundingSphereData()
+{
+	size_t VertexCount{};
+	XMVECTOR VertexCenter{};
+	for (const auto& Mesh : m_Model->vMeshes)
+	{
+		for (const auto& Vertex : Mesh.vVertices)
+		{
+			VertexCenter += Vertex.Position;
+			++VertexCount;
+		}
+	}
+	VertexCenter /= static_cast<float>(VertexCount);
+
+	float MaxLengthSqaure{};
+	for (const auto& Mesh : m_Model->vMeshes)
+	{
+		for (const auto& Vertex : Mesh.vVertices)
+		{
+			float LengthSquare{ XMVectorGetX(XMVector3LengthSq(Vertex.Position - VertexCenter)) };
+			if (LengthSquare > MaxLengthSqaure) MaxLengthSqaure = LengthSquare;
+		}
+	}
+
+	EditorBoundingSphere.RadiusBias = m_Model->EditorBoundingSphereData.RadiusBias = sqrt(MaxLengthSqaure);
+	EditorBoundingSphere.CenterOffset = m_Model->EditorBoundingSphereData.CenterOffset = VertexCenter;
 }
 
 void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
@@ -672,6 +674,16 @@ size_t CObject3D::GetMaterialCount() const
 	return m_Model->vMaterialData.size();
 }
 
+void CObject3D::ShouldIgnoreSceneMaterial(bool bShouldIgnore)
+{
+	if (m_Model) m_Model->bIgnoreSceneMaterial = bShouldIgnore;
+}
+
+bool CObject3D::ShouldIgnoreSceneMaterial() const
+{
+	return m_Model->bIgnoreSceneMaterial;
+}
+
 void CObject3D::CreateInstances(size_t InstanceCount)
 {
 	if (InstanceCount <= 0) return;
@@ -988,7 +1000,7 @@ void CObject3D::UpdateWorldMatrix()
 	XMMATRIX Rotation{ XMMatrixRotationRollPitchYaw(ComponentTransform.Pitch,
 		ComponentTransform.Yaw, ComponentTransform.Roll) };
 	XMMATRIX Scaling{ XMMatrixScalingFromVector(ComponentTransform.Scaling) };
-
+	
 	// @important
 	float ScalingX{ XMVectorGetX(ComponentTransform.Scaling) };
 	float ScalingY{ XMVectorGetY(ComponentTransform.Scaling) };
@@ -1112,6 +1124,7 @@ void CObject3D::UpdateCBMaterial(const CMaterialData& MaterialData, uint32_t Tot
 	FlagsHasTexture += MaterialData.HasTexture(ETextureType::MetalnessTexture) ? 0x20 : 0;
 	FlagsHasTexture += MaterialData.HasTexture(ETextureType::AmbientOcclusionTexture) ? 0x40 : 0;
 	// @empty_slot: Displacement texture is usually not used in PS
+	FlagsHasTexture += m_Model->bIgnoreSceneMaterial ? 0x2000 : 0;
 	m_CBMaterialData.FlagsHasTexture = FlagsHasTexture;
 
 	uint32_t FlagsIsTextureSRGB{};

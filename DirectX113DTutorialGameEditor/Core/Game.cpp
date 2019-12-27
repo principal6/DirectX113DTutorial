@@ -4984,6 +4984,13 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"오브젝트 재질");
+
+								bool bIgnoreSceneMaterial{ Object3D->ShouldIgnoreSceneMaterial() };
+								if (ImGui::Checkbox(u8"장면 재질 무시하기", &bIgnoreSceneMaterial))
+								{
+									Object3D->ShouldIgnoreSceneMaterial(bIgnoreSceneMaterial);
+								}
+
 								if (Object3D->GetMaterialCount() > 0)
 								{
 									static CMaterialData* capturedMaterialData{};

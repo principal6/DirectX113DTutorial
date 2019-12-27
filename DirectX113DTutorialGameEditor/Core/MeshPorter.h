@@ -69,6 +69,7 @@ struct SMESHData
 	std::vector<SMeshAnimation>				vAnimations{};
 
 	bool									bUseMultipleTexturesInSingleMesh{ false };
+	bool									bIgnoreSceneMaterial{ false };
 };
 
 struct STERRData

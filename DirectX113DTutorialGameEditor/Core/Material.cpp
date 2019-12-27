@@ -10,6 +10,12 @@ bool CTexture::CreateTextureFromFile(const string& FileName, bool bShouldGenerat
 {
 	m_FileName = FileName;
 
+	if (m_FileName.empty())
+	{
+		MB_WARN(("파일 이름이 널문자입니다. (" + m_FileName + ")").c_str(), "텍스처 생성 실패");
+		return false;
+	}
+
 	size_t found{ m_FileName.find_last_of(L'.') };
 	string Ext{ m_FileName.substr(found) };
 	wstring wFileName{ m_FileName.begin(), m_FileName.end() };

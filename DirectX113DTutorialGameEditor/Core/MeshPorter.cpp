@@ -304,6 +304,12 @@ void CMeshPorter::ReadMESHData(SMESHData& MESHData)
 	uint32_t Version{ (uint32_t)(VersionSubminor | (VersionMinor << 8) | (VersionMajor << 16)) };
 
 	// ##### MATERIAL #####
+	// 1B (bool) bShouldIgnoreSceneMaterial
+	if (Version >= 0x10004)
+	{
+		m_BinaryData->ReadBool(MESHData.bIgnoreSceneMaterial);
+	}
+
 	// 1B (uint8_t) Material count
 	MESHData.vMaterialData.resize(m_BinaryData->ReadUint8());
 
@@ -613,9 +619,10 @@ void CMeshPorter::ReadModelMaterials(std::vector<CMaterialData>& vMaterialData)
 
 void CMeshPorter::WriteMESHData(const SMESHData& MESHData)
 {
-	static uint16_t KVersionMajor{ 0x0001 };
-	static uint8_t KVersionMinor{ 0x00 };
-	static uint8_t KVersionSubminor{ 0x03 };
+	static constexpr uint16_t KVersionMajor{ 0x0001 };
+	static constexpr uint8_t KVersionMinor{ 0x00 };
+	static constexpr uint8_t KVersionSubminor{ 0x04 };
+	uint32_t Version{ (uint32_t)(KVersionSubminor | (KVersionMinor << 8) | (KVersionMajor << 16)) };
 
 	// 8B Signature
 	m_BinaryData->WriteString("KJW_MESH", 8);
@@ -624,6 +631,12 @@ void CMeshPorter::WriteMESHData(const SMESHData& MESHData)
 	m_BinaryData->WriteUint16(KVersionMajor);
 	m_BinaryData->WriteUint8(KVersionMinor);
 	m_BinaryData->WriteUint8(KVersionSubminor);
+
+	// 1B (bool) bShouldIgnoreSceneMaterial
+	if (Version >= 0x10004)
+	{
+		m_BinaryData->WriteBool(MESHData.bIgnoreSceneMaterial);
+	}
 
 	WriteModelMaterials(MESHData.vMaterialData);
 
@@ -666,29 +679,32 @@ void CMeshPorter::WriteMESHData(const SMESHData& MESHData)
 			m_BinaryData->WriteXMVECTOR(Vertex.Tangent);
 		}
 
-		// 4B (uint32_t) Max weight count per animation vertex
-		m_BinaryData->WriteUint32(SAnimationVertex::KMaxWeightCount);
-
-		// 4B (uint32_t) Animation vertex count
-		m_BinaryData->WriteUint32((uint32_t)Mesh.vAnimationVertices.size());
-
-		for (uint32_t iAnimationVertex = 0; iAnimationVertex < (uint32_t)Mesh.vAnimationVertices.size(); ++iAnimationVertex)
+		if (Version >= 0x10002)
 		{
-			// 4B (uint32_t) Animation vertex index
-			m_BinaryData->WriteUint32(iAnimationVertex);
+			// 4B (uint32_t) Max weight count per animation vertex
+			m_BinaryData->WriteUint32(SAnimationVertex::KMaxWeightCount);
 
-			const SAnimationVertex& AnimationVertex{ Mesh.vAnimationVertices[iAnimationVertex] };
+			// 4B (uint32_t) Animation vertex count
+			m_BinaryData->WriteUint32((uint32_t)Mesh.vAnimationVertices.size());
 
-			// 4B * ?? (uint32_t) Bone IDs
-			for (const auto& BoneID : AnimationVertex.BoneIDs)
+			for (uint32_t iAnimationVertex = 0; iAnimationVertex < (uint32_t)Mesh.vAnimationVertices.size(); ++iAnimationVertex)
 			{
-				m_BinaryData->WriteUint32(BoneID);
-			}
+				// 4B (uint32_t) Animation vertex index
+				m_BinaryData->WriteUint32(iAnimationVertex);
 
-			// 4B * ?? (float) Weights
-			for (const auto& Weight : AnimationVertex.Weights)
-			{
-				m_BinaryData->WriteFloat(Weight);
+				const SAnimationVertex& AnimationVertex{ Mesh.vAnimationVertices[iAnimationVertex] };
+
+				// 4B * ?? (uint32_t) Bone IDs
+				for (const auto& BoneID : AnimationVertex.BoneIDs)
+				{
+					m_BinaryData->WriteUint32(BoneID);
+				}
+
+				// 4B * ?? (float) Weights
+				for (const auto& Weight : AnimationVertex.Weights)
+				{
+					m_BinaryData->WriteFloat(Weight);
+				}
 			}
 		}
 
@@ -712,14 +728,17 @@ void CMeshPorter::WriteMESHData(const SMESHData& MESHData)
 		}
 	}
 
-	// # 16B (XMVECTOR) Bounding sphere center offset
-	m_BinaryData->WriteXMVECTOR(MESHData.EditorBoundingSphereData.CenterOffset);
-	
-	// # 4B (float) Bounding sphere radius bias
-	m_BinaryData->WriteFloat(MESHData.EditorBoundingSphereData.RadiusBias);
+	if (Version >= 0x10001)
+	{
+		// # 16B (XMVECTOR) Bounding sphere center offset
+		m_BinaryData->WriteXMVECTOR(MESHData.EditorBoundingSphereData.CenterOffset);
 
+		// # 4B (float) Bounding sphere radius bias
+		m_BinaryData->WriteFloat(MESHData.EditorBoundingSphereData.RadiusBias);
+	}
 
 	// ##### Animation data #####
+	if (Version >= 0x10003)
 	{
 		// 1B (bool) bIsModelRigged
 		m_BinaryData->WriteBool(MESHData.bIsModelRigged);

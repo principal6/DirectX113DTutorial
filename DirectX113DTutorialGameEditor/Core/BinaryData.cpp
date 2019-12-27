@@ -365,11 +365,7 @@ bool CBinaryData::ReadString(std::string& Out, uint32_t Length)
 bool CBinaryData::ReadStringWithPrefixedLength(std::string& OutString)
 {
 	uint32_t ReadStringLength{};
-	if (ReadUint32(ReadStringLength))
-	{
-		return ReadString(OutString, ReadStringLength);
-	}
-	return false;
+	return ReadStringWithPrefixedLength(ReadStringLength, OutString);
 }
 
 bool CBinaryData::ReadStringWithPrefixedLength(uint32_t& OutLength, std::string& OutString)
