@@ -1301,9 +1301,30 @@ void CGame::SetRenderingFlags(EFlagsRendering Flags)
 	m_eFlagsRendering = Flags;
 }
 
-void CGame::ToggleGameRenderingFlags(EFlagsRendering Flags)
+void CGame::ToggleRenderingFlag(EFlagsRendering Flags)
 {
 	m_eFlagsRendering ^= Flags;
+}
+
+void CGame::TurnOnRenderingFlag(EFlagsRendering Flags)
+{
+	if (EFLAG_HAS_NO(m_eFlagsRendering, Flags))
+	{
+		ToggleRenderingFlag(Flags);
+	}
+}
+
+void CGame::TurnOffRenderingFlag(EFlagsRendering Flags)
+{
+	if (EFLAG_HAS(m_eFlagsRendering, Flags))
+	{
+		ToggleRenderingFlag(Flags);
+	}
+}
+
+CGame::EFlagsRendering CGame::GetRenderingFlags() const
+{
+	return m_eFlagsRendering;
 }
 
 void CGame::SetUniversalRSState()
@@ -2329,6 +2350,8 @@ bool CGame::SetMode(EMode eMode)
 			MB_WARN("먼저 플레이어 카메라를 지정해 주세요.", "플레이어 카메라 미지정");
 			return false;
 		}
+		
+		DeselectAll();
 
 		m_PhysicsEngine.ShouldApplyGravity(true);
 	}
@@ -2972,6 +2995,12 @@ void CGame::UseEditorCamera()
 
 void CGame::UseCamera(CCamera* const Camera)
 {
+	if (IsEditorCamera(Camera))
+	{
+		UseEditorCamera();
+		return;
+	}
+
 	m_PtrCurrentCamera = Camera;
 	m_CurrentCameraID = (int)m_mapCameraNameToIndex.at(Camera->GetName());
 }
@@ -3249,7 +3278,10 @@ void CGame::Update()
 	m_CapturedMouseState = GetMouseState();
 
 	// Engine input processing
-	if (m_eMode != EMode::Play)
+	static int PrevMouseX{ m_CapturedMouseState.x };
+	static int PrevMouseY{ m_CapturedMouseState.y };
+	bool bMouseMoved{ (m_CapturedMouseState.x != PrevMouseX || m_CapturedMouseState.y != PrevMouseY) };
+	if (GetMode() == EMode::Edit)
 	{
 		// Process keyboard inputs
 
@@ -3313,11 +3345,6 @@ void CGame::Update()
 			}
 		}
 
-		// Process moue inputs
-		static int PrevMouseX{ m_CapturedMouseState.x };
-		static int PrevMouseY{ m_CapturedMouseState.y };
-		bool bMouseMoved{ (m_CapturedMouseState.x != PrevMouseX || m_CapturedMouseState.y != PrevMouseY) };
-
 		if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
 		{
 			if (m_CapturedMouseState.rightButton) ImGui::SetWindowFocus(nullptr);
@@ -3365,22 +3392,44 @@ void CGame::Update()
 			{
 				SelectTerrain(false, false);
 			}
+		}
+	}
+	else
+	{
+		if (m_bLeftButtonUpOnce)
+		{
+			CastPickingRay();
+			
+		}
+	}
 
-			if (bMouseMoved)
+	if (bMouseMoved)
+	{
+		if ((GetMode() == EMode::Edit) ? m_CapturedMouseState.middleButton : m_CapturedMouseState.rightButton)
+		{
+			m_PtrCurrentCamera->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, m_DeltaTimeF);
+
+			if (!IsEditorCamera(m_PtrCurrentCamera))
 			{
-				if (m_CapturedMouseState.middleButton)
-				//if (m_CapturedMouseState.rightButton)
-				{
-					m_PtrCurrentCamera->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, m_DeltaTimeF);
-
-					if (m_PtrCurrentCamera != m_EditorCamera.get())
-						m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
-				}
-
-				PrevMouseX = m_CapturedMouseState.x;
-				PrevMouseY = m_CapturedMouseState.y;
+				m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
 			}
 		}
+	}
+
+	if (m_CapturedMouseState.scrollWheelValue)
+	{
+		m_PtrCurrentCamera->Zoom(m_CapturedMouseState.scrollWheelValue, 0.01f);
+
+		if (!IsEditorCamera(m_PtrCurrentCamera))
+		{
+			m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
+		}
+	}
+
+	if (bMouseMoved)
+	{
+		PrevMouseX = m_CapturedMouseState.x;
+		PrevMouseY = m_CapturedMouseState.y;
 	}
 
 	m_TimePrev = m_TimeNow;
@@ -3551,7 +3600,7 @@ void CGame::Draw()
 	{
 		SetForwardRenderTargets();
 
-		if (m_eMode == EMode::Edit)
+		if (m_eMode != EMode::Play)
 		{
 			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawWireFrame))
 			{
@@ -4254,7 +4303,12 @@ void CGame::DrawEditorGUI()
 					m_SavedPlayerPhysics = m_PhysicsEngine.GetPlayerObject()->ComponentPhysics;
 
 					m_SavedCurrentCamera = m_PtrCurrentCamera;
-					m_PtrCurrentCamera = m_PtrPlayerCamera;
+
+					UseCamera(m_PtrPlayerCamera);
+
+					m_SavedRenderingFlags = GetRenderingFlags();
+
+					TurnOnRenderingFlag(CGame::EFlagsRendering::DrawPickingData);
 				}
 			}
 
@@ -4276,7 +4330,9 @@ void CGame::DrawEditorGUI()
 					m_PhysicsEngine.GetPlayerObject()->ComponentTransform = m_SavedPlayerTransform;
 					m_PhysicsEngine.GetPlayerObject()->ComponentPhysics = m_SavedPlayerPhysics;
 
-					m_PtrCurrentCamera = m_SavedCurrentCamera;
+					UseCamera(m_SavedCurrentCamera);
+
+					SetRenderingFlags(m_SavedRenderingFlags);
 				}
 			}
 
@@ -6510,7 +6566,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bDrawWireFrame{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawWireFrame) };
 						if (ImGui::Checkbox(u8"##와이어 프레임", &bDrawWireFrame))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawWireFrame);
+							ToggleRenderingFlag(EFlagsRendering::DrawWireFrame);
 						}
 
 						ImGui::AlignTextToFramePadding();
@@ -6519,7 +6575,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bDrawNormals{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawNormals) };
 						if (ImGui::Checkbox(u8"##법선 표시", &bDrawNormals))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawNormals);
+							ToggleRenderingFlag(EFlagsRendering::DrawNormals);
 						}
 
 						ImGui::AlignTextToFramePadding();
@@ -6528,7 +6584,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bDrawMiniAxes{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawMiniAxes) };
 						if (ImGui::Checkbox(u8"##화면 상단에 좌표축 표시", &bDrawMiniAxes))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawMiniAxes);
+							ToggleRenderingFlag(EFlagsRendering::DrawMiniAxes);
 						}
 
 						ImGui::AlignTextToFramePadding();
@@ -6537,7 +6593,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bDrawBoundingVolumes{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingVolumes) };
 						if (ImGui::Checkbox(u8"##Bounding Volume 표시", &bDrawBoundingVolumes))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawBoundingVolumes);
+							ToggleRenderingFlag(EFlagsRendering::DrawBoundingVolumes);
 						}
 
 
@@ -6547,7 +6603,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bDrawTerrainHeightMapTexture{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainHeightMapTexture) };
 						if (ImGui::Checkbox(u8"##지형 높이맵 표시", &bDrawTerrainHeightMapTexture))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawTerrainHeightMapTexture);
+							ToggleRenderingFlag(EFlagsRendering::DrawTerrainHeightMapTexture);
 						}
 
 						ImGui::AlignTextToFramePadding();
@@ -6556,7 +6612,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bDrawTerrainMaskingTexture{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainMaskingTexture) };
 						if (ImGui::Checkbox(u8"##지형 마스킹맵 표시", &bDrawTerrainMaskingTexture))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawTerrainMaskingTexture);
+							ToggleRenderingFlag(EFlagsRendering::DrawTerrainMaskingTexture);
 						}
 
 						ImGui::AlignTextToFramePadding();
@@ -6565,7 +6621,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bDrawTerrainFoliagePlacingTexture{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawTerrainFoliagePlacingTexture) };
 						if (ImGui::Checkbox(u8"##지형 초목맵 표시", &bDrawTerrainFoliagePlacingTexture))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawTerrainFoliagePlacingTexture);
+							ToggleRenderingFlag(EFlagsRendering::DrawTerrainFoliagePlacingTexture);
 						}
 
 						ImGui::Separator();
@@ -6600,7 +6656,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bDrawLightVolumes{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawLightVolumes) };
 						if (ImGui::Checkbox(u8"##광원 볼륨 표시", &bDrawLightVolumes))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawLightVolumes);
+							ToggleRenderingFlag(EFlagsRendering::DrawLightVolumes);
 						}
 
 						ImGui::AlignTextToFramePadding();
@@ -6609,7 +6665,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bUse3DGizmos{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::Use3DGizmos) };
 						if (ImGui::Checkbox(u8"##3D Gizmo 표시", &bUse3DGizmos))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::Use3DGizmos);
+							ToggleRenderingFlag(EFlagsRendering::Use3DGizmos);
 						}
 
 						ImGui::AlignTextToFramePadding();
@@ -6618,7 +6674,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bDrawPickingData{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawPickingData) };
 						if (ImGui::Checkbox(u8"##피킹 데이터 표시", &bDrawPickingData))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawPickingData);
+							ToggleRenderingFlag(EFlagsRendering::DrawPickingData);
 						}
 
 						ImGui::AlignTextToFramePadding();
@@ -6627,7 +6683,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bDrawGrid{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawGrid) };
 						if (ImGui::Checkbox(u8"##그리드 표시", &bDrawGrid))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawGrid);
+							ToggleRenderingFlag(EFlagsRendering::DrawGrid);
 						}
 
 						ImGui::AlignTextToFramePadding();
@@ -6636,7 +6692,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						bool bDrawDirectionalLightShadowMap{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawDirectionalLightShadowMap) };
 						if (ImGui::Checkbox(u8"##DirectionalLight 그림자맵 표시", &bDrawDirectionalLightShadowMap))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawDirectionalLightShadowMap);
+							ToggleRenderingFlag(EFlagsRendering::DrawDirectionalLightShadowMap);
 						}
 					}
 					ImGui::PopItemWidth();

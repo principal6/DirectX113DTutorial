@@ -31,7 +31,7 @@ public:
 
 		static constexpr float KDefaultZoomDistance{ 10.0f };
 		static constexpr float KDefaultMinZoomDistance{ 1.0f };
-		static constexpr float KDefaultMaxZoomDistance{ 50.0f };
+		static constexpr float KDefaultMaxZoomDistance{ 25.0f };
 
 		EType		eType{};
 		XMVECTOR	EyePosition{ XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f) };

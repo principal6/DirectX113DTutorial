@@ -382,7 +382,10 @@ public:
 public:
 	void SetProjectionMatrices(float FOV, float NearZ, float FarZ);
 	void SetRenderingFlags(EFlagsRendering Flags);
-	void ToggleGameRenderingFlags(EFlagsRendering Flags);
+	void ToggleRenderingFlag(EFlagsRendering Flags);
+	void TurnOnRenderingFlag(EFlagsRendering Flags);
+	void TurnOffRenderingFlag(EFlagsRendering Flags);
+	EFlagsRendering GetRenderingFlags() const;
 	void SetUniversalRSState();
 	CommonStates* GetCommonStates() const { return m_CommonStates.get(); }
 
@@ -798,6 +801,7 @@ private:
 	CCamera*								m_SavedCurrentCamera{};
 	CObject3D::SComponentTransform			m_SavedPlayerTransform{};
 	CObject3D::SComponentPhysics			m_SavedPlayerPhysics{};
+	EFlagsRendering							m_SavedRenderingFlags{};
 
 // Picking
 private:
