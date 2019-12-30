@@ -142,6 +142,28 @@ void CCamera::SetMovementFactor(float MovementFactor)
 	m_CameraData.MovementFactor = MovementFactor;
 }
 
+void CCamera::SetZoomDistance(float ZoomDistance)
+{
+	m_CameraData.ZoomDistance = ZoomDistance;
+
+	Update();
+}
+
+float CCamera::GetZoomDistance() const
+{
+	return m_CameraData.ZoomDistance;
+}
+
+float CCamera::GetZoomDistanceMin() const
+{
+	return m_CameraData.MinZoomDistance;
+}
+
+float CCamera::GetZoomDistanceMax() const
+{
+	return m_CameraData.MaxZoomDistance;
+}
+
 void CCamera::SetType(EType eType)
 {
 	m_CameraData.eType = eType;

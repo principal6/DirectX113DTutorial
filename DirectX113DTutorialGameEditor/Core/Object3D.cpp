@@ -439,7 +439,7 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 
 		if (Version >= 0x10002)
 		{
-			Object3DBinary.WriteUint32(ComponentPhysics.vBoundingVolumes.size());
+			Object3DBinary.WriteUint32((uint32_t)ComponentPhysics.vBoundingVolumes.size());
 
 			for (const auto& BoundingVolume : ComponentPhysics.vBoundingVolumes)
 			{

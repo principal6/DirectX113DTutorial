@@ -10,9 +10,47 @@ CPhysicsEngine::~CPhysicsEngine()
 {
 }
 
+void CPhysicsEngine::ClearData()
+{
+	m_PlayerObject = nullptr;
+
+	m_vEnvironmentObjects.clear();
+	m_mapEnvironmentObjects.clear();
+
+	m_vMonsterObjects.clear();
+	m_mapMonsterObjects.clear();
+
+	m_WorldFloorHeight = 0;
+}
+
 void CPhysicsEngine::SetWorldFloorHeight(float Value)
 {
 	m_WorldFloorHeight = Value;
+}
+
+float CPhysicsEngine::GetWorldFloorHeight() const
+{
+	return m_WorldFloorHeight;
+}
+
+void CPhysicsEngine::RegisterObject(CObject3D* const Object3D, EObjectRole eObjectRole)
+{
+	switch (eObjectRole)
+	{
+	case EObjectRole::None:
+		break;
+	case EObjectRole::Player:
+		RegisterPlayerObject(Object3D);
+		break;
+	case EObjectRole::Environment:
+		RegisterEnvironmentObject(Object3D);
+		break;
+	case EObjectRole::Monster:
+		RegisterMonsterObject(Object3D);
+		break;
+	default:
+		break;
+	}
 }
 
 void CPhysicsEngine::RegisterPlayerObject(CObject3D* const Object3D)
@@ -87,11 +125,25 @@ EObjectRole CPhysicsEngine::GetObjectRole(CObject3D* const Object3D) const
 	return EObjectRole::None;
 }
 
+CObject3D* CPhysicsEngine::GetPlayerObject() const
+{
+	return m_PlayerObject;
+}
+
+void CPhysicsEngine::ShouldApplyGravity(bool Value)
+{
+	m_bShouldApplyGravity = Value;
+}
+
 void CPhysicsEngine::Update(float DeltaTime)
 {
 	if (m_PlayerObject)
 	{
-		//m_PlayerObject->ComponentPhysics.LinearAcceleration += XMVectorSet(0, -10.0f, 0, 0); // Gravity
+		if (m_bShouldApplyGravity)
+		{
+			m_PlayerObject->ComponentPhysics.LinearAcceleration += XMVectorSet(0, -10.0f, 0, 0); // Gravity
+		}
+
 		m_PlayerObject->ComponentPhysics.LinearVelocity += m_PlayerObject->ComponentPhysics.LinearAcceleration * DeltaTime;
 		m_PlayerObject->ComponentTransform.Translation += m_PlayerObject->ComponentPhysics.LinearVelocity * DeltaTime;
 		m_PlayerObject->ComponentPhysics.LinearAcceleration = KVectorZero;
@@ -141,10 +193,7 @@ bool CPhysicsEngine::DetectCollisions()
 							// Final collision
 							bCollisionDetected = true;
 
-							{
-								XMVECTOR AMovingDirection{ XMVector3Normalize(A->ComponentPhysics.LinearVelocity) };
-								m_StaticClosestPoint - InstanceCPUData.Translation;
-							}
+							A->ComponentPhysics.LinearVelocity = KVectorZero;
 						}
 					}
 				}
@@ -162,6 +211,7 @@ bool CPhysicsEngine::DetectCollisions()
 						// Final collision
 						bCollisionDetected = true;
 
+						A->ComponentPhysics.LinearVelocity = KVectorZero;
 					}
 				}
 			}

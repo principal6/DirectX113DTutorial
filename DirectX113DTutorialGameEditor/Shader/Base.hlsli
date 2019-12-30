@@ -1,6 +1,6 @@
 #include "Shared.hlsli"
 
-#define DEBUG_SHADER
+//#define DEBUG_SHADER
 
 struct VS_INPUT
 {

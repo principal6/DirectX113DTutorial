@@ -84,9 +84,13 @@ public:
 	void SetMovementFactor(float MovementFactor);
 	float GetMovementFactor() const { return m_CameraData.MovementFactor; }
 
+	void SetZoomDistance(float ZoomDistance);
+	float GetZoomDistance() const;
+	float GetZoomDistanceMin() const;
+	float GetZoomDistanceMax() const;
+
 public:
 	const std::string& GetName() const { return m_Name; }
-	float GetZoomDistance() const { return m_CameraData.ZoomDistance; }
 	const XMVECTOR& GetTranslation() const;
 	const XMVECTOR& GetEyePosition() const;
 	const XMVECTOR& GetForward() const { return m_CameraData.Forward; }

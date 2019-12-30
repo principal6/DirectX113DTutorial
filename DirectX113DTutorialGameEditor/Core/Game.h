@@ -150,7 +150,7 @@ public:
 		float		Reserved[2]{};
 	};
 
-	struct SCBCameraData
+	struct SCBCameraInfoData
 	{
 		uint32_t	CurrentCameraID{};
 		float		Pads[3]{};
@@ -479,7 +479,7 @@ public:
 	void ClearLights();
 
 public:
-	void SetMode(EMode eMode);
+	bool SetMode(EMode eMode);
 	EMode GetMode() const { return m_eMode; }
 
 	void SetEditMode(EEditMode eEditMode, bool bForcedSet = false);
@@ -507,6 +507,11 @@ private:
 	CCamera* GetCurrentCamera();
 	void UseEditorCamera();
 	void UseCamera(CCamera* const Camera);
+	void SetPlayerCamera(CCamera* const Camera);
+	CCamera* GetPlayerCamera() const;
+	bool IsEditorCamera(CCamera* const Camera) const;
+	bool IsCurrentCamera(CCamera* const Camera) const;
+	bool IsPlayerCamera(CCamera* const Camera) const;
 
 public:
 	void Capture3DGizmoTranslation();
@@ -704,7 +709,7 @@ private:
 	std::unique_ptr<CConstantBuffer>		m_CBSkyTime{};
 	std::unique_ptr<CConstantBuffer>		m_CBWaterTime{};
 	std::unique_ptr<CConstantBuffer>		m_CBEditorTime{};
-	std::unique_ptr<CConstantBuffer>		m_CBCamera{};
+	std::unique_ptr<CConstantBuffer>		m_CBCameraInfo{};
 	std::unique_ptr<CConstantBuffer>		m_CBGBufferUnpacking{};
 	std::unique_ptr<CConstantBuffer>		m_CBShadowMap{};
 	std::unique_ptr<CConstantBuffer>		m_CBSceneMaterial{};
@@ -722,7 +727,7 @@ private:
 	SCBSkyTimeData							m_CBSkyTimeData{};
 	SCBWaterTimeData						m_CBWaterTimeData{};
 	SCBEditorTimeData						m_CBEditorTimeData{};
-	SCBCameraData							m_CBCameraData{};
+	SCBCameraInfoData						m_CBCameraInfoData{};
 	SCBGBufferUnpackingData					m_CBGBufferUnpackingData{};
 	CCascadedShadowMap::SCBShadowMapData	m_CBShadowMapData{};
 	SCBSceneMaterialData					m_CBSceneMaterialData{};
@@ -785,7 +790,14 @@ private:
 	std::vector<std::unique_ptr<CCamera>>	m_vCameras{};
 	CCamera*								m_PtrCurrentCamera{};
 	int										m_CurrentCameraID{ -1 };
+	CCamera*								m_PtrPlayerCamera{};
 	std::unique_ptr<CObject3D>				m_CameraRep{};
+
+// Scene testing
+private:
+	CCamera*								m_SavedCurrentCamera{};
+	CObject3D::SComponentTransform			m_SavedPlayerTransform{};
+	CObject3D::SComponentPhysics			m_SavedPlayerPhysics{};
 
 // Picking
 private:

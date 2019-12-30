@@ -641,8 +641,8 @@ void CGame::CreateConstantBuffers()
 		&m_CBWaterTimeData, sizeof(m_CBWaterTimeData));
 	m_CBEditorTime = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBEditorTimeData, sizeof(m_CBEditorTimeData));
-	m_CBCamera = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
-		&m_CBCameraData, sizeof(m_CBCameraData));
+	m_CBCameraInfo = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
+		&m_CBCameraInfoData, sizeof(m_CBCameraInfoData));
 	m_CBGBufferUnpacking = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBGBufferUnpackingData, sizeof(m_CBGBufferUnpackingData));
 	m_CBShadowMap = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
@@ -663,7 +663,7 @@ void CGame::CreateConstantBuffers()
 	m_CBSkyTime->Create();
 	m_CBWaterTime->Create();
 	m_CBEditorTime->Create();
-	m_CBCamera->Create();
+	m_CBCameraInfo->Create();
 	m_CBGBufferUnpacking->Create();
 	m_CBShadowMap->Create();
 	m_CBSceneMaterial->Create();
@@ -834,7 +834,7 @@ void CGame::CreateBaseShaders()
 		m_PSCamera->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSCamera.hlsl", "main");
 		m_PSCamera->ReserveConstantBufferSlots(KPSSharedCBCount);
 		m_PSCamera->AttachConstantBuffer(m_CBEditorTime.get());
-		m_PSCamera->AttachConstantBuffer(m_CBCamera.get());
+		m_PSCamera->AttachConstantBuffer(m_CBCameraInfo.get());
 
 		m_PSCloud = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_PSCloud->Create(EShaderType::PixelShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\PSCloud.hlsl", "main");
@@ -973,6 +973,7 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 {
 	DeselectAll();
 	ClearCopyList();
+	m_PhysicsEngine.ClearData();
 
 	string ReadString{};
 	XMVECTOR ReadXMVECTOR{};
@@ -994,19 +995,24 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 		CBinaryData Object3DBinary{};
 		string Object3DName{};
 		bool bIsRigged{};
+		EObjectRole eObjectRole{};
 		for (uint32_t iObject3D = 0; iObject3D < Object3DCount; ++iObject3D)
 		{
 			SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
 			SceneBinaryData.ReadBool(bIsRigged);
+			eObjectRole = (EObjectRole)SceneBinaryData.ReadUint8();
 
-			Object3DBinary.LoadFromFile(ReadString);
-			Object3DBinary.ReadSkip(8 + 4); // @important: Signature + Version
-
-			Object3DBinary.ReadStringWithPrefixedLength(Object3DName);
+			{
+				Object3DBinary.LoadFromFile(ReadString);
+				Object3DBinary.ReadSkip(8 + 4); // @important: Signature + Version
+				Object3DBinary.ReadStringWithPrefixedLength(Object3DName);
+			}
 
 			InsertObject3D(Object3DName);
 			CObject3D* const Object3D{ GetObject3D(Object3DName) };
 			Object3D->LoadOB3D(ReadString, bIsRigged);
+
+			m_PhysicsEngine.RegisterObject(Object3D, eObjectRole);
 		}
 	}
 
@@ -1037,6 +1043,11 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 			Camera->SetPitch(SceneBinaryData.ReadFloat());
 			Camera->SetYaw(SceneBinaryData.ReadFloat());
 			Camera->SetMovementFactor(SceneBinaryData.ReadFloat());
+			Camera->SetZoomDistance(SceneBinaryData.ReadFloat());
+			if (SceneBinaryData.ReadBool())
+			{
+				SetPlayerCamera(Camera);
+			}
 
 			auto& CameraRepInstance{ m_CameraRep->GetInstanceCPUData(ReadString) };
 			CameraRepInstance.Translation = Camera->GetEyePosition();
@@ -1183,6 +1194,9 @@ void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 
 				// @important
 				SceneBinaryData.WriteBool(Object3D->IsRigged());
+
+				EObjectRole eObjectRole{ m_PhysicsEngine.GetObjectRole(Object3D.get()) };
+				SceneBinaryData.WriteUint8((uint8_t)eObjectRole);
 			}
 		}
 	}
@@ -1208,6 +1222,8 @@ void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 			SceneBinaryData.WriteFloat(Camera->GetPitch());
 			SceneBinaryData.WriteFloat(Camera->GetYaw());
 			SceneBinaryData.WriteFloat(Camera->GetMovementFactor());
+			SceneBinaryData.WriteFloat(Camera->GetZoomDistance());
+			SceneBinaryData.WriteBool(IsPlayerCamera(Camera.get()));
 		}
 	}
 
@@ -2304,8 +2320,23 @@ void CGame::ClearLights()
 	m_LightRep->ClearInstances();
 }
 
-void CGame::SetMode(EMode eMode)
+bool CGame::SetMode(EMode eMode)
 {
+	if (eMode != EMode::Edit)
+	{
+		if (!GetPlayerCamera())
+		{
+			MB_WARN("먼저 플레이어 카메라를 지정해 주세요.", "플레이어 카메라 미지정");
+			return false;
+		}
+
+		m_PhysicsEngine.ShouldApplyGravity(true);
+	}
+	else
+	{
+		m_PhysicsEngine.ShouldApplyGravity(false);
+	}
+
 	m_eMode = eMode;
 
 	if (m_eMode == EMode::Edit)
@@ -2318,6 +2349,8 @@ void CGame::SetMode(EMode eMode)
 
 		DeselectAll();
 	}
+
+	return true;
 }
 
 void CGame::SetEditMode(EEditMode eEditMode, bool bForcedSet)
@@ -2941,6 +2974,31 @@ void CGame::UseCamera(CCamera* const Camera)
 {
 	m_PtrCurrentCamera = Camera;
 	m_CurrentCameraID = (int)m_mapCameraNameToIndex.at(Camera->GetName());
+}
+
+void CGame::SetPlayerCamera(CCamera* const Camera)
+{
+	m_PtrPlayerCamera = Camera;
+}
+
+CCamera* CGame::GetPlayerCamera() const
+{
+	return m_PtrPlayerCamera;
+}
+
+bool CGame::IsEditorCamera(CCamera* const Camera) const
+{
+	return m_EditorCamera.get() == Camera;
+}
+
+bool CGame::IsCurrentCamera(CCamera* const Camera) const
+{
+	return m_PtrCurrentCamera == Camera;
+}
+
+bool CGame::IsPlayerCamera(CCamera* const Camera) const
+{
+	return m_PtrPlayerCamera == Camera;
 }
 
 void CGame::SelectTerrain(bool bShouldEdit, bool bIsLeftButton)
@@ -4114,8 +4172,8 @@ void CGame::DrawCameraRep()
 	
 	UpdateCBSpace();
 
-	m_CBCameraData.CurrentCameraID = m_CurrentCameraID;
-	m_CBCamera->Update();
+	m_CBCameraInfoData.CurrentCameraID = m_CurrentCameraID;
+	m_CBCameraInfo->Update();
 
 	m_VSInstance->Use();
 	m_PSCamera->Use();
@@ -4190,7 +4248,14 @@ void CGame::DrawEditorGUI()
 		{
 			if (ImGui::Button(u8"테스트 시작"))
 			{
-				SetMode(EMode::Test);
+				if (SetMode(EMode::Test))
+				{
+					m_SavedPlayerTransform = m_PhysicsEngine.GetPlayerObject()->ComponentTransform;
+					m_SavedPlayerPhysics = m_PhysicsEngine.GetPlayerObject()->ComponentPhysics;
+
+					m_SavedCurrentCamera = m_PtrCurrentCamera;
+					m_PtrCurrentCamera = m_PtrPlayerCamera;
+				}
 			}
 
 			ImGui::End();
@@ -4206,7 +4271,13 @@ void CGame::DrawEditorGUI()
 		{
 			if (ImGui::Button(u8"테스트 종료"))
 			{
-				SetMode(EMode::Edit);
+				if (SetMode(EMode::Edit))
+				{
+					m_PhysicsEngine.GetPlayerObject()->ComponentTransform = m_SavedPlayerTransform;
+					m_PhysicsEngine.GetPlayerObject()->ComponentPhysics = m_SavedPlayerPhysics;
+
+					m_PtrCurrentCamera = m_SavedCurrentCamera;
+				}
 			}
 
 			ImGui::End();
@@ -4931,10 +5002,12 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									if (Object3D->IsInstanced())
 									{
 										ImGui::Text(u8"<인스턴스를 선택해 주세요.>");
+
+										ImGui::Separator();
 									}
-									else
+									
+									// Non-instanced Object3D
 									{
-										// Non-instanced Object3D
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"위치");
 										ImGui::SameLine(ItemsOffsetX);
@@ -5107,14 +5180,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										for (const auto& BoundingVolume : Object3D->ComponentPhysics.vBoundingVolumes)
 										{
 											int Type{ (int)BoundingVolume.eType };
-
-											ImGuiTreeNodeFlags NodeFlags{ ImGuiTreeNodeFlags_Leaf };
-											if (SelectedBoundingVolumeIndex == BoundingVolumeIndex) NodeFlags |= ImGuiTreeNodeFlags_Selected;
-
-											if (ImGui::TreeNodeEx((to_string(BoundingVolumeIndex) + KTypes[Type]).c_str(), NodeFlags))
+											if (ImGui::Selectable((to_string(BoundingVolumeIndex) + KTypes[Type]).c_str(),
+												SelectedBoundingVolumeIndex == BoundingVolumeIndex))
 											{
 												SelectedBoundingVolumeIndex = BoundingVolumeIndex;
-												ImGui::TreePop();
 											}
 											++BoundingVolumeIndex;
 										}
@@ -5480,12 +5549,13 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::Text(u8"선택된 카메라:");
 								ImGui::SameLine(ItemsOffsetX);
 								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"<%s>", SelectedCamera->GetName().c_str());
+								ImGui::Text(u8"<%s> %s", SelectedCamera->GetName().c_str(), (IsPlayerCamera(SelectedCamera) ? u8"[P]" : ""));
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"카메라 종류:");
 								ImGui::SameLine(ItemsOffsetX);
-								switch (SelectedCamera->GetType())
+								CCamera::EType eCameraType{ SelectedCamera->GetType() };
+								switch (eCameraType)
 								{
 								case CCamera::EType::FirstPerson:
 									ImGui::AlignTextToFramePadding();
@@ -5539,6 +5609,21 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									Capture3DGizmoTranslation();
 								}
 
+								if (eCameraType == CCamera::EType::ThirdPerson)
+								{
+									float ZoomDistance{ SelectedCamera->GetZoomDistance() };
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"줌 거리");
+									ImGui::SameLine(ItemsOffsetX);
+									if (ImGui::DragFloat(u8"##줌 거리", &ZoomDistance, 0.01f, 
+										SelectedCamera->GetZoomDistanceMin(), SelectedCamera->GetZoomDistanceMax()))
+									{
+										SelectedCamera->SetZoomDistance(ZoomDistance);
+
+										m_CameraRep->UpdateInstanceWorldMatrix(SelectionData.Name, SelectedCamera->GetWorldMatrix());
+									}
+								}
+
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"카메라 이동 속도");
 								ImGui::SameLine(ItemsOffsetX);
@@ -5548,10 +5633,19 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									SelectedCamera->SetMovementFactor(MovementFactor);
 								}
 
-								if (m_PtrCurrentCamera != SelectedCamera)
+								if (!IsPlayerCamera(SelectedCamera) && !IsEditorCamera(SelectedCamera))
 								{
 									ImGui::SetCursorPosX(ItemsOffsetX);
-									if (ImGui::Button(u8"현재 화면 카메라로 지정", ImVec2(ItemsWidth, 0)))
+									if (ImGui::Button(u8"플레이어 카메라로", ImVec2(ItemsWidth, 0)))
+									{
+										SetPlayerCamera(SelectedCamera);
+									}
+								}
+
+								if (!IsCurrentCamera(SelectedCamera))
+								{
+									ImGui::SetCursorPosX(ItemsOffsetX);
+									if (ImGui::Button(u8"현재 화면 카메라로", ImVec2(ItemsWidth, 0)))
 									{
 										UseCamera(SelectedCamera);
 
@@ -6053,10 +6147,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					ImGui::EndPopup();
 				}
 
-				// 재질 탭
-				if (ImGui::BeginTabItem(u8"재질"))
+				// 장면 탭
+				if (ImGui::BeginTabItem(u8"장면"))
 				{
-					static constexpr float KLabelsWidth{ 220 };
+					static constexpr float KLabelsWidth{ 240 };
 					static constexpr float KItemsMaxWidth{ 240 };
 					float ItemsWidth{ WindowWidth - KLabelsWidth };
 					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
@@ -6064,6 +6158,20 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 					ImGui::PushItemWidth(ItemsWidth);
 
+					float FloorHeight{ m_PhysicsEngine.GetWorldFloorHeight() };
+					ImGui::AlignTextToFramePadding();
+					ImGui::Text(u8"World 바닥 높이");
+					ImGui::SameLine(ItemsOffsetX);
+					if (ImGui::DragFloat(u8"##World 바닥 높이", &FloorHeight, 0.1f))
+					{
+						m_PhysicsEngine.SetWorldFloorHeight(FloorHeight);
+					}
+
+					ImGui::Separator();
+
+					// 장면 재질
+					ImGui::AlignTextToFramePadding();
+					ImGui::Text(u8"장면 재질");
 					{
 						static CMaterialData* capturedMaterialData{};
 						static CMaterialTextureSet* capturedMaterialTextureSet{};
@@ -6950,7 +7058,22 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 
 					if (!Object3D->IsInstanced()) ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
 
-					bool bIsNodeOpen{ ImGui::TreeNodeEx(Object3DPair.first.c_str(), Flags) };
+					string suffix{};
+					EObjectRole eRole{ m_PhysicsEngine.GetObjectRole(Object3D) };
+					if (eRole == EObjectRole::Player)
+					{
+						suffix = " [P]";
+					}
+					else if (eRole == EObjectRole::Environment)
+					{
+						suffix = " [E]";
+					}
+					else if (eRole == EObjectRole::Monster)
+					{
+						suffix = " [M]";
+					}
+
+					bool bIsNodeOpen{ ImGui::TreeNodeEx((Object3DPair.first + suffix).c_str(), Flags) };
 					if (ImGui::IsItemClicked())
 					{
 						SelectObject(SSelectionData(EObjectType::Object3D, Object3DPair.first, Object3D));
@@ -7154,7 +7277,12 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 					if (bIsThisCameraSelected) Flags |= ImGuiTreeNodeFlags_Selected;
 
 					ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
-					bool bIsNodeOpen{ ImGui::TreeNodeEx(CameraPair.first.c_str(), Flags) };
+					string NodeName{ CameraPair.first };
+					if (IsPlayerCamera(Camera))
+					{
+						NodeName += " [P]";
+					}
+					bool bIsNodeOpen{ ImGui::TreeNodeEx(NodeName.c_str(), Flags) };
 					if (ImGui::IsItemClicked())
 					{
 						SelectObject(SSelectionData(EObjectType::Camera, CameraPair.first));

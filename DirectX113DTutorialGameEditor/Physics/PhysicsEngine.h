@@ -19,9 +19,14 @@ public:
 	~CPhysicsEngine();
 
 public:
-	void SetWorldFloorHeight(float Value);
+	void ClearData();
 
 public:
+	void SetWorldFloorHeight(float Value);
+	float GetWorldFloorHeight() const;
+
+public:
+	void RegisterObject(CObject3D* const Object3D, EObjectRole eObjectRole);
 	void RegisterPlayerObject(CObject3D* const Object3D);
 	void RegisterEnvironmentObject(CObject3D* const Object3D);
 	void RegisterMonsterObject(CObject3D* const Object3D);
@@ -31,6 +36,12 @@ public:
 	bool IsEnvironmentObject(CObject3D* const Object3D) const;
 	bool IsMonsterObject(CObject3D* const Object3D) const;
 	EObjectRole GetObjectRole(CObject3D* const Object3D) const;
+
+public:
+	CObject3D* GetPlayerObject() const;
+
+public:
+	void ShouldApplyGravity(bool Value);
 
 public:
 	void Update(float DeltaTime);
@@ -71,4 +82,7 @@ private:
 
 private:
 	float m_WorldFloorHeight{};
+
+private:
+	bool m_bShouldApplyGravity{};
 };
