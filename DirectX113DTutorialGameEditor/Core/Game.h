@@ -23,6 +23,7 @@
 #include "FullScreenQuad.h"
 #include "IBLBaker.h"
 #include "Gizmo3D.h"
+#include "../Physics/PhysicsEngine.h"
 
 #include "TinyXml2/tinyxml2.h"
 #include "ImGui/imgui.h"
@@ -178,7 +179,7 @@ public:
 		Use3DGizmos = 0x0004,
 		DrawMiniAxes = 0x0008,
 		DrawPickingData = 0x0010,
-		DrawBoundingSphere = 0x0020,
+		DrawBoundingVolumes = 0x0020,
 		DrawTerrainHeightMapTexture = 0x0040,
 		DrawTerrainMaskingTexture = 0x0080,
 		DrawTerrainFoliagePlacingTexture = 0x0100,
@@ -246,7 +247,7 @@ public:
 		SObject3DPickingCandiate(CObject3D* const _PtrObject3D, const std::string& _InstanceName, XMVECTOR _T) :
 			PtrObject3D{ _PtrObject3D }, InstanceName{ _InstanceName }, T{ _T } {}
 
-		CObject3D*	PtrObject3D{};
+		CObject3D* PtrObject3D{};
 		std::string	InstanceName{};
 		XMVECTOR	T{};
 		bool		bHasFailedPickingTest{ false };
@@ -262,7 +263,7 @@ public:
 	struct SSelectionData
 	{
 		SSelectionData() {}
-		
+
 		// For deselecting
 		SSelectionData(EObjectType _eObjectType) : eObjectType{ _eObjectType } {}
 
@@ -272,10 +273,10 @@ public:
 			eObjectType{ _eObjectType }, Name{ _Name }, PtrObject{ _PtrObject } {}
 		SSelectionData(EObjectType _eObjectType, const std::string& _Name, uint32_t _Extra) :
 			eObjectType{ _eObjectType }, Name{ _Name }, Extra{ _Extra } {}
-		
+
 		EObjectType	eObjectType{};
 		std::string	Name{};
-		void*		PtrObject{};
+		void* PtrObject{};
 		uint32_t	Extra{};
 	};
 
@@ -285,7 +286,7 @@ public:
 		SCopyObject3D(const std::string& _Name, const SMESHData& _Model,
 			const CObject3D::SComponentTransform& _ComponentTransform, const CObject3D::SComponentPhysics& _ComponentPhysics,
 			const CObject3D::SComponentRender& _ComponentRender, const std::vector<SObject3DInstanceCPUData> _vInstanceCPUData) :
-			Name{ _Name }, Model{ _Model }, 
+			Name{ _Name }, Model{ _Model },
 			ComponentTransform{ _ComponentTransform }, ComponentPhysics{ _ComponentPhysics }, ComponentRender{ _ComponentRender },
 			vInstanceCPUData{ _vInstanceCPUData } {}
 
@@ -372,7 +373,6 @@ private:
 	void CreateMiniAxes();
 	void CreatePickingRay();
 	void CreatePickedTriangle();
-	void CreateBoundingSphere();
 
 public:
 	void LoadScene(const std::string& FileName, const std::string& SceneDirectory);
@@ -433,7 +433,7 @@ public:
 	void SaveTerrain(const std::string& TerrainFileName);
 	CTerrain* GetTerrain() const { return m_Terrain.get(); }
 
-// Object pool
+	// Object pool
 public:
 	void ClearCopyList();
 	void CopySelectedObject();
@@ -545,7 +545,8 @@ public:
 private:
 	void DrawOpaqueObject3Ds(bool bIgnoreOwnTexture = false, bool bUseVoidPS = false);
 	void DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances = false, bool bIgnoreOwnTexture = false, bool bUseVoidPS = false);
-	void DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D);
+	void DrawBoundingSphereRep(const XMVECTOR& Center, float Radius);
+	void DrawAxisAlignedBoundingBoxRep(const XMVECTOR& Center, float HalfSizeX, float HalfSizeY, float HalfSizeZ);
 
 	void DrawObject3DLines();
 
@@ -634,7 +635,7 @@ private:
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
 
-// Shader
+	// Shader
 private:
 	std::vector<std::unique_ptr<CShader>>	m_vCustomShaders{};
 
@@ -688,7 +689,7 @@ private:
 	std::unique_ptr<CShader>				m_PSTerrain_gbuffer{};
 	std::unique_ptr<CShader>				m_PSWater{};
 
-// Constant buffer
+	// Constant buffer
 private:
 	std::unique_ptr<CConstantBuffer>		m_CBSpace{};
 	std::unique_ptr<CConstantBuffer>		m_CBAnimationBones{};
@@ -726,7 +727,7 @@ private:
 	CCascadedShadowMap::SCBShadowMapData	m_CBShadowMapData{};
 	SCBSceneMaterialData					m_CBSceneMaterialData{};
 
-// Object pool
+	// Object pool
 private:
 	std::vector<std::unique_ptr<CObject3D>>		m_vObject3Ds{};
 	size_t										m_Object3DTotalInstanceCount{};
@@ -737,6 +738,7 @@ private:
 
 	std::vector<std::unique_ptr<CObject3D>>		m_vMiniAxes{};
 	std::unique_ptr<CObject3D>					m_BoundingSphereRep{};
+	std::unique_ptr<CObject3D>					m_AxisAlignedBoundingBoxRep{};
 
 	std::unique_ptr<CObject3DLine>				m_Grid{};
 
@@ -745,6 +747,11 @@ private:
 	std::map<std::string, size_t>				m_mapObject2DNameToIndex{};
 	std::map<std::string, size_t>				m_mapCameraNameToIndex{};
 	size_t										m_PrimitiveCreationCounter{};
+
+private:
+	CPhysicsEngine							m_PhysicsEngine{};
+	std::unique_ptr<CObject3D>				m_AClosestPointRep{};
+	std::unique_ptr<CObject3D>				m_BClosestPointRep{};
 
 // Shadow map
 private:

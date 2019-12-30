@@ -92,7 +92,12 @@ public:
 
 	struct SComponentPhysics
 	{
-		bool		bIsPickable{ true };
+		bool							bIsPickable{ true };
+		std::vector<SBoundingVolume>	vBoundingVolumes{};
+
+		float							InverseMass{}; // unit: kilogram
+		XMVECTOR						LinearVelocity{}; // unit: m/s
+		XMVECTOR						LinearAcceleration{}; // unit: m/s^2
 	};
 
 	struct SComponentRender
@@ -259,6 +264,7 @@ public:
 	const XMVECTOR& GetEditorBoundingSphereCenterOffset() const;
 	float GetEditorBoundingSphereRadius() const;
 	float GetEditorBoundingSphereRadiusBias() const;
+	const SBoundingVolume& GetEditorBoundingSphere() const;
 
 private:
 	void LimitFloatRotation(float& Value, const float Min, const float Max);
@@ -283,7 +289,7 @@ public:
 	EFlagsRendering										eFlagsRendering{};
 
 private:
-	SBoundingSphere										EditorBoundingSphere{};
+	SBoundingVolume										EditorBoundingSphere{};
 
 private:
 	ID3D11Device* const									m_PtrDevice{};

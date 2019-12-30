@@ -103,7 +103,6 @@ void CGame::InitializeDirectX(bool bWindowed)
 	CreateMiniAxes();
 	CreatePickingRay();
 	CreatePickedTriangle();
-	CreateBoundingSphere();
 
 	SetProjectionMatrices(KDefaultFOV, KDefaultNearZ, KDefaultFarZ);
 	InitializeViewports();
@@ -123,6 +122,32 @@ void CGame::InitializeEditorAssets()
 	{
 		m_CameraRep = make_unique<CObject3D>("CameraRepresentation", m_Device.Get(), m_DeviceContext.Get());
 		m_CameraRep->CreateFromFile("Asset\\camera_repr.fbx", false);
+	}
+
+	if (!m_BoundingSphereRep)
+	{
+		m_BoundingSphereRep = make_unique<CObject3D>("BoundingSphere", m_Device.Get(), m_DeviceContext.Get());
+		m_BoundingSphereRep->Create(GenerateSphere(16, XMVectorSet(1, 1, 0, 1)));
+	}
+
+	if (!m_AxisAlignedBoundingBoxRep)
+	{
+		m_AxisAlignedBoundingBoxRep = make_unique<CObject3D>("AxisAlignedBoundingBoxRep", m_Device.Get(), m_DeviceContext.Get());
+		m_AxisAlignedBoundingBoxRep->Create(GenerateCube(XMVectorSet(1, 0, 1, 1)));
+	}
+
+	if (!m_AClosestPointRep)
+	{
+		m_AClosestPointRep = make_unique<CObject3D>("ClosestPoint", m_Device.Get(), m_DeviceContext.Get());
+		m_AClosestPointRep->Create(GenerateSphere(16, XMVectorSet(1, 0, 0, 1)));
+		m_AClosestPointRep->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.1f, 0.1f, 0);
+	}
+
+	if (!m_BClosestPointRep)
+	{
+		m_BClosestPointRep = make_unique<CObject3D>("ClosestPoint", m_Device.Get(), m_DeviceContext.Get());
+		m_BClosestPointRep->Create(GenerateSphere(16, XMVectorSet(0, 1, 0, 1)));
+		m_BClosestPointRep->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.1f, 0.1f, 0);
 	}
 
 	if (!m_LightArray[0])
@@ -942,13 +967,6 @@ void CGame::CreatePickedTriangle()
 
 	m_PickedTriangleRep->Create(GenerateTriangle(XMVectorSet(0, 0, 1.5f, 1), XMVectorSet(+1.0f, 0, 0, 1), XMVectorSet(-1.0f, 0, 0, 1),
 		XMVectorSet(1.0f, 1.0f, 0.0f, 1.0f)));
-}
-
-void CGame::CreateBoundingSphere()
-{
-	m_BoundingSphereRep = make_unique<CObject3D>("BoundingSphere", m_Device.Get(), m_DeviceContext.Get());
-
-	m_BoundingSphereRep->Create(GenerateSphere(16));
 }
 
 void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
@@ -2390,7 +2408,7 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 			const auto& vInstanceCPUData{ Object3D->GetInstanceCPUDataVector() };
 			for (const auto& Instance : vInstanceCPUData)
 			{
-				const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.CenterOffset };
+				const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.Center };
 				const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(KTranslation, KViewProjection) };
 				const XMFLOAT2 KProjectionXY{ XMVectorGetX(KProjectionCenter), XMVectorGetY(KProjectionCenter) };
 
@@ -2533,7 +2551,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 	{
 		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
 		const auto& Instance{ Object3D->GetInstanceCPUData(SelectionData.Name) };
-		const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.CenterOffset };
+		const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.Center };
 
 		m_umapSelectionObject3DInstance[Object3D->GetName() + SelectionData.Name] = KSelectionIndex;
 
@@ -2797,7 +2815,8 @@ void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
 				{
 					XMVECTOR NewT{ KVectorGreatest };
 					if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-						InstanceCPUData.EditorBoundingSphere.Radius, InstanceCPUData.Translation + InstanceCPUData.EditorBoundingSphere.CenterOffset, &NewT))
+						InstanceCPUData.EditorBoundingSphere.Data.BS.Radius, 
+						InstanceCPUData.Translation + InstanceCPUData.EditorBoundingSphere.Center, &NewT))
 					{
 						m_vObject3DPickingCandidates.emplace_back(Object3D.get(), InstanceCPUData.Name, NewT);
 					}
@@ -3308,6 +3327,8 @@ void CGame::Update()
 
 	m_TimePrev = m_TimeNow;
 	++m_FrameCount;
+
+	m_PhysicsEngine.Update(m_DeltaTimeF);
 }
 
 void CGame::Draw()
@@ -3536,6 +3557,23 @@ void CGame::Draw()
 
 				m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 			}
+
+			{
+				m_VSBase->Use();
+				m_PSBase_RawVertexColor->Use();
+
+				m_AClosestPointRep->ComponentTransform.Translation = m_PhysicsEngine.GetDynamicClosestPoint();
+				m_AClosestPointRep->UpdateWorldMatrix();
+
+				m_BClosestPointRep->ComponentTransform.Translation = m_PhysicsEngine.GetStaticClosestPoint();
+				m_BClosestPointRep->UpdateWorldMatrix();
+
+				UpdateCBSpace(m_AClosestPointRep->ComponentTransform.MatrixWorld);
+				m_AClosestPointRep->Draw();
+
+				UpdateCBSpace(m_BClosestPointRep->ComponentTransform.MatrixWorld);
+				m_BClosestPointRep->Draw();
+			}
 		}
 
 		if (m_SkyData.bIsDataSet)
@@ -3563,9 +3601,10 @@ void CGame::Draw()
 			Object3D->UpdateWorldMatrix();
 			DrawObject3D(Object3D.get());
 
-			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
+			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingVolumes))
 			{
-				DrawObject3DBoundingSphere(Object3D.get());
+				DrawBoundingSphereRep(Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset(),
+					Object3D->GetEditorBoundingSphereRadius());
 			}
 		}
 
@@ -3656,9 +3695,27 @@ void CGame::DrawOpaqueObject3Ds(bool bIgnoreOwnTexture, bool bUseVoidPS)
 		Object3D->UpdateWorldMatrix();
 		DrawObject3D(Object3D.get(), false, bIgnoreOwnTexture, bUseVoidPS);
 
-		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere))
+		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingVolumes))
 		{
-			DrawObject3DBoundingSphere(Object3D.get());
+			DrawBoundingSphereRep(Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset(),
+				Object3D->GetEditorBoundingSphereRadius());
+
+			if (Object3D->ComponentPhysics.vBoundingVolumes.size())
+			{
+				for (const auto& BoundingVolume : Object3D->ComponentPhysics.vBoundingVolumes)
+				{
+					if (BoundingVolume.eType == EBoundingVolumeType::BoundingSphere)
+					{
+						DrawBoundingSphereRep(Object3D->ComponentTransform.Translation + BoundingVolume.Center, 
+							BoundingVolume.Data.BS.Radius);
+					}
+					else
+					{
+						DrawAxisAlignedBoundingBoxRep(Object3D->ComponentTransform.Translation + BoundingVolume.Center,
+							BoundingVolume.Data.AABBHalfSizes.x, BoundingVolume.Data.AABBHalfSizes.y, BoundingVolume.Data.AABBHalfSizes.z);
+					}
+				}
+			}
 		}
 	}
 }
@@ -3722,19 +3779,34 @@ void CGame::DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances, bo
 	}
 }
 
-void CGame::DrawObject3DBoundingSphere(const CObject3D* const PtrObject3D)
+void CGame::DrawBoundingSphereRep(const XMVECTOR& Center, float Radius)
 {
 	m_VSBase->Use();
+	m_PSBase_RawVertexColor->Use();
 
-	XMMATRIX Translation{ XMMatrixTranslationFromVector(PtrObject3D->ComponentTransform.Translation + 
-		PtrObject3D->GetEditorBoundingSphereCenterOffset()) };
-	XMMATRIX Scaling{ XMMatrixScaling(PtrObject3D->GetEditorBoundingSphereRadius(),
-		PtrObject3D->GetEditorBoundingSphereRadius(), PtrObject3D->GetEditorBoundingSphereRadius()) };
+	XMMATRIX Translation{ XMMatrixTranslationFromVector(Center) };
+	XMMATRIX Scaling{ XMMatrixScaling(Radius, Radius, Radius) };
 	UpdateCBSpace(Scaling * Translation);
 
 	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
 
 	m_BoundingSphereRep->Draw();
+
+	SetUniversalRSState();
+}
+
+void CGame::DrawAxisAlignedBoundingBoxRep(const XMVECTOR& Center, float HalfSizeX, float HalfSizeY, float HalfSizeZ)
+{
+	m_VSBase->Use();
+	m_PSBase_RawVertexColor->Use();
+
+	XMMATRIX Translation{ XMMatrixTranslationFromVector(Center) };
+	XMMATRIX Scaling{ XMMatrixScaling(HalfSizeX * 2.0f, HalfSizeY * 2.0f, HalfSizeZ * 2.0f) };
+	UpdateCBSpace(Scaling * Translation);
+
+	m_DeviceContext->RSSetState(m_CommonStates->Wireframe());
+
+	m_AxisAlignedBoundingBoxRep->Draw();
 
 	SetUniversalRSState();
 }
@@ -4729,7 +4801,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 					SetEditMode(EEditMode::EditObject);
 
-					static constexpr float KLabelsWidth{ 220 };
+					static constexpr float KLabelsWidth{ 240 };
 					static constexpr float KItemsMaxWidth{ 240 };
 					float ItemsWidth{ WindowWidth - KLabelsWidth };
 					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
@@ -4774,6 +4846,29 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 								ImGui::Separator();
 
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"정점 개수");
+								ImGui::SameLine(ItemsOffsetX);
+								int VertexCount{};
+								for (const SMesh& Mesh : Object3D->GetModel().vMeshes)
+								{
+									VertexCount += (int)Mesh.vVertices.size();
+								}
+								ImGui::Text(u8"%d", VertexCount);
+
+								ImGui::AlignTextToFramePadding();
+								ImGui::Text(u8"삼각형 개수");
+								ImGui::SameLine(ItemsOffsetX);
+								int TriangleCount{};
+								for (const SMesh& Mesh : Object3D->GetModel().vMeshes)
+								{
+									TriangleCount += (int)Mesh.vTriangles.size();
+								}
+								ImGui::Text(u8"%d", TriangleCount);
+
+
+								ImGui::Separator();
+
 								if (SelectionData.eObjectType == EObjectType::Object3DInstance)
 								{
 									auto& InstanceCPUData{ Object3D->GetInstanceCPUData(SelectionData.Name) };
@@ -4796,7 +4891,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									{
 										InstanceCPUData.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
 										Object3D->UpdateInstanceWorldMatrix(SelectionData.Name);
-										
+
 										Capture3DGizmoTranslation();
 									}
 
@@ -4889,133 +4984,290 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 								ImGui::Separator();
 
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"오브젝트 BS 중심");
-								ImGui::SameLine(ItemsOffsetX);
-								float BSCenterOffset[3]{
-									XMVectorGetX(Object3D->GetEditorBoundingSphereCenterOffset()),
-									XMVectorGetY(Object3D->GetEditorBoundingSphereCenterOffset()),
-									XMVectorGetZ(Object3D->GetEditorBoundingSphereCenterOffset()) };
-								if (ImGui::DragFloat3(u8"##오브젝트 BS 중심", BSCenterOffset, KBSCenterOffsetDelta,
-									KBSCenterOffsetMinLimit, KBSCenterOffsetMaxLimit, "%.2f"))
+								if (ImGui::TreeNode(u8"Physics properties"))
 								{
-									Object3D->SetEditorBoundingSphereCenterOffset(XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f));
-								}
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"오브젝트 역할: ");
 
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"오브젝트 BS 반지름 편중치");
-								ImGui::SameLine(ItemsOffsetX);
-								float BSRadiusBias{ Object3D->GetEditorBoundingSphereRadiusBias() };
-								if (ImGui::DragFloat(u8"##오브젝트 BS반지름 편중치", &BSRadiusBias, KBSRadiusBiasDelta,
-									KBSRadiusBiasMinLimit, KBSRadiusBiasMaxLimit, "%.2f"))
-								{
-									Object3D->SetEditorBoundingSphereRadiusBias(BSRadiusBias);
-								}
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"오브젝트 BS 반지름 (자동)");
-								ImGui::SameLine(ItemsOffsetX);
-								float BSRadius{ Object3D->GetEditorBoundingSphereRadius() };
-								ImGui::DragFloat(u8"##오브젝트 BS반지름 (자동)", &BSRadius, KBSRadiusDelta,
-									KBSRadiusMinLimit, KBSRadiusMaxLimit, "%.2f");
-
-								ImGui::Separator();
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"정점 개수");
-								ImGui::SameLine(ItemsOffsetX);
-								int VertexCount{};
-								for (const SMesh& Mesh : Object3D->GetModel().vMeshes)
-								{
-									VertexCount += (int)Mesh.vVertices.size();
-								}
-								ImGui::Text(u8"%d", VertexCount);
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"삼각형 개수");
-								ImGui::SameLine(ItemsOffsetX);
-								int TriangleCount{};
-								for (const SMesh& Mesh : Object3D->GetModel().vMeshes)
-								{
-									TriangleCount += (int)Mesh.vTriangles.size();
-								}
-								ImGui::Text(u8"%d", TriangleCount);
-
-								// Tessellation data
-								ImGui::Separator();
-
-								bool bShouldTessellate{ Object3D->ShouldTessellate() };
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"테셀레이션 사용 여부");
-								ImGui::SameLine(ItemsOffsetX);
-								if (ImGui::Checkbox(u8"##테셀레이션 사용 여부", &bShouldTessellate))
-								{
-									Object3D->ShouldTessellate(bShouldTessellate);
-								}
-
-								CObject3D::SCBTessFactorData TessFactorData{ Object3D->GetTessFactorData() };
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"테셀레이션 변 계수");
-								ImGui::SameLine(ItemsOffsetX);
-								if (ImGui::SliderFloat(u8"##테셀레이션 변 계수", &TessFactorData.EdgeTessFactor, 0.0f, 64.0f, "%.2f"))
-								{
-									Object3D->SetTessFactorData(TessFactorData);
-								}
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"테셀레이션 내부 계수");
-								ImGui::SameLine(ItemsOffsetX);
-								if (ImGui::SliderFloat(u8"##테셀레이션 내부 계수", &TessFactorData.InsideTessFactor, 0.0f, 64.0f, "%.2f"))
-								{
-									Object3D->SetTessFactorData(TessFactorData);
-								}
-
-								CObject3D::SCBDisplacementData DisplacementData{ Object3D->GetDisplacementData() };
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"변위 계수");
-								ImGui::SameLine(ItemsOffsetX);
-								if (ImGui::SliderFloat(u8"##변위 계수", &DisplacementData.DisplacementFactor, 0.0f, 1.0f, "%.2f"))
-								{
-									Object3D->SetDisplacementData(DisplacementData);
-								}
-
-								// Material data
-								ImGui::Separator();
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"오브젝트 재질");
-
-								bool bIgnoreSceneMaterial{ Object3D->ShouldIgnoreSceneMaterial() };
-								if (ImGui::Checkbox(u8"장면 재질 무시하기", &bIgnoreSceneMaterial))
-								{
-									Object3D->ShouldIgnoreSceneMaterial(bIgnoreSceneMaterial);
-								}
-
-								if (Object3D->GetMaterialCount() > 0)
-								{
-									static CMaterialData* capturedMaterialData{};
-									static CMaterialTextureSet* capturedMaterialTextureSet{};
-									static ETextureType ecapturedTextureType{};
-									if (!ImGui::IsPopupOpen(u8"텍스처탐색기")) m_EditorGUIBools.bShowPopupMaterialTextureExplorer = false;
-
-									for (size_t iMaterial = 0; iMaterial < Object3D->GetMaterialCount(); ++iMaterial)
+									ImGui::SameLine(ItemsOffsetX);
+									EObjectRole ObjectRole{ m_PhysicsEngine.GetObjectRole(Object3D) };
+									switch (ObjectRole)
 									{
-										CMaterialData& MaterialData{ Object3D->GetModel().vMaterialData[iMaterial] };
-										CMaterialTextureSet* const MaterialTextureSet{ Object3D->GetMaterialTextureSet(iMaterial) };
-
-										ImGui::PushID((int)iMaterial);
-
-										if (DrawEditorGUIWindowPropertyEditor_MaterialData(MaterialData, MaterialTextureSet, ecapturedTextureType, ItemsOffsetX))
-										{
-											capturedMaterialData = &MaterialData;
-											capturedMaterialTextureSet = MaterialTextureSet;
-										}
-
-										ImGui::PopID();
+									case EObjectRole::None:
+										ImGui::Text(u8"미지정");
+										break;
+									case EObjectRole::Player:
+										ImGui::Text(u8"<플레이어>");
+										break;
+									case EObjectRole::Environment:
+										ImGui::Text(u8"<환경>");
+										break;
+									case EObjectRole::Monster:
+										ImGui::Text(u8"<몬스터>");
+										break;
+									default:
+										break;
 									}
 
-									DrawEditorGUIPopupMaterialTextureExplorer(capturedMaterialData, capturedMaterialTextureSet, ecapturedTextureType);
-									DrawEditorGUIPopupMaterialNameChanger(capturedMaterialData);
+									if (ImGui::Button(u8"플레이어로"))
+									{
+										m_PhysicsEngine.RegisterPlayerObject(Object3D);
+									}
+									ImGui::SameLine();
+									if (ImGui::Button(u8"환경으로"))
+									{
+										m_PhysicsEngine.RegisterEnvironmentObject(Object3D);
+									}
+									ImGui::SameLine();
+									if (ImGui::Button(u8"몬스터로"))
+									{
+										m_PhysicsEngine.RegisterMonsterObject(Object3D);
+									}
+
+									XMFLOAT3 LinearVelocity{};
+									XMStoreFloat3(&LinearVelocity, Object3D->ComponentPhysics.LinearVelocity);
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"속도");
+									ImGui::SameLine(ItemsOffsetX);
+									if (ImGui::DragFloat3(u8"##속도", &LinearVelocity.x, 0.1f))
+									{
+										Object3D->ComponentPhysics.LinearVelocity = XMLoadFloat3(&LinearVelocity);
+									}
+
+									ImGui::TreePop();
+								}
+
+								ImGui::Separator();
+
+								// Bounding volume
+								if (ImGui::TreeNode(u8"Bounding volume"))
+								{
+									static const char* const KTypes[2]{ u8"BoundingSphere", u8"AxisAlignedBoundingBox" };
+									static constexpr int KTypeCount{ ARRAYSIZE(KTypes) };
+									static int SelectedBoundingVolumeIndex{};
+
+									if (ImGui::TreeNodeEx(u8"Outer Bounding sphere", ImGuiTreeNodeFlags_DefaultOpen))
+									{
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Outer BS center");
+										ImGui::SameLine(ItemsOffsetX);
+										float BSCenterOffset[3]{
+											XMVectorGetX(Object3D->GetEditorBoundingSphereCenterOffset()),
+											XMVectorGetY(Object3D->GetEditorBoundingSphereCenterOffset()),
+											XMVectorGetZ(Object3D->GetEditorBoundingSphereCenterOffset()) };
+										if (ImGui::DragFloat3(u8"##Outer BS center", BSCenterOffset, KBSCenterOffsetDelta,
+											KBSCenterOffsetMinLimit, KBSCenterOffsetMaxLimit, "%.2f"))
+										{
+											Object3D->SetEditorBoundingSphereCenterOffset(XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f));
+										}
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Outer BS radius bias");
+										ImGui::SameLine(ItemsOffsetX);
+										float BSRadiusBias{ Object3D->GetEditorBoundingSphereRadiusBias() };
+										if (ImGui::DragFloat(u8"##Outer BS radius bias", &BSRadiusBias, KBSRadiusBiasDelta,
+											KBSRadiusBiasMinLimit, KBSRadiusBiasMaxLimit, "%.2f"))
+										{
+											Object3D->SetEditorBoundingSphereRadiusBias(BSRadiusBias);
+										}
+
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"Outer BS radius (auto)");
+										ImGui::SameLine(ItemsOffsetX);
+										float BSRadius{ Object3D->GetEditorBoundingSphereRadius() };
+										ImGui::DragFloat(u8"##Outer BS radius (auto)", &BSRadius, KBSRadiusDelta,
+											KBSRadiusMinLimit, KBSRadiusMaxLimit, "%.2f");
+
+										ImGui::TreePop();
+									}
+
+									if (ImGui::TreeNodeEx(u8"Inner bounding volumes", ImGuiTreeNodeFlags_DefaultOpen))
+									{
+										if (ImGui::Button(u8"추가"))
+										{
+											Object3D->ComponentPhysics.vBoundingVolumes.emplace_back();
+										}
+
+										ImGui::SameLine();
+										if (ImGui::Button(u8"제거") && Object3D->ComponentPhysics.vBoundingVolumes.size())
+										{
+											if (SelectedBoundingVolumeIndex != (int)(Object3D->ComponentPhysics.vBoundingVolumes.size() - 1))
+											{
+												swap(Object3D->ComponentPhysics.vBoundingVolumes[SelectedBoundingVolumeIndex],
+													Object3D->ComponentPhysics.vBoundingVolumes.back());
+												Object3D->ComponentPhysics.vBoundingVolumes.pop_back();
+											}
+											else
+											{
+												Object3D->ComponentPhysics.vBoundingVolumes.pop_back();
+											}
+										}
+
+										int BoundingVolumeIndex{};
+										for (const auto& BoundingVolume : Object3D->ComponentPhysics.vBoundingVolumes)
+										{
+											int Type{ (int)BoundingVolume.eType };
+
+											ImGuiTreeNodeFlags NodeFlags{ ImGuiTreeNodeFlags_Leaf };
+											if (SelectedBoundingVolumeIndex == BoundingVolumeIndex) NodeFlags |= ImGuiTreeNodeFlags_Selected;
+
+											if (ImGui::TreeNodeEx((to_string(BoundingVolumeIndex) + KTypes[Type]).c_str(), NodeFlags))
+											{
+												SelectedBoundingVolumeIndex = BoundingVolumeIndex;
+												ImGui::TreePop();
+											}
+											++BoundingVolumeIndex;
+										}
+
+										if (Object3D->ComponentPhysics.vBoundingVolumes.size())
+										{
+											if (ImGui::TreeNode(u8"세부사항 편집"))
+											{
+												auto& SelectedBoundingVolume{ Object3D->ComponentPhysics.vBoundingVolumes[SelectedBoundingVolumeIndex] };
+
+												ImGui::PushItemWidth(300);
+												{
+													ImGui::AlignTextToFramePadding();
+													ImGui::Text(u8"Bounding volume 유형");
+													if (ImGui::BeginCombo(u8"##Bounding volume 유형", KTypes[(int)SelectedBoundingVolume.eType]))
+													{
+														for (int iType = 0; iType < KTypeCount; ++iType)
+														{
+															if (ImGui::Selectable(KTypes[iType], ((int)SelectedBoundingVolume.eType == iType)))
+															{
+																SelectedBoundingVolume.eType = (EBoundingVolumeType)iType;
+															}
+														}
+														ImGui::EndCombo();
+													}
+
+													XMFLOAT3 Center{};
+													XMStoreFloat3(&Center, SelectedBoundingVolume.Center);
+													ImGui::AlignTextToFramePadding();
+													ImGui::Text(u8"중심");
+													if (ImGui::DragFloat3(u8"##Center", &Center.x, 0.1f))
+													{
+														SelectedBoundingVolume.Center = XMLoadFloat3(&Center);
+													}
+
+													if (SelectedBoundingVolume.eType == EBoundingVolumeType::BoundingSphere)
+													{
+														ImGui::AlignTextToFramePadding();
+														ImGui::Text(u8"반지름");
+														ImGui::DragFloat(u8"##Radius", &SelectedBoundingVolume.Data.BS.Radius, 0.1f);
+													}
+													else
+													{
+														ImGui::AlignTextToFramePadding();
+														ImGui::Text(u8"X 절반 크기");
+														ImGui::DragFloat(u8"##HalfSizeX", &SelectedBoundingVolume.Data.AABBHalfSizes.x, 0.1f);
+
+														ImGui::AlignTextToFramePadding();
+														ImGui::Text(u8"Y 절반 크기");
+														ImGui::DragFloat(u8"##HalfSizeY", &SelectedBoundingVolume.Data.AABBHalfSizes.y, 0.1f);
+
+														ImGui::AlignTextToFramePadding();
+														ImGui::Text(u8"Z 절반 크기");
+														ImGui::DragFloat(u8"##HalfSizeZ", &SelectedBoundingVolume.Data.AABBHalfSizes.z, 0.1f);
+													}
+												}
+												ImGui::PopItemWidth();
+
+												ImGui::TreePop();
+											}
+										}
+
+										ImGui::TreePop();
+									}
+
+									ImGui::TreePop();
+								}
+
+								ImGui::Separator();
+
+								// Tessellation data
+								if (ImGui::TreeNode(u8"테셀레이션"))
+								{
+									bool bShouldTessellate{ Object3D->ShouldTessellate() };
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"테셀레이션 사용 여부");
+									ImGui::SameLine(ItemsOffsetX);
+									if (ImGui::Checkbox(u8"##테셀레이션 사용 여부", &bShouldTessellate))
+									{
+										Object3D->ShouldTessellate(bShouldTessellate);
+									}
+
+									CObject3D::SCBTessFactorData TessFactorData{ Object3D->GetTessFactorData() };
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"테셀레이션 변 계수");
+									ImGui::SameLine(ItemsOffsetX);
+									if (ImGui::SliderFloat(u8"##테셀레이션 변 계수", &TessFactorData.EdgeTessFactor, 0.0f, 64.0f, "%.2f"))
+									{
+										Object3D->SetTessFactorData(TessFactorData);
+									}
+
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"테셀레이션 내부 계수");
+									ImGui::SameLine(ItemsOffsetX);
+									if (ImGui::SliderFloat(u8"##테셀레이션 내부 계수", &TessFactorData.InsideTessFactor, 0.0f, 64.0f, "%.2f"))
+									{
+										Object3D->SetTessFactorData(TessFactorData);
+									}
+
+									CObject3D::SCBDisplacementData DisplacementData{ Object3D->GetDisplacementData() };
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"변위 계수");
+									ImGui::SameLine(ItemsOffsetX);
+									if (ImGui::SliderFloat(u8"##변위 계수", &DisplacementData.DisplacementFactor, 0.0f, 1.0f, "%.2f"))
+									{
+										Object3D->SetDisplacementData(DisplacementData);
+									}
+
+									ImGui::TreePop();
+								}
+
+								ImGui::Separator();
+
+								// Material data
+								if (ImGui::TreeNode(u8"재질"))
+								{
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"오브젝트 재질");
+
+									bool bIgnoreSceneMaterial{ Object3D->ShouldIgnoreSceneMaterial() };
+									if (ImGui::Checkbox(u8"장면 재질 무시하기", &bIgnoreSceneMaterial))
+									{
+										Object3D->ShouldIgnoreSceneMaterial(bIgnoreSceneMaterial);
+									}
+
+									if (Object3D->GetMaterialCount() > 0)
+									{
+										static CMaterialData* capturedMaterialData{};
+										static CMaterialTextureSet* capturedMaterialTextureSet{};
+										static ETextureType ecapturedTextureType{};
+										if (!ImGui::IsPopupOpen(u8"텍스처탐색기")) m_EditorGUIBools.bShowPopupMaterialTextureExplorer = false;
+
+										for (size_t iMaterial = 0; iMaterial < Object3D->GetMaterialCount(); ++iMaterial)
+										{
+											CMaterialData& MaterialData{ Object3D->GetModel().vMaterialData[iMaterial] };
+											CMaterialTextureSet* const MaterialTextureSet{ Object3D->GetMaterialTextureSet(iMaterial) };
+
+											ImGui::PushID((int)iMaterial);
+
+											if (DrawEditorGUIWindowPropertyEditor_MaterialData(MaterialData, MaterialTextureSet, ecapturedTextureType, ItemsOffsetX))
+											{
+												capturedMaterialData = &MaterialData;
+												capturedMaterialTextureSet = MaterialTextureSet;
+											}
+
+											ImGui::PopID();
+										}
+
+										DrawEditorGUIPopupMaterialTextureExplorer(capturedMaterialData, capturedMaterialTextureSet, ecapturedTextureType);
+										DrawEditorGUIPopupMaterialNameChanger(capturedMaterialData);
+									}
+
+									ImGui::TreePop();
 								}
 
 								// Rigged model
@@ -5023,69 +5275,74 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								{
 									ImGui::Separator();
 
-									ImGui::AlignTextToFramePadding();
-									ImGui::Text(u8"애니메이션 개수:");
-									ImGui::SameLine(ItemsOffsetX);
-									int AnimationCount{ Object3D->GetAnimationCount() };
-									ImGui::Text(u8"%d", AnimationCount);
-
-									ImGui::AlignTextToFramePadding();
-									ImGui::Text(u8"애니메이션 ID");
-									ImGui::SameLine(ItemsOffsetX);
-									int AnimationID{ Object3D->GetAnimationID() };
-									if (ImGui::SliderInt(u8"##애니메이션 ID", &AnimationID, 0, Object3D->GetAnimationCount() - 1))
+									if (ImGui::TreeNode(u8"애니메이션"))
 									{
-										Object3D->SetAnimationID(AnimationID);
-									}
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"애니메이션 개수:");
+										ImGui::SameLine(ItemsOffsetX);
+										int AnimationCount{ Object3D->GetAnimationCount() };
+										ImGui::Text(u8"%d", AnimationCount);
 
-									ImGui::AlignTextToFramePadding();
-									ImGui::Text(u8"애니메이션 목록");
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"애니메이션 ID");
+										ImGui::SameLine(ItemsOffsetX);
+										int AnimationID{ Object3D->GetAnimationID() };
+										if (ImGui::SliderInt(u8"##애니메이션 ID", &AnimationID, 0, Object3D->GetAnimationCount() - 1))
+										{
+											Object3D->SetAnimationID(AnimationID);
+										}
 
-									if (ImGui::Button(u8"추가")) bShowAnimationAdder = true;
+										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"애니메이션 목록");
 
-									ImGui::SameLine();
+										if (ImGui::Button(u8"추가")) bShowAnimationAdder = true;
 
-									if (ImGui::Button(u8"수정")) bShowAnimationEditor = true;
-
-									if (Object3D->CanBakeAnimationTexture())
-									{
 										ImGui::SameLine();
 
-										if (ImGui::Button(u8"저장"))
+										if (ImGui::Button(u8"수정")) bShowAnimationEditor = true;
+
+										if (Object3D->CanBakeAnimationTexture())
+										{
+											ImGui::SameLine();
+
+											if (ImGui::Button(u8"저장"))
+											{
+												static CFileDialog FileDialog{ GetWorkingDirectory() };
+												if (FileDialog.SaveFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 저장", ".dds"))
+												{
+													Object3D->BakeAnimationTexture();
+													Object3D->SaveBakedAnimationTexture(FileDialog.GetFileName());
+												}
+											}
+										}
+
+										ImGui::SameLine();
+
+										if (ImGui::Button(u8"열기"))
 										{
 											static CFileDialog FileDialog{ GetWorkingDirectory() };
-											if (FileDialog.SaveFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 저장", ".dds"))
+											if (FileDialog.OpenFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 불러오기"))
 											{
-												Object3D->BakeAnimationTexture();
-												Object3D->SaveBakedAnimationTexture(FileDialog.GetFileName());
+												Object3D->LoadBakedAnimationTexture(FileDialog.GetFileName());
 											}
 										}
-									}
 
-									ImGui::SameLine();
-
-									if (ImGui::Button(u8"열기"))
-									{
-										static CFileDialog FileDialog{ GetWorkingDirectory() };
-										if (FileDialog.OpenFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 불러오기"))
+										if (ImGui::ListBoxHeader(u8"##애니메이션 목록", ImVec2(WindowWidth, 0)))
 										{
-											Object3D->LoadBakedAnimationTexture(FileDialog.GetFileName());
-										}
-									}
-
-									if (ImGui::ListBoxHeader(u8"##애니메이션 목록", ImVec2(WindowWidth, 0)))
-									{
-										for (int iAnimation = 0; iAnimation < AnimationCount; ++iAnimation)
-										{
-											ImGui::PushID(iAnimation);
-											if (ImGui::Selectable(Object3D->GetAnimationName(iAnimation).c_str(), (iAnimation == iSelectedAnimationID)))
+											for (int iAnimation = 0; iAnimation < AnimationCount; ++iAnimation)
 											{
-												iSelectedAnimationID = iAnimation;
+												ImGui::PushID(iAnimation);
+												if (ImGui::Selectable(Object3D->GetAnimationName(iAnimation).c_str(), (iAnimation == iSelectedAnimationID)))
+												{
+													iSelectedAnimationID = iAnimation;
+												}
+												ImGui::PopID();
 											}
-											ImGui::PopID();
+
+											ImGui::ListBoxFooter();
 										}
 
-										ImGui::ListBoxFooter();
+										ImGui::TreePop();
 									}
 								}
 							}
@@ -6167,12 +6424,12 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						}
 
 						ImGui::AlignTextToFramePadding();
-						ImGui::Text(u8"Editor BS 표시");
+						ImGui::Text(u8"Bounding Volume 표시");
 						ImGui::SameLine(ItemsOffsetX);
-						bool bDrawBoundingSphere{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingSphere) };
-						if (ImGui::Checkbox(u8"##Editor BS 표시", &bDrawBoundingSphere))
+						bool bDrawBoundingVolumes{ EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingVolumes) };
+						if (ImGui::Checkbox(u8"##Bounding Volume 표시", &bDrawBoundingVolumes))
 						{
-							ToggleGameRenderingFlags(EFlagsRendering::DrawBoundingSphere);
+							ToggleGameRenderingFlags(EFlagsRendering::DrawBoundingVolumes);
 						}
 
 

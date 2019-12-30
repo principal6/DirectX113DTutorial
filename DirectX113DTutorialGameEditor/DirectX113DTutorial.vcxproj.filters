@@ -22,6 +22,9 @@
     <Filter Include="DirectXTex">
       <UniqueIdentifier>{63521b96-aa1f-438e-b769-134dd7ee43a0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Physics">
+      <UniqueIdentifier>{766d5bea-5a79-4115-a72b-99e437be499f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\Shader.cpp">
@@ -105,6 +108,9 @@
     </ClCompile>
     <ClCompile Include="Core\Gizmo3D.cpp">
       <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Physics\PhysicsEngine.cpp">
+      <Filter>Physics</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -491,6 +497,9 @@
     </ClInclude>
     <ClInclude Include="Core\Gizmo3D.h">
       <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Physics\PhysicsEngine.h">
+      <Filter>Physics</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

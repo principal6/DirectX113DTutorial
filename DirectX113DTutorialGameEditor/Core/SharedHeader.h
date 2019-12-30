@@ -83,28 +83,25 @@ enum class EBoundingVolumeType
 {
 	BoundingSphere,
 	AxisAlignedBoundingBox,
-	CollisionMesh // Convex polygon
 };
 
-struct SAxisAlignedBoundingBox
+struct SBoundingSphereData
 {
-	XMVECTOR	Center{};
-	float		HalfSizeX{};
-	float		HalfSizeY{};
-	float		HalfSizeZ{};
+	float Radius{ KBoundingSphereDefaultRadius };
+	float RadiusBias{ KBoundingSphereDefaultRadius };
 };
 
-struct SBoundingSphere
+struct alignas(16) SBoundingVolume
 {
-	float		Radius{ KBoundingSphereDefaultRadius };
-	float		RadiusBias{ KBoundingSphereDefaultRadius };
-	XMVECTOR	CenterOffset{};
-};
+	union UData
+	{
+		XMFLOAT3			AABBHalfSizes{};
+		SBoundingSphereData	BS;
+	};
 
-struct SCollisionMesh
-{
-	std::vector<SVertex3D>	vVertices{};
-	std::vector<STriangle>	vTriangles{};
+	EBoundingVolumeType	eType{ EBoundingVolumeType::BoundingSphere };
+	UData				Data{};
+	XMVECTOR			Center{};
 };
 
 struct SObject3DInstanceCPUData
@@ -117,7 +114,7 @@ struct SObject3DInstanceCPUData
 	float					Pitch{};
 	float					Yaw{};
 	float					Roll{};
-	SBoundingSphere			EditorBoundingSphere{};
+	SBoundingVolume			EditorBoundingSphere{};
 };
 
 struct SObject3DInstanceGPUData

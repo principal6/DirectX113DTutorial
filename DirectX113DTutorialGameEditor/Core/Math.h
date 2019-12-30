@@ -30,6 +30,8 @@ static bool IntersectSphereSphere(const XMVECTOR& CenterA, float RadiusA, const 
 static bool IntersectSphereAABB(const XMVECTOR& SphereCenter, float SphereRadius, const XMVECTOR& AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ);
 static bool IntersectAABBAABB(const XMVECTOR& ACenter, float AHalfSizeX, float AHalfSizeY, float AHalfSizeZ,
 	const XMVECTOR& BCenter, float BHalfSizeX, float BHalfSizeY, float BHalfSizeZ);
+static XMVECTOR GetClosestPointSphere(const XMVECTOR& Point, const XMVECTOR SphereCenter, float SphereRadius);
+static XMVECTOR GetClosestPointAABB(const XMVECTOR& Point, const XMVECTOR AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ);
 
 static float Lerp(float a, float b, float t)
 {
@@ -355,7 +357,8 @@ static bool IntersectSphereSphere(const XMVECTOR& CenterA, float RadiusA, const 
 {
 	auto Difference{ CenterA - CenterB };
 	float DistanceSquare{ XMVectorGetX(XMVector3LengthSq(Difference)) };
-	if (DistanceSquare <= RadiusA * RadiusA + RadiusB * RadiusB)
+	float RadiusSum{ RadiusA + RadiusB };
+	if (DistanceSquare <= RadiusSum * RadiusSum)
 	{
 		return true;
 	}
@@ -380,10 +383,76 @@ static bool IntersectSphereAABB(const XMVECTOR& SphereCenter, float SphereRadius
 static bool IntersectAABBAABB(const XMVECTOR& ACenter, float AHalfSizeX, float AHalfSizeY, float AHalfSizeZ, 
 	const XMVECTOR& BCenter, float BHalfSizeX, float BHalfSizeY, float BHalfSizeZ)
 {
-	XMVECTOR Difference{ ACenter - BCenter };
+	XMVECTOR DifferenceAbs{ XMVectorAbs(ACenter - BCenter) };
 
 	XMVECTOR AHalfSize{ XMVectorSet(AHalfSizeX, AHalfSizeY, AHalfSizeZ, 0) };
 	XMVECTOR BHalfSize{ XMVectorSet(BHalfSizeX, BHalfSizeY, BHalfSizeZ, 0) };
 
-	return XMVector3LessOrEqual(Difference, AHalfSize + BHalfSize);
+	return XMVector3LessOrEqual(DifferenceAbs, AHalfSize + BHalfSize);
+}
+
+static XMVECTOR GetClosestPointSphere(const XMVECTOR& Point, const XMVECTOR SphereCenter, float SphereRadius)
+{
+	XMVECTOR CenterToPoint{ Point - SphereCenter };
+	return SphereCenter + XMVector3Normalize(CenterToPoint) * SphereRadius;
+
+	/*float LengthSquare{ XMVectorGetX(XMVector3LengthSq(CenterToPoint)) };
+	if (LengthSquare >= SphereRadius * SphereRadius)
+	{
+		return SphereCenter + XMVector3Normalize(CenterToPoint) * SphereRadius;
+	}
+	else
+	{
+		return Point;
+	}*/
+}
+
+static XMVECTOR GetClosestPointAABB(const XMVECTOR& Point, const XMVECTOR AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ)
+{
+	const float CenterX{ XMVectorGetX(AABBCenter) };
+	const float CenterY{ XMVectorGetY(AABBCenter) };
+	const float CenterZ{ XMVectorGetZ(AABBCenter) };
+
+	const float XMax{ CenterX + HalfSizeX };
+	const float XMin{ CenterX - HalfSizeX };
+	const float YMax{ CenterY + HalfSizeY };
+	const float YMin{ CenterY - HalfSizeY };
+	const float ZMax{ CenterZ + HalfSizeZ };
+	const float ZMin{ CenterZ - HalfSizeZ };
+
+	float PointX{ XMVectorGetX(Point) };
+	float PointY{ XMVectorGetY(Point) };
+	float PointZ{ XMVectorGetZ(Point) };
+	PointX = min(max(PointX, XMin), XMax);
+	PointY = min(max(PointY, YMin), YMax);
+	PointZ = min(max(PointZ, ZMin), ZMax);
+	
+	return XMVectorSet(PointX, PointY, PointZ, 1);
+}
+
+static XMVECTOR GetClosestFaceNormalAABB(const XMVECTOR& ClosestPoint, const XMVECTOR AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ)
+{
+	const float CenterX{ XMVectorGetX(AABBCenter) };
+	const float CenterY{ XMVectorGetY(AABBCenter) };
+	const float CenterZ{ XMVectorGetZ(AABBCenter) };
+
+	const float XMax{ CenterX + HalfSizeX };
+	const float XMin{ CenterX - HalfSizeX };
+	const float YMax{ CenterY + HalfSizeY };
+	const float YMin{ CenterY - HalfSizeY };
+	const float ZMax{ CenterZ + HalfSizeZ };
+	const float ZMin{ CenterZ - HalfSizeZ };
+
+	float ClosestPointX{ XMVectorGetX(ClosestPoint) };
+	float ClosestPointY{ XMVectorGetY(ClosestPoint) };
+	float ClosestPointZ{ XMVectorGetZ(ClosestPoint) };
+
+	if (ClosestPointX == XMax) return XMVectorSet(+1, 0, 0, 0);
+	if (ClosestPointX == XMin) return XMVectorSet(-1, 0, 0, 0);
+	if (ClosestPointY == YMax) return XMVectorSet(0, +1, 0, 0);
+	if (ClosestPointY == YMin) return XMVectorSet(0, -1, 0, 0);
+	if (ClosestPointZ == ZMax) return XMVectorSet(0, 0, +1, 0);
+	if (ClosestPointZ == ZMin) return XMVectorSet(0, 0, -1, 0);
+
+	return XMVectorSet(0, 0, 0, 0);
 }

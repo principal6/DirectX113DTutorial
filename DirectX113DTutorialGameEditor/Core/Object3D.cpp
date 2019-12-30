@@ -242,8 +242,8 @@ void CObject3D::CalculateEditorBoundingSphereData()
 		}
 	}
 
-	EditorBoundingSphere.RadiusBias = m_Model->EditorBoundingSphereData.RadiusBias = sqrt(MaxLengthSqaure);
-	EditorBoundingSphere.CenterOffset = m_Model->EditorBoundingSphereData.CenterOffset = VertexCenter;
+	EditorBoundingSphere.Data.BS.RadiusBias = m_Model->EditorBoundingSphereData.Data.BS.RadiusBias = sqrt(MaxLengthSqaure);
+	EditorBoundingSphere.Center = m_Model->EditorBoundingSphereData.Center = VertexCenter;
 }
 
 void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
@@ -306,8 +306,26 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
 	{
 		Object3DBinary.ReadBool(ComponentPhysics.bIsPickable);
 
-		Object3DBinary.ReadXMVECTOR(EditorBoundingSphere.CenterOffset);
-		Object3DBinary.ReadFloat(EditorBoundingSphere.RadiusBias);
+		Object3DBinary.ReadXMVECTOR(EditorBoundingSphere.Center);
+		Object3DBinary.ReadFloat(EditorBoundingSphere.Data.BS.RadiusBias);
+
+		if (Version >= 0x10002)
+		{
+			size_t BoundingVolumeCount{ Object3DBinary.ReadUint32() };
+			ComponentPhysics.vBoundingVolumes.resize(BoundingVolumeCount);
+
+			for (auto& BoundingVolume : ComponentPhysics.vBoundingVolumes)
+			{
+				Object3DBinary.ReadXMVECTOR(BoundingVolume.Center);
+
+				BoundingVolume.eType = (EBoundingVolumeType)Object3DBinary.ReadUint8();
+
+				// @important: union data
+				Object3DBinary.ReadFloat(BoundingVolume.Data.AABBHalfSizes.x); // BoundingVolume.Data.BS.Radius;
+				Object3DBinary.ReadFloat(BoundingVolume.Data.AABBHalfSizes.y); // BoundingVolume.Data.BS.RadiusBias;
+				Object3DBinary.ReadFloat(BoundingVolume.Data.AABBHalfSizes.z);
+			}
+		}
 	}
 
 	// ### ComponentRender ###
@@ -334,8 +352,8 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
 			Object3DBinary.ReadFloat(InstanceCPUData.Roll);
 			Object3DBinary.ReadXMVECTOR(InstanceCPUData.Scaling);
 
-			Object3DBinary.ReadXMVECTOR(InstanceCPUData.EditorBoundingSphere.CenterOffset);
-			Object3DBinary.ReadFloat(InstanceCPUData.EditorBoundingSphere.RadiusBias);
+			Object3DBinary.ReadXMVECTOR(InstanceCPUData.EditorBoundingSphere.Center);
+			Object3DBinary.ReadFloat(InstanceCPUData.EditorBoundingSphere.Data.BS.RadiusBias);
 		}
 
 		CreateInstances(vInstanceCPUData);
@@ -353,7 +371,7 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 {
 	static constexpr uint16_t KVersionMajor{ 0x0001 };
 	static constexpr uint8_t KVersionMinor{ 0x00 };
-	static constexpr uint8_t KVersionSubminor{ 0x01 };
+	static constexpr uint8_t KVersionSubminor{ 0x02 };
 	uint32_t Version{ (uint32_t)(KVersionSubminor | (KVersionMinor << 8) | (KVersionMajor << 16)) };
 
 	m_OB3DFileName = OB3DFileName;
@@ -416,8 +434,25 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 	{
 		Object3DBinary.WriteBool(ComponentPhysics.bIsPickable);
 		
-		Object3DBinary.WriteXMVECTOR(EditorBoundingSphere.CenterOffset);
-		Object3DBinary.WriteFloat(EditorBoundingSphere.RadiusBias);
+		Object3DBinary.WriteXMVECTOR(EditorBoundingSphere.Center);
+		Object3DBinary.WriteFloat(EditorBoundingSphere.Data.BS.RadiusBias);
+
+		if (Version >= 0x10002)
+		{
+			Object3DBinary.WriteUint32(ComponentPhysics.vBoundingVolumes.size());
+
+			for (const auto& BoundingVolume : ComponentPhysics.vBoundingVolumes)
+			{
+				Object3DBinary.WriteXMVECTOR(BoundingVolume.Center);
+
+				Object3DBinary.WriteUint8((uint8_t)BoundingVolume.eType);
+				
+				// @important: union data
+				Object3DBinary.WriteFloat(BoundingVolume.Data.AABBHalfSizes.x); // BoundingVolume.Data.BS.Radius;
+				Object3DBinary.WriteFloat(BoundingVolume.Data.AABBHalfSizes.y); // BoundingVolume.Data.BS.RadiusBias;
+				Object3DBinary.WriteFloat(BoundingVolume.Data.AABBHalfSizes.z);
+			}
+		}
 	}
 
 	// ### ComponentRender ###
@@ -440,8 +475,8 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 			Object3DBinary.WriteFloat(InstanceCPUData.Roll);
 			Object3DBinary.WriteXMVECTOR(InstanceCPUData.Scaling);
 
-			Object3DBinary.WriteXMVECTOR(InstanceCPUData.EditorBoundingSphere.CenterOffset);
-			Object3DBinary.WriteFloat(InstanceCPUData.EditorBoundingSphere.RadiusBias);
+			Object3DBinary.WriteXMVECTOR(InstanceCPUData.EditorBoundingSphere.Center);
+			Object3DBinary.WriteFloat(InstanceCPUData.EditorBoundingSphere.Data.BS.RadiusBias);
 		}
 	}
 
@@ -741,7 +776,7 @@ void CObject3D::CreateInstances(const std::vector<SObject3DInstanceCPUData>& vIn
 		float ScalingY{ XMVectorGetY(InstanceCPUData.Scaling) };
 		float ScalingZ{ XMVectorGetZ(InstanceCPUData.Scaling) };
 		float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
-		InstanceCPUData.EditorBoundingSphere.Radius = InstanceCPUData.EditorBoundingSphere.RadiusBias * MaxScaling; // @important
+		InstanceCPUData.EditorBoundingSphere.Data.BS.Radius = InstanceCPUData.EditorBoundingSphere.Data.BS.RadiusBias * MaxScaling; // @important
 
 		m_mapInstanceNameToIndex[InstanceCPUData.Name] = iInstance;
 		++iInstance;
@@ -1021,10 +1056,10 @@ void CObject3D::UpdateWorldMatrix()
 	float ScalingY{ XMVectorGetY(ComponentTransform.Scaling) };
 	float ScalingZ{ XMVectorGetZ(ComponentTransform.Scaling) };
 	float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
-	EditorBoundingSphere.Radius = EditorBoundingSphere.RadiusBias * MaxScaling;
+	EditorBoundingSphere.Data.BS.Radius = EditorBoundingSphere.Data.BS.RadiusBias * MaxScaling;
 
-	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.CenterOffset) };
-	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.CenterOffset) };
+	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.Center) };
+	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.Center) };
 
 	ComponentTransform.MatrixWorld = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
 }
@@ -1056,10 +1091,10 @@ void CObject3D::UpdateInstanceWorldMatrix(const std::string& InstanceName)
 	float ScalingY{ XMVectorGetY(InstanceCPUData.Scaling) };
 	float ScalingZ{ XMVectorGetZ(InstanceCPUData.Scaling) };
 	float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
-	InstanceCPUData.EditorBoundingSphere.Radius = EditorBoundingSphere.RadiusBias * MaxScaling;
+	InstanceCPUData.EditorBoundingSphere.Data.BS.Radius = EditorBoundingSphere.Data.BS.RadiusBias * MaxScaling;
 
-	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.CenterOffset) };
-	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.CenterOffset) };
+	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.Center) };
+	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.Center) };
 
 	// Update GPU data
 	InstanceGPUData.WorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
@@ -1097,8 +1132,8 @@ void CObject3D::UpdateAllInstancesWorldMatrix()
 			m_vInstanceCPUData[iInstance].Yaw, m_vInstanceCPUData[iInstance].Roll) };
 		XMMATRIX Scaling{ XMMatrixScalingFromVector(m_vInstanceCPUData[iInstance].Scaling) };
 
-		XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.CenterOffset) };
-		XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.CenterOffset) };
+		XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.Center) };
+		XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.Center) };
 
 		// Update GPU data
 		m_vInstanceGPUData[iInstance].WorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
@@ -1252,29 +1287,34 @@ CMaterialTextureSet* CObject3D::GetMaterialTextureSet(size_t iMaterial)
 
 void CObject3D::SetEditorBoundingSphereCenterOffset(const XMVECTOR& Center)
 {
-	EditorBoundingSphere.CenterOffset = Center;
-	if (m_Model) m_Model->EditorBoundingSphereData.CenterOffset = EditorBoundingSphere.CenterOffset;
+	EditorBoundingSphere.Center = Center;
+	if (m_Model) m_Model->EditorBoundingSphereData.Center = EditorBoundingSphere.Center;
 }
 
 void CObject3D::SetEditorBoundingSphereRadiusBias(float Radius)
 {
-	EditorBoundingSphere.RadiusBias = Radius;
-	if (m_Model) m_Model->EditorBoundingSphereData.RadiusBias = EditorBoundingSphere.RadiusBias;
+	EditorBoundingSphere.Data.BS.RadiusBias = Radius;
+	if (m_Model) m_Model->EditorBoundingSphereData.Data.BS.RadiusBias = EditorBoundingSphere.Data.BS.RadiusBias;
 }
 
 const XMVECTOR& CObject3D::GetEditorBoundingSphereCenterOffset() const
 {
-	return EditorBoundingSphere.CenterOffset;
+	return EditorBoundingSphere.Center;
 }
 
 float CObject3D::GetEditorBoundingSphereRadius() const
 {
-	return EditorBoundingSphere.Radius;
+	return EditorBoundingSphere.Data.BS.Radius;
 }
 
 float CObject3D::GetEditorBoundingSphereRadiusBias() const
 {
-	return EditorBoundingSphere.RadiusBias;
+	return EditorBoundingSphere.Data.BS.RadiusBias;
+}
+
+const SBoundingVolume& CObject3D::GetEditorBoundingSphere() const
+{
+	return EditorBoundingSphere;
 }
 
 void CObject3D::Animate(float DeltaTime)

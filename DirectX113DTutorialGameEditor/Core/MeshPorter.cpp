@@ -401,10 +401,10 @@ void CMeshPorter::ReadMESHData(SMESHData& MESHData)
 	if (Version >= 0x10001)
 	{
 		// # 16B (XMVECTOR) Bounding sphere center offset
-		m_BinaryData->ReadXMVECTOR(MESHData.EditorBoundingSphereData.CenterOffset);
+		m_BinaryData->ReadXMVECTOR(MESHData.EditorBoundingSphereData.Center);
 
 		// # 4B (float) Bounding sphere radius bias
-		m_BinaryData->ReadFloat(MESHData.EditorBoundingSphereData.RadiusBias);
+		m_BinaryData->ReadFloat(MESHData.EditorBoundingSphereData.Data.BS.RadiusBias);
 	}
 
 	// ##### Animation data #####
@@ -731,10 +731,10 @@ void CMeshPorter::WriteMESHData(const SMESHData& MESHData)
 	if (Version >= 0x10001)
 	{
 		// # 16B (XMVECTOR) Bounding sphere center offset
-		m_BinaryData->WriteXMVECTOR(MESHData.EditorBoundingSphereData.CenterOffset);
+		m_BinaryData->WriteXMVECTOR(MESHData.EditorBoundingSphereData.Center);
 
 		// # 4B (float) Bounding sphere radius bias
-		m_BinaryData->WriteFloat(MESHData.EditorBoundingSphereData.RadiusBias);
+		m_BinaryData->WriteFloat(MESHData.EditorBoundingSphereData.Data.BS.RadiusBias);
 	}
 
 	// ##### Animation data #####
