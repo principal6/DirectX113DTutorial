@@ -760,6 +760,7 @@ private:
 	CPhysicsEngine							m_PhysicsEngine{};
 	std::unique_ptr<CObject3D>				m_AClosestPointRep{};
 	std::unique_ptr<CObject3D>				m_BClosestPointRep{};
+	std::unique_ptr<CObject3D>				m_PickedPointRep{};
 
 // Shadow map
 private:
@@ -813,6 +814,7 @@ private:
 	XMVECTOR								m_PickedTriangleV0{};
 	XMVECTOR								m_PickedTriangleV1{};
 	XMVECTOR								m_PickedTriangleV2{};
+	XMVECTOR								m_PickedPoint{};
 
 	// Multiple selection
 	bool									m_bIsMultipleSelectionChanging{ false };

@@ -150,6 +150,13 @@ void CGame::InitializeEditorAssets()
 		m_BClosestPointRep->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.1f, 0.1f, 0);
 	}
 
+	if (!m_PickedPointRep)
+	{
+		m_PickedPointRep = make_unique<CObject3D>("PickedPoint", m_Device.Get(), m_DeviceContext.Get());
+		m_PickedPointRep->Create(GenerateSphere(16, XMVectorSet(0, 1, 1, 1)));
+		m_PickedPointRep->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.1f, 0.1f, 0);
+	}
+
 	if (!m_LightArray[0])
 	{
 		m_LightArray[0] = make_unique<CPointLight>(m_Device.Get(), m_DeviceContext.Get());
@@ -2966,6 +2973,8 @@ bool CGame::PickObject3DTriangle(bool bUseAdditiveSelection)
 		}
 		if (Closest)
 		{
+			m_PickedPoint = m_PickingRayWorldSpaceOrigin + m_PickingRayWorldSpaceDirection * TCmp;
+
 			if (Closest->InstanceName.empty())
 			{
 				SelectObject(SSelectionData(EObjectType::Object3D, Closest->PtrObject3D->GetName(), Closest->PtrObject3D),
@@ -3403,6 +3412,11 @@ void CGame::Update()
 			PickBoundingSphere();
 			PickObject3DTriangle();
 
+			if (IsAnythingSelected())
+			{
+
+			}
+
 			DeselectAll();
 		}
 	}
@@ -3679,11 +3693,17 @@ void CGame::Draw()
 				m_BClosestPointRep->ComponentTransform.Translation = m_PhysicsEngine.GetStaticClosestPoint();
 				m_BClosestPointRep->UpdateWorldMatrix();
 
+				m_PickedPointRep->ComponentTransform.Translation = m_PickedPoint;
+				m_PickedPointRep->UpdateWorldMatrix();
+
 				UpdateCBSpace(m_AClosestPointRep->ComponentTransform.MatrixWorld);
 				m_AClosestPointRep->Draw();
 
 				UpdateCBSpace(m_BClosestPointRep->ComponentTransform.MatrixWorld);
 				m_BClosestPointRep->Draw();
+
+				UpdateCBSpace(m_PickedPointRep->ComponentTransform.MatrixWorld);
+				m_PickedPointRep->Draw();
 			}
 		}
 
