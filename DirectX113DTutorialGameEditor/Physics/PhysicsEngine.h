@@ -22,8 +22,10 @@ public:
 	void ClearData();
 
 public:
-	void SetWorldFloorHeight(float Value);
+	void SetWorldFloorHeight(float WorldFloorHeight);
 	float GetWorldFloorHeight() const;
+
+	void SetGravity(const XMVECTOR& Gravity);
 
 public:
 	void RegisterObject(CObject3D* const Object3D, EObjectRole eObjectRole);
@@ -64,6 +66,9 @@ public:
 	const XMVECTOR& GetStaticClosestPoint() const;
 
 private:
+	static constexpr XMVECTOR KDefaultGravity{ 0, -10.0f, 0, 0 };
+
+private:
 	CObject3D* m_PlayerObject{};
 
 private:
@@ -82,6 +87,7 @@ private:
 
 private:
 	float m_WorldFloorHeight{};
+	XMVECTOR m_Gravity{ KDefaultGravity };
 
 private:
 	bool m_bShouldApplyGravity{};

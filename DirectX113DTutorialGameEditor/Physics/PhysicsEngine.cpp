@@ -23,14 +23,19 @@ void CPhysicsEngine::ClearData()
 	m_WorldFloorHeight = 0;
 }
 
-void CPhysicsEngine::SetWorldFloorHeight(float Value)
+void CPhysicsEngine::SetWorldFloorHeight(float WorldFloorHeight)
 {
-	m_WorldFloorHeight = Value;
+	m_WorldFloorHeight = WorldFloorHeight;
 }
 
 float CPhysicsEngine::GetWorldFloorHeight() const
 {
 	return m_WorldFloorHeight;
+}
+
+void CPhysicsEngine::SetGravity(const XMVECTOR& Gravity)
+{
+	m_Gravity = Gravity;
 }
 
 void CPhysicsEngine::RegisterObject(CObject3D* const Object3D, EObjectRole eObjectRole)
@@ -141,7 +146,7 @@ void CPhysicsEngine::Update(float DeltaTime)
 	{
 		if (m_bShouldApplyGravity)
 		{
-			m_PlayerObject->ComponentPhysics.LinearAcceleration += XMVectorSet(0, -10.0f, 0, 0); // Gravity
+			m_PlayerObject->ComponentPhysics.LinearAcceleration += m_Gravity; // Gravity
 		}
 
 		m_PlayerObject->ComponentPhysics.LinearVelocity += m_PlayerObject->ComponentPhysics.LinearAcceleration * DeltaTime;

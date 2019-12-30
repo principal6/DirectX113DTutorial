@@ -3399,7 +3399,11 @@ void CGame::Update()
 		if (m_bLeftButtonUpOnce)
 		{
 			CastPickingRay();
-			
+
+			PickBoundingSphere();
+			PickObject3DTriangle();
+
+			DeselectAll();
 		}
 	}
 
