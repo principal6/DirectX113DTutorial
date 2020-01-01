@@ -25,6 +25,9 @@
     <Filter Include="Physics">
       <UniqueIdentifier>{766d5bea-5a79-4115-a72b-99e437be499f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="AI">
+      <UniqueIdentifier>{e1c24dbe-3bae-47c0-86a9-17091305398f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\Shader.cpp">
@@ -111,6 +114,9 @@
     </ClCompile>
     <ClCompile Include="Physics\PhysicsEngine.cpp">
       <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="AI\Intelligence.cpp">
+      <Filter>AI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -500,6 +506,9 @@
     </ClInclude>
     <ClInclude Include="Physics\PhysicsEngine.h">
       <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="AI\Intelligence.h">
+      <Filter>AI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

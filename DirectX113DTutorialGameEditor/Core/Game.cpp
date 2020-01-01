@@ -26,6 +26,8 @@ void CGame::CreateWin32(WNDPROC const WndProc, const std::string& WindowName, bo
 
 	InitializeDirectX(bWindowed);
 
+	InitializeGameData();
+
 	InitializeEditorAssets();
 
 	InitializeImGui("Asset\\D2Coding.ttf", 15.0f);
@@ -110,6 +112,54 @@ void CGame::InitializeDirectX(bool bWindowed)
 	m_CommonStates = make_unique<CommonStates>(m_Device.Get());
 }
 
+void CGame::InitializeGameData()
+{
+	if (!m_Intelligence)
+	{
+		m_Intelligence = make_unique<CIntelligence>(m_Device.Get(), m_DeviceContext.Get());
+	}
+
+	if (!m_LightArray[0])
+	{
+		m_LightArray[0] = make_unique<CPointLight>(m_Device.Get(), m_DeviceContext.Get());
+		m_LightArray[1] = make_unique<CSpotLight>(m_Device.Get(), m_DeviceContext.Get());
+	}
+
+	if (!m_CascadedShadowMap)
+	{
+		XMFLOAT2 Size{ 128, 128 };
+		XMFLOAT2 PositionBase{ 0, m_WindowSize.y - Size.y };
+		vector<CCascadedShadowMap::SLODData> vLODData
+		{
+			CCascadedShadowMap::SLODData(0,  8.0f, 1, XMFLOAT2(PositionBase.x + Size.x * 0.0f, PositionBase.y), Size),
+			CCascadedShadowMap::SLODData(1, 16.0f, 2, XMFLOAT2(PositionBase.x + Size.x * 1.0f, PositionBase.y), Size),
+			CCascadedShadowMap::SLODData(2, 24.0f, 8, XMFLOAT2(PositionBase.x + Size.x * 2.0f, PositionBase.y), Size),
+			CCascadedShadowMap::SLODData(3, 50.0f, 32, XMFLOAT2(PositionBase.x + Size.x * 3.0f, PositionBase.y), Size)
+		};
+
+		m_CascadedShadowMap = make_unique<CCascadedShadowMap>(m_Device.Get(), m_DeviceContext.Get());
+		m_CascadedShadowMap->Create(vLODData, XMFLOAT2(1024, 1024));
+	}
+
+	if (!m_DirectionalLightFSQ)
+	{
+		m_DirectionalLightFSQ = make_unique<CFullScreenQuad>(m_Device.Get(), m_DeviceContext.Get());
+		m_DirectionalLightFSQ->Create2DDrawer(CFullScreenQuad::EPixelShaderPass::AllChannels);
+		m_DirectionalLightFSQ->OverridePixelShader(m_PSDirectionalLight.get());
+		//m_DirectionalLightFSQ->OverridePixelShader(m_PSDirectionalLight_NonIBL.get());
+	}
+
+	if (!m_SceneMaterial)
+	{
+		m_SceneMaterial = make_unique<CMaterialData>("SceneMaterial");
+	}
+
+	if (!m_SceneMaterialTextureSet)
+	{
+		m_SceneMaterialTextureSet = make_unique<CMaterialTextureSet>(m_Device.Get(), m_DeviceContext.Get());
+	}
+}
+
 void CGame::InitializeEditorAssets()
 {
 	if (!m_Gizmo3D)
@@ -155,12 +205,6 @@ void CGame::InitializeEditorAssets()
 		m_PickedPointRep = make_unique<CObject3D>("PickedPoint", m_Device.Get(), m_DeviceContext.Get());
 		m_PickedPointRep->Create(GenerateSphere(16, XMVectorSet(0, 1, 1, 1)));
 		m_PickedPointRep->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.1f, 0.1f, 0);
-	}
-
-	if (!m_LightArray[0])
-	{
-		m_LightArray[0] = make_unique<CPointLight>(m_Device.Get(), m_DeviceContext.Get());
-		m_LightArray[1] = make_unique<CSpotLight>(m_Device.Get(), m_DeviceContext.Get());
 	}
 
 	if (!m_LightRep)
@@ -255,36 +299,12 @@ void CGame::InitializeEditorAssets()
 		m_Grid = make_unique<CObject3DLine>("Grid", m_Device.Get(), m_DeviceContext.Get());
 		m_Grid->Create(Generate3DGrid(0));
 	}
-	
-	if (!m_CascadedShadowMap)
-	{
-		XMFLOAT2 Size{ 128, 128 };
-		XMFLOAT2 PositionBase{ 0, m_WindowSize.y - Size.y };
-		vector<CCascadedShadowMap::SLODData> vLODData
-		{
-			CCascadedShadowMap::SLODData(0,  8.0f, 1, XMFLOAT2(PositionBase.x + Size.x * 0.0f, PositionBase.y), Size),
-			CCascadedShadowMap::SLODData(1, 16.0f, 2, XMFLOAT2(PositionBase.x + Size.x * 1.0f, PositionBase.y), Size),
-			CCascadedShadowMap::SLODData(2, 24.0f, 8, XMFLOAT2(PositionBase.x + Size.x * 2.0f, PositionBase.y), Size),
-			CCascadedShadowMap::SLODData(3, 50.0f, 32, XMFLOAT2(PositionBase.x + Size.x * 3.0f, PositionBase.y), Size)
-		};
-
-		m_CascadedShadowMap = make_unique<CCascadedShadowMap>(m_Device.Get(), m_DeviceContext.Get());
-		m_CascadedShadowMap->Create(vLODData, XMFLOAT2(1024, 1024));
-	}
 
 	if (!m_EdgeDetectorFSQ)
 	{
 		m_EdgeDetectorFSQ = make_unique<CFullScreenQuad>(m_Device.Get(), m_DeviceContext.Get());
 		m_EdgeDetectorFSQ->Create2DDrawer(CFullScreenQuad::EPixelShaderPass::OpaqueSRV);
 		m_EdgeDetectorFSQ->OverridePixelShader(m_PSEdgeDetector.get());
-	}
-
-	if (!m_DirectionalLightFSQ)
-	{
-		m_DirectionalLightFSQ = make_unique<CFullScreenQuad>(m_Device.Get(), m_DeviceContext.Get());
-		m_DirectionalLightFSQ->Create2DDrawer(CFullScreenQuad::EPixelShaderPass::AllChannels);
-		m_DirectionalLightFSQ->OverridePixelShader(m_PSDirectionalLight.get());
-		//m_DirectionalLightFSQ->OverridePixelShader(m_PSDirectionalLight_NonIBL.get());
 	}
 
 	if (!m_TerrainMaterialDefault)
@@ -297,16 +317,6 @@ void CGame::InitializeEditorAssets()
 		m_TerrainMaterialDefault->SetTextureFileName(ETextureType::MetalnessTexture, "Asset\\brown_mud_dry_specular.jpg");
 		m_TerrainMaterialDefault->SetTextureFileName(ETextureType::AmbientOcclusionTexture, "Asset\\brown_mud_dry_occlusion.jpg");
 		m_TerrainMaterialDefault->SetTextureFileName(ETextureType::DisplacementTexture, "Asset\\brown_mud_dry_displacement.jpg");
-	}
-
-	if (!m_SceneMaterial)
-	{
-		m_SceneMaterial = make_unique<CMaterialData>("SceneMaterial");
-	}
-
-	if (!m_SceneMaterialTextureSet)
-	{
-		m_SceneMaterialTextureSet = make_unique<CMaterialTextureSet>(m_Device.Get(), m_DeviceContext.Get());
 	}
 }
 
@@ -3267,8 +3277,8 @@ void CGame::Update()
 	{
 		m_TimeNow = m_Clock.now().time_since_epoch().count();
 		if (m_TimePrev == 0) m_TimePrev = m_TimeNow;
-		//m_DeltaTimeF = static_cast<float>((m_TimeNow - m_TimePrev) * 0.000'000'001);
-		m_DeltaTimeF = 0.01f;
+		m_DeltaTimeF = static_cast<float>((m_TimeNow - m_TimePrev) * 0.000'000'001);
+		//m_DeltaTimeF = 0.01f; // @important: FOR DEBUGGING
 
 		if (m_TimeNow > m_PreviousFrameTime + 1'000'000'000)
 		{
@@ -3413,26 +3423,34 @@ void CGame::Update()
 	}
 	else
 	{
-		if (m_bLeftButtonUpOnce)
+		if (!ImGui::IsAnyItemActive() && !ImGui::IsAnyWindowFocused() && !ImGui::IsAnyWindowHovered())
 		{
-			CastPickingRay();
-
-			if (m_PhysicsEngine.PickObject(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection))
+			if (m_bLeftButtonUpOnce)
 			{
-				CObject3D* const PickedObject{ m_PhysicsEngine.GetPickedObject() };
-				EObjectRole eObjectRole{ m_PhysicsEngine.GetObjectRole(PickedObject) };
-				if (eObjectRole == EObjectRole::Environment)
-				{
-					CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
-					XMVECTOR PlayerXZ{ XMVectorSetY(PlayerObject->ComponentTransform.Translation, 0) };
-					XMVECTOR DestinationXZ{ XMVectorSetY(m_PhysicsEngine.GetPickedPoint(), 0) };
+				CastPickingRay();
 
-					XMVECTOR MovingDirection{ XMVector3Normalize(DestinationXZ - PlayerXZ) };
-					PlayerObject->ComponentPhysics.LinearVelocity = MovingDirection;
-				}
-				else if (eObjectRole == EObjectRole::Monster)
+				if (m_PhysicsEngine.PickObject(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection))
 				{
+					CObject3D* const PickedObject{ m_PhysicsEngine.GetPickedObject() };
+					EObjectRole eObjectRole{ m_PhysicsEngine.GetObjectRole(PickedObject) };
+					if (eObjectRole == EObjectRole::Environment)
+					{
+						CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
 
+						m_Intelligence->PopFrontBehaviorIf(PlayerObject, EBehaviorType::WalkTo);
+
+						XMVECTOR DestinationXZ{ XMVectorSetY(m_PhysicsEngine.GetPickedPoint(), 0) };
+
+						SBehaviorData Behavior{};
+						Behavior.eBehaviorType = EBehaviorType::WalkTo;
+						Behavior.Vector = DestinationXZ;
+						Behavior.Factor = 1.5f;
+						m_Intelligence->PushBackBehavior(PlayerObject, Behavior);
+					}
+					else if (eObjectRole == EObjectRole::Monster)
+					{
+
+					}
 				}
 			}
 		}
@@ -3470,6 +3488,7 @@ void CGame::Update()
 	m_TimePrev = m_TimeNow;
 	++m_FrameCount;
 
+	m_Intelligence->Execute(); // @important
 	m_PhysicsEngine.Update(m_DeltaTimeF);
 }
 
@@ -4371,6 +4390,8 @@ void CGame::DrawEditorGUI()
 				{
 					m_PhysicsEngine.GetPlayerObject()->ComponentTransform = m_SavedPlayerTransform;
 					m_PhysicsEngine.GetPlayerObject()->ComponentPhysics = m_SavedPlayerPhysics;
+					
+					m_Intelligence->ClearBehaviors();
 
 					UseCamera(m_SavedCurrentCamera);
 
@@ -5199,6 +5220,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									if (ImGui::Button(u8"플레이어로"))
 									{
 										m_PhysicsEngine.RegisterObject(Object3D, EObjectRole::Player);
+										m_Intelligence->RegisterPriority(Object3D, EBehaviorPriority::A_Crucial, true); // @important
 									}
 									ImGui::SameLine();
 									if (ImGui::Button(u8"환경으로"))

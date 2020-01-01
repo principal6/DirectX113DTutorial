@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <map>
 #include <unordered_map>
+#include <deque>
 #include "../DirectXTK/DirectXTK.h"
 #include "../DirectXTex/DirectXTex.h"
 

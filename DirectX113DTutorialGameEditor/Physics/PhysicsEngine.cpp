@@ -299,6 +299,8 @@ bool CPhysicsEngine::DetectRayObjectIntersection(const XMVECTOR& RayOrigin, cons
 
 void CPhysicsEngine::Update(float DeltaTime)
 {
+	if (DeltaTime <= 0) return;
+
 	if (m_PlayerObject)
 	{
 		if (m_bShouldApplyGravity)

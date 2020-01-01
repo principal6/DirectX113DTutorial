@@ -24,6 +24,7 @@
 #include "IBLBaker.h"
 #include "Gizmo3D.h"
 #include "../Physics/PhysicsEngine.h"
+#include "../AI/Intelligence.h"
 
 #include "TinyXml2/tinyxml2.h"
 #include "ImGui/imgui.h"
@@ -357,6 +358,7 @@ public:
 private:
 	void CreateWin32Window(WNDPROC const WndProc, const std::string& WindowName);
 	void InitializeDirectX(bool bWindowed);
+	void InitializeGameData();
 	void InitializeEditorAssets();
 	void InitializeImGui(const std::string& FontFileName, float FontSize);
 
@@ -761,6 +763,9 @@ private:
 	std::unique_ptr<CObject3D>				m_AClosestPointRep{};
 	std::unique_ptr<CObject3D>				m_BClosestPointRep{};
 	std::unique_ptr<CObject3D>				m_PickedPointRep{};
+
+private:
+	std::unique_ptr<CIntelligence>			m_Intelligence{};
 
 // Shadow map
 private:
