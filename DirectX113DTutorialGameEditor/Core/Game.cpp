@@ -981,6 +981,7 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 	DeselectAll();
 	ClearCopyList();
 	m_PhysicsEngine.ClearData();
+	m_PtrPlayerCamera = nullptr;
 
 	string ReadString{};
 	XMVECTOR ReadXMVECTOR{};
@@ -2168,6 +2169,12 @@ void CGame::DeleteObject3D(const string& Name)
 		return;
 	}
 
+	// @important
+	{
+		CObject3D* const Object3D{ GetObject3D(Name) };
+		m_PhysicsEngine.DeregisterObject(Object3D);
+	}
+
 	size_t iObject3D{ m_mapObject3DNameToIndex.at(Name) };
 	if (iObject3D < m_vObject3Ds.size() - 1)
 	{
@@ -3260,7 +3267,8 @@ void CGame::Update()
 	{
 		m_TimeNow = m_Clock.now().time_since_epoch().count();
 		if (m_TimePrev == 0) m_TimePrev = m_TimeNow;
-		m_DeltaTimeF = static_cast<float>((m_TimeNow - m_TimePrev) * 0.000'000'001);
+		//m_DeltaTimeF = static_cast<float>((m_TimeNow - m_TimePrev) * 0.000'000'001);
+		m_DeltaTimeF = 0.01f;
 
 		if (m_TimeNow > m_PreviousFrameTime + 1'000'000'000)
 		{
@@ -3409,15 +3417,24 @@ void CGame::Update()
 		{
 			CastPickingRay();
 
-			PickBoundingSphere();
-			PickObject3DTriangle();
-
-			if (IsAnythingSelected())
+			if (m_PhysicsEngine.PickObject(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection))
 			{
+				CObject3D* const PickedObject{ m_PhysicsEngine.GetPickedObject() };
+				EObjectRole eObjectRole{ m_PhysicsEngine.GetObjectRole(PickedObject) };
+				if (eObjectRole == EObjectRole::Environment)
+				{
+					CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
+					XMVECTOR PlayerXZ{ XMVectorSetY(PlayerObject->ComponentTransform.Translation, 0) };
+					XMVECTOR DestinationXZ{ XMVectorSetY(m_PhysicsEngine.GetPickedPoint(), 0) };
 
+					XMVECTOR MovingDirection{ XMVector3Normalize(DestinationXZ - PlayerXZ) };
+					PlayerObject->ComponentPhysics.LinearVelocity = MovingDirection;
+				}
+				else if (eObjectRole == EObjectRole::Monster)
+				{
+
+				}
 			}
-
-			DeselectAll();
 		}
 	}
 
@@ -3683,6 +3700,7 @@ void CGame::Draw()
 				m_DeviceContext->RSSetViewports(1, &m_vViewports[0]);
 			}
 
+			// Point representations
 			{
 				m_VSBase->Use();
 				m_PSBase_RawVertexColor->Use();
@@ -3693,7 +3711,7 @@ void CGame::Draw()
 				m_BClosestPointRep->ComponentTransform.Translation = m_PhysicsEngine.GetStaticClosestPoint();
 				m_BClosestPointRep->UpdateWorldMatrix();
 
-				m_PickedPointRep->ComponentTransform.Translation = m_PickedPoint;
+				m_PickedPointRep->ComponentTransform.Translation = m_PhysicsEngine.GetPickedPoint();
 				m_PickedPointRep->UpdateWorldMatrix();
 
 				UpdateCBSpace(m_AClosestPointRep->ComponentTransform.MatrixWorld);
@@ -4358,6 +4376,22 @@ void CGame::DrawEditorGUI()
 
 					SetRenderingFlags(m_SavedRenderingFlags);
 				}
+			}
+
+			ImGui::End();
+		}
+
+		if (ImGui::Begin(u8"플레이어"))
+		{
+			CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
+			if (ImGui::DragFloat3(u8"위치", (float*)&PlayerObject->ComponentTransform.Translation, 0.1f))
+			{
+
+			}
+
+			if (ImGui::DragFloat3(u8"속도", (float*)&PlayerObject->ComponentPhysics.LinearVelocity, 0.1f))
+			{
+
 			}
 
 			ImGui::End();
@@ -5164,17 +5198,17 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 									if (ImGui::Button(u8"플레이어로"))
 									{
-										m_PhysicsEngine.RegisterPlayerObject(Object3D);
+										m_PhysicsEngine.RegisterObject(Object3D, EObjectRole::Player);
 									}
 									ImGui::SameLine();
 									if (ImGui::Button(u8"환경으로"))
 									{
-										m_PhysicsEngine.RegisterEnvironmentObject(Object3D);
+										m_PhysicsEngine.RegisterObject(Object3D, EObjectRole::Environment);
 									}
 									ImGui::SameLine();
 									if (ImGui::Button(u8"몬스터로"))
 									{
-										m_PhysicsEngine.RegisterMonsterObject(Object3D);
+										m_PhysicsEngine.RegisterObject(Object3D, EObjectRole::Monster);
 									}
 
 									XMFLOAT3 LinearVelocity{};
@@ -5272,6 +5306,10 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										{
 											if (ImGui::TreeNode(u8"세부사항 편집"))
 											{
+												if (SelectedBoundingVolumeIndex >= Object3D->ComponentPhysics.vBoundingVolumes.size())
+												{
+													SelectedBoundingVolumeIndex = (int)(Object3D->ComponentPhysics.vBoundingVolumes.size() - 1);
+												}
 												auto& SelectedBoundingVolume{ Object3D->ComponentPhysics.vBoundingVolumes[SelectedBoundingVolumeIndex] };
 
 												ImGui::PushItemWidth(300);

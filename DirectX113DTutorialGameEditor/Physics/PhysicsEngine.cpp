@@ -2,6 +2,9 @@
 #include "../Core/Object3D.h"
 #include "../Core/Math.h"
 
+using std::sort;
+using std::swap;
+
 CPhysicsEngine::CPhysicsEngine()
 {
 }
@@ -20,7 +23,7 @@ void CPhysicsEngine::ClearData()
 	m_vMonsterObjects.clear();
 	m_mapMonsterObjects.clear();
 
-	m_WorldFloorHeight = 0;
+	m_WorldFloorHeight = KDefaultWorldFloorHeight;
 }
 
 void CPhysicsEngine::SetWorldFloorHeight(float WorldFloorHeight)
@@ -56,6 +59,13 @@ void CPhysicsEngine::RegisterObject(CObject3D* const Object3D, EObjectRole eObje
 	default:
 		break;
 	}
+}
+
+void CPhysicsEngine::DeregisterObject(CObject3D* const Object3D)
+{
+	DeregisterPlayerObject(Object3D);
+	DeregisterEnvironmentObject(Object3D);
+	DeregisterMonsterObject(Object3D);
 }
 
 void CPhysicsEngine::RegisterPlayerObject(CObject3D* const Object3D)
@@ -106,6 +116,49 @@ void CPhysicsEngine::RegisterMonsterObject(CObject3D* const Object3D)
 	m_mapMonsterObjects[Object3D] = 1;
 }
 
+void CPhysicsEngine::DeregisterPlayerObject(CObject3D* const Object3D)
+{
+	if (m_PlayerObject == Object3D) m_PlayerObject = nullptr;
+}
+
+void CPhysicsEngine::DeregisterEnvironmentObject(CObject3D* const Object3D)
+{
+	if (m_mapEnvironmentObjects.find(Object3D) != m_mapEnvironmentObjects.end())
+	{
+		m_mapEnvironmentObjects.erase(Object3D);
+		size_t iObject{};
+		for (const auto& EnvironmentObject : m_vEnvironmentObjects)
+		{
+			if (EnvironmentObject == Object3D) break;
+			++iObject;
+		}
+		if (iObject < m_vEnvironmentObjects.size() - 1)
+		{
+			swap(m_vEnvironmentObjects[iObject], m_vEnvironmentObjects.back());
+		}
+		m_vEnvironmentObjects.pop_back();
+	}
+}
+
+void CPhysicsEngine::DeregisterMonsterObject(CObject3D* const Object3D)
+{
+	if (m_mapMonsterObjects.find(Object3D) != m_mapMonsterObjects.end())
+	{
+		m_mapMonsterObjects.erase(Object3D);
+		size_t iObject{};
+		for (const auto& MonsterObject : m_vMonsterObjects)
+		{
+			if (MonsterObject == Object3D) break;
+			++iObject;
+		}
+		if (iObject < m_vMonsterObjects.size() - 1)
+		{
+			swap(m_vMonsterObjects[iObject], m_vMonsterObjects.back());
+		}
+		m_vMonsterObjects.pop_back();
+	}
+}
+
 bool CPhysicsEngine::IsPlayerObject(CObject3D* const Object3D) const
 {
 	return (m_PlayerObject == Object3D);
@@ -138,6 +191,110 @@ CObject3D* CPhysicsEngine::GetPlayerObject() const
 void CPhysicsEngine::ShouldApplyGravity(bool Value)
 {
 	m_bShouldApplyGravity = Value;
+}
+
+bool CPhysicsEngine::PickObject(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection)
+{
+	XMVECTOR TCmp{ KVectorGreatest };
+	bool bIntersected{ false };
+
+	m_PickedPoint = KVectorZero;
+
+	for (const auto& EnvironmentObject : m_vEnvironmentObjects)
+	{
+		if (EnvironmentObject->IsInstanced())
+		{
+			for (const auto& Instance : EnvironmentObject->GetInstanceCPUDataVector())
+			{
+				if (DetectRayObjectIntersection(RayOrigin, RayDirection, Instance.Translation,
+					EnvironmentObject->GetEditorBoundingSphere(), EnvironmentObject->ComponentPhysics.vBoundingVolumes, TCmp))
+				{
+					bIntersected = true;
+					m_PickedObject = EnvironmentObject;
+					break;
+				}
+			}
+		}
+		else
+		{
+			if (DetectRayObjectIntersection(RayOrigin, RayDirection, EnvironmentObject->ComponentTransform.Translation,
+				EnvironmentObject->GetEditorBoundingSphere(), EnvironmentObject->ComponentPhysics.vBoundingVolumes, TCmp))
+			{
+				bIntersected = true;
+				m_PickedObject = EnvironmentObject;
+			}
+		}
+	}
+
+	if (bIntersected)
+	{
+		m_PickedPoint = RayOrigin + RayDirection * TCmp;
+	}
+
+	return bIntersected;
+}
+
+const XMVECTOR& CPhysicsEngine::GetPickedPoint() const
+{
+	return m_PickedPoint;
+}
+
+CObject3D* CPhysicsEngine::GetPickedObject() const
+{
+	return m_PickedObject;
+}
+
+bool CPhysicsEngine::DetectRayObjectIntersection(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection,
+	const XMVECTOR& Position, const SBoundingVolume& OuterBS, const std::vector<SBoundingVolume>& vInnerBVs, XMVECTOR& T)
+{
+	XMVECTOR TOuter{ KVectorGreatest };
+	if (IntersectRaySphere(RayOrigin, RayDirection,
+		OuterBS.Data.BS.Radius, Position + OuterBS.Center, &TOuter))
+	{
+		if (vInnerBVs.empty())
+		{
+			if (XMVector3Less(TOuter, T)) T = TOuter;
+			return true;
+		}
+		else
+		{
+			TOuter = KVectorGreatest;
+			XMVECTOR TInner{ KVectorGreatest };
+			bool bIntersected{ false };
+			for (const auto& BoundingVolume : vInnerBVs)
+			{
+				if (BoundingVolume.eType == EBoundingVolumeType::BoundingSphere)
+				{
+					if (IntersectRaySphere(RayOrigin, RayDirection,
+						BoundingVolume.Data.BS.Radius, Position + BoundingVolume.Center, &TInner))
+					{
+						if (XMVector3Less(TInner, TOuter)) TOuter = TInner;
+						bIntersected = true;
+					}
+				}
+				else
+				{
+					if (IntersectRayAABB(RayOrigin, RayDirection,
+						Position + BoundingVolume.Center,
+						BoundingVolume.Data.AABBHalfSizes.x, BoundingVolume.Data.AABBHalfSizes.y, BoundingVolume.Data.AABBHalfSizes.z, &TInner))
+					{
+						if (XMVectorGetX(TInner) > 0 && XMVector3Less(TInner, TOuter))
+						{
+							TOuter = TInner;
+							bIntersected = true;
+						}
+					}
+				}
+			}
+
+			if (bIntersected)
+			{
+				T = TOuter;
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void CPhysicsEngine::Update(float DeltaTime)
@@ -173,6 +330,7 @@ bool CPhysicsEngine::DetectCollisions()
 
 	//
 	m_DynamicClosestPoint = m_StaticClosestPoint = KVectorZero;
+	m_vCoarseCollisionList.clear();
 
 	// PvE
 	// @important: Player is dynamic && Environment is static
@@ -187,65 +345,55 @@ bool CPhysicsEngine::DetectCollisions()
 			{
 				for (const auto& InstanceCPUData : B->GetInstanceCPUDataVector())
 				{
+					// Sphere-Sphere
 					if (DetectIntersection(
 						A->ComponentTransform.Translation + A->GetEditorBoundingSphereCenterOffset(), A->GetEditorBoundingSphere(),
 						InstanceCPUData.Translation + InstanceCPUData.EditorBoundingSphere.Center, InstanceCPUData.EditorBoundingSphere))
 					{
-						if (DetectFineCollisionDynamicStatic(
-							A, A->ComponentTransform.Translation, A->GetEditorBoundingSphere(), A->ComponentPhysics.vBoundingVolumes,
-							B, InstanceCPUData.Translation, B->GetEditorBoundingSphere(), B->ComponentPhysics.vBoundingVolumes))
-						{
-							// Final collision
-							bCollisionDetected = true;
+						XMVECTOR Diff{ InstanceCPUData.Translation + InstanceCPUData.EditorBoundingSphere.Center -
+							A->ComponentTransform.Translation + A->GetEditorBoundingSphereCenterOffset() };
 
-							A->ComponentPhysics.LinearVelocity = KVectorZero;
-						}
+						m_vCoarseCollisionList.emplace_back();
+						m_vCoarseCollisionList.back().B = B;
+						m_vCoarseCollisionList.back().BTranslation = InstanceCPUData.Translation;
+						m_vCoarseCollisionList.back().DistanceSquare = XMVectorGetX(XMVector3LengthSq(Diff));
 					}
 				}
 			}
 			else
 			{
+				// Sphere-Sphere
 				if (DetectIntersection(
 					A->ComponentTransform.Translation + A->GetEditorBoundingSphereCenterOffset(), A->GetEditorBoundingSphere(),
-					B->ComponentTransform.Translation, B->GetEditorBoundingSphere()))
+					B->ComponentTransform.Translation + B->GetEditorBoundingSphereCenterOffset(), B->GetEditorBoundingSphere()))
 				{
-					if (DetectFineCollisionDynamicStatic(
-						A, A->ComponentTransform.Translation, A->GetEditorBoundingSphere(), A->ComponentPhysics.vBoundingVolumes,
-						B, B->ComponentTransform.Translation, B->GetEditorBoundingSphere(), B->ComponentPhysics.vBoundingVolumes))
-					{
-						// Final collision
-						bCollisionDetected = true;
+					XMVECTOR Diff{ B->ComponentTransform.Translation + B->GetEditorBoundingSphereCenterOffset() -
+							A->ComponentTransform.Translation + A->GetEditorBoundingSphereCenterOffset() };
 
-						A->ComponentPhysics.LinearVelocity = KVectorZero;
-					}
+					m_vCoarseCollisionList.emplace_back();
+					m_vCoarseCollisionList.back().B = B;
+					m_vCoarseCollisionList.back().BTranslation = B->ComponentTransform.Translation;
+					m_vCoarseCollisionList.back().DistanceSquare = XMVectorGetX(XMVector3LengthSq(Diff));
 				}
+			}
+		}
+		
+		sort(m_vCoarseCollisionList.begin(), m_vCoarseCollisionList.end(), std::less<SCoarseCollisionList>());
+		for (const auto& CoarseCollision : m_vCoarseCollisionList)
+		{
+			if (DetectFineCollisionDynamicStatic(
+				A, A->ComponentTransform.Translation,
+				A->GetEditorBoundingSphere(), A->ComponentPhysics.vBoundingVolumes,
+				CoarseCollision.B, CoarseCollision.BTranslation, 
+				CoarseCollision.B->GetEditorBoundingSphere(), CoarseCollision.B->ComponentPhysics.vBoundingVolumes))
+			{
+				// Final collision
+				bCollisionDetected = true;
 			}
 		}
 	}
 
 	return bCollisionDetected;
-}
-
-// Sphere - Sphere: closest point on any Sphere to the other ... is it necessary???
-// Sphere - AABB: closest point on AABB to Sphere ¡Ú¡Ú
-// AABB - AABB: to each center ... is it even necessary to calculate closest points in this case??? or just interval test...?
-XMVECTOR GetClosestPointOfAToB(const XMVECTOR& ACenter, const SBoundingVolume& ABV, const XMVECTOR& BCenter, const SBoundingVolume& BBV)
-{
-	if (ABV.eType == EBoundingVolumeType::BoundingSphere)
-	{
-		if (BBV.eType == EBoundingVolumeType::BoundingSphere)
-		{
-			return GetClosestPointSphere(BCenter, ACenter, ABV.Data.BS.Radius);
-		}
-		else
-		{
-			return GetClosestPointAABB(ACenter, BCenter, BBV.Data.AABBHalfSizes.x, BBV.Data.AABBHalfSizes.y, BBV.Data.AABBHalfSizes.z);
-		}
-	}
-	else
-	{
-		return GetClosestPointAABB(BCenter, ACenter, ABV.Data.AABBHalfSizes.x, ABV.Data.AABBHalfSizes.y, ABV.Data.AABBHalfSizes.z);
-	}
 }
 
 bool CPhysicsEngine::DetectFineCollisionDynamicStatic(
@@ -264,9 +412,8 @@ bool CPhysicsEngine::DetectFineCollisionDynamicStatic(
 
 			if (DetectIntersection(_DynamicPos, DynamicBV, _StaticPos, StaticBV))
 			{
-				m_DynamicClosestPoint = GetClosestPointOfAToB(_StaticPos, StaticBV, _DynamicPos, DynamicBV);
-				m_StaticClosestPoint = GetClosestPointOfAToB(_DynamicPos, DynamicBV, _StaticPos, StaticBV);
-
+				GetClosestPoints(_DynamicPos, DynamicBV, _StaticPos, StaticBV);
+				
 				ResolvePenetration(DynamicObject, _DynamicPos, DynamicBV, StaticObject, _StaticPos, StaticBV);
 
 				return true;
@@ -282,8 +429,7 @@ bool CPhysicsEngine::DetectFineCollisionDynamicStatic(
 
 				if (DetectIntersection(_DynamicPos, DynamicBVElement, _StaticPos, StaticBV))
 				{
-					m_DynamicClosestPoint = GetClosestPointOfAToB(_StaticPos, StaticBV, _DynamicPos, DynamicBVElement);
-					m_StaticClosestPoint = GetClosestPointOfAToB(_DynamicPos, DynamicBVElement, _StaticPos, StaticBV);
+					GetClosestPoints(_DynamicPos, DynamicBVElement, _StaticPos, StaticBV);
 
 					ResolvePenetration(DynamicObject, _DynamicPos, DynamicBVElement, StaticObject, _StaticPos, StaticBV);
 
@@ -304,8 +450,7 @@ bool CPhysicsEngine::DetectFineCollisionDynamicStatic(
 
 				if (DetectIntersection(_DynamicPos, DynamicBV, _StaticPos, StaticBVElement))
 				{
-					m_DynamicClosestPoint = GetClosestPointOfAToB(_StaticPos, StaticBVElement, _DynamicPos, DynamicBV);
-					m_StaticClosestPoint = GetClosestPointOfAToB(_DynamicPos, DynamicBV, _StaticPos, StaticBVElement);
+					GetClosestPoints(_DynamicPos, DynamicBV, _StaticPos, StaticBVElement);
 
 					ResolvePenetration(DynamicObject, _DynamicPos, DynamicBV, StaticObject, _StaticPos, StaticBVElement);
 
@@ -325,8 +470,7 @@ bool CPhysicsEngine::DetectFineCollisionDynamicStatic(
 					
 					if (DetectIntersection(_DynamicPos, DynamicBVElement, _StaticPos, StaticBVElement))
 					{
-						m_DynamicClosestPoint = GetClosestPointOfAToB(_StaticPos, StaticBVElement, _DynamicPos, DynamicBVElement);
-						m_StaticClosestPoint = GetClosestPointOfAToB(_DynamicPos, DynamicBVElement, _StaticPos, StaticBVElement);
+						GetClosestPoints(_DynamicPos, DynamicBVElement, _StaticPos, StaticBVElement);
 
 						ResolvePenetration(DynamicObject, _DynamicPos, DynamicBVElement, StaticObject, _StaticPos, StaticBVElement);
 
@@ -420,31 +564,16 @@ void CPhysicsEngine::ResolvePenetration(
 		{
 			// dynamic Sphere - static AABB
 
-			// C == A - ClosestPoint
-			// D == direction of A
-			// |C - xD| = r
-			//
-			// (C - xD)¡¤(C - xD) = r©÷
-			// C¡¤C - 2xC¡¤D + x©÷D¡¤D = r©÷
-			// D¡¤Dx©÷ - 2C¡¤Dx + C¡¤C - r©÷ = 0
-			
-			XMVECTOR C{ DynamicPos - m_StaticClosestPoint };
-			XMVECTOR D{ DynamicObjectMovingDir };
-			float r{ DynamicBV.Data.BS.Radius };
+			XMVECTOR DToS{ m_StaticClosestPoint - m_DynamicClosestPoint };
+			XMVECTOR N{ XMVector3Normalize(DToS) };
 
-			float a{ XMVectorGetX(XMVector3Dot(D, D)) };
-			float b{ -2.0f * XMVectorGetX(XMVector3Dot(C, D)) };
-			float c{ XMVectorGetX(XMVector3Dot(C, C)) - r * r };
-			float discriminant{ b * b - 4.0f * a * c };
-
-			if (discriminant > 0)
+			XMVECTOR Resolution{ DToS };
+			m_PenetrationDepth = XMVectorGetX(XMVector3Length(Resolution));
+			if (XMVectorGetY(N) == +1.0f)
 			{
-				float x_bigger{ (-b + sqrt(discriminant)) / (2.0f * a) };
-				m_PenetrationDepth = abs(x_bigger);
-
-				XMVECTOR Resolution{ -DynamicObjectMovingDir * x_bigger };
-				DynamicObject->ComponentTransform.Translation += Resolution;
+				DynamicObject->ComponentPhysics.LinearVelocity = XMVectorSetY(DynamicObject->ComponentPhysics.LinearVelocity, 0);
 			}
+			DynamicObject->ComponentTransform.Translation += Resolution;
 		}
 	}
 	else
@@ -453,63 +582,66 @@ void CPhysicsEngine::ResolvePenetration(
 		{
 			// dynamic AABB - static Sphere
 
-			XMVECTOR C{ m_DynamicClosestPoint - StaticPos };
-			XMVECTOR D{ DynamicObjectMovingDir };
-			float r{ StaticBV.Data.BS.Radius };
+			XMVECTOR Diff{ m_DynamicClosestPoint - StaticPos };
+			float Distance{ XMVectorGetX(XMVector3Length(Diff)) };
+			XMVECTOR N{ XMVector3Normalize(Diff) };
 
-			float a{ XMVectorGetX(XMVector3Dot(D, D)) };
-			float b{ -2.0f * XMVectorGetX(XMVector3Dot(C, D)) };
-			float c{ XMVectorGetX(XMVector3Dot(C, C)) - r * r };
-			float discriminant{ b * b - 4.0f * a * c };
-
-			if (discriminant > 0)
-			{
-				float x_bigger{ (-b + sqrt(discriminant)) / (2.0f * a) };
-				m_PenetrationDepth = abs(x_bigger);
-
-				XMVECTOR Resolution{ -DynamicObjectMovingDir * x_bigger };
-				DynamicObject->ComponentTransform.Translation += Resolution;
-			}
+			m_PenetrationDepth = StaticBV.Data.BS.Radius - Distance;
+			XMVECTOR Resolution{ m_PenetrationDepth * N };
+			DynamicObject->ComponentTransform.Translation += Resolution;
 		}
 		else
 		{
 			// AABB - AABB
 
-			// Rd = resolution direction
-			// Px = penetration on x axis
-			// Py = penetration on y axis
-			// Pz = penetration on z axis
-			// Cp = component-wise production
+			XMVECTOR DToS{ m_StaticClosestPoint - m_DynamicClosestPoint };
+			XMVECTOR N{ GetAABBAABBCollisionNormal(DynamicObjectMovingDir, m_DynamicClosestPoint, m_StaticClosestPoint) };
 
-			XMVECTOR Rd{ -DynamicObjectMovingDir };
-			XMVECTOR P{ m_StaticClosestPoint - m_DynamicClosestPoint };
-			float Px_abs{ abs(XMVectorGetX(P)) };
-			float Py_abs{ abs(XMVectorGetY(P)) };
-			float Pz_abs{ abs(XMVectorGetZ(P)) };
-
-			XMVECTOR Cp{ Rd * P };
-			float Cpx{ XMVectorGetX(Cp) };
-			float Cpy{ XMVectorGetY(Cp) };
-			float Cpz{ XMVectorGetZ(Cp) };
-
-			XMVECTOR Resolution{};
-			if (Cpx < 0)
-			{
-				float Rdx_abs{ abs(XMVectorGetX(Rd)) };
-				Resolution = Rd / Rdx_abs * Px_abs;
-			}
-			else if (Cpy < 0)
-			{
-				float Rdy_abs{ abs(XMVectorGetY(Rd)) };
-				Resolution = Rd / Rdy_abs * Py_abs;
-			}
-			else if (Cpz < 0)
-			{
-				float Rdz_abs{ abs(XMVectorGetZ(Rd)) };
-				Resolution = Rd / Rdz_abs * Pz_abs;
-			}
+			XMVECTOR Resolution{ XMVector3Dot(DToS, N) * N };
 			m_PenetrationDepth = XMVectorGetX(XMVector3Length(Resolution));
+			if (XMVectorGetY(N) == +1.0f)
+			{
+				DynamicObject->ComponentPhysics.LinearVelocity = XMVectorSetY(DynamicObject->ComponentPhysics.LinearVelocity, 0);
+			}
 			DynamicObject->ComponentTransform.Translation += Resolution;
+		}
+	}
+}
+
+void CPhysicsEngine::GetClosestPoints(const XMVECTOR& DynamicPos, const SBoundingVolume& DynamicBV, const XMVECTOR& StaticPos, const SBoundingVolume& StaticBV)
+{
+	if (DynamicBV.eType == EBoundingVolumeType::BoundingSphere)
+	{
+		if (StaticBV.eType == EBoundingVolumeType::BoundingSphere)
+		{
+			// dynamic Sphere - static Sphere
+			m_DynamicClosestPoint = GetClosestPointSphere(StaticPos, DynamicPos, DynamicBV.Data.BS.Radius);
+			m_StaticClosestPoint = GetClosestPointSphere(DynamicPos, StaticPos, StaticBV.Data.BS.Radius);
+		}
+		else
+		{
+			// dynamic Sphere - static AABB
+			m_StaticClosestPoint = GetClosestPointAABB(DynamicPos,
+				StaticPos, StaticBV.Data.AABBHalfSizes.x, StaticBV.Data.AABBHalfSizes.y, StaticBV.Data.AABBHalfSizes.z);
+			m_DynamicClosestPoint = GetClosestPointSphere(m_StaticClosestPoint, DynamicPos, DynamicBV.Data.BS.Radius);
+		}
+	}
+	else
+	{
+		if (StaticBV.eType == EBoundingVolumeType::BoundingSphere)
+		{
+			// dynamic AABB - static Sphere
+			m_DynamicClosestPoint = GetClosestPointAABB(StaticPos, 
+				DynamicPos, DynamicBV.Data.AABBHalfSizes.x, DynamicBV.Data.AABBHalfSizes.y, DynamicBV.Data.AABBHalfSizes.z);
+			m_StaticClosestPoint = GetClosestPointSphere(m_DynamicClosestPoint, StaticPos, StaticBV.Data.BS.Radius);
+		}
+		else
+		{
+			// dynamic AABB - static AABB
+			m_DynamicClosestPoint = GetClosestPointAABB(StaticPos,
+				DynamicPos, DynamicBV.Data.AABBHalfSizes.x, DynamicBV.Data.AABBHalfSizes.y, DynamicBV.Data.AABBHalfSizes.z);
+			m_StaticClosestPoint = GetClosestPointAABB(DynamicPos, 
+				StaticPos, StaticBV.Data.AABBHalfSizes.x, StaticBV.Data.AABBHalfSizes.y, StaticBV.Data.AABBHalfSizes.z);
 		}
 	}
 }

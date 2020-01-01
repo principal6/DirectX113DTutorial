@@ -15,7 +15,10 @@ static XMVECTOR Slerp(const XMVECTOR& P0, const XMVECTOR& P1, float t);
 static int GetRandom(int Min, int Max);
 static float GetRandom(float Min, float Max);
 static bool IntersectPointSphere(const XMVECTOR& PointInSpace, float SphereRadius, const XMVECTOR& SphereCenter);
-static bool IntersectRaySphere(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, float Radius, const XMVECTOR& Center, XMVECTOR* const OutPtrT) noexcept;
+static bool IntersectRaySphere(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection,
+	float Radius, const XMVECTOR& Center, XMVECTOR* const OutPtrT) noexcept;
+static bool IntersectRayAABB(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection,
+	const XMVECTOR& Center, float HalfSizeX, float HalfSizeY, float HalfSizeZ, XMVECTOR* const OutPtrT);
 static XMVECTOR CalculateTriangleNormal(const XMVECTOR& TriangleV0, const XMVECTOR& TriangleV1, const XMVECTOR& TriangleV2);
 static bool IsPointInTriangle(const XMVECTOR& Point, const XMVECTOR& TriangleV0, const XMVECTOR& TriangleV1, const XMVECTOR& TriangleV2);
 static bool IntersectRayPlane(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, const XMVECTOR& PlaneP, const XMVECTOR& PlaneN, XMVECTOR* const OutPtrT);
@@ -32,6 +35,8 @@ static bool IntersectAABBAABB(const XMVECTOR& ACenter, float AHalfSizeX, float A
 	const XMVECTOR& BCenter, float BHalfSizeX, float BHalfSizeY, float BHalfSizeZ);
 static XMVECTOR GetClosestPointSphere(const XMVECTOR& Point, const XMVECTOR SphereCenter, float SphereRadius);
 static XMVECTOR GetClosestPointAABB(const XMVECTOR& Point, const XMVECTOR AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ);
+static XMVECTOR GetAABBAABBCollisionNormal(
+	const XMVECTOR& DynamicAABBMovingDirection, const XMVECTOR& DynamicAABBClosestPoint, const XMVECTOR& StaticAABBClosestPoint);
 
 static float Lerp(float a, float b, float t)
 {
@@ -94,7 +99,8 @@ static bool IntersectPointSphere(const XMVECTOR& PointInSpace, float SphereRadiu
 	return false;
 }
 
-static bool IntersectRaySphere(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, float Radius, const XMVECTOR& Center, XMVECTOR* const OutPtrT) noexcept
+static bool IntersectRaySphere(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection,
+	float Radius, const XMVECTOR& Center, XMVECTOR* const OutPtrT) noexcept
 {
 	XMVECTOR r{ XMVectorSet(Radius, Radius, Radius, 1.0f) };
 	XMVECTOR CO{ RayOrigin - Center };
@@ -117,6 +123,31 @@ static bool IntersectRaySphere(const XMVECTOR& RayOrigin, const XMVECTOR& RayDir
 		return true;
 	}
 
+	return false;
+}
+
+static bool IntersectRayAABB(const XMVECTOR& RayOrigin, const XMVECTOR& RayDirection, 
+	const XMVECTOR& Center, float HalfSizeX, float HalfSizeY, float HalfSizeZ, XMVECTOR* const OutPtrT)
+{
+	XMVECTOR HalfSizes{ HalfSizeX, HalfSizeY, HalfSizeZ, 0 };
+	XMVECTOR AABBMin{ Center - HalfSizes };
+	XMVECTOR AABBMax{ Center + HalfSizes };
+
+	XMVECTOR InverseDir = XMVectorReciprocal(RayDirection);
+	XMVECTOR t0s = (AABBMin - RayOrigin) * InverseDir;
+	XMVECTOR t1s = (AABBMax - RayOrigin) * InverseDir;
+
+	XMVECTOR tsmaller = XMVectorMin(t0s, t1s);
+	XMVECTOR tbigger = XMVectorMax(t0s, t1s);
+
+	float tmin = max(XMVectorGetX(tsmaller), max(XMVectorGetY(tsmaller), XMVectorGetZ(tsmaller)));
+	float tmax = min(XMVectorGetX(tbigger), min(XMVectorGetY(tbigger), XMVectorGetZ(tbigger)));
+	
+	if (tmin < tmax)
+	{
+		if (OutPtrT) *OutPtrT = XMVectorSet(tmin, tmin, tmin, tmin);
+		return true;
+	}
 	return false;
 }
 
@@ -358,14 +389,16 @@ static bool IntersectSphereSphere(const XMVECTOR& CenterA, float RadiusA, const 
 	auto Difference{ CenterA - CenterB };
 	float DistanceSquare{ XMVectorGetX(XMVector3LengthSq(Difference)) };
 	float RadiusSum{ RadiusA + RadiusB };
-	if (DistanceSquare <= RadiusSum * RadiusSum)
+	if (DistanceSquare < RadiusSum * RadiusSum)
 	{
 		return true;
 	}
 	return false;
 }
 
-static bool IntersectSphereAABB(const XMVECTOR& SphereCenter, float SphereRadius, const XMVECTOR& AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ)
+static bool IntersectSphereAABB(
+	const XMVECTOR& SphereCenter, float SphereRadius, 
+	const XMVECTOR& AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ)
 {
 	XMVECTOR AABBMax{ AABBCenter + XMVectorSet(HalfSizeX, HalfSizeY, HalfSizeZ, 0) };
 	XMVECTOR AABBMin{ AABBCenter - XMVectorSet(HalfSizeX, HalfSizeY, HalfSizeZ, 0) };
@@ -373,38 +406,27 @@ static bool IntersectSphereAABB(const XMVECTOR& SphereCenter, float SphereRadius
 
 	XMVECTOR Difference{ SphereCenter - AABBClosestPoint };
 	float DistanceSquare{ XMVectorGetX(XMVector3LengthSq(Difference)) };
-	if (DistanceSquare <= SphereRadius * SphereRadius)
-	{
-		return true;
-	}
-	return false;
+
+	return (DistanceSquare < SphereRadius * SphereRadius);
 }
 
-static bool IntersectAABBAABB(const XMVECTOR& ACenter, float AHalfSizeX, float AHalfSizeY, float AHalfSizeZ, 
+static bool IntersectAABBAABB(
+	const XMVECTOR& ACenter, float AHalfSizeX, float AHalfSizeY, float AHalfSizeZ, 
 	const XMVECTOR& BCenter, float BHalfSizeX, float BHalfSizeY, float BHalfSizeZ)
 {
 	XMVECTOR DifferenceAbs{ XMVectorAbs(ACenter - BCenter) };
 
 	XMVECTOR AHalfSize{ XMVectorSet(AHalfSizeX, AHalfSizeY, AHalfSizeZ, 0) };
 	XMVECTOR BHalfSize{ XMVectorSet(BHalfSizeX, BHalfSizeY, BHalfSizeZ, 0) };
+	XMVECTOR HalfSizeSum{ AHalfSize + BHalfSize };
 
-	return XMVector3LessOrEqual(DifferenceAbs, AHalfSize + BHalfSize);
+	return XMVector3Less(DifferenceAbs, HalfSizeSum);
 }
 
 static XMVECTOR GetClosestPointSphere(const XMVECTOR& Point, const XMVECTOR SphereCenter, float SphereRadius)
 {
 	XMVECTOR CenterToPoint{ Point - SphereCenter };
 	return SphereCenter + XMVector3Normalize(CenterToPoint) * SphereRadius;
-
-	/*float LengthSquare{ XMVectorGetX(XMVector3LengthSq(CenterToPoint)) };
-	if (LengthSquare >= SphereRadius * SphereRadius)
-	{
-		return SphereCenter + XMVector3Normalize(CenterToPoint) * SphereRadius;
-	}
-	else
-	{
-		return Point;
-	}*/
 }
 
 static XMVECTOR GetClosestPointAABB(const XMVECTOR& Point, const XMVECTOR AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ)
@@ -430,29 +452,48 @@ static XMVECTOR GetClosestPointAABB(const XMVECTOR& Point, const XMVECTOR AABBCe
 	return XMVectorSet(PointX, PointY, PointZ, 1);
 }
 
-static XMVECTOR GetClosestFaceNormalAABB(const XMVECTOR& ClosestPoint, const XMVECTOR AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ)
+static XMVECTOR GetAABBAABBCollisionNormal(
+	const XMVECTOR& DynamicAABBMovingDirection, const XMVECTOR& DynamicAABBClosestPoint, const XMVECTOR& StaticAABBClosestPoint)
 {
-	const float CenterX{ XMVectorGetX(AABBCenter) };
-	const float CenterY{ XMVectorGetY(AABBCenter) };
-	const float CenterZ{ XMVectorGetZ(AABBCenter) };
+	static constexpr XMVECTOR KYAxis{ 0, 1, 0, 0 };
+	static constexpr XMVECTOR KZAxis{ 0, 0, 1, 0 };
 
-	const float XMax{ CenterX + HalfSizeX };
-	const float XMin{ CenterX - HalfSizeX };
-	const float YMax{ CenterY + HalfSizeY };
-	const float YMin{ CenterY - HalfSizeY };
-	const float ZMax{ CenterZ + HalfSizeZ };
-	const float ZMin{ CenterZ - HalfSizeZ };
+	const XMVECTOR& Dir{ DynamicAABBMovingDirection };
+	XMVECTOR DToS{ StaticAABBClosestPoint - DynamicAABBClosestPoint };
 
-	float ClosestPointX{ XMVectorGetX(ClosestPoint) };
-	float ClosestPointY{ XMVectorGetY(ClosestPoint) };
-	float ClosestPointZ{ XMVectorGetZ(ClosestPoint) };
+	XMVECTOR DirXY{ XMVector3Normalize(XMVectorSetZ(Dir, 0)) };
+	XMVECTOR DirXZ{ XMVector3Normalize(XMVectorSetY(Dir, 0)) };
+	XMVECTOR DToSXY{ XMVector3Normalize(XMVectorSetZ(DToS, 0)) };
+	XMVECTOR DToSXZ{ XMVector3Normalize(XMVectorSetY(DToS, 0)) };
 
-	if (ClosestPointX == XMax) return XMVectorSet(+1, 0, 0, 0);
-	if (ClosestPointX == XMin) return XMVectorSet(-1, 0, 0, 0);
-	if (ClosestPointY == YMax) return XMVectorSet(0, +1, 0, 0);
-	if (ClosestPointY == YMin) return XMVectorSet(0, -1, 0, 0);
-	if (ClosestPointZ == ZMax) return XMVectorSet(0, 0, +1, 0);
-	if (ClosestPointZ == ZMin) return XMVectorSet(0, 0, -1, 0);
+	float DotDirXY{ XMVectorGetX(XMVector3Dot(DirXY, KYAxis)) };
+	float DotDirXZ{ XMVectorGetX(XMVector3Dot(DirXZ, KZAxis)) };
+	float DotDToSXY{ XMVectorGetX(XMVector3Dot(DToSXY, KYAxis)) };
+	float DotDToSXZ{ XMVectorGetX(XMVector3Dot(DToSXZ, KZAxis)) };
 
-	return XMVectorSet(0, 0, 0, 0);
+	XMVECTOR N{};
+	if (DotDirXY != 0 && abs(DotDirXY) >= abs(DotDToSXY))
+	{
+		// upper or lower face
+		if (DotDirXY > 0) N = XMVectorSet(0, -1, 0, 0); // lower
+		if (DotDirXY < 0) N = XMVectorSet(0, +1, 0, 0); // upper
+	}
+	else
+	{
+		// side face
+		if (DotDirXZ != 0 && abs(DotDirXZ) >= abs(DotDToSXZ))
+		{
+			// front or back face
+			if (DotDirXZ > 0) N = XMVectorSet(0, 0, -1, 0); // front
+			if (DotDirXZ < 0) N = XMVectorSet(0, 0, +1, 0); // back
+		}
+		else
+		{
+			// left or right face
+			float DirX{ XMVectorGetX(Dir) };
+			if (DirX > 0) N = XMVectorSet(-1, 0, 0, 0); // left
+			if (DirX < 0) N = XMVectorSet(+1, 0, 0, 0); // right
+		}
+	}
+	return N;
 }

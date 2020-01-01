@@ -95,7 +95,7 @@ struct alignas(16) SBoundingVolume
 {
 	union UData
 	{
-		XMFLOAT3			AABBHalfSizes{};
+		XMFLOAT3			AABBHalfSizes{ 1, 1, 1 };
 		SBoundingSphereData	BS;
 	};
 
