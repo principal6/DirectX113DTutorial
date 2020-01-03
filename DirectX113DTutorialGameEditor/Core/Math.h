@@ -36,7 +36,8 @@ static bool IntersectAABBAABB(const XMVECTOR& ACenter, float AHalfSizeX, float A
 static XMVECTOR GetClosestPointSphere(const XMVECTOR& Point, const XMVECTOR SphereCenter, float SphereRadius);
 static XMVECTOR GetClosestPointAABB(const XMVECTOR& Point, const XMVECTOR AABBCenter, float HalfSizeX, float HalfSizeY, float HalfSizeZ);
 static XMVECTOR GetAABBAABBCollisionNormal(
-	const XMVECTOR& DynamicAABBMovingDirection, const XMVECTOR& DynamicAABBClosestPoint, const XMVECTOR& StaticAABBClosestPoint);
+	const XMVECTOR& DynamicAABBDir, const XMVECTOR& DynamicAABBClosestPoint,
+	const XMVECTOR& StaticAABBCenter, float StaticAABBHalfSizeX, float StaticAABBHalfSizeY, float StaticAABBHalfSizeZ);
 
 static float Lerp(float a, float b, float t)
 {
@@ -453,46 +454,75 @@ static XMVECTOR GetClosestPointAABB(const XMVECTOR& Point, const XMVECTOR AABBCe
 }
 
 static XMVECTOR GetAABBAABBCollisionNormal(
-	const XMVECTOR& DynamicAABBMovingDirection, const XMVECTOR& DynamicAABBClosestPoint, const XMVECTOR& StaticAABBClosestPoint)
+	const XMVECTOR& DynamicAABBDir, const XMVECTOR& DynamicAABBClosestPoint,
+	const XMVECTOR& StaticAABBCenter, float StaticAABBHalfSizeX, float StaticAABBHalfSizeY, float StaticAABBHalfSizeZ)
 {
+	static constexpr XMVECTOR KXAxis{ 1, 0, 0, 0 };
 	static constexpr XMVECTOR KYAxis{ 0, 1, 0, 0 };
 	static constexpr XMVECTOR KZAxis{ 0, 0, 1, 0 };
 
-	const XMVECTOR& Dir{ DynamicAABBMovingDirection };
-	XMVECTOR DToS{ StaticAABBClosestPoint - DynamicAABBClosestPoint };
+	XMVECTOR NegativeDir{ -DynamicAABBDir };
 
-	XMVECTOR DirXY{ XMVector3Normalize(XMVectorSetZ(Dir, 0)) };
-	XMVECTOR DirXZ{ XMVector3Normalize(XMVectorSetY(Dir, 0)) };
-	XMVECTOR DToSXY{ XMVector3Normalize(XMVectorSetZ(DToS, 0)) };
-	XMVECTOR DToSXZ{ XMVector3Normalize(XMVectorSetY(DToS, 0)) };
+	XMVECTOR StaticAABBHalfSize{ XMVectorSet(StaticAABBHalfSizeX, StaticAABBHalfSizeY, StaticAABBHalfSizeZ, 0) };
+	XMVECTOR StaticAABBMax{ StaticAABBCenter + StaticAABBHalfSize };
+	XMVECTOR StaticAABBMin{ StaticAABBCenter - StaticAABBHalfSize };
+	XMVECTOR RelativeMax{ StaticAABBMax - DynamicAABBClosestPoint };
+	XMVECTOR RelativeMin{ StaticAABBMin - DynamicAABBClosestPoint };
 
-	float DotDirXY{ XMVectorGetX(XMVector3Dot(DirXY, KYAxis)) };
-	float DotDirXZ{ XMVectorGetX(XMVector3Dot(DirXZ, KZAxis)) };
-	float DotDToSXY{ XMVectorGetX(XMVector3Dot(DToSXY, KYAxis)) };
-	float DotDToSXZ{ XMVectorGetX(XMVector3Dot(DToSXZ, KZAxis)) };
-
+	float DotDirY{ XMVectorGetX(XMVector3Dot(NegativeDir, KYAxis)) };
+	float DotMaxY{ XMVectorGetX(XMVector3Dot(RelativeMax, KYAxis)) };
+	float DotMinY{ XMVectorGetX(XMVector3Dot(RelativeMin, KYAxis)) };
 	XMVECTOR N{};
-	if (DotDirXY != 0 && abs(DotDirXY) >= abs(DotDToSXY))
+	if (DotDirY >= DotMaxY)
 	{
-		// upper or lower face
-		if (DotDirXY > 0) N = XMVectorSet(0, -1, 0, 0); // lower
-		if (DotDirXY < 0) N = XMVectorSet(0, +1, 0, 0); // upper
+		// upper face
+		N = XMVectorSet(0, +1, 0, 0); // upper
+	}
+	else if (DotDirY <= DotMinY)
+	{
+		// lower face
+		N = XMVectorSet(0, -1, 0, 0); // lower
 	}
 	else
 	{
-		// side face
-		if (DotDirXZ != 0 && abs(DotDirXZ) >= abs(DotDToSXZ))
+		XMVECTOR NegativeDirXZ{ XMVectorSetY(NegativeDir, 0.0f) };
+		XMVECTOR RelativeXZBackLeft{ XMVectorSetY(RelativeMax - XMVectorSet(StaticAABBHalfSizeX * 2.0f, 0, 0, 0), 0.0f) };
+		XMVECTOR RelativeXZBackRight{ XMVectorSetY(RelativeMax, 0.0f) };
+		XMVECTOR RelativeXZFrontLeft{ XMVectorSetY(RelativeMin, 0.0f) };
+		XMVECTOR RelativeXZFrontRight{ XMVectorSetY(RelativeMin + XMVectorSet(StaticAABBHalfSizeX * 2.0f, 0, 0, 0), 0.0f) };
+
+		if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZBackRight)) > 0)
 		{
-			// front or back face
-			if (DotDirXZ > 0) N = XMVectorSet(0, 0, -1, 0); // front
-			if (DotDirXZ < 0) N = XMVectorSet(0, 0, +1, 0); // back
+			if (XMVectorGetY(XMVector3Cross(RelativeXZBackLeft, NegativeDirXZ)) > 0)
+			{
+				// back face
+				N = XMVectorSet(0, 0, +1, 0); // back
+			}
 		}
 		else
 		{
-			// left or right face
-			float DirX{ XMVectorGetX(Dir) };
-			if (DirX > 0) N = XMVectorSet(-1, 0, 0, 0); // left
-			if (DirX < 0) N = XMVectorSet(+1, 0, 0, 0); // right
+			if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZFrontRight)) > 0)
+			{
+				// right face
+				N = XMVectorSet(+1, 0, 0, 0); // right
+			}
+		}
+
+		if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZFrontLeft)) > 0)
+		{
+			if (XMVectorGetY(XMVector3Cross(RelativeXZFrontRight, NegativeDirXZ)) > 0)
+			{
+				// front face
+				N = XMVectorSet(0, 0, -1, 0); // front
+			}
+		}
+		else
+		{
+			if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZBackLeft)) > 0)
+			{
+				// left face
+				N = XMVectorSet(-1, 0, 0, 0); // left
+			}
 		}
 	}
 	return N;

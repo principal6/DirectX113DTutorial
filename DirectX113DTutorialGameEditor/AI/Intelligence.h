@@ -62,7 +62,7 @@ private:
 	void ExecuteBehavior(CObject3D* const Object3D, SBehaviorData& Behavior);
 
 private:
-	static constexpr size_t KPriorityCount{ 3 };
+	static constexpr size_t					KPriorityCount{ 3 };
 
 private:
 	ID3D11Device* const						m_PtrDevice{};

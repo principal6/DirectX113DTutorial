@@ -566,10 +566,10 @@ void CPhysicsEngine::ResolvePenetration(
 		{
 			// dynamic Sphere - static AABB
 
-			XMVECTOR DToS{ m_StaticClosestPoint - m_DynamicClosestPoint };
-			XMVECTOR N{ XMVector3Normalize(DToS) };
+			XMVECTOR Diff{ m_StaticClosestPoint - m_DynamicClosestPoint };
+			XMVECTOR N{ XMVector3Normalize(Diff) };
 
-			XMVECTOR Resolution{ DToS };
+			XMVECTOR Resolution{ Diff };
 			m_PenetrationDepth = XMVectorGetX(XMVector3Length(Resolution));
 			if (XMVectorGetY(N) == +1.0f)
 			{
@@ -596,10 +596,11 @@ void CPhysicsEngine::ResolvePenetration(
 		{
 			// AABB - AABB
 
-			XMVECTOR DToS{ m_StaticClosestPoint - m_DynamicClosestPoint };
-			XMVECTOR N{ GetAABBAABBCollisionNormal(DynamicObjectMovingDir, m_DynamicClosestPoint, m_StaticClosestPoint) };
+			XMVECTOR Diff{ m_StaticClosestPoint - m_DynamicClosestPoint };
+			XMVECTOR N{ GetAABBAABBCollisionNormal(DynamicObjectMovingDir, m_DynamicClosestPoint,
+				StaticPos, StaticBV.Data.AABBHalfSizes.x, StaticBV.Data.AABBHalfSizes.y, StaticBV.Data.AABBHalfSizes.z) };
 
-			XMVECTOR Resolution{ XMVector3Dot(DToS, N) * N };
+			XMVECTOR Resolution{ XMVector3Dot(Diff, N) * N };
 			m_PenetrationDepth = XMVectorGetX(XMVector3Length(Resolution));
 			if (XMVectorGetY(N) == +1.0f)
 			{

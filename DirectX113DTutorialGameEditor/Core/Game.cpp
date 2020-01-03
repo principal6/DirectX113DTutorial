@@ -3278,7 +3278,7 @@ void CGame::Update()
 		m_TimeNow = m_Clock.now().time_since_epoch().count();
 		if (m_TimePrev == 0) m_TimePrev = m_TimeNow;
 		m_DeltaTimeF = static_cast<float>((m_TimeNow - m_TimePrev) * 0.000'000'001);
-		//m_DeltaTimeF = 0.01f; // @important: FOR DEBUGGING
+		//m_DeltaTimeF = 0.02f; // @important: FOR DEBUGGING
 
 		if (m_TimeNow > m_PreviousFrameTime + 1'000'000'000)
 		{
@@ -3444,7 +3444,7 @@ void CGame::Update()
 						SBehaviorData Behavior{};
 						Behavior.eBehaviorType = EBehaviorType::WalkTo;
 						Behavior.Vector = DestinationXZ;
-						Behavior.Factor = 1.5f;
+						Behavior.Factor = 2.0f;
 						m_Intelligence->PushBackBehavior(PlayerObject, Behavior);
 					}
 					else if (eObjectRole == EObjectRole::Monster)
