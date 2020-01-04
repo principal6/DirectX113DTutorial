@@ -3275,25 +3275,25 @@ void CGame::Update()
 {
 	// Calculate time
 	{
-		m_TimeNow = m_Clock.now().time_since_epoch().count();
-		if (m_TimePrev == 0) m_TimePrev = m_TimeNow;
-		m_DeltaTimeF = static_cast<float>((m_TimeNow - m_TimePrev) * 0.000'000'001);
-		//m_DeltaTimeF = 0.02f; // @important: FOR DEBUGGING
+		m_TimeNow_ms = m_Clock.now().time_since_epoch().count() / 1'000'000;
+		if (m_TimePrev_ms == 0) m_TimePrev_ms = m_TimeNow_ms;
+		if (m_Timer_Test_ms == 0) m_Timer_Test_ms = m_TimePrev_ms;
+		m_DeltaTime_s = static_cast<float>(0.001 * (m_TimeNow_ms - m_TimePrev_ms));
 
-		if (m_TimeNow > m_PreviousFrameTime + 1'000'000'000)
+		if (m_TimeNow_ms > m_Timer_Frame_ms + 1'000)
 		{
-			m_FPS = m_FrameCount;
-			m_FrameCount = 0;
-			m_PreviousFrameTime = m_TimeNow;
+			m_FPS = m_FrameCounter;
+			m_FrameCounter = 0;
+			m_Timer_Frame_ms = m_TimeNow_ms;
 		}
 
-		m_CBEditorTimeData.NormalizedTime += m_DeltaTimeF;
-		m_CBEditorTimeData.NormalizedTimeHalfSpeed += m_DeltaTimeF * 0.5f;
+		m_CBEditorTimeData.NormalizedTime += m_DeltaTime_s;
+		m_CBEditorTimeData.NormalizedTimeHalfSpeed += m_DeltaTime_s * 0.5f;
 		if (m_CBEditorTimeData.NormalizedTime > 1.0f) m_CBEditorTimeData.NormalizedTime = 0.0f;
 		if (m_CBEditorTimeData.NormalizedTimeHalfSpeed > 1.0f) m_CBEditorTimeData.NormalizedTimeHalfSpeed = 0.0f;
 		m_CBEditorTime->Update();
 
-		m_CBWaterTimeData.Time += m_DeltaTimeF * 0.1f;
+		m_CBWaterTimeData.Time += m_DeltaTime_s * 0.1f;
 		if (m_CBWaterTimeData.Time > 1.0f) m_CBWaterTimeData.Time = 0.0f;
 		m_CBWaterTime->Update();
 
@@ -3326,28 +3326,28 @@ void CGame::Update()
 		{
 			if (m_CapturedKeyboardState.W)
 			{
-				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Forward, m_DeltaTimeF);
+				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Forward, m_DeltaTime_s);
 
 				if (m_PtrCurrentCamera != m_EditorCamera.get())
 					m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
 			}
 			if (m_CapturedKeyboardState.S)
 			{
-				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Backward, m_DeltaTimeF);
+				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Backward, m_DeltaTime_s);
 
 				if (m_PtrCurrentCamera != m_EditorCamera.get())
 					m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
 			}
 			if (m_CapturedKeyboardState.A && !m_CapturedKeyboardState.LeftControl)
 			{
-				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Leftward, m_DeltaTimeF);
+				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Leftward, m_DeltaTime_s);
 
 				if (m_PtrCurrentCamera != m_EditorCamera.get())
 					m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
 			}
 			if (m_CapturedKeyboardState.D)
 			{
-				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Rightward, m_DeltaTimeF);
+				m_PtrCurrentCamera->Move(CCamera::EMovementDirection::Rightward, m_DeltaTime_s);
 
 				if (m_PtrCurrentCamera != m_EditorCamera.get())
 					m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
@@ -3460,7 +3460,7 @@ void CGame::Update()
 	{
 		if ((GetMode() == EMode::Edit) ? m_CapturedMouseState.middleButton : m_CapturedMouseState.rightButton)
 		{
-			m_PtrCurrentCamera->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, m_DeltaTimeF);
+			m_PtrCurrentCamera->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, m_DeltaTime_s);
 
 			if (!IsEditorCamera(m_PtrCurrentCamera))
 			{
@@ -3485,11 +3485,26 @@ void CGame::Update()
 		PrevMouseY = m_CapturedMouseState.y;
 	}
 
-	m_TimePrev = m_TimeNow;
-	++m_FrameCount;
+	m_TimePrev_ms = m_TimeNow_ms;
+	++m_FrameCounter;
 
 	m_Intelligence->Execute(); // @important
-	m_PhysicsEngine.Update(m_DeltaTimeF);
+
+	// Physics engine
+	{
+		if (GetMode() == EMode::Play)
+		{
+			m_PhysicsEngine.Update(m_DeltaTime_s);
+		}
+		else
+		{
+			if (m_TimeNow_ms > m_Timer_Test_ms + m_Timer_Test_Interval_ms)
+			{
+				m_PhysicsEngine.Update(0.02f);
+				m_Timer_Test_ms = m_TimeNow_ms;
+			}
+		}
+	}
 }
 
 void CGame::Draw()
@@ -3523,7 +3538,7 @@ void CGame::Draw()
 		}
 
 		// Terrain
-		DrawTerrainOpaqueParts(m_DeltaTimeF);
+		DrawTerrainOpaqueParts(m_DeltaTime_s);
 
 		// Opaque Object3Ds
 		DrawOpaqueObject3Ds();
@@ -3746,7 +3761,7 @@ void CGame::Draw()
 
 		if (m_SkyData.bIsDataSet)
 		{
-			DrawSky(m_DeltaTimeF);
+			DrawSky(m_DeltaTime_s);
 		}
 
 		if (bShouldDrawNormals)
@@ -3765,7 +3780,7 @@ void CGame::Draw()
 		{
 			if (!Object3D->ComponentRender.bIsTransparent) continue;
 
-			Object3D->Animate(m_DeltaTimeF);
+			Object3D->Animate(m_DeltaTime_s);
 			Object3D->UpdateWorldMatrix();
 			DrawObject3D(Object3D.get());
 
@@ -3857,7 +3872,7 @@ void CGame::DrawOpaqueObject3Ds(bool bIgnoreOwnTexture, bool bUseVoidPS)
 				UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
 			}
 
-			Object3D->Animate(m_DeltaTimeF);
+			Object3D->Animate(m_DeltaTime_s);
 		}
 
 		Object3D->UpdateWorldMatrix();
@@ -4402,17 +4417,30 @@ void CGame::DrawEditorGUI()
 			ImGui::End();
 		}
 
-		if (ImGui::Begin(u8"플레이어"))
+		if (ImGui::Begin(u8"제어판", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize))
 		{
-			CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
-			if (ImGui::DragFloat3(u8"위치", (float*)&PlayerObject->ComponentTransform.Translation, 0.1f))
-			{
+			static constexpr float KLabelWidth{ 160.0f };
 
+			// 물리 엔진
+			{
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"물리 갱신 간격 (ms)");
+				ImGui::SameLine(KLabelWidth);
+				ImGui::SliderInt(u8"##물리 갱신 간격 (ms)", (int*)&m_Timer_Test_Interval_ms, 0, 2'000);
 			}
 
-			if (ImGui::DragFloat3(u8"속도", (float*)&PlayerObject->ComponentPhysics.LinearVelocity, 0.1f))
+			// 플레이어
 			{
-
+				CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"플레이어 위치");
+				ImGui::SameLine(KLabelWidth);
+				ImGui::DragFloat3(u8"##플레이어 위치", (float*)&PlayerObject->ComponentTransform.Translation, 0.1f);
+				
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"플레이어 속도");
+				ImGui::SameLine(KLabelWidth);
+				ImGui::DragFloat3(u8"##플레이어 속도", (float*)&PlayerObject->ComponentPhysics.LinearVelocity, 0.1f);
 			}
 
 			ImGui::End();
@@ -7691,5 +7719,5 @@ auto CGame::GetWorkingDirectory() const -> const char*
 
 auto CGame::GetDeltaTime() const -> float
 {
-	return m_DeltaTimeF;
+	return m_DeltaTime_s;
 }

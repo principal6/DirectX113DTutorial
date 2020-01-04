@@ -856,12 +856,14 @@ private:
 // Time
 private:
 	std::chrono::steady_clock				m_Clock{};
-	long long								m_TimeNow{};
-	long long								m_TimePrev{};
-	long long								m_PreviousFrameTime{};
+	long long								m_TimeNow_ms{};
+	long long								m_TimePrev_ms{};
+	long long								m_Timer_Frame_ms{};
+	long long								m_Timer_Test_ms{};
+	long long								m_Timer_Test_Interval_ms{};
 	long long								m_FPS{};
-	long long								m_FrameCount{};
-	float									m_DeltaTimeF{};
+	long long								m_FrameCounter{};
+	float									m_DeltaTime_s{};
 
 // Editor
 private:
