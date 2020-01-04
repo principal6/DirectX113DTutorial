@@ -3498,10 +3498,12 @@ void CGame::Update()
 		}
 		else
 		{
-			if (m_TimeNow_ms > m_Timer_Test_ms + m_Timer_Test_Interval_ms)
+			if ((m_bShouldAdvanceTestTimer) || (!m_bIsTestTimerPaused && m_TimeNow_ms > m_Timer_Test_ms + m_Timer_Test_Interval_ms))
 			{
-				m_PhysicsEngine.Update(0.02f);
+				m_PhysicsEngine.Update(m_Test_DeltaTime_s);
 				m_Timer_Test_ms = m_TimeNow_ms;
+
+				if (m_bShouldAdvanceTestTimer) m_bShouldAdvanceTestTimer = false;
 			}
 		}
 	}
@@ -4387,9 +4389,8 @@ void CGame::DrawEditorGUI()
 					TurnOnRenderingFlag(CGame::EFlagsRendering::DrawPickingData);
 				}
 			}
-
-			ImGui::End();
 		}
+		ImGui::End();
 	}
 	else if (m_eMode == EMode::Test)
 	{
@@ -4413,9 +4414,8 @@ void CGame::DrawEditorGUI()
 					SetRenderingFlags(m_SavedRenderingFlags);
 				}
 			}
-
-			ImGui::End();
 		}
+		ImGui::End();
 
 		if (ImGui::Begin(u8"제어판", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize))
 		{
@@ -4424,9 +4424,32 @@ void CGame::DrawEditorGUI()
 			// 물리 엔진
 			{
 				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"Delta time (s)");
+				ImGui::SameLine(KLabelWidth);
+				ImGui::SliderFloat(u8"##Delta time (s)", &m_Test_DeltaTime_s, 0.01f, 0.1f, "%.2f");
+
+				ImGui::AlignTextToFramePadding();
 				ImGui::Text(u8"물리 갱신 간격 (ms)");
 				ImGui::SameLine(KLabelWidth);
 				ImGui::SliderInt(u8"##물리 갱신 간격 (ms)", (int*)&m_Timer_Test_Interval_ms, 0, 2'000);
+
+				static int iButtonState{};
+				static const char* KButtonTexts[2]{ u8"갱신 중지", u8"갱신 재개" };
+				ImGui::SetCursorPosX(KLabelWidth);
+				if (ImGui::Button(KButtonTexts[iButtonState]))
+				{
+					iButtonState = (iButtonState == 0) ? 1 : 0;
+					m_bIsTestTimerPaused = !m_bIsTestTimerPaused;
+				}
+
+				if (iButtonState == 1)
+				{
+					ImGui::SameLine();
+					if (ImGui::Button(u8"다음 프레임으로"))
+					{
+						m_bShouldAdvanceTestTimer = true;
+					}
+				}
 			}
 
 			// 플레이어
@@ -4442,9 +4465,8 @@ void CGame::DrawEditorGUI()
 				ImGui::SameLine(KLabelWidth);
 				ImGui::DragFloat3(u8"##플레이어 속도", (float*)&PlayerObject->ComponentPhysics.LinearVelocity, 0.1f);
 			}
-
-			ImGui::End();
 		}
+		ImGui::End();
 	}
 
 	ImGui::PopFont();

@@ -462,68 +462,79 @@ static XMVECTOR GetAABBAABBCollisionNormal(
 	static constexpr XMVECTOR KZAxis{ 0, 0, 1, 0 };
 
 	XMVECTOR NegativeDir{ -DynamicAABBDir };
-
 	XMVECTOR StaticAABBHalfSize{ XMVectorSet(StaticAABBHalfSizeX, StaticAABBHalfSizeY, StaticAABBHalfSizeZ, 0) };
 	XMVECTOR StaticAABBMax{ StaticAABBCenter + StaticAABBHalfSize };
 	XMVECTOR StaticAABBMin{ StaticAABBCenter - StaticAABBHalfSize };
+
 	XMVECTOR RelativeMax{ StaticAABBMax - DynamicAABBClosestPoint };
 	XMVECTOR RelativeMin{ StaticAABBMin - DynamicAABBClosestPoint };
 
-	float DotDirY{ XMVectorGetX(XMVector3Dot(NegativeDir, KYAxis)) };
-	float DotMaxY{ XMVectorGetX(XMVector3Dot(RelativeMax, KYAxis)) };
-	float DotMinY{ XMVectorGetX(XMVector3Dot(RelativeMin, KYAxis)) };
-	XMVECTOR N{};
-	if (DotDirY >= DotMaxY)
-	{
-		// upper face
-		N = XMVectorSet(0, +1, 0, 0); // upper
-	}
-	else if (DotDirY <= DotMinY)
-	{
-		// lower face
-		N = XMVectorSet(0, -1, 0, 0); // lower
-	}
-	else
-	{
-		XMVECTOR NegativeDirXZ{ XMVectorSetY(NegativeDir, 0.0f) };
-		XMVECTOR RelativeXZBackLeft{ XMVectorSetY(RelativeMax - XMVectorSet(StaticAABBHalfSizeX * 2.0f, 0, 0, 0), 0.0f) };
-		XMVECTOR RelativeXZBackRight{ XMVectorSetY(RelativeMax, 0.0f) };
-		XMVECTOR RelativeXZFrontLeft{ XMVectorSetY(RelativeMin, 0.0f) };
-		XMVECTOR RelativeXZFrontRight{ XMVectorSetY(RelativeMin + XMVectorSet(StaticAABBHalfSizeX * 2.0f, 0, 0, 0), 0.0f) };
+	// upper or lower face
+	XMVECTOR NegativeDirXY{ XMVectorSetZ(NegativeDir, 0.0f) };
+	XMVECTOR RelativeXYUpperLeft{ XMVectorSetZ(RelativeMax - XMVectorSet(StaticAABBHalfSizeX * 2.0f, 0, 0, 0), 0.0f) };
+	XMVECTOR RelativeXYUpperRight{ XMVectorSetZ(RelativeMax, 0.0f) };
+	XMVECTOR RelativeXYLowerLeft{ XMVectorSetZ(RelativeMin, 0.0f) };
+	XMVECTOR RelativeXYLowerRight{ XMVectorSetZ(RelativeMin + XMVectorSet(StaticAABBHalfSizeX * 2.0f, 0, 0, 0), 0.0f) };
 
-		if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZBackRight)) > 0)
+	if (XMVectorGetZ(XMVector3Cross(RelativeXYUpperRight, NegativeDirXY)) > 0)
+	{
+		if (XMVectorGetZ(XMVector3Cross(NegativeDirXY, RelativeXYUpperLeft)) > 0)
 		{
-			if (XMVectorGetY(XMVector3Cross(RelativeXZBackLeft, NegativeDirXZ)) > 0)
-			{
-				// back face
-				N = XMVectorSet(0, 0, +1, 0); // back
-			}
-		}
-		else
-		{
-			if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZFrontRight)) > 0)
-			{
-				// right face
-				N = XMVectorSet(+1, 0, 0, 0); // right
-			}
-		}
-
-		if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZFrontLeft)) > 0)
-		{
-			if (XMVectorGetY(XMVector3Cross(RelativeXZFrontRight, NegativeDirXZ)) > 0)
-			{
-				// front face
-				N = XMVectorSet(0, 0, -1, 0); // front
-			}
-		}
-		else
-		{
-			if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZBackLeft)) > 0)
-			{
-				// left face
-				N = XMVectorSet(-1, 0, 0, 0); // left
-			}
+			// upper face
+			return XMVectorSet(0, +1, 0, 0); // upper
 		}
 	}
-	return N;
+
+	if (XMVectorGetZ(XMVector3Cross(RelativeXYLowerLeft, NegativeDirXY)) > 0)
+	{
+		if (XMVectorGetZ(XMVector3Cross(NegativeDirXY, RelativeXYLowerRight)) > 0)
+		{
+			// lower face
+			return XMVectorSet(0, -1, 0, 0); // lower
+		}
+	}
+
+	XMVECTOR NegativeDirXZ{ XMVectorSetY(NegativeDir, 0.0f) };
+	XMVECTOR RelativeXZBackLeft{ XMVectorSetY(RelativeMax - XMVectorSet(StaticAABBHalfSizeX * 2.0f, 0, 0, 0), 0.0f) };
+	XMVECTOR RelativeXZBackRight{ XMVectorSetY(RelativeMax, 0.0f) };
+	XMVECTOR RelativeXZFrontLeft{ XMVectorSetY(RelativeMin, 0.0f) };
+	XMVECTOR RelativeXZFrontRight{ XMVectorSetY(RelativeMin + XMVectorSet(StaticAABBHalfSizeX * 2.0f, 0, 0, 0), 0.0f) };
+
+	if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZBackRight)) > 0)
+	{
+		if (XMVectorGetY(XMVector3Cross(RelativeXZBackLeft, NegativeDirXZ)) > 0)
+		{
+			// back face
+			return XMVectorSet(0, 0, +1, 0); // back
+		}
+	}
+
+	if (XMVectorGetY(XMVector3Cross(RelativeXZBackRight, NegativeDirXZ)) > 0)
+	{
+		if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZFrontRight)) > 0)
+		{
+			// right face
+			return XMVectorSet(+1, 0, 0, 0); // right
+		}
+	}
+
+	if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZFrontLeft)) > 0)
+	{
+		if (XMVectorGetY(XMVector3Cross(RelativeXZFrontRight, NegativeDirXZ)) > 0)
+		{
+			// front face
+			return XMVectorSet(0, 0, -1, 0); // front
+		}
+	}
+
+	if (XMVectorGetY(XMVector3Cross(RelativeXZFrontLeft, NegativeDirXZ)) > 0)
+	{
+		if (XMVectorGetY(XMVector3Cross(NegativeDirXZ, RelativeXZBackLeft)) > 0)
+		{
+			// left face
+			return XMVectorSet(-1, 0, 0, 0); // left
+		}
+	}
+
+	return KVectorZero;
 }

@@ -402,6 +402,7 @@ bool CPhysicsEngine::DetectFineCollisionDynamicStatic(
 	CObject3D* const DynamicObject, const XMVECTOR& DynamicPos, const SBoundingVolume& DynamicBV, const std::vector<SBoundingVolume>& vDynamicBVs,
 	CObject3D* const StaticObject, const XMVECTOR& StaticPos, const SBoundingVolume& StaticBV, const std::vector<SBoundingVolume>& vStaticBVs)
 {
+	bool bCollided{ false };
 	XMVECTOR _DynamicPos{};
 	XMVECTOR _StaticPos{};
 
@@ -418,7 +419,7 @@ bool CPhysicsEngine::DetectFineCollisionDynamicStatic(
 				
 				ResolvePenetration(DynamicObject, _DynamicPos, DynamicBV, StaticObject, _StaticPos, StaticBV);
 
-				return true;
+				bCollided = true;
 			}
 		}
 		else
@@ -435,7 +436,7 @@ bool CPhysicsEngine::DetectFineCollisionDynamicStatic(
 
 					ResolvePenetration(DynamicObject, _DynamicPos, DynamicBVElement, StaticObject, _StaticPos, StaticBV);
 
-					return true;
+					bCollided = true;
 				}
 			}
 		}
@@ -456,7 +457,7 @@ bool CPhysicsEngine::DetectFineCollisionDynamicStatic(
 
 					ResolvePenetration(DynamicObject, _DynamicPos, DynamicBV, StaticObject, _StaticPos, StaticBVElement);
 
-					return true;
+					bCollided = true;
 				}
 			}
 		}
@@ -476,7 +477,7 @@ bool CPhysicsEngine::DetectFineCollisionDynamicStatic(
 
 						ResolvePenetration(DynamicObject, _DynamicPos, DynamicBVElement, StaticObject, _StaticPos, StaticBVElement);
 
-						return true;
+						bCollided = true;
 					}
 				}
 			}

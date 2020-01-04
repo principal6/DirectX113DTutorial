@@ -864,6 +864,9 @@ private:
 	long long								m_FPS{};
 	long long								m_FrameCounter{};
 	float									m_DeltaTime_s{};
+	float									m_Test_DeltaTime_s{ 0.02f };
+	bool									m_bIsTestTimerPaused{ false };
+	bool									m_bShouldAdvanceTestTimer{ false };
 
 // Editor
 private:
