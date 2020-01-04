@@ -3280,6 +3280,21 @@ void CGame::Update()
 		if (m_Timer_Test_ms == 0) m_Timer_Test_ms = m_TimePrev_ms;
 		m_DeltaTime_s = static_cast<float>(0.001 * (m_TimeNow_ms - m_TimePrev_ms));
 
+		if (m_bIsTestTimerPaused)
+		{
+			m_DeltaTime_s = 0;
+
+			if (m_bShouldAdvanceTestTimer)
+			{
+				m_DeltaTime_s += m_Test_DeltaTime_s;
+				m_bShouldAdvanceTestTimer = false;
+			}
+		}
+		else
+		{
+			m_DeltaTime_s *= m_Test_SlowFactor;
+		}
+
 		if (m_TimeNow_ms > m_Timer_Frame_ms + 1'000)
 		{
 			m_FPS = m_FrameCounter;
@@ -3491,20 +3506,14 @@ void CGame::Update()
 	m_Intelligence->Execute(); // @important
 
 	// Physics engine
+	if (GetMode() != EMode::Edit)
 	{
-		if (GetMode() == EMode::Play)
-		{
-			m_PhysicsEngine.Update(m_DeltaTime_s);
-		}
-		else
-		{
-			if ((m_bShouldAdvanceTestTimer) || (!m_bIsTestTimerPaused && m_TimeNow_ms > m_Timer_Test_ms + m_Timer_Test_Interval_ms))
-			{
-				m_PhysicsEngine.Update(m_Test_DeltaTime_s);
-				m_Timer_Test_ms = m_TimeNow_ms;
+		m_PhysicsEngine.Update(m_DeltaTime_s);
 
-				if (m_bShouldAdvanceTestTimer) m_bShouldAdvanceTestTimer = false;
-			}
+		CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
+		if (PlayerObject)
+		{
+			GetCurrentCamera()->TranslateTo(PlayerObject->ComponentTransform.Translation);
 		}
 	}
 }
@@ -4422,17 +4431,8 @@ void CGame::DrawEditorGUI()
 			static constexpr float KLabelWidth{ 160.0f };
 
 			// 물리 엔진
+			if (ImGui::TreeNodeEx(u8"물리 엔진", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ImGui::AlignTextToFramePadding();
-				ImGui::Text(u8"Delta time (s)");
-				ImGui::SameLine(KLabelWidth);
-				ImGui::SliderFloat(u8"##Delta time (s)", &m_Test_DeltaTime_s, 0.01f, 0.1f, "%.2f");
-
-				ImGui::AlignTextToFramePadding();
-				ImGui::Text(u8"물리 갱신 간격 (ms)");
-				ImGui::SameLine(KLabelWidth);
-				ImGui::SliderInt(u8"##물리 갱신 간격 (ms)", (int*)&m_Timer_Test_Interval_ms, 0, 2'000);
-
 				static int iButtonState{};
 				static const char* KButtonTexts[2]{ u8"갱신 중지", u8"갱신 재개" };
 				ImGui::SetCursorPosX(KLabelWidth);
@@ -4442,28 +4442,46 @@ void CGame::DrawEditorGUI()
 					m_bIsTestTimerPaused = !m_bIsTestTimerPaused;
 				}
 
-				if (iButtonState == 1)
+				if (iButtonState == 0)
+				{
+					ImGui::AlignTextToFramePadding();
+					ImGui::Text(u8"갱신 속도");
+					ImGui::SameLine(KLabelWidth);
+					ImGui::SliderFloat(u8"##갱신 속도", &m_Test_SlowFactor, 0.1f, 1.0f, "%.2f");
+				}
+				else
 				{
 					ImGui::SameLine();
 					if (ImGui::Button(u8"다음 프레임으로"))
 					{
 						m_bShouldAdvanceTestTimer = true;
 					}
+					ImGui::AlignTextToFramePadding();
+					ImGui::Text(u8"Delta time (s)");
+					ImGui::SameLine(KLabelWidth);
+					ImGui::SliderFloat(u8"##Delta time (s)", &m_Test_DeltaTime_s, 0.01f, 0.1f, "%.2f");
 				}
+
+				ImGui::TreePop();
 			}
 
+			ImGui::Separator();
+
 			// 플레이어
+			if (ImGui::TreeNodeEx(u8"플레이어", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
 				ImGui::AlignTextToFramePadding();
-				ImGui::Text(u8"플레이어 위치");
+				ImGui::Text(u8"위치");
 				ImGui::SameLine(KLabelWidth);
-				ImGui::DragFloat3(u8"##플레이어 위치", (float*)&PlayerObject->ComponentTransform.Translation, 0.1f);
+				ImGui::DragFloat3(u8"##위치", (float*)&PlayerObject->ComponentTransform.Translation, 0.1f);
 				
 				ImGui::AlignTextToFramePadding();
-				ImGui::Text(u8"플레이어 속도");
+				ImGui::Text(u8"속도");
 				ImGui::SameLine(KLabelWidth);
-				ImGui::DragFloat3(u8"##플레이어 속도", (float*)&PlayerObject->ComponentPhysics.LinearVelocity, 0.1f);
+				ImGui::DragFloat3(u8"##속도", (float*)&PlayerObject->ComponentPhysics.LinearVelocity, 0.1f);
+
+				ImGui::TreePop();
 			}
 		}
 		ImGui::End();

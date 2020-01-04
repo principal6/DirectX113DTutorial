@@ -860,11 +860,11 @@ private:
 	long long								m_TimePrev_ms{};
 	long long								m_Timer_Frame_ms{};
 	long long								m_Timer_Test_ms{};
-	long long								m_Timer_Test_Interval_ms{};
 	long long								m_FPS{};
 	long long								m_FrameCounter{};
 	float									m_DeltaTime_s{};
 	float									m_Test_DeltaTime_s{ 0.02f };
+	float									m_Test_SlowFactor{ 1.0f };
 	bool									m_bIsTestTimerPaused{ false };
 	bool									m_bShouldAdvanceTestTimer{ false };
 
