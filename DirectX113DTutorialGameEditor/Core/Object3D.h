@@ -165,15 +165,20 @@ public:
 	void SaveOB3D(const std::string& OB3DFileName);
 
 public:
-	bool HasAnimations();
 	void AddAnimationFromFile(const std::string& FileName, const std::string& AnimationName);
-	void SetAnimationID(int32_t ID);
-	int32_t GetAnimationID() const;
-	int GetAnimationCount() const;
-	void SetAnimationName(int ID, const std::string& Name);
-	const std::string& GetAnimationName(int ID) const;
+	void SetAnimation(int32_t AnimationID);
+	void SetAnimation(EAnimationRegistrationType eRegisteredType);
+	void RegisterAnimation(int32_t AnimationID, EAnimationRegistrationType eRegisteredType);
+	void SetAnimationName(int32_t AnimationID, const std::string& Name);
+	void SetAnimationTicksPerSecond(int32_t AnimationID, float TPS);
+	bool HasAnimations() const;
+	int32_t GetCurrentAnimationID() const;
+	size_t GetAnimationCount() const;
+	const std::string& GetAnimationName(int32_t AnimationID) const;
 	const SCBAnimationData& GetAnimationData() const;
 	const DirectX::XMMATRIX* GetAnimationBoneMatrices() const;
+	EAnimationRegistrationType GetRegisteredAnimationType(int32_t AnimationID) const;
+	float GetAnimationTicksPerSecond(int32_t AnimationID) const;
 	
 	bool HasBakedAnimationTexture() const;
 	bool CanBakeAnimationTexture() const;
@@ -255,6 +260,7 @@ public:
 	SMESHData& GetModel();
 	void SetName(const std::string& Name);
 	const std::string& GetName() const;
+	void SetModelFileName(const std::string& FileName);
 	const std::string& GetModelFileName() const;
 	const std::string& GetOB3DFileName() const;
 	const std::map<std::string, size_t>& GetInstanceNameToIndexMap() const;
@@ -264,7 +270,7 @@ public:
 	const XMVECTOR& GetEditorBoundingSphereCenterOffset() const;
 	float GetEditorBoundingSphereRadius() const;
 	float GetEditorBoundingSphereRadiusBias() const;
-	const SBoundingVolume& GetEditorBoundingSphere() const;
+	const SBoundingVolume& GetEditorBoundingSphere() const;	
 
 private:
 	void LimitFloatRotation(float& Value, const float Min, const float Max);
@@ -283,54 +289,58 @@ private:
 	static constexpr int32_t KAnimationTextureReservedFirstPixelCount{ 2 };
 
 public:
-	SComponentTransform									ComponentTransform{};
-	SComponentRender									ComponentRender{};
-	SComponentPhysics									ComponentPhysics{};
-	EFlagsRendering										eFlagsRendering{};
+	SComponentTransform										ComponentTransform{};
+	SComponentRender										ComponentRender{};
+	SComponentPhysics										ComponentPhysics{};
+	EFlagsRendering											eFlagsRendering{};
 
 private:
-	SBoundingVolume										EditorBoundingSphere{};
+	ID3D11Device* const										m_PtrDevice{};
+	ID3D11DeviceContext* const								m_PtrDeviceContext{};
 
 private:
-	ID3D11Device* const									m_PtrDevice{};
-	ID3D11DeviceContext* const							m_PtrDeviceContext{};
+	std::string												m_Name{};
+	std::string												m_ModelFileName{};
+	std::string												m_OB3DFileName{};
+	bool													m_bIsCreated{ false };
+	std::unique_ptr<SMESHData>								m_Model{};
+	std::vector<std::unique_ptr<CMaterialTextureSet>>		m_vMaterialTextureSets{};
 
 private:
-	std::string											m_Name{};
-	std::string											m_ModelFileName{};
-	std::string											m_OB3DFileName{};
-	bool												m_bIsCreated{ false };
-	std::unique_ptr<SMESHData>							m_Model{};
-	std::vector<std::unique_ptr<CMaterialTextureSet>>	m_vMaterialTextureSets{};
+	std::vector<SMeshBuffers>								m_vMeshBuffers{};
+	std::vector<SInstanceBuffer>							m_vInstanceBuffers{};
 
 private:
-	std::vector<SMeshBuffers>							m_vMeshBuffers{};
-	std::vector<SInstanceBuffer>						m_vInstanceBuffers{};
+	std::unique_ptr<CConstantBuffer>						m_CBMaterial{};
+	mutable SCBMaterialData									m_CBMaterialData{};
+	SCBTessFactorData										m_CBTessFactorData{};
+	SCBDisplacementData										m_CBDisplacementData{};
 
 private:
-	std::unique_ptr<CConstantBuffer>					m_CBMaterial{};
-	mutable SCBMaterialData								m_CBMaterialData{};
-	SCBTessFactorData									m_CBTessFactorData{};
-	SCBDisplacementData									m_CBDisplacementData{};
+	SBoundingVolume											m_EditorBoundingSphere{};
 
 private:
-	XMMATRIX											m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
-	int32_t												m_CurrentAnimationID{};
-	float												m_CurrentAnimationTick{};
+	XMMATRIX												m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
+	int32_t													m_CurrentAnimationID{};
+	float													m_CurrentAnimationTick{};
 
-	std::unique_ptr<CTexture>							m_BakedAnimationTexture{};
-	SCBAnimationData									m_CBAnimationData{};
-	bool												m_bIsBakedAnimationLoaded{ false };
+	std::unique_ptr<CTexture>								m_BakedAnimationTexture{};
+	SCBAnimationData										m_CBAnimationData{};
+	bool													m_bIsBakedAnimationLoaded{ false };
 
-	bool												m_bShouldTesselate{ false };
+	bool													m_bShouldTesselate{ false };
+
+	std::unordered_map<EAnimationRegistrationType, size_t>	m_umapRegisteredAnimationTypeToIndex{};
+	std::unordered_map<size_t, EAnimationRegistrationType>	m_umapRegisteredAnimationIndexToType{};
+	std::vector<int32_t>									m_vRegisteredAnimationIDs{};
 
 private:
-	std::vector<SObject3DInstanceGPUData>				m_vInstanceGPUData{};
-	std::vector<SObject3DInstanceCPUData>				m_vInstanceCPUData{};
-	std::map<std::string, size_t>						m_mapInstanceNameToIndex{};
+	std::vector<SObject3DInstanceGPUData>					m_vInstanceGPUData{};
+	std::vector<SObject3DInstanceCPUData>					m_vInstanceCPUData{};
+	std::map<std::string, size_t>							m_mapInstanceNameToIndex{};
 
 private:
-	std::unique_ptr<CAssimpLoader>						m_AssimpLoader{};
+	std::unique_ptr<CAssimpLoader>							m_AssimpLoader{};
 };
 
 ENUM_CLASS_FLAG(CObject3D::EFlagsRendering)

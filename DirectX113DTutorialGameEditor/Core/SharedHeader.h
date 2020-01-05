@@ -133,6 +133,25 @@ struct SVertexBufferBundle
 	UINT					Offset{};
 };
 
+enum class EAnimationRegistrationType
+{
+	NotRegistered,
+
+	Idle,
+	Walking,
+	Jumping,
+	Landing
+};
+
+static const char* KRegisteredAnimationTypeNames[]
+{
+	u8"-",
+	u8"Idle",
+	u8"Walking",
+	u8"Jumping",
+	u8"Landing"
+};
+
 #define ENUM_CLASS_FLAG(enum_type)\
 static enum_type operator|(enum_type a, enum_type b)\
 {\

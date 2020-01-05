@@ -5,7 +5,7 @@
 class CObject3D;
 class CIntelligence;
 
-enum class EBehaviorPriority
+enum class EObjectPriority
 {
 	A_Crucial,
 	B_Normal,
@@ -16,7 +16,9 @@ enum class EBehaviorType
 {
 	None,
 
-	WalkTo
+	WalkTo,
+	Jump,
+	Attack
 };
 
 struct SBehaviorData
@@ -28,7 +30,14 @@ struct SBehaviorData
 	float			Factor{ 1.0f };
 
 private:
-	bool			bDone{ false };
+	enum class EStatus
+	{
+		Waiting,
+		Entering,
+		Processing,
+		Done
+	};
+	EStatus			eStatus{ EStatus::Waiting };
 };
 
 struct SBehaviorSet
@@ -47,7 +56,7 @@ public:
 	void ClearBehaviors();
 
 public:
-	void RegisterPriority(CObject3D* const Object3D, EBehaviorPriority ePriority, bool bShouldChangePriority = false);
+	void RegisterPriority(CObject3D* const Object3D, EObjectPriority ePriority, bool bShouldChangePriority = false);
 	void PushBackBehavior(CObject3D* const Object3D, const SBehaviorData& Behavior);
 	void PushFrontBehavior(CObject3D* const Object3D, const SBehaviorData& Behavior);
 	void PopFrontBehavior(CObject3D* const Object3D);

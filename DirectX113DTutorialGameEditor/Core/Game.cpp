@@ -2374,6 +2374,12 @@ bool CGame::SetMode(EMode eMode)
 			MB_WARN("먼저 플레이어 카메라를 지정해 주세요.", "플레이어 카메라 미지정");
 			return false;
 		}
+
+		if (!m_PhysicsEngine.GetPlayerObject())
+		{
+			MB_WARN("먼저 플레이어 오브젝트를 지정해 주세요.", "플레이어 오브젝트 미지정");
+			return false;
+		}
 		
 		DeselectAll();
 
@@ -5288,7 +5294,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									if (ImGui::Button(u8"플레이어로"))
 									{
 										m_PhysicsEngine.RegisterObject(Object3D, EObjectRole::Player);
-										m_Intelligence->RegisterPriority(Object3D, EBehaviorPriority::A_Crucial, true); // @important
+										m_Intelligence->RegisterPriority(Object3D, EObjectPriority::A_Crucial, true); // @important
 									}
 									ImGui::SameLine();
 									if (ImGui::Button(u8"환경으로"))
@@ -5557,16 +5563,16 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"애니메이션 개수:");
 										ImGui::SameLine(ItemsOffsetX);
-										int AnimationCount{ Object3D->GetAnimationCount() };
+										int AnimationCount{ static_cast<int>(Object3D->GetAnimationCount()) };
 										ImGui::Text(u8"%d", AnimationCount);
 
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"애니메이션 ID");
 										ImGui::SameLine(ItemsOffsetX);
-										int AnimationID{ Object3D->GetAnimationID() };
-										if (ImGui::SliderInt(u8"##애니메이션 ID", &AnimationID, 0, Object3D->GetAnimationCount() - 1))
+										int AnimationID{ Object3D->GetCurrentAnimationID() };
+										if (ImGui::SliderInt(u8"##애니메이션 ID", &AnimationID, 0, AnimationCount - 1))
 										{
-											Object3D->SetAnimationID(AnimationID);
+											Object3D->SetAnimation(AnimationID);
 										}
 
 										ImGui::AlignTextToFramePadding();
@@ -5604,14 +5610,35 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 											}
 										}
 
+										static constexpr float KAnimationNameWidth{ 200.0f };
+										static constexpr float KRegistrationWidth{ 100.0f };
 										if (ImGui::ListBoxHeader(u8"##애니메이션 목록", ImVec2(WindowWidth, 0)))
 										{
 											for (int iAnimation = 0; iAnimation < AnimationCount; ++iAnimation)
 											{
 												ImGui::PushID(iAnimation);
-												if (ImGui::Selectable(Object3D->GetAnimationName(iAnimation).c_str(), (iAnimation == iSelectedAnimationID)))
 												{
-													iSelectedAnimationID = iAnimation;
+													if (ImGui::Selectable(Object3D->GetAnimationName(iAnimation).c_str(),
+														(iAnimation == iSelectedAnimationID)))
+													{
+														iSelectedAnimationID = iAnimation;
+													}
+
+													ImGui::SameLine(KAnimationNameWidth);
+													int RegistrationData{ static_cast<int>(Object3D->GetRegisteredAnimationType(iAnimation)) };
+													if (ImGui::Selectable(KRegisteredAnimationTypeNames[RegistrationData],
+														(iAnimation == iSelectedAnimationID)))
+													{
+														iSelectedAnimationID = iAnimation;
+													}
+
+													ImGui::SameLine(KAnimationNameWidth + KRegistrationWidth);
+													if (ImGui::Selectable(
+														(to_string(static_cast<int>(Object3D->GetAnimationTicksPerSecond(iAnimation))) + " TPS").c_str(),
+														(iAnimation == iSelectedAnimationID)))
+													{
+														iSelectedAnimationID = iAnimation;
+													}
 												}
 												ImGui::PopID();
 											}
@@ -5633,7 +5660,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								ImGui::Text(u8"애니메이션 이름");
 								ImGui::SameLine(150);
 								static char Name[16]{};
-								bool bOK{ ImGui::InputText(u8"##애니메이션 이름", Name, 16, ImGuiInputTextFlags_EnterReturnsTrue) };
+								ImGui::InputText(u8"##애니메이션 이름", Name, 16, ImGuiInputTextFlags_EnterReturnsTrue);
 
 								ImGui::AlignTextToFramePadding();
 								ImGui::Text(u8"파일 이름");
@@ -5653,7 +5680,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 								ImGui::SameLine();
 
-								if (ImGui::Button(u8"결정") || bOK)
+								if (ImGui::Button(u8"결정") || m_CapturedKeyboardState.Enter)
 								{
 									if (FileName[0] == '\0')
 									{
@@ -5683,24 +5710,56 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							if (bShowAnimationEditor) ImGui::OpenPopup(u8"애니메이션 수정");
 							if (ImGui::BeginPopupModal(u8"애니메이션 수정", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove))
 							{
+								static constexpr float KLabelWidth{ 150.0f };
 								static bool bFirstTime{ true };
 								CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
 
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text(u8"애니메이션 이름");
-								ImGui::SameLine(150);
 								static char AnimationName[CObject3D::KMaxAnimationNameLength]{};
-								if (bFirstTime)
+								static size_t iSelectedRegistration{};
+								static float TPS{};
 								{
-									strcpy_s(AnimationName, Object3D->GetAnimationName(iSelectedAnimationID).c_str());
-									bFirstTime = false;
-								}
-								bool bOK{ ImGui::InputText(u8"##애니메이션 이름", AnimationName, 
-									CObject3D::KMaxAnimationNameLength, ImGuiInputTextFlags_EnterReturnsTrue) };
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"애니메이션 이름");
+									ImGui::SameLine(KLabelWidth);
+									if (bFirstTime)
+									{
+										strcpy_s(AnimationName, Object3D->GetAnimationName(iSelectedAnimationID).c_str());
+										iSelectedRegistration = (size_t)Object3D->GetRegisteredAnimationType(iSelectedAnimationID);
+										TPS = Object3D->GetAnimationTicksPerSecond(iSelectedAnimationID);
 
-								if (ImGui::Button(u8"결정") | bOK)
+										bFirstTime = false;
+									}
+									ImGui::InputText(u8"##애니메이션 이름", AnimationName,
+										CObject3D::KMaxAnimationNameLength, ImGuiInputTextFlags_EnterReturnsTrue);
+
+									const char* CurrentRegistration{ KRegisteredAnimationTypeNames[iSelectedRegistration] };
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"등록 정보");
+									ImGui::SameLine(KLabelWidth);
+									if (ImGui::BeginCombo(u8"##등록 정보", CurrentRegistration))
+									{
+										for (size_t iRegistration = 0; iRegistration < ARRAYSIZE(KRegisteredAnimationTypeNames); ++iRegistration)
+										{
+											if (ImGui::Selectable(KRegisteredAnimationTypeNames[iRegistration], (iRegistration == iSelectedRegistration)))
+											{
+												iSelectedRegistration = iRegistration;
+												CurrentRegistration = KRegisteredAnimationTypeNames[iSelectedRegistration];
+											}
+										}
+										ImGui::EndCombo();
+									}
+
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"TPS");
+									ImGui::SameLine(KLabelWidth);
+									ImGui::DragFloat(u8"##TPS", &TPS);
+								}
+								
+								if (ImGui::Button(u8"결정") || m_CapturedKeyboardState.Enter)
 								{
 									Object3D->SetAnimationName(iSelectedAnimationID, AnimationName);
+									Object3D->SetAnimationTicksPerSecond(iSelectedAnimationID, TPS);
+									Object3D->RegisterAnimation(iSelectedAnimationID, (EAnimationRegistrationType)iSelectedRegistration);
 
 									bFirstTime = true;
 									bShowAnimationEditor = false;
@@ -7183,7 +7242,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				static CFileDialog FileDialog{ GetWorkingDirectory() };
 				if (FileDialog.SaveFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 내보내기", ".scene"))
 				{
-					SaveScene(FileDialog.GetRelativeFileName(), "Scene\\" + FileDialog.GetFileNameOnly() + '\\');
+					SaveScene(FileDialog.GetRelativeFileName(), "Scene\\" + FileDialog.GetFileNameWithoutExt() + '\\');
 				}
 			}
 
@@ -7195,7 +7254,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 				static CFileDialog FileDialog{ GetWorkingDirectory() };
 				if (FileDialog.OpenFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 불러오기"))
 				{
-					LoadScene(FileDialog.GetRelativeFileName(), "Scene\\" + FileDialog.GetFileNameOnly() + '\\');
+					LoadScene(FileDialog.GetRelativeFileName(), "Scene\\" + FileDialog.GetFileNameWithoutExt() + '\\');
 				}
 			}
 
@@ -7222,6 +7281,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 							if (FileDialog.GetCapitalExtension() == "MESH")
 							{
 								m_MeshPorter.ExportMESH(FileDialog.GetFileName(), Object3D->GetModel());
+								Object3D->SetModelFileName(FileDialog.GetRelativeFileName());
 							}
 							else
 							{

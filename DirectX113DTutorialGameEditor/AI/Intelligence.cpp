@@ -25,7 +25,7 @@ void CIntelligence::ClearBehaviors()
 	}
 }
 
-void CIntelligence::RegisterPriority(CObject3D* const Object3D, EBehaviorPriority ePriority, bool bShouldChangePriority)
+void CIntelligence::RegisterPriority(CObject3D* const Object3D, EObjectPriority ePriority, bool bShouldChangePriority)
 {
 	assert(Object3D);
 
@@ -66,7 +66,7 @@ void CIntelligence::PushBackBehavior(CObject3D* const Object3D, const SBehaviorD
 
 	// @important
 	// if not registered, register with the lowest priority
-	RegisterPriority(Object3D, EBehaviorPriority::C_Trivial);
+	RegisterPriority(Object3D, EObjectPriority::C_Trivial);
 
 	size_t Priority{ m_umapPriority.at(Object3D) };
 	size_t iBehaviorSet{ m_umapBehaviorSets[Priority].at(Object3D) };
@@ -80,7 +80,7 @@ void CIntelligence::PushFrontBehavior(CObject3D* const Object3D, const SBehavior
 
 	// @important
 	// if not registered, register with the lowest priority
-	RegisterPriority(Object3D, EBehaviorPriority::C_Trivial);
+	RegisterPriority(Object3D, EObjectPriority::C_Trivial);
 
 	size_t Priority{ m_umapPriority.at(Object3D) };
 	size_t iBehaviorSet{ m_umapBehaviorSets[Priority].at(Object3D) };
@@ -142,7 +142,8 @@ void CIntelligence::Execute()
 			if (BehaviorSet.dqBehaviors.size())
 			{
 				ExecuteBehavior(BehaviorSet.Object3D, BehaviorSet.dqBehaviors.front());
-				if (BehaviorSet.dqBehaviors.front().bDone)
+
+				if (BehaviorSet.dqBehaviors.front().eStatus == SBehaviorData::EStatus::Done)
 				{
 					BehaviorSet.dqBehaviors.pop_front();
 				}
@@ -153,10 +154,18 @@ void CIntelligence::Execute()
 
 void CIntelligence::ExecuteBehavior(CObject3D* const Object3D, SBehaviorData& Behavior)
 {
+	static constexpr XMVECTOR KNegativeZAxis{ 0, 0, -1.0f, 0 };
+	if (Behavior.eStatus == SBehaviorData::EStatus::Waiting) Behavior.eStatus = SBehaviorData::EStatus::Entering;
+
 	switch (Behavior.eBehaviorType)
 	{
 	case EBehaviorType::WalkTo:
 	{
+		if (Behavior.eStatus == SBehaviorData::EStatus::Entering)
+		{
+			Object3D->SetAnimation(EAnimationRegistrationType::Walking);
+		}
+
 		const XMVECTOR& DestinationXZ{ Behavior.Vector };
 		const XMVECTOR& PlayerXZ{ XMVectorSetY(Object3D->ComponentTransform.Translation, 0) };
 		XMVECTOR Diff{ PlayerXZ - DestinationXZ };
@@ -164,18 +173,29 @@ void CIntelligence::ExecuteBehavior(CObject3D* const Object3D, SBehaviorData& Be
 		if (Distance < 0.1f) // @important
 		{
 			Object3D->ComponentPhysics.LinearVelocity = XMVectorZero();
-			Behavior.bDone = true;
+			Behavior.eStatus = SBehaviorData::EStatus::Done;
 		}
 		else
 		{
 			const XMVECTOR& Direction{ XMVector3Normalize(DestinationXZ - PlayerXZ) };
 			float OldY{ XMVectorGetY(Object3D->ComponentPhysics.LinearVelocity) };
 			Object3D->ComponentPhysics.LinearVelocity = XMVectorSetY(Direction * Behavior.Factor, OldY);
+
+			XMVECTOR DirectionXY{ XMVectorSetY(Direction, 0) };
+			float Dot{ XMVectorGetX(XMVector3Dot(DirectionXY, KNegativeZAxis)) };
+			float CrossY{ XMVectorGetY(XMVector3Cross(DirectionXY, KNegativeZAxis)) };
+			float Yaw{ acos(Dot) };
+			if (CrossY > 0) Yaw = XM_2PI - Yaw;
+			
+			Object3D->ComponentTransform.Yaw = Yaw;
 		}
 		break;
 	}
 	default:
-		Behavior.bDone = true; // for safety issue
+		Behavior.eStatus = SBehaviorData::EStatus::Done; // for safety issue
 		break;
 	}
+
+	if (Behavior.eStatus == SBehaviorData::EStatus::Entering) Behavior.eStatus = SBehaviorData::EStatus::Processing;
+	if (Behavior.eStatus == SBehaviorData::EStatus::Done) Object3D->SetAnimation(EAnimationRegistrationType::Idle);
 }

@@ -1,0 +1,53 @@
+// #########################
+// << .OB3D FILE STRUCTURE >>
+// @@@ SYNTAX @@@
+//  - <@PrefString>: 4B(uint32_t)[String length] + ??(string)[Non-zero-terminated string]
+// #########################
+// 8B (string) Signature "KJW-OB3D"
+// 4B (in total) Version
+//  = 2B (uint16_t) Version major "0x0001"
+//  + 1B (uint8_t) Version minor "0x00"
+//  + 1B (uint8_t) Version sub-minor "0x03"
+// ##### Mesh data #####
+// 1B (bool) bContainMeshData
+// - (TRUE) ?
+//   - 4B (uint32_t) Mesh byte count
+//   - ?? (byte) Mesh bytes
+// - (FALSE) ?
+//   - <@PrefString> Object3D name
+// ##### ComponentTransform #####
+// 16B (XMVECTOR) Transform
+// 4B (float) Pitch
+// 4B (float) Yaw
+// 4B (float) Roll
+// 16B (XMVECTOR) Scaling
+// ##### ComponentPhysics #####
+// 1B (bool) bIsPickable
+// 16B (XMVECTOR) BoundingSphere CenterOffset
+// 4B (float) BoundingSphere RadiusBias
+// 4B (uint32_t) bounding volumes count
+// - 16B (XMVECTOR) bounding volume center
+// - 1B (uint8_t, enum) bounding volume type
+// - 4B (float) union data x
+// - 4B (float) union data y
+// - 4B (float) union data z
+// ##### ComponentRender #####
+// 1B (bool) bIsTransparent
+// 1B (bool) bShouldAnimate
+// ##### Instance #####
+// 4B (uint32_t) Instance count
+// - ### per-instance ###
+// - <@PrefString> Instance name
+// - 16B (XMVECTOR) Translation
+// - 4B (float) Pitch
+// - 4B (float) Yaw
+// - 4B (float) Roll
+// - 16B (XMVECTOR) Scaling
+// - 16B (XMVECTOR) BoundingSphere CenterOffset
+// - 4B (float) BoundingSphere RadiusBias
+// ##### Animation #####
+// 4B (int32_t) Current animation ID
+/********** BEGIN NEW **********/
+// - ### per-animation ###
+// - 4B (uint32_t, enum) Registered animation type
+/**********  END NEW  **********/

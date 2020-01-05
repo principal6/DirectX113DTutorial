@@ -29,7 +29,7 @@ void CObject3D::Create(const SMesh& Mesh)
 	m_Model = make_unique<SMESHData>();
 	m_Model->vMeshes.emplace_back(Mesh);
 	m_Model->vMaterialData.emplace_back();
-	m_Model->EditorBoundingSphereData = EditorBoundingSphere;
+	m_Model->EditorBoundingSphereData = m_EditorBoundingSphere;
 
 	CreateMeshBuffers();
 	CreateMaterialTextures();
@@ -43,7 +43,7 @@ void CObject3D::Create(const SMesh& Mesh, const CMaterialData& MaterialData)
 	m_Model = make_unique<SMESHData>();
 	m_Model->vMeshes.emplace_back(Mesh);
 	m_Model->vMaterialData.emplace_back(MaterialData);
-	m_Model->EditorBoundingSphereData = EditorBoundingSphere;
+	m_Model->EditorBoundingSphereData = m_EditorBoundingSphere;
 	
 	CreateMeshBuffers();
 	CreateMaterialTextures();
@@ -56,7 +56,7 @@ void CObject3D::Create(const SMESHData& MESHData)
 {
 	m_Model = make_unique<SMESHData>(MESHData);
 
-	EditorBoundingSphere = MESHData.EditorBoundingSphereData;
+	m_EditorBoundingSphere = MESHData.EditorBoundingSphereData;
 
 	CreateMeshBuffers();
 	CreateMaterialTextures();
@@ -242,8 +242,8 @@ void CObject3D::CalculateEditorBoundingSphereData()
 		}
 	}
 
-	EditorBoundingSphere.Data.BS.RadiusBias = m_Model->EditorBoundingSphereData.Data.BS.RadiusBias = sqrt(MaxLengthSqaure);
-	EditorBoundingSphere.Center = m_Model->EditorBoundingSphereData.Center = VertexCenter;
+	m_EditorBoundingSphere.Data.BS.RadiusBias = m_Model->EditorBoundingSphereData.Data.BS.RadiusBias = sqrt(MaxLengthSqaure);
+	m_EditorBoundingSphere.Center = m_Model->EditorBoundingSphereData.Center = VertexCenter;
 }
 
 void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
@@ -306,8 +306,8 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
 	{
 		Object3DBinary.ReadBool(ComponentPhysics.bIsPickable);
 
-		Object3DBinary.ReadXMVECTOR(EditorBoundingSphere.Center);
-		Object3DBinary.ReadFloat(EditorBoundingSphere.Data.BS.RadiusBias);
+		Object3DBinary.ReadXMVECTOR(m_EditorBoundingSphere.Center);
+		Object3DBinary.ReadFloat(m_EditorBoundingSphere.Data.BS.RadiusBias);
 
 		if (Version >= 0x10002)
 		{
@@ -360,10 +360,24 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
 	}
 
 	// ### Animation ###
-	if (Version >= 0x10001)
 	{
-		// 4B (int32_t) Current animation ID
-		Object3DBinary.ReadInt32(m_CurrentAnimationID);
+		if (Version >= 0x10001)
+		{
+			// 4B (int32_t) Current animation ID
+			Object3DBinary.ReadInt32(m_CurrentAnimationID);
+		}
+		if (Version >= 0x10003)
+		{
+			uint32_t RegisteredAnimationType{};
+			for (size_t iAnimation = 0; iAnimation < GetAnimationCount(); ++iAnimation)
+			{
+				// 4B (uint32_t, enum) Registered animation type
+				Object3DBinary.ReadUint32(RegisteredAnimationType);
+
+				EAnimationRegistrationType eRegisteredAnimationType{ (EAnimationRegistrationType)RegisteredAnimationType };
+				RegisterAnimation(static_cast<int32_t>(iAnimation), eRegisteredAnimationType);
+			}
+		}
 	}
 }
 
@@ -371,7 +385,7 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 {
 	static constexpr uint16_t KVersionMajor{ 0x0001 };
 	static constexpr uint8_t KVersionMinor{ 0x00 };
-	static constexpr uint8_t KVersionSubminor{ 0x02 };
+	static constexpr uint8_t KVersionSubminor{ 0x03 };
 	uint32_t Version{ (uint32_t)(KVersionSubminor | (KVersionMinor << 8) | (KVersionMajor << 16)) };
 
 	m_OB3DFileName = OB3DFileName;
@@ -434,8 +448,8 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 	{
 		Object3DBinary.WriteBool(ComponentPhysics.bIsPickable);
 		
-		Object3DBinary.WriteXMVECTOR(EditorBoundingSphere.Center);
-		Object3DBinary.WriteFloat(EditorBoundingSphere.Data.BS.RadiusBias);
+		Object3DBinary.WriteXMVECTOR(m_EditorBoundingSphere.Center);
+		Object3DBinary.WriteFloat(m_EditorBoundingSphere.Data.BS.RadiusBias);
 
 		if (Version >= 0x10002)
 		{
@@ -481,18 +495,25 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 	}
 
 	// ### Animation ###
-	if (Version >= 0x10001)
 	{
-		// 4B (int32_t) Current animation ID
-		Object3DBinary.WriteInt32(m_CurrentAnimationID);
+		if (Version >= 0x10001)
+		{
+			// 4B (int32_t) Current animation ID
+			Object3DBinary.WriteInt32(m_CurrentAnimationID);
+		}
+		if (Version >= 0x10003)
+		{
+			for (size_t iAnimation = 0; iAnimation < GetAnimationCount(); ++iAnimation)
+			{
+				EAnimationRegistrationType eRegisteredAnimationType{ GetRegisteredAnimationType(static_cast<int32_t>(iAnimation)) };
+
+				// 4B (uint32_t, enum) Registered animation type
+				Object3DBinary.WriteUint32((uint32_t)eRegisteredAnimationType);
+			}
+		}
 	}
 
 	Object3DBinary.SaveToFile(OB3DFileName);
-}
-
-bool CObject3D::HasAnimations()
-{
-	return (m_Model->vAnimations.size()) ? true : false;
 }
 
 void CObject3D::AddAnimationFromFile(const string& FileName, const string& AnimationName)
@@ -504,24 +525,41 @@ void CObject3D::AddAnimationFromFile(const string& FileName, const string& Anima
 	m_Model->vAnimations.back().Name = AnimationName;
 }
 
-void CObject3D::SetAnimationID(int32_t ID)
+void CObject3D::SetAnimation(int32_t AnimationID)
 {
-	ID = max(min(ID, (int)(m_Model->vAnimations.size() - 1)), 0);
+	AnimationID = max(min(AnimationID, static_cast<int>(GetAnimationCount() - 1)), 0);
 
-	m_CurrentAnimationID = ID;
+	m_CurrentAnimationID = AnimationID;
 }
 
-int32_t CObject3D::GetAnimationID() const
+void CObject3D::SetAnimation(EAnimationRegistrationType eRegisteredType)
 {
-	return m_CurrentAnimationID;
+	if (m_umapRegisteredAnimationTypeToIndex.find(eRegisteredType) == m_umapRegisteredAnimationTypeToIndex.end()) return;
+
+	size_t At{ m_umapRegisteredAnimationTypeToIndex.at(eRegisteredType) };
+	int32_t AnimationID{ m_vRegisteredAnimationIDs[At] };
+	SetAnimation(AnimationID);
 }
 
-int CObject3D::GetAnimationCount() const
+void CObject3D::RegisterAnimation(int32_t AnimationID, EAnimationRegistrationType eRegisteredType)
 {
-	return (int)m_Model->vAnimations.size();
+	if (eRegisteredType == EAnimationRegistrationType::NotRegistered) return;
+
+	if (m_umapRegisteredAnimationTypeToIndex.find(eRegisteredType) == m_umapRegisteredAnimationTypeToIndex.end())
+	{
+		m_vRegisteredAnimationIDs.emplace_back(AnimationID);
+		m_umapRegisteredAnimationTypeToIndex[eRegisteredType] = m_vRegisteredAnimationIDs.size() - 1;
+		m_umapRegisteredAnimationIndexToType[AnimationID] = eRegisteredType;
+	}
+	else
+	{
+		size_t At{ m_umapRegisteredAnimationTypeToIndex.at(eRegisteredType) };
+		m_vRegisteredAnimationIDs[At] = AnimationID;
+		m_umapRegisteredAnimationIndexToType[AnimationID] = eRegisteredType;
+	}
 }
 
-void CObject3D::SetAnimationName(int ID, const string& Name)
+void CObject3D::SetAnimationName(int32_t AnimationID, const string& Name)
 {
 	if (m_Model->vAnimations.empty())
 	{
@@ -535,12 +573,38 @@ void CObject3D::SetAnimationName(int ID, const string& Name)
 		return;
 	}
 
-	m_Model->vAnimations[ID].Name = Name;
+	m_Model->vAnimations[AnimationID].Name = Name;
 }
 
-const string& CObject3D::GetAnimationName(int ID) const
+void CObject3D::SetAnimationTicksPerSecond(int32_t AnimationID, float TPS)
 {
-	return m_Model->vAnimations[ID].Name;
+	if (m_Model->vAnimations.empty())
+	{
+		MB_WARN("애니메이션이 존재하지 않습니다.", "애니메이션 이름 지정 실패");
+		return;
+	}
+
+	m_Model->vAnimations[AnimationID].TicksPerSecond = TPS;
+}
+
+bool CObject3D::HasAnimations() const
+{
+	return (m_Model->vAnimations.size()) ? true : false;
+}
+
+int32_t CObject3D::GetCurrentAnimationID() const
+{
+	return m_CurrentAnimationID;
+}
+
+size_t CObject3D::GetAnimationCount() const
+{
+	return m_Model->vAnimations.size();
+}
+
+const string& CObject3D::GetAnimationName(int32_t AnimationID) const
+{
+	return m_Model->vAnimations[AnimationID].Name;
 }
 
 const CObject3D::SCBAnimationData& CObject3D::GetAnimationData() const
@@ -551,6 +615,20 @@ const CObject3D::SCBAnimationData& CObject3D::GetAnimationData() const
 const DirectX::XMMATRIX* CObject3D::GetAnimationBoneMatrices() const
 {
 	return m_AnimatedBoneMatrices;
+}
+
+EAnimationRegistrationType CObject3D::GetRegisteredAnimationType(int32_t AnimationID) const
+{
+	if (m_umapRegisteredAnimationIndexToType.find(AnimationID) != m_umapRegisteredAnimationIndexToType.end())
+	{
+		return m_umapRegisteredAnimationIndexToType.at(AnimationID);
+	}
+	return EAnimationRegistrationType::NotRegistered;
+}
+
+float CObject3D::GetAnimationTicksPerSecond(int32_t AnimationID) const
+{
+	return m_Model->vAnimations[AnimationID].TicksPerSecond;
 }
 
 bool CObject3D::HasBakedAnimationTexture() const
@@ -840,7 +918,7 @@ bool CObject3D::InsertInstance(const string& InstanceName)
 	m_vInstanceCPUData.back().Pitch = ComponentTransform.Pitch;
 	m_vInstanceCPUData.back().Yaw = ComponentTransform.Yaw;
 	m_vInstanceCPUData.back().Roll = ComponentTransform.Roll;
-	m_vInstanceCPUData.back().EditorBoundingSphere = EditorBoundingSphere; // @important
+	m_vInstanceCPUData.back().EditorBoundingSphere = m_EditorBoundingSphere; // @important
 	m_mapInstanceNameToIndex[LimitedName] = m_vInstanceCPUData.size() - 1;
 
 	m_vInstanceGPUData.emplace_back();
@@ -1056,10 +1134,10 @@ void CObject3D::UpdateWorldMatrix()
 	float ScalingY{ XMVectorGetY(ComponentTransform.Scaling) };
 	float ScalingZ{ XMVectorGetZ(ComponentTransform.Scaling) };
 	float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
-	EditorBoundingSphere.Data.BS.Radius = EditorBoundingSphere.Data.BS.RadiusBias * MaxScaling;
+	m_EditorBoundingSphere.Data.BS.Radius = m_EditorBoundingSphere.Data.BS.RadiusBias * MaxScaling;
 
-	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.Center) };
-	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.Center) };
+	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(m_EditorBoundingSphere.Center) };
+	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-m_EditorBoundingSphere.Center) };
 
 	ComponentTransform.MatrixWorld = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
 }
@@ -1091,10 +1169,10 @@ void CObject3D::UpdateInstanceWorldMatrix(const std::string& InstanceName)
 	float ScalingY{ XMVectorGetY(InstanceCPUData.Scaling) };
 	float ScalingZ{ XMVectorGetZ(InstanceCPUData.Scaling) };
 	float MaxScaling{ max(ScalingX, max(ScalingY, ScalingZ)) };
-	InstanceCPUData.EditorBoundingSphere.Data.BS.Radius = EditorBoundingSphere.Data.BS.RadiusBias * MaxScaling;
+	InstanceCPUData.EditorBoundingSphere.Data.BS.Radius = m_EditorBoundingSphere.Data.BS.RadiusBias * MaxScaling;
 
-	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.Center) };
-	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.Center) };
+	XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(m_EditorBoundingSphere.Center) };
+	XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-m_EditorBoundingSphere.Center) };
 
 	// Update GPU data
 	InstanceGPUData.WorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
@@ -1132,8 +1210,8 @@ void CObject3D::UpdateAllInstancesWorldMatrix()
 			m_vInstanceCPUData[iInstance].Yaw, m_vInstanceCPUData[iInstance].Roll) };
 		XMMATRIX Scaling{ XMMatrixScalingFromVector(m_vInstanceCPUData[iInstance].Scaling) };
 
-		XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(EditorBoundingSphere.Center) };
-		XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-EditorBoundingSphere.Center) };
+		XMMATRIX BoundingSphereTranslation{ XMMatrixTranslationFromVector(m_EditorBoundingSphere.Center) };
+		XMMATRIX BoundingSphereTranslationOpposite{ XMMatrixTranslationFromVector(-m_EditorBoundingSphere.Center) };
 
 		// Update GPU data
 		m_vInstanceGPUData[iInstance].WorldMatrix = Scaling * BoundingSphereTranslationOpposite * Rotation * Translation * BoundingSphereTranslation;
@@ -1264,6 +1342,11 @@ const std::string& CObject3D::GetName() const
 	return m_Name;
 }
 
+void CObject3D::SetModelFileName(const std::string& FileName)
+{
+	m_ModelFileName = FileName;
+}
+
 const std::string& CObject3D::GetModelFileName() const
 {
 	return m_ModelFileName;
@@ -1287,34 +1370,34 @@ CMaterialTextureSet* CObject3D::GetMaterialTextureSet(size_t iMaterial)
 
 void CObject3D::SetEditorBoundingSphereCenterOffset(const XMVECTOR& Center)
 {
-	EditorBoundingSphere.Center = Center;
-	if (m_Model) m_Model->EditorBoundingSphereData.Center = EditorBoundingSphere.Center;
+	m_EditorBoundingSphere.Center = Center;
+	if (m_Model) m_Model->EditorBoundingSphereData.Center = m_EditorBoundingSphere.Center;
 }
 
 void CObject3D::SetEditorBoundingSphereRadiusBias(float Radius)
 {
-	EditorBoundingSphere.Data.BS.RadiusBias = Radius;
-	if (m_Model) m_Model->EditorBoundingSphereData.Data.BS.RadiusBias = EditorBoundingSphere.Data.BS.RadiusBias;
+	m_EditorBoundingSphere.Data.BS.RadiusBias = Radius;
+	if (m_Model) m_Model->EditorBoundingSphereData.Data.BS.RadiusBias = m_EditorBoundingSphere.Data.BS.RadiusBias;
 }
 
 const XMVECTOR& CObject3D::GetEditorBoundingSphereCenterOffset() const
 {
-	return EditorBoundingSphere.Center;
+	return m_EditorBoundingSphere.Center;
 }
 
 float CObject3D::GetEditorBoundingSphereRadius() const
 {
-	return EditorBoundingSphere.Data.BS.Radius;
+	return m_EditorBoundingSphere.Data.BS.Radius;
 }
 
 float CObject3D::GetEditorBoundingSphereRadiusBias() const
 {
-	return EditorBoundingSphere.Data.BS.RadiusBias;
+	return m_EditorBoundingSphere.Data.BS.RadiusBias;
 }
 
 const SBoundingVolume& CObject3D::GetEditorBoundingSphere() const
 {
-	return EditorBoundingSphere;
+	return m_EditorBoundingSphere;
 }
 
 void CObject3D::Animate(float DeltaTime)
