@@ -2324,6 +2324,77 @@ CObject2D* CGame::GetObject2D(const string& Name, bool bShowWarning) const
 	return m_vObject2Ds[m_mapObject2DNameToIndex.at(Name)].get();
 }
 
+void CGame::WalkPlayerToPickedPoint(float WalkSpeed)
+{
+	if (GetMode() == EMode::Edit) return;
+
+	if (!ImGui::IsAnyItemActive() && !ImGui::IsAnyWindowFocused() && !ImGui::IsAnyWindowHovered())
+	{
+		if (m_bLeftButtonUpOnce)
+		{
+			CastPickingRay();
+
+			if (m_PhysicsEngine.PickObject(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection))
+			{
+				CObject3D* const PickedObject{ m_PhysicsEngine.GetPickedObject() };
+				EObjectRole eObjectRole{ m_PhysicsEngine.GetObjectRole(PickedObject) };
+				if (eObjectRole == EObjectRole::Environment)
+				{
+					CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
+
+					bool bShouldWalk{ true };
+					if (m_Intelligence->HasBehavior(PlayerObject))
+					{
+						EBehaviorType eBehaviorType{ m_Intelligence->PeekBehavior(PlayerObject).eBehaviorType };
+						if (eBehaviorType == EBehaviorType::Jump)
+						{
+							bShouldWalk = false;
+						}
+						else if (eBehaviorType == EBehaviorType::WalkTo)
+						{
+							m_Intelligence->PopFrontBehavior(PlayerObject);
+						}
+					}
+
+					if (bShouldWalk)
+					{
+						XMVECTOR DestinationXZ{ XMVectorSetY(m_PhysicsEngine.GetPickedPoint(), 0) };
+
+						SBehaviorData Behavior{};
+						Behavior.eBehaviorType = EBehaviorType::WalkTo;
+						Behavior.Vector = DestinationXZ;
+						Behavior.Factor = WalkSpeed;
+						m_Intelligence->PushBackBehavior(PlayerObject, Behavior);
+					}
+				}
+				else if (eObjectRole == EObjectRole::Monster)
+				{
+
+				}
+			}
+		}
+	}
+}
+
+void CGame::JumpPlayer(float JumpSpeed)
+{
+	if (GetMode() == EMode::Edit) return;
+
+	CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
+	if (m_Intelligence->HasBehavior(PlayerObject))
+	{
+		const auto& CurrentBehavior{ m_Intelligence->PeekBehavior(PlayerObject) };
+		if (CurrentBehavior.eBehaviorType == EBehaviorType::Jump) return;
+
+		m_Intelligence->PopFrontBehaviorIf(PlayerObject, EBehaviorType::WalkTo);
+	}
+
+	SBehaviorData BehaviorData{};
+	BehaviorData.eBehaviorType = EBehaviorType::Jump;
+	BehaviorData.Factor = JumpSpeed;
+	m_Intelligence->PushFrontBehavior(PlayerObject, BehaviorData);
+}
+
 bool CGame::InsertLight(CLight::EType eType, const std::string& Name)
 {
 	string InstanceName{ Name };
@@ -3444,59 +3515,30 @@ void CGame::Update()
 	}
 	else
 	{
-		if (!ImGui::IsAnyItemActive() && !ImGui::IsAnyWindowFocused() && !ImGui::IsAnyWindowHovered())
-		{
-			if (m_bLeftButtonUpOnce)
-			{
-				CastPickingRay();
-
-				if (m_PhysicsEngine.PickObject(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection))
-				{
-					CObject3D* const PickedObject{ m_PhysicsEngine.GetPickedObject() };
-					EObjectRole eObjectRole{ m_PhysicsEngine.GetObjectRole(PickedObject) };
-					if (eObjectRole == EObjectRole::Environment)
-					{
-						CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
-
-						m_Intelligence->PopFrontBehaviorIf(PlayerObject, EBehaviorType::WalkTo);
-
-						XMVECTOR DestinationXZ{ XMVectorSetY(m_PhysicsEngine.GetPickedPoint(), 0) };
-
-						SBehaviorData Behavior{};
-						Behavior.eBehaviorType = EBehaviorType::WalkTo;
-						Behavior.Vector = DestinationXZ;
-						Behavior.Factor = 2.0f;
-						m_Intelligence->PushBackBehavior(PlayerObject, Behavior);
-					}
-					else if (eObjectRole == EObjectRole::Monster)
-					{
-
-					}
-				}
-			}
-		}
+		
 	}
 
 	if (bMouseMoved)
 	{
 		if ((GetMode() == EMode::Edit) ? m_CapturedMouseState.middleButton : m_CapturedMouseState.rightButton)
 		{
-			m_PtrCurrentCamera->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, m_DeltaTime_s);
+			GetCurrentCamera()->Rotate(m_CapturedMouseState.x - PrevMouseX, m_CapturedMouseState.y - PrevMouseY, 
+				(m_DeltaTime_s) ? m_DeltaTime_s : m_Test_DeltaTime_s);
 
-			if (!IsEditorCamera(m_PtrCurrentCamera))
+			if (!IsEditorCamera(GetCurrentCamera()))
 			{
-				m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
+				m_CameraRep->UpdateInstanceWorldMatrix(GetCurrentCamera()->GetName(), GetCurrentCamera()->GetWorldMatrix());
 			}
 		}
 	}
 
 	if (m_CapturedMouseState.scrollWheelValue)
 	{
-		m_PtrCurrentCamera->Zoom(m_CapturedMouseState.scrollWheelValue, 0.01f);
+		GetCurrentCamera()->Zoom(m_CapturedMouseState.scrollWheelValue, 0.01f);
 
-		if (!IsEditorCamera(m_PtrCurrentCamera))
+		if (!IsEditorCamera(GetCurrentCamera()))
 		{
-			m_CameraRep->UpdateInstanceWorldMatrix(m_PtrCurrentCamera->GetName(), m_PtrCurrentCamera->GetWorldMatrix());
+			m_CameraRep->UpdateInstanceWorldMatrix(GetCurrentCamera()->GetName(), GetCurrentCamera()->GetWorldMatrix());
 		}
 	}
 
@@ -3514,13 +3556,13 @@ void CGame::Update()
 	// Physics engine
 	if (GetMode() != EMode::Edit)
 	{
-		m_PhysicsEngine.Update(m_DeltaTime_s);
-
 		CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
 		if (PlayerObject)
 		{
 			GetCurrentCamera()->TranslateTo(PlayerObject->ComponentTransform.Translation);
 		}
+
+		m_PhysicsEngine.Update(m_DeltaTime_s);
 	}
 }
 
@@ -5717,6 +5759,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								static char AnimationName[CObject3D::KMaxAnimationNameLength]{};
 								static size_t iSelectedRegistration{};
 								static float TPS{};
+								static float BehaviorStartTick{};
 								{
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"애니메이션 이름");
@@ -5726,6 +5769,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										strcpy_s(AnimationName, Object3D->GetAnimationName(iSelectedAnimationID).c_str());
 										iSelectedRegistration = (size_t)Object3D->GetRegisteredAnimationType(iSelectedAnimationID);
 										TPS = Object3D->GetAnimationTicksPerSecond(iSelectedAnimationID);
+										BehaviorStartTick = Object3D->GetAnimationBehaviorStartTick(iSelectedAnimationID);
 
 										bFirstTime = false;
 									}
@@ -5753,6 +5797,11 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									ImGui::Text(u8"TPS");
 									ImGui::SameLine(KLabelWidth);
 									ImGui::DragFloat(u8"##TPS", &TPS);
+
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"행동 개시 Tick");
+									ImGui::SameLine(KLabelWidth);
+									ImGui::DragFloat(u8"##행동 개시 Tick", &BehaviorStartTick);
 								}
 								
 								if (ImGui::Button(u8"결정") || m_CapturedKeyboardState.Enter)
@@ -5760,6 +5809,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									Object3D->SetAnimationName(iSelectedAnimationID, AnimationName);
 									Object3D->SetAnimationTicksPerSecond(iSelectedAnimationID, TPS);
 									Object3D->RegisterAnimation(iSelectedAnimationID, (EAnimationRegistrationType)iSelectedRegistration);
+									Object3D->SetAnimationBehaviorStartTick(iSelectedAnimationID, BehaviorStartTick);
 
 									bFirstTime = true;
 									bShowAnimationEditor = false;

@@ -81,4 +81,9 @@ private:
 	std::vector<SBehaviorSet>				m_vBehaviorSets[KPriorityCount]{};
 	std::unordered_map<CObject3D*, size_t>	m_umapBehaviorSets[KPriorityCount]{};
 	std::unordered_map<CObject3D*, size_t>	m_umapPriority{};
+
+private:
+	bool									m_bBehaviorStarted{ false };
+	XMVECTOR								m_SavedVector{};
+	XMVECTOR								m_SavedVectorXZ{};
 };

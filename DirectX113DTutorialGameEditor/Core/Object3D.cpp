@@ -24,20 +24,6 @@ CObject3D::~CObject3D()
 {
 }
 
-void CObject3D::Create(const SMesh& Mesh)
-{
-	m_Model = make_unique<SMESHData>();
-	m_Model->vMeshes.emplace_back(Mesh);
-	m_Model->vMaterialData.emplace_back();
-	m_Model->EditorBoundingSphereData = m_EditorBoundingSphere;
-
-	CreateMeshBuffers();
-	CreateMaterialTextures();
-	CreateConstantBuffers();
-
-	m_bIsCreated = true;
-}
-
 void CObject3D::Create(const SMesh& Mesh, const CMaterialData& MaterialData)
 {
 	m_Model = make_unique<SMESHData>();
@@ -45,11 +31,14 @@ void CObject3D::Create(const SMesh& Mesh, const CMaterialData& MaterialData)
 	m_Model->vMaterialData.emplace_back(MaterialData);
 	m_Model->EditorBoundingSphereData = m_EditorBoundingSphere;
 	
-	CreateMeshBuffers();
-	CreateMaterialTextures();
-	CreateConstantBuffers();
+	InitializeModelData();
 
 	m_bIsCreated = true;
+}
+
+void CObject3D::Create(const SMesh& Mesh)
+{
+	Create(Mesh, CMaterialData());
 }
 
 void CObject3D::Create(const SMESHData& MESHData)
@@ -58,9 +47,7 @@ void CObject3D::Create(const SMESHData& MESHData)
 
 	m_EditorBoundingSphere = MESHData.EditorBoundingSphereData;
 
-	CreateMeshBuffers();
-	CreateMaterialTextures();
-	CreateConstantBuffers();
+	InitializeModelData();
 
 	m_bIsCreated = true;
 }
@@ -105,9 +92,7 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 		}
 		OutputDebugString(("- Model [" + FileName + "] loaded. [" + to_string(GetTickCount64() - StartTimePoint) + "] elapsed.\n").c_str());
 
-		CreateMeshBuffers();
-		CreateMaterialTextures();
-		CreateConstantBuffers();
+		InitializeModelData();
 
 		for (const CMaterialData& Material : m_Model->vMaterialData)
 		{
@@ -123,6 +108,14 @@ void CObject3D::CreateFromFile(const string& FileName, bool bIsModelRigged)
 
 		m_bIsCreated = true;
 	}
+}
+
+void CObject3D::InitializeModelData()
+{
+	CreateMeshBuffers();
+	CreateMaterialTextures();
+	CreateConstantBuffers();
+	InitializeAnimationData();
 }
 
 void CObject3D::CreateMeshBuffers()
@@ -244,6 +237,17 @@ void CObject3D::CalculateEditorBoundingSphereData()
 
 	m_EditorBoundingSphere.Data.BS.RadiusBias = m_Model->EditorBoundingSphereData.Data.BS.RadiusBias = sqrt(MaxLengthSqaure);
 	m_EditorBoundingSphere.Center = m_Model->EditorBoundingSphereData.Center = VertexCenter;
+}
+
+void CObject3D::InitializeAnimationData()
+{
+	if (m_Model->vAnimations.empty())
+	{
+		m_vAnimationBehaviorStartTicks.clear();
+		return;
+	}
+
+	m_vAnimationBehaviorStartTicks.resize(m_Model->vAnimations.size());
 }
 
 void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
@@ -376,6 +380,12 @@ void CObject3D::LoadOB3D(const std::string& OB3DFileName, bool bIsRigged)
 
 				EAnimationRegistrationType eRegisteredAnimationType{ (EAnimationRegistrationType)RegisteredAnimationType };
 				RegisterAnimation(static_cast<int32_t>(iAnimation), eRegisteredAnimationType);
+
+				if (Version >= 0x10004)
+				{
+					// 4B (float) Behavior start tick
+					m_vAnimationBehaviorStartTicks[iAnimation] = Object3DBinary.ReadFloat();
+				}
 			}
 		}
 	}
@@ -385,7 +395,7 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 {
 	static constexpr uint16_t KVersionMajor{ 0x0001 };
 	static constexpr uint8_t KVersionMinor{ 0x00 };
-	static constexpr uint8_t KVersionSubminor{ 0x03 };
+	static constexpr uint8_t KVersionSubminor{ 0x04 };
 	uint32_t Version{ (uint32_t)(KVersionSubminor | (KVersionMinor << 8) | (KVersionMajor << 16)) };
 
 	m_OB3DFileName = OB3DFileName;
@@ -509,6 +519,12 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 
 				// 4B (uint32_t, enum) Registered animation type
 				Object3DBinary.WriteUint32((uint32_t)eRegisteredAnimationType);
+
+				if (Version >= 0x10004)
+				{
+					// 4B (float) Behavior start tick
+					Object3DBinary.WriteFloat(m_vAnimationBehaviorStartTicks[iAnimation]);
+				}
 			}
 		}
 	}
@@ -523,22 +539,33 @@ void CObject3D::AddAnimationFromFile(const string& FileName, const string& Anima
 	if (!m_AssimpLoader) m_AssimpLoader = make_unique<CAssimpLoader>();
 	m_AssimpLoader->AddAnimationFromFile(FileName, m_Model.get());
 	m_Model->vAnimations.back().Name = AnimationName;
+
+	InitializeAnimationData();
 }
 
-void CObject3D::SetAnimation(int32_t AnimationID)
+void CObject3D::SetAnimation(int32_t AnimationID, EAnimationOption eAnimationOption, bool bShouldIgnoreCurrentAnimation)
 {
 	AnimationID = max(min(AnimationID, static_cast<int>(GetAnimationCount() - 1)), 0);
 
+	if (!bShouldIgnoreCurrentAnimation)
+	{
+		if (m_CurrentAnimationID == AnimationID) return;
+		if (m_CurrentAnimationPlayCounter == 0) return;
+	}
+	
 	m_CurrentAnimationID = AnimationID;
+	m_CurrentAnimationTick = 0; // @important
+	m_eCurrentAnimationOption = eAnimationOption;
+	m_CurrentAnimationPlayCounter = 0;
 }
 
-void CObject3D::SetAnimation(EAnimationRegistrationType eRegisteredType)
+void CObject3D::SetAnimation(EAnimationRegistrationType eRegisteredType, EAnimationOption eAnimationOption, bool bShouldIgnoreCurrentAnimation)
 {
 	if (m_umapRegisteredAnimationTypeToIndex.find(eRegisteredType) == m_umapRegisteredAnimationTypeToIndex.end()) return;
 
 	size_t At{ m_umapRegisteredAnimationTypeToIndex.at(eRegisteredType) };
 	int32_t AnimationID{ m_vRegisteredAnimationIDs[At] };
-	SetAnimation(AnimationID);
+	SetAnimation(AnimationID, eAnimationOption, bShouldIgnoreCurrentAnimation);
 }
 
 void CObject3D::RegisterAnimation(int32_t AnimationID, EAnimationRegistrationType eRegisteredType)
@@ -587,14 +614,34 @@ void CObject3D::SetAnimationTicksPerSecond(int32_t AnimationID, float TPS)
 	m_Model->vAnimations[AnimationID].TicksPerSecond = TPS;
 }
 
+void CObject3D::SetAnimationBehaviorStartTick(int32_t AnimationID, float BehaviorStartTick)
+{
+	m_vAnimationBehaviorStartTicks[AnimationID] = BehaviorStartTick;
+}
+
 bool CObject3D::HasAnimations() const
 {
 	return (m_Model->vAnimations.size()) ? true : false;
 }
 
+bool CObject3D::IsCurrentAnimationRegisteredAs(EAnimationRegistrationType eRegistrationType) const
+{
+	return GetRegisteredAnimationType(m_CurrentAnimationID) == eRegistrationType;
+}
+
 int32_t CObject3D::GetCurrentAnimationID() const
 {
 	return m_CurrentAnimationID;
+}
+
+float CObject3D::GetCurrentAnimationTick() const
+{
+	return m_CurrentAnimationTick;
+}
+
+float CObject3D::GetCurrentAnimationBehaviorStartTick() const
+{
+	return GetAnimationBehaviorStartTick(GetCurrentAnimationID());
 }
 
 size_t CObject3D::GetAnimationCount() const
@@ -629,6 +676,11 @@ EAnimationRegistrationType CObject3D::GetRegisteredAnimationType(int32_t Animati
 float CObject3D::GetAnimationTicksPerSecond(int32_t AnimationID) const
 {
 	return m_Model->vAnimations[AnimationID].TicksPerSecond;
+}
+
+float CObject3D::GetAnimationBehaviorStartTick(int32_t AnimationID) const
+{
+	return m_vAnimationBehaviorStartTicks[AnimationID];
 }
 
 bool CObject3D::HasBakedAnimationTexture() const
@@ -777,6 +829,8 @@ void CObject3D::LoadBakedAnimationTexture(const string& FileName)
 	m_BakedAnimationTexture->SetShaderType(EShaderType::VertexShader);
 
 	m_bIsBakedAnimationLoaded = true;
+
+	InitializeAnimationData();
 }
 
 void CObject3D::AddMaterial(const CMaterialData& MaterialData)
@@ -1404,11 +1458,22 @@ void CObject3D::Animate(float DeltaTime)
 {
 	if (!m_Model->vAnimations.size()) return;
 
+	if ((m_eCurrentAnimationOption == EAnimationOption::PlayToFirstFrame || m_eCurrentAnimationOption == EAnimationOption::PlayToLastFrame) &&
+		m_CurrentAnimationPlayCounter >= 1)
+	{
+		return;
+	}
+
 	SMeshAnimation& CurrentAnimation{ m_Model->vAnimations[m_CurrentAnimationID] };
 	m_CurrentAnimationTick += CurrentAnimation.TicksPerSecond * DeltaTime;
 	if (m_CurrentAnimationTick > CurrentAnimation.Duration)
 	{
-		m_CurrentAnimationTick = 0.0f;
+		++m_CurrentAnimationPlayCounter;
+
+		if (m_eCurrentAnimationOption == EAnimationOption::Repeat || m_eCurrentAnimationOption == EAnimationOption::PlayToFirstFrame)
+		{
+			m_CurrentAnimationTick = 0.0f;
+		}
 	}
 
 	if (m_BakedAnimationTexture)

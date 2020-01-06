@@ -155,7 +155,12 @@ void CIntelligence::Execute()
 void CIntelligence::ExecuteBehavior(CObject3D* const Object3D, SBehaviorData& Behavior)
 {
 	static constexpr XMVECTOR KNegativeZAxis{ 0, 0, -1.0f, 0 };
-	if (Behavior.eStatus == SBehaviorData::EStatus::Waiting) Behavior.eStatus = SBehaviorData::EStatus::Entering;
+	
+	if (Behavior.eStatus == SBehaviorData::EStatus::Waiting)
+	{
+		Behavior.eStatus = SBehaviorData::EStatus::Entering;
+		m_bBehaviorStarted = false; // @important
+	}
 
 	switch (Behavior.eBehaviorType)
 	{
@@ -191,11 +196,47 @@ void CIntelligence::ExecuteBehavior(CObject3D* const Object3D, SBehaviorData& Be
 		}
 		break;
 	}
+	case EBehaviorType::Jump:
+		if (Behavior.eStatus == SBehaviorData::EStatus::Entering)
+		{
+			Object3D->SetAnimation(EAnimationRegistrationType::Jumping, EAnimationOption::PlayToLastFrame);
+
+			m_SavedVectorXZ = XMVectorSetY(Object3D->ComponentPhysics.LinearVelocity, 0);
+			Object3D->ComponentPhysics.LinearVelocity = XMVectorSet(0, 0, 0, 0);
+		}
+		else
+		{
+			if (!m_bBehaviorStarted)
+			{
+				if (Object3D->GetCurrentAnimationTick() >= Object3D->GetCurrentAnimationBehaviorStartTick())
+				{
+					Object3D->ComponentPhysics.LinearVelocity = XMVectorSetY(m_SavedVectorXZ, Behavior.Factor);
+					m_bBehaviorStarted = true;
+				}
+			}
+			else
+			{
+				if (XMVectorGetY(m_SavedVector) <= XMVectorGetY(Object3D->ComponentPhysics.LinearVelocity))
+				{
+					Object3D->SetAnimation(EAnimationRegistrationType::Landing, EAnimationOption::PlayToLastFrame);
+					Behavior.eStatus = SBehaviorData::EStatus::Done;
+
+					float Y{ XMVectorGetY(Object3D->ComponentPhysics.LinearVelocity) };
+					Object3D->ComponentPhysics.LinearVelocity = XMVectorSet(0, Y, 0, 0);
+				}
+			}
+		}
+		m_SavedVector = Object3D->ComponentPhysics.LinearVelocity;
+		break;
 	default:
 		Behavior.eStatus = SBehaviorData::EStatus::Done; // for safety issue
 		break;
 	}
 
 	if (Behavior.eStatus == SBehaviorData::EStatus::Entering) Behavior.eStatus = SBehaviorData::EStatus::Processing;
-	if (Behavior.eStatus == SBehaviorData::EStatus::Done) Object3D->SetAnimation(EAnimationRegistrationType::Idle);
+	if (Behavior.eStatus == SBehaviorData::EStatus::Done)
+	{
+		Object3D->SetAnimation(EAnimationRegistrationType::Idle, EAnimationOption::Repeat, 
+			Object3D->IsCurrentAnimationRegisteredAs(EAnimationRegistrationType::Walking));
+	}
 }

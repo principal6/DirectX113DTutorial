@@ -152,6 +152,13 @@ static const char* KRegisteredAnimationTypeNames[]
 	u8"Landing"
 };
 
+enum class EAnimationOption
+{
+	Repeat,
+	PlayToLastFrame,
+	PlayToFirstFrame
+};
+
 #define ENUM_CLASS_FLAG(enum_type)\
 static enum_type operator|(enum_type a, enum_type b)\
 {\

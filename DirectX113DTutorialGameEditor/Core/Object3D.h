@@ -143,13 +143,15 @@ public:
 	}
 
 public:
-	void Create(const SMesh& Mesh);
 	void Create(const SMesh& Mesh, const CMaterialData& MaterialData);
+	void Create(const SMesh& Mesh);
 	void Create(const SMESHData& MESHData);
 
 	void CreateFromFile(const std::string& FileName, bool bIsModelRigged);
 
 private:
+	void InitializeModelData();
+
 	void CreateMeshBuffers();
 	void CreateMeshBuffer(size_t MeshIndex, bool IsAnimated);
 
@@ -160,26 +162,39 @@ private:
 
 	void CalculateEditorBoundingSphereData();
 
+	void InitializeAnimationData();
+
 public:
 	void LoadOB3D(const std::string& OB3DFileName, bool bIsRigged);
 	void SaveOB3D(const std::string& OB3DFileName);
 
 public:
 	void AddAnimationFromFile(const std::string& FileName, const std::string& AnimationName);
-	void SetAnimation(int32_t AnimationID);
-	void SetAnimation(EAnimationRegistrationType eRegisteredType);
+
+public:
+	void SetAnimation(int32_t AnimationID,
+		EAnimationOption eAnimationOption = EAnimationOption::Repeat, bool bShouldIgnoreCurrentAnimation = true);
+	void SetAnimation(EAnimationRegistrationType eRegisteredType, 
+		EAnimationOption eAnimationOption = EAnimationOption::Repeat, bool bShouldIgnoreCurrentAnimation = true);
 	void RegisterAnimation(int32_t AnimationID, EAnimationRegistrationType eRegisteredType);
 	void SetAnimationName(int32_t AnimationID, const std::string& Name);
 	void SetAnimationTicksPerSecond(int32_t AnimationID, float TPS);
+	void SetAnimationBehaviorStartTick(int32_t AnimationID, float BehaviorStartTick);
+
+public:
 	bool HasAnimations() const;
+	bool IsCurrentAnimationRegisteredAs(EAnimationRegistrationType eRegistrationType) const;
 	int32_t GetCurrentAnimationID() const;
+	float GetCurrentAnimationTick() const;
+	float GetCurrentAnimationBehaviorStartTick() const;
 	size_t GetAnimationCount() const;
 	const std::string& GetAnimationName(int32_t AnimationID) const;
 	const SCBAnimationData& GetAnimationData() const;
 	const DirectX::XMMATRIX* GetAnimationBoneMatrices() const;
 	EAnimationRegistrationType GetRegisteredAnimationType(int32_t AnimationID) const;
 	float GetAnimationTicksPerSecond(int32_t AnimationID) const;
-	
+	float GetAnimationBehaviorStartTick(int32_t AnimationID) const;
+
 	bool HasBakedAnimationTexture() const;
 	bool CanBakeAnimationTexture() const;
 	void BakeAnimationTexture();
@@ -270,7 +285,7 @@ public:
 	const XMVECTOR& GetEditorBoundingSphereCenterOffset() const;
 	float GetEditorBoundingSphereRadius() const;
 	float GetEditorBoundingSphereRadiusBias() const;
-	const SBoundingVolume& GetEditorBoundingSphere() const;	
+	const SBoundingVolume& GetEditorBoundingSphere() const;
 
 private:
 	void LimitFloatRotation(float& Value, const float Min, const float Max);
@@ -323,6 +338,8 @@ private:
 	XMMATRIX												m_AnimatedBoneMatrices[KMaxBoneMatrixCount]{};
 	int32_t													m_CurrentAnimationID{};
 	float													m_CurrentAnimationTick{};
+	EAnimationOption										m_eCurrentAnimationOption{};
+	size_t													m_CurrentAnimationPlayCounter{};
 
 	std::unique_ptr<CTexture>								m_BakedAnimationTexture{};
 	SCBAnimationData										m_CBAnimationData{};
@@ -333,6 +350,8 @@ private:
 	std::unordered_map<EAnimationRegistrationType, size_t>	m_umapRegisteredAnimationTypeToIndex{};
 	std::unordered_map<size_t, EAnimationRegistrationType>	m_umapRegisteredAnimationIndexToType{};
 	std::vector<int32_t>									m_vRegisteredAnimationIDs{};
+
+	std::vector<float>										m_vAnimationBehaviorStartTicks{};
 
 private:
 	std::vector<SObject3DInstanceGPUData>					m_vInstanceGPUData{};

@@ -479,6 +479,10 @@ public:
 	const std::map<std::string, size_t>& GetObject2DMap() const { return m_mapObject2DNameToIndex; }
 
 public:
+	void WalkPlayerToPickedPoint(float WalkSpeed);
+	void JumpPlayer(float JumpSpeed);
+
+public:
 	bool InsertLight(CLight::EType eType, const std::string& Name);
 	void DeleteLight(CLight::EType eType, const std::string& Name);
 	void ClearLights();

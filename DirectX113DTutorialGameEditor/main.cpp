@@ -44,40 +44,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		}
 		else
 		{
-			/*
-			if (KeyDown == VK_F1)
-			{
-				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawWireFrame);
-			}
-			if (KeyDown == VK_F2)
-			{
-				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawNormals);
-			}
-			if (KeyDown == VK_F3)
-			{
-				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawMiniAxes);
-			}
-			if (KeyDown == VK_F4)
-			{
-				Game.ToggleGameRenderingFlags(CGame::EFlagsRendering::DrawBoundingSphere);
-			}
-			*/
+			if (KeyDown == VK_SPACE) Game.JumpPlayer(6.0f);
+			if (KeyDown == VK_DELETE) Game.DeleteSelectedObjects();
+			if (GetKeyState(VK_CONTROL) && (KeyDown == 'c' || KeyDown == 'C')) Game.CopySelectedObject();
+			if (GetKeyState(VK_CONTROL) && (KeyDown == 'v' || KeyDown == 'V')) Game.PasteCopiedObject();
 
-			if (KeyDown == VK_DELETE)
-			{
-				Game.DeleteSelectedObjects();
-			}
-
-			if (GetKeyState(VK_CONTROL) && (KeyDown == 'c' || KeyDown == 'C'))
-			{
-				Game.CopySelectedObject();
-			}
-
-			if (GetKeyState(VK_CONTROL) && (KeyDown == 'v' || KeyDown == 'V'))
-			{
-				Game.PasteCopiedObject();
-			}
-
+			Game.WalkPlayerToPickedPoint(2.5f);
+			
 			Game.BeginRendering(Colors::CornflowerBlue);
 
 			Game.Update();
