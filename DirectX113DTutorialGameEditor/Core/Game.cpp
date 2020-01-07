@@ -2964,6 +2964,64 @@ bool CGame::IsAnythingSelected() const
 	return !(m_vSelectionData.empty());
 }
 
+void CGame::TranslateSelectionTo(EAxis eAxis, float Prime)
+{
+	for (auto& SelectionData : m_vSelectionData)
+	{
+		switch (SelectionData.eObjectType)
+		{
+		case CGame::EObjectType::NONE:
+		case CGame::EObjectType::EditorCamera:
+		case CGame::EObjectType::Object3DLine:
+		case CGame::EObjectType::Object2D:
+			break;
+		case CGame::EObjectType::Object3D:
+		{
+			CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
+			Object3D->ComponentTransform.Translation =
+				(eAxis == EAxis::X) ? XMVectorSetX(Object3D->ComponentTransform.Translation, Prime) :
+				(eAxis == EAxis::Y) ? XMVectorSetY(Object3D->ComponentTransform.Translation, Prime) :
+				XMVectorSetZ(Object3D->ComponentTransform.Translation, Prime);
+			Object3D->UpdateWorldMatrix();
+			break;
+		}
+		case CGame::EObjectType::Object3DInstance:
+		{
+			CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
+			Object3D->GetInstanceCPUData(SelectionData.Name).Translation =
+				(eAxis == EAxis::X) ? XMVectorSetX(Object3D->GetInstanceCPUData(SelectionData.Name).Translation, Prime) :
+				(eAxis == EAxis::Y) ? XMVectorSetY(Object3D->GetInstanceCPUData(SelectionData.Name).Translation, Prime) :
+				XMVectorSetZ(Object3D->GetInstanceCPUData(SelectionData.Name).Translation, Prime);
+			Object3D->UpdateInstanceWorldMatrix(SelectionData.Name);
+			break;
+		}
+		case CGame::EObjectType::Camera:
+			GetCamera(SelectionData.Name)->TranslateTo(
+				(eAxis == EAxis::X) ? XMVectorSetX(GetCamera(SelectionData.Name)->GetTranslation(), Prime) :
+				(eAxis == EAxis::Y) ? XMVectorSetY(GetCamera(SelectionData.Name)->GetTranslation(), Prime) :
+				XMVectorSetZ(GetCamera(SelectionData.Name)->GetTranslation(), Prime)
+			);
+			m_CameraRep->UpdateInstanceWorldMatrix(SelectionData.Name);
+			break;
+		case CGame::EObjectType::Light:
+		{
+			auto InstanceGPUData{ m_LightArray[SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name) };
+			InstanceGPUData.Position =
+				(eAxis == EAxis::X) ? XMVectorSetX(InstanceGPUData.Position, Prime) :
+				(eAxis == EAxis::Y) ? XMVectorSetY(InstanceGPUData.Position, Prime) :
+				XMVectorSetZ(InstanceGPUData.Position, Prime);
+			m_LightArray[SelectionData.Extra]->SetInstanceGPUData(SelectionData.Name, InstanceGPUData);
+			m_LightRep->SetInstancePosition(SelectionData.Name, InstanceGPUData.Position);
+			break;
+		}
+		default:
+			break;
+		}
+	}
+
+	Capture3DGizmoTranslation();
+}
+
 void CGame::CastPickingRay()
 {
 	float NormalizedX{ m_CapturedMouseState.x / (m_WindowSize.x / 2.0f) - 1.0f };
@@ -5230,7 +5288,6 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						ImGui::Separator();
 					}
 
-					// No information about multiple selection
 					if (m_vSelectionData.size() == 1)
 					{
 						const SSelectionData& SelectionData{ m_vSelectionData.back() };
@@ -6161,9 +6218,34 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 							break;
 						}
 						}
-
 					}
-					
+					else if (m_vSelectionData.size() >= 2)
+					{
+						ImGui::PushItemWidth(ItemsWidth);
+						{
+							ImGui::AlignTextToFramePadding();
+							ImGui::Text(u8"위치");
+							ImGui::SameLine(ItemsOffsetX);
+							XMVECTOR MultipleTranslation{};
+							if (ImGui::DragFloat3(u8"##위치", MultipleTranslation.m128_f32))
+							{
+								if (XMVectorGetX(MultipleTranslation))
+								{
+									TranslateSelectionTo(EAxis::X, XMVectorGetX(MultipleTranslation));
+								}
+								else if (XMVectorGetY(MultipleTranslation))
+								{
+									TranslateSelectionTo(EAxis::Y, XMVectorGetY(MultipleTranslation));
+								}
+								else
+								{
+									TranslateSelectionTo(EAxis::Z, XMVectorGetZ(MultipleTranslation));
+								}
+							}
+						}
+						ImGui::PopItemWidth();
+					}
+
 					ImGui::EndTabItem();
 				}
 

@@ -288,6 +288,13 @@ public:
 		Subtractive
 	};
 
+	enum class EAxis
+	{
+		X,
+		Y,
+		Z
+	};
+
 	struct SCopyObject3D
 	{
 		SCopyObject3D() {}
@@ -514,6 +521,7 @@ private:
 	void DeselectAll();
 	std::string GetSelectionName(const SSelectionData& SelectionData) const;
 	bool IsAnythingSelected() const;
+	void TranslateSelectionTo(EAxis eAxis, float Prime);
 
 private:
 	void CastPickingRay();
