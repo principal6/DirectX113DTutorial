@@ -281,6 +281,13 @@ public:
 		uint32_t	Extra{};
 	};
 
+	enum class ESelectionMode
+	{
+		Override,
+		Additive,
+		Subtractive
+	};
+
 	struct SCopyObject3D
 	{
 		SCopyObject3D() {}
@@ -500,17 +507,18 @@ public:
 
 private:
 	void Select();
-	void SelectMultipleObjects(bool bUseAdditiveSelection);
-	void SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveSelection = false);
-	void Deselect(const SSelectionData& Data);
-	void Deselect(EObjectType eObjectType);
+	void SelectMultipleObjects(ESelectionMode eSelectionMode);
+	void SelectObject(const SSelectionData& SelectionData, ESelectionMode eSelectionMode = ESelectionMode::Override);
+	void DeselectObject(const SSelectionData& SelectionData);
+	void DeselectType(EObjectType eObjectType);
 	void DeselectAll();
+	std::string GetSelectionName(const SSelectionData& SelectionData) const;
 	bool IsAnythingSelected() const;
 
 private:
 	void CastPickingRay();
-	void PickBoundingSphere(bool bUseAdditiveSelection = false);
-	bool PickObject3DTriangle(bool bUseAdditiveSelection = false);
+	void PickBoundingSphere(ESelectionMode eSelectionMode);
+	bool PickObject3DTriangle(ESelectionMode eSelectionMode);
 
 private:
 	CCamera* GetCurrentCamera();
@@ -524,7 +532,7 @@ private:
 
 public:
 	void Capture3DGizmoTranslation();
-	void Select3DGizmos();
+	void Update3DGizmos();
 
 private:
 	void SelectTerrain(bool bShouldEdit, bool bIsLeftButton);

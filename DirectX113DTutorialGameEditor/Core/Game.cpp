@@ -1765,7 +1765,7 @@ void CGame::PasteCopiedObject()
 			Object3D->UpdateWorldMatrix();
 			Object3D->UpdateAllInstancesWorldMatrix();
 
-			SelectObject(SSelectionData(EObjectType::Object3D, NewName, Object3D), true);
+			SelectObject(SSelectionData(EObjectType::Object3D, NewName, Object3D), ESelectionMode::Additive);
 			++SelectionCount;
 
 			++CopyObject3D.PasteCounter;
@@ -1785,7 +1785,7 @@ void CGame::PasteCopiedObject()
 
 			Object3D->UpdateInstanceWorldMatrix(SavedName);
 
-			SelectObject(SSelectionData(EObjectType::Object3DInstance, SavedName, Object3D), true);
+			SelectObject(SSelectionData(EObjectType::Object3DInstance, SavedName, Object3D), ESelectionMode::Additive);
 			++SelectionCount;
 
 			++CopyObject3DInstance.PasteCounter;
@@ -1806,7 +1806,7 @@ void CGame::PasteCopiedObject()
 			m_LightArray[(uint32_t)CopyLight.InstanceCPUData.eType]->SetInstanceGPUData(NewName, CopyLight.InstanceGPUData);
 			m_LightRep->SetInstancePosition(NewName, CopyLight.InstanceGPUData.Position);
 
-			SelectObject(SSelectionData(EObjectType::Light, NewName, (uint32_t)CopyLight.InstanceCPUData.eType), true);
+			SelectObject(SSelectionData(EObjectType::Light, NewName, (uint32_t)CopyLight.InstanceCPUData.eType), ESelectionMode::Additive);
 			++SelectionCount;
 
 			++CopyLight.PasteCounter;
@@ -1937,7 +1937,7 @@ void CGame::ClearCameras()
 
 	UseEditorCamera();
 
-	Deselect(EObjectType::Camera);
+	DeselectType(EObjectType::Camera);
 }
 
 CCamera* CGame::GetCamera(const string& Name, bool bShowWarning) const
@@ -2203,7 +2203,7 @@ void CGame::ClearObject3Ds()
 {
 	m_mapObject3DNameToIndex.clear();
 	m_vObject3Ds.clear();
-	Deselect(EObjectType::Object3D);
+	DeselectType(EObjectType::Object3D);
 }
 
 CObject3D* CGame::GetObject3D(const string& Name, bool bShowWarning) const
@@ -2245,7 +2245,7 @@ void CGame::ClearObject3DLines()
 {
 	m_mapObject3DLineNameToIndex.clear();
 	m_vObject3DLines.clear();
-	Deselect(EObjectType::Object3DLine);
+	DeselectType(EObjectType::Object3DLine);
 }
 
 CObject3DLine* CGame::GetObject3DLine(const string& Name, bool bShowWarning) const
@@ -2311,7 +2311,7 @@ void CGame::ClearObject2Ds()
 {
 	m_mapObject2DNameToIndex.clear();
 	m_vObject2Ds.clear();
-	Deselect(EObjectType::Object2D);
+	DeselectType(EObjectType::Object2D);
 }
 
 CObject2D* CGame::GetObject2D(const string& Name, bool bShowWarning) const
@@ -2513,17 +2513,21 @@ void CGame::Select()
 
 	if (m_eMode == EMode::Edit)
 	{	
-		// Multiple region-selection
-		SelectMultipleObjects(m_CapturedKeyboardState.LeftShift || m_CapturedKeyboardState.RightShift);
+		ESelectionMode eSelectionMode{ ESelectionMode::Override };
+		if (m_CapturedKeyboardState.LeftShift || m_CapturedKeyboardState.RightShift) eSelectionMode = ESelectionMode::Additive;
+		else if (m_CapturedKeyboardState.LeftAlt || m_CapturedKeyboardState.RightAlt) eSelectionMode = ESelectionMode::Subtractive;
 
-		if ((m_CapturedKeyboardState.LeftShift || m_CapturedKeyboardState.RightShift) || !IsAnythingSelected())
+		// Multiple region-selection
+		SelectMultipleObjects(eSelectionMode);
+
+		if (eSelectionMode != ESelectionMode::Override || !IsAnythingSelected())
 		{
 			// Single ray-selection
 
 			CastPickingRay();
 
-			PickBoundingSphere(m_CapturedKeyboardState.LeftShift || m_CapturedKeyboardState.RightShift);
-			PickObject3DTriangle(m_CapturedKeyboardState.LeftShift || m_CapturedKeyboardState.RightShift);
+			PickBoundingSphere(eSelectionMode);
+			PickObject3DTriangle(eSelectionMode);
 		}
 
 		// @important
@@ -2548,16 +2552,16 @@ void CGame::Select()
 
 		CastPickingRay();
 
-		PickBoundingSphere();
+		PickBoundingSphere(ESelectionMode::Override);
 	}
 }
 
-void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
+void CGame::SelectMultipleObjects(ESelectionMode eSelectionMode)
 {
 	const XMMATRIX KViewProjection{ m_MatrixView * m_MatrixProjection };
+	if (eSelectionMode == ESelectionMode::Override) DeselectAll();
 
-	if (!bUseAdditiveSelection) DeselectAll();
-
+	ESelectionMode eInternalSelectionMode{ (eSelectionMode == ESelectionMode::Subtractive) ? ESelectionMode::Subtractive : ESelectionMode::Additive };
 	for (const auto& Object3D : m_vObject3Ds)
 	{
 		if (Object3D->IsInstanced())
@@ -2571,12 +2575,8 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 
 				if (IsInsideSelectionRegion(KProjectionXY))
 				{
-					m_vSelectionData.emplace_back(EObjectType::Object3DInstance, Instance.Name, Object3D.get());
-
-					// @important
-					m_umapSelectionObject3DInstance[Object3D->GetName() + Instance.Name] = m_vSelectionData.size() - 1;
-					
-					m_MultipleSelectionWorldCenter += XMVectorSetW(KTranslation, 1);
+					SSelectionData SelectionData{ EObjectType::Object3DInstance, Instance.Name, Object3D.get() };
+					SelectObject(SelectionData, eInternalSelectionMode);
 				}
 			}
 		}
@@ -2588,12 +2588,8 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 
 			if (IsInsideSelectionRegion(KProjectionXY))
 			{
-				m_vSelectionData.emplace_back(EObjectType::Object3D, Object3D->GetName(), Object3D.get());
-
-				// @important
-				m_umapSelectionObject3D[Object3D->GetName()] = m_vSelectionData.size() - 1;
-
-				m_MultipleSelectionWorldCenter += XMVectorSetW(KTranslation, 1);
+				SSelectionData SelectionData{ EObjectType::Object3D, Object3D->GetName(), Object3D.get() };
+				SelectObject(SelectionData, eInternalSelectionMode);
 			}
 		}
 	}
@@ -2608,13 +2604,8 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 
 		if (IsInsideSelectionRegion(KProjectionXY))
 		{
-			m_vSelectionData.emplace_back(EObjectType::Camera, KCameraName);
-
-			// @important
-			m_umapSelectionCamera[KCameraName] = m_vSelectionData.size() - 1;
-			m_CameraRep->SetInstanceHighlight(KCameraName, true);
-
-			m_MultipleSelectionWorldCenter += XMVectorSetW(Camera->GetTranslation(), 1);
+			SSelectionData SelectionData{ EObjectType::Camera, KCameraName };
+			SelectObject(SelectionData, eInternalSelectionMode);
 		}
 		++iCamera;
 	}
@@ -2632,32 +2623,56 @@ void CGame::SelectMultipleObjects(bool bUseAdditiveSelection)
 
 			if (IsInsideSelectionRegion(KProjectionXY))
 			{
-				m_vSelectionData.emplace_back(EObjectType::Light, LightPair.first, (uint32_t)eType);
-
-				// @important
-				m_umapSelectionLight[LightPair.first] = m_vSelectionData.size() - 1;
-				m_LightRep->SetInstanceHighlight(LightPair.first, true);
-
-				m_MultipleSelectionWorldCenter += XMVectorSetW(KWorldPosition, 1);
+				SSelectionData SelectionData{ EObjectType::Light, LightPair.first, (uint32_t)eType };
+				SelectObject(SelectionData, eInternalSelectionMode);
 			}
 		}
 	}
 	m_LightRep->UpdateInstanceBuffer();
-
-	m_MultipleSelectionWorldCenter /= static_cast<float>(m_vSelectionData.size());
-
-	Capture3DGizmoTranslation();
 }
 
-void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveSelection)
+void CGame::SelectObject(const SSelectionData& SelectionData, ESelectionMode eSelectionMode)
 {
-	if (!bUseAdditiveSelection) DeselectAll();
+	if (eSelectionMode == ESelectionMode::Override) DeselectAll();
+	if (eSelectionMode == ESelectionMode::Subtractive)
+	{
+		DeselectObject(SelectionData);
+		return;
+	}
 
-	XMVECTOR MultipleSelectionWorldCenter{};
+	switch (SelectionData.eObjectType)
+	{
+	case CGame::EObjectType::NONE:
+	default:
+		break;
+	case CGame::EObjectType::Object3D:
+		if (m_umapSelectionObject3D.find(SelectionData.Name) != m_umapSelectionObject3D.end()) return;
+		break;
+	case CGame::EObjectType::Object3DInstance:
+	{
+		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
+		if (m_umapSelectionObject3DInstance.find(Object3D->GetName() + SelectionData.Name) != m_umapSelectionObject3DInstance.end()) return;
+		break;
+	}
+	case CGame::EObjectType::Object3DLine:
+		if (m_umapSelectionObject3DLine.find(SelectionData.Name) != m_umapSelectionObject3DLine.end()) return;
+		break;
+	case CGame::EObjectType::Object2D:
+		if (m_umapSelectionObject2D.find(SelectionData.Name) != m_umapSelectionObject2D.end()) return;
+		break;
+	case CGame::EObjectType::EditorCamera:
+		//if (m_EditorCameraSelectionIndex < m_vSelectionData.size()) return;
+	case CGame::EObjectType::Camera:
+		if (m_umapSelectionCamera.find(SelectionData.Name) != m_umapSelectionCamera.end()) return;
+		break;
+	case CGame::EObjectType::Light:
+		if (m_umapSelectionLight.find(SelectionData.Name) != m_umapSelectionLight.end()) return;
+		break;
+	}
 
 	m_vSelectionData.emplace_back(SelectionData);
 	const size_t KSelectionIndex{ m_vSelectionData.size() - 1 };
-
+	XMVECTOR MultipleSelectionWorldCenter{};
 	if (KSelectionIndex > 0)
 	{
 		m_MultipleSelectionWorldCenter /= XMVectorGetW(m_MultipleSelectionWorldCenter); // @important
@@ -2677,6 +2692,17 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 		const XMVECTOR KTranslation{ Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset() };
 		
 		m_umapSelectionObject3D[SelectionData.Name] = KSelectionIndex;
+
+		MultipleSelectionWorldCenter += XMVectorSetW(KTranslation, 1);
+		break;
+	}
+	case CGame::EObjectType::Object3DInstance:
+	{
+		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
+		const auto& Instance{ Object3D->GetInstanceCPUData(SelectionData.Name) };
+		const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.Center };
+
+		m_umapSelectionObject3DInstance[Object3D->GetName() + SelectionData.Name] = KSelectionIndex;
 
 		MultipleSelectionWorldCenter += XMVectorSetW(KTranslation, 1);
 		break;
@@ -2704,63 +2730,102 @@ void CGame::SelectObject(const SSelectionData& SelectionData, bool bUseAdditiveS
 
 		MultipleSelectionWorldCenter += XMVectorSetW(m_LightArray[SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position, 1);
 		break;
-	case CGame::EObjectType::Object3DInstance:
-	{
-		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-		const auto& Instance{ Object3D->GetInstanceCPUData(SelectionData.Name) };
-		const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.Center };
-
-		m_umapSelectionObject3DInstance[Object3D->GetName() + SelectionData.Name] = KSelectionIndex;
-
-		MultipleSelectionWorldCenter += XMVectorSetW(KTranslation, 1);
-		break;
-	}
 	}
 	m_MultipleSelectionWorldCenter = MultipleSelectionWorldCenter / static_cast<float>(m_vSelectionData.size());
 
 	Capture3DGizmoTranslation();
 }
 
-void CGame::Deselect(const SSelectionData& Data)
+std::string CGame::GetSelectionName(const SSelectionData& SelectionData) const
 {
-	switch (Data.eObjectType)
+	if (SelectionData.eObjectType == EObjectType::Object3DInstance)
+	{
+		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
+		return Object3D->GetName() + SelectionData.Name;
+	}
+	return SelectionData.Name;
+}
+
+void CGame::DeselectObject(const SSelectionData& SelectionData)
+{
+	const size_t KSelectionCount{ m_vSelectionData.size() };
+	m_MultipleSelectionWorldCenter /= XMVectorGetW(m_MultipleSelectionWorldCenter); // @important
+	XMVECTOR MultipleSelectionWorldCenter{ m_MultipleSelectionWorldCenter * static_cast<float>(KSelectionCount) };
+
+	switch (SelectionData.eObjectType)
 	{
 	case CGame::EObjectType::NONE:
 	default:
 		break;
 	case CGame::EObjectType::Object3D:
-		if (m_umapSelectionObject3D.find(Data.Name) != m_umapSelectionObject3D.end())
+		if (m_umapSelectionObject3D.find(SelectionData.Name) != m_umapSelectionObject3D.end())
 		{
-			size_t iSelectionData{ m_umapSelectionObject3D.at(Data.Name) };
+			CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
+			const XMVECTOR KTranslation{ Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset() };
+			MultipleSelectionWorldCenter -= XMVectorSetW(KTranslation, 1);
+
+			size_t iSelectionData{ m_umapSelectionObject3D.at(SelectionData.Name) };
 			if (iSelectionData < m_vSelectionData.size() - 1)
 			{
+				string BackSelectionName{ GetSelectionName(m_vSelectionData.back()) };
+				swap(m_umapSelectionObject3D.at(BackSelectionName), m_umapSelectionObject3D.at(SelectionData.Name)); // @important
+
 				swap(m_vSelectionData[iSelectionData], m_vSelectionData.back());
 			}
-			m_umapSelectionObject3D.erase(Data.Name);
+			m_umapSelectionObject3D.erase(SelectionData.Name);
 			m_vSelectionData.pop_back();
 		}
 		break;
-	case CGame::EObjectType::Object3DLine:
-		if (m_umapSelectionObject3DLine.find(Data.Name) != m_umapSelectionObject3DLine.end())
+	case CGame::EObjectType::Object3DInstance:
+	{
+		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
+		string SelectionName{ GetSelectionName(SelectionData) };
+		if (m_umapSelectionObject3DInstance.find(SelectionName) != m_umapSelectionObject3DInstance.end())
 		{
-			size_t iSelectionData{ m_umapSelectionObject3DLine.at(Data.Name) };
+			const auto& Instance{ Object3D->GetInstanceCPUData(SelectionData.Name) };
+			const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.Center };
+			MultipleSelectionWorldCenter -= XMVectorSetW(KTranslation, 1);
+
+			size_t iSelectionData{ m_umapSelectionObject3DInstance.at(SelectionName) };
 			if (iSelectionData < m_vSelectionData.size() - 1)
 			{
+				string BackSelectionName{ GetSelectionName(m_vSelectionData.back()) };
+				swap(m_umapSelectionObject3DInstance.at(BackSelectionName), m_umapSelectionObject3DInstance.at(SelectionName)); // @important
+
 				swap(m_vSelectionData[iSelectionData], m_vSelectionData.back());
 			}
-			m_umapSelectionObject3DLine.erase(Data.Name);
+			m_umapSelectionObject3DInstance.erase(SelectionName);
+			m_vSelectionData.pop_back();
+		}
+		break;
+	}
+	case CGame::EObjectType::Object3DLine:
+		if (m_umapSelectionObject3DLine.find(SelectionData.Name) != m_umapSelectionObject3DLine.end())
+		{
+			size_t iSelectionData{ m_umapSelectionObject3DLine.at(SelectionData.Name) };
+			if (iSelectionData < m_vSelectionData.size() - 1)
+			{
+				string BackSelectionName{ GetSelectionName(m_vSelectionData.back()) };
+				swap(m_umapSelectionObject3DLine.at(BackSelectionName), m_umapSelectionObject3DLine.at(SelectionData.Name)); // @important
+
+				swap(m_vSelectionData[iSelectionData], m_vSelectionData.back());
+			}
+			m_umapSelectionObject3DLine.erase(SelectionData.Name);
 			m_vSelectionData.pop_back();
 		}
 		break;
 	case CGame::EObjectType::Object2D:
-		if (m_umapSelectionObject2D.find(Data.Name) != m_umapSelectionObject2D.end())
+		if (m_umapSelectionObject2D.find(SelectionData.Name) != m_umapSelectionObject2D.end())
 		{
-			size_t iSelectionData{ m_umapSelectionObject2D.at(Data.Name) };
+			size_t iSelectionData{ m_umapSelectionObject2D.at(SelectionData.Name) };
 			if (iSelectionData < m_vSelectionData.size() - 1)
 			{
+				string BackSelectionName{ GetSelectionName(m_vSelectionData.back()) };
+				swap(m_umapSelectionObject2D.at(BackSelectionName), m_umapSelectionObject2D.at(SelectionData.Name)); // @important
+
 				swap(m_vSelectionData[iSelectionData], m_vSelectionData.back());
 			}
-			m_umapSelectionObject2D.erase(Data.Name);
+			m_umapSelectionObject2D.erase(SelectionData.Name);
 			m_vSelectionData.pop_back();
 		}
 		break;
@@ -2776,51 +2841,60 @@ void CGame::Deselect(const SSelectionData& Data)
 		}
 		break;
 	case CGame::EObjectType::Camera:
-		if (m_umapSelectionCamera.find(Data.Name) != m_umapSelectionCamera.end())
+		if (m_umapSelectionCamera.find(SelectionData.Name) != m_umapSelectionCamera.end())
 		{
-			size_t iSelectionData{ m_umapSelectionCamera.at(Data.Name) };
+			MultipleSelectionWorldCenter -= XMVectorSetW(m_vCameras[GetCameraID(SelectionData.Name)]->GetTranslation(), 1);
+
+			size_t iSelectionData{ m_umapSelectionCamera.at(SelectionData.Name) };
 			if (iSelectionData < m_vSelectionData.size() - 1)
 			{
+				string BackSelectionName{ GetSelectionName(m_vSelectionData.back()) };
+				swap(m_umapSelectionCamera.at(BackSelectionName), m_umapSelectionCamera.at(SelectionData.Name)); // @important
+
 				swap(m_vSelectionData[iSelectionData], m_vSelectionData.back());
 			}
-			m_umapSelectionCamera.erase(Data.Name);
+			m_umapSelectionCamera.erase(SelectionData.Name);
 			m_vSelectionData.pop_back();
 
-			m_CameraRep->SetInstanceHighlight(Data.Name, false);
+			m_CameraRep->SetInstanceHighlight(SelectionData.Name, false);
 			m_CameraRep->UpdateInstanceBuffers();
 		}
 		break;
 	case CGame::EObjectType::Light:
-		if (m_umapSelectionLight.find(Data.Name) != m_umapSelectionLight.end())
+		if (m_umapSelectionLight.find(SelectionData.Name) != m_umapSelectionLight.end())
 		{
-			size_t iSelectionData{ m_umapSelectionLight.at(Data.Name) };
+			MultipleSelectionWorldCenter -= XMVectorSetW(m_LightArray[SelectionData.Extra]->GetInstanceGPUData(SelectionData.Name).Position, 1);
+
+			size_t iSelectionData{ m_umapSelectionLight.at(SelectionData.Name) };
 			if (iSelectionData < m_vSelectionData.size() - 1)
 			{
+				string BackSelectionName{ GetSelectionName(m_vSelectionData.back()) };
+				swap(m_umapSelectionLight.at(BackSelectionName), m_umapSelectionLight.at(SelectionData.Name)); // @important
+
 				swap(m_vSelectionData[iSelectionData], m_vSelectionData.back());
 			}
-			m_umapSelectionLight.erase(Data.Name);
+			m_umapSelectionLight.erase(SelectionData.Name);
 			m_vSelectionData.pop_back();
 
-			m_LightRep->SetInstanceHighlight(Data.Name, false);
+			m_LightRep->SetInstanceHighlight(SelectionData.Name, false);
 			m_LightRep->UpdateInstanceBuffer();
 		}
 		break;
-	case CGame::EObjectType::Object3DInstance:
-		if (m_umapSelectionObject3DInstance.find(Data.Name) != m_umapSelectionObject3DInstance.end())
-		{
-			size_t iSelectionData{ m_umapSelectionObject3DInstance.at(Data.Name) };
-			if (iSelectionData < m_vSelectionData.size() - 1)
-			{
-				swap(m_vSelectionData[iSelectionData], m_vSelectionData.back());
-			}
-			m_umapSelectionObject3DInstance.erase(Data.Name);
-			m_vSelectionData.pop_back();
-		}
-		break;
 	}
+
+	if (m_vSelectionData.size())
+	{
+		m_MultipleSelectionWorldCenter = MultipleSelectionWorldCenter / static_cast<float>(m_vSelectionData.size());
+	}
+	else
+	{
+		m_MultipleSelectionWorldCenter = KVectorZero;
+	}
+
+	Capture3DGizmoTranslation();
 }
 
-void CGame::Deselect(EObjectType eObjectType)
+void CGame::DeselectType(EObjectType eObjectType)
 {
 	vector<SSelectionData> vNewSelectionData{};
 	vNewSelectionData.reserve(m_vSelectionData.size());
@@ -2914,7 +2988,7 @@ void CGame::CastPickingRay()
 	}	
 }
 
-void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
+void CGame::PickBoundingSphere(ESelectionMode eSelectionMode)
 {
 	bool bIsSelectionAdded{ false };
 
@@ -2932,7 +3006,7 @@ void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
 			if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
 				KCameraRepSelectionRadius, Camera->GetEyePosition(), &NewT))
 			{
-				SelectObject(SSelectionData(EObjectType::Camera, Camera->GetName()), bUseAdditiveSelection);
+				SelectObject(SSelectionData(EObjectType::Camera, Camera->GetName()), eSelectionMode);
 				bIsSelectionAdded = true;
 				break;
 			}
@@ -2952,7 +3026,7 @@ void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
 			if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
 				Light->GetBoundingSphereRadius(), Instance.Position, &NewT))
 			{
-				SelectObject(SSelectionData(EObjectType::Light, LightPair.first, (uint32_t)eType), bUseAdditiveSelection);
+				SelectObject(SSelectionData(EObjectType::Light, LightPair.first, (uint32_t)eType), eSelectionMode);
 				bIsSelectionAdded = true;
 				break;
 			}
@@ -2993,10 +3067,10 @@ void CGame::PickBoundingSphere(bool bUseAdditiveSelection)
 	}
 }
 
-bool CGame::PickObject3DTriangle(bool bUseAdditiveSelection)
+bool CGame::PickObject3DTriangle(ESelectionMode eSelectionMode)
 {
 	XMVECTOR T{ KVectorGreatest };
-	if (bUseAdditiveSelection || !IsAnythingSelected())
+	if (eSelectionMode != ESelectionMode::Override || !IsAnythingSelected())
 	{
 		for (SObject3DPickingCandiate& Candidate : m_vObject3DPickingCandidates)
 		{
@@ -3071,13 +3145,11 @@ bool CGame::PickObject3DTriangle(bool bUseAdditiveSelection)
 
 			if (Closest->InstanceName.empty())
 			{
-				SelectObject(SSelectionData(EObjectType::Object3D, Closest->PtrObject3D->GetName(), Closest->PtrObject3D),
-					bUseAdditiveSelection);
+				SelectObject(SSelectionData(EObjectType::Object3D, Closest->PtrObject3D->GetName(), Closest->PtrObject3D), eSelectionMode);
 			}
 			else
 			{
-				SelectObject(SSelectionData(EObjectType::Object3DInstance, Closest->InstanceName, Closest->PtrObject3D),
-					bUseAdditiveSelection);
+				SelectObject(SSelectionData(EObjectType::Object3DInstance, Closest->InstanceName, Closest->PtrObject3D), eSelectionMode);
 			}
 		}
 		return true;
@@ -3234,7 +3306,7 @@ void CGame::Capture3DGizmoTranslation()
 	m_Gizmo3D->UpdateTranslation(m_PtrCurrentCamera->GetTranslation()); // @important
 }
 
-void CGame::Select3DGizmos()
+void CGame::Update3DGizmos()
 {
 	if (EFLAG_HAS_NO(m_eFlagsRendering, EFlagsRendering::Use3DGizmos)) return;
 	if (m_eMode != EMode::Edit) return;
@@ -3470,7 +3542,7 @@ void CGame::Update()
 
 			if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
 			{
-				Select3DGizmos();
+				Update3DGizmos();
 
 				if (m_bLeftButtonPressedOnce)
 				{
@@ -3478,6 +3550,14 @@ void CGame::Update()
 					m_bIsMultipleSelectionChanging = true;
 				}
 
+				if (m_CapturedMouseState.leftButton &&
+					(
+						m_CapturedKeyboardState.LeftShift || m_CapturedKeyboardState.RightShift ||
+						m_CapturedKeyboardState.LeftAlt || m_CapturedKeyboardState.RightAlt
+						))
+				{
+					m_Gizmo3D->QuitAction();
+				}
 				if (m_Gizmo3D->IsInAction()) m_bIsMultipleSelectionChanging = false;
 
 				if (m_bIsMultipleSelectionChanging)
@@ -3493,6 +3573,7 @@ void CGame::Update()
 				}
 
 				if (!m_CapturedMouseState.leftButton) m_Gizmo3D->QuitAction();
+
 				if (m_CapturedMouseState.rightButton) DeselectAll();
 
 				if (bMouseMoved)
@@ -4478,6 +4559,15 @@ void CGame::DrawEditorGUI()
 		{
 			static constexpr float KLabelWidth{ 160.0f };
 
+			// 렌더링
+			{
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text(u8"FPS");
+				ImGui::SameLine(KLabelWidth);
+				ImGui::Text(to_string(m_FPS).c_str());
+			}
+
+
 			// 물리 엔진
 			if (ImGui::TreeNodeEx(u8"물리 엔진", ImGuiTreeNodeFlags_DefaultOpen))
 			{
@@ -5243,7 +5333,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										InstanceCPUData.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
 										Object3D->UpdateInstanceWorldMatrix(SelectionData.Name);
 
-										Select3DGizmos();
+										Update3DGizmos();
 									}
 
 									ImGui::Separator();
@@ -5287,7 +5377,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 											Object3D->ComponentTransform.Roll = PitchYawRoll360[2] * KRotation360To2PI;
 											Object3D->UpdateWorldMatrix();
 
-											Select3DGizmos();
+											Update3DGizmos();
 										}
 
 										ImGui::AlignTextToFramePadding();
@@ -5301,7 +5391,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 											Object3D->ComponentTransform.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
 											Object3D->UpdateWorldMatrix();
 
-											Select3DGizmos();
+											Update3DGizmos();
 										}
 									}
 								}
@@ -5856,7 +5946,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									{
 										UseEditorCamera();
 
-										Select3DGizmos();
+										Update3DGizmos();
 									}
 								}
 
@@ -5966,7 +6056,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									{
 										UseCamera(SelectedCamera);
 
-										Select3DGizmos();
+										Update3DGizmos();
 									}
 								}
 							}
