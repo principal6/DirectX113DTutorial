@@ -49,7 +49,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			if (GetKeyState(VK_CONTROL) && (KeyDown == 'c' || KeyDown == 'C')) Game.CopySelectedObject();
 			if (GetKeyState(VK_CONTROL) && (KeyDown == 'v' || KeyDown == 'V')) Game.PasteCopiedObject();
 
-			Game.WalkPlayerToPickedPoint(2.5f);
+			Game.WalkPlayerToPickedPoint(2.75f);
 			
 			Game.BeginRendering(Colors::CornflowerBlue);
 
