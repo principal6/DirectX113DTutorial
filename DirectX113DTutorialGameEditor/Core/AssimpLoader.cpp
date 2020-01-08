@@ -128,6 +128,29 @@ void CAssimpLoader::AddAnimationFromFile(const string& FileName, SMESHData* cons
 	assert(m_Scene->HasMeshes());
 	assert(m_Scene->mRootNode);
 
+	if (Model->vTreeNodes.empty())
+	{
+		for (auto& Mesh : Model->vMeshes)
+		{
+			Mesh.vAnimationVertices.resize(Mesh.vVertices.size());
+		}
+
+		// Scene에서 재귀적으로 Node의 Tree를 만든다.
+		LoadNodes(m_Scene, m_Scene->mRootNode, -1, Model);
+
+		// Node의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다.
+		for (const auto& Node : Model->vTreeNodes)
+		{
+			Model->umapTreeNodeNameToIndex[Node.Name] = Node.Index;
+		}
+
+		// Scene에서 각 Mesh에 연결된 Bone들을 불러온다.
+		LoadBones(m_Scene, Model);
+
+		// 각 Mesh의 Vertex에 각 Bone의 BlendWeights를 저장한다.
+		MatchWeightsAndVertices(Model);
+	}
+
 	LoadAnimations(m_Scene, Model);
 
 	// NodeAnimation의 Name을 통해 Index를 찾을 수 있도록 사상(map)한다. 

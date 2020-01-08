@@ -537,10 +537,19 @@ void CObject3D::AddAnimationFromFile(const string& FileName, const string& Anima
 	if (!m_Model->bIsModelRigged) return;
 
 	if (!m_AssimpLoader) m_AssimpLoader = make_unique<CAssimpLoader>();
+	bool bWasTreeEmpty{ m_Model->vTreeNodes.empty() };
+
 	m_AssimpLoader->AddAnimationFromFile(FileName, m_Model.get());
 	m_Model->vAnimations.back().Name = AnimationName;
 
-	InitializeAnimationData();
+	if (bWasTreeEmpty)
+	{
+		InitializeModelData();
+	}
+	else
+	{
+		InitializeAnimationData();
+	}
 }
 
 void CObject3D::SetAnimation(int32_t AnimationID, EAnimationOption eAnimationOption, bool bShouldIgnoreCurrentAnimation)
