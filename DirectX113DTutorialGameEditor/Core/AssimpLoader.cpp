@@ -285,12 +285,32 @@ void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString* 
 	const aiTexture* const _aiTexture{ Scene->GetEmbeddedTexture(TextureFileName->C_Str()) };
 	if (TextureFileName->length == 0 && _aiTexture == nullptr) return; // No texture
 	STextureData& TextureData{ MaterialData.GetTextureData(eTextureType) };
+	TextureData.bHasTexture = true;
 	if (_aiTexture)
 	{
+		// Embedded texture
+		TextureData.Extension = _aiTexture->achFormatHint;
+		string FileName{ _aiTexture->mFilename.C_Str() };
+		size_t ExtPos{ FileName.find(TextureData.Extension) };
+		FileName = FileName.substr(0, ExtPos + TextureData.Extension.size());
+		{
+			size_t LastDirPos{ FileName.find_last_of('\\') };
+			if (LastDirPos != std::string::npos)
+			{
+				FileName = FileName.substr(LastDirPos + 1);
+			}
+		}
+		{
+			size_t LastDirPos{ FileName.find_last_of('/') };
+			if (LastDirPos != std::string::npos)
+			{
+				FileName = FileName.substr(LastDirPos + 1);
+			}
+		}
+		TextureData.InternalFileName = FileName;
+
 		unsigned int TexelCount{ _aiTexture->mWidth / 4 };
 		if (_aiTexture->mHeight) TexelCount *= _aiTexture->mHeight;
-
-		TextureData.bHasTexture = true;
 		TextureData.vRawData.reserve(_aiTexture->mWidth);
 		for (unsigned int iTexel = 0; iTexel < TexelCount; ++iTexel)
 		{
@@ -303,7 +323,7 @@ void CAssimpLoader::LoadTextureData(const aiScene* const Scene, const aiString* 
 	}
 	else
 	{
-		TextureData.bHasTexture = true;
+		// External texture
 		TextureData.FileName = TextureFileName->C_Str();
 	}
 }

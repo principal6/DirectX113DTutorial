@@ -7502,6 +7502,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 							CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
 							if (FileDialog.GetCapitalExtension() == "MESH")
 							{
+								Object3D->ExportEmbeddedTextures("Asset\\");
 								m_MeshPorter.ExportMESH(FileDialog.GetFileName(), Object3D->GetModel());
 								Object3D->SetModelFileName(FileDialog.GetRelativeFileName());
 							}

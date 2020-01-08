@@ -11,6 +11,7 @@ class CTexture;
 struct SMeshAnimation;
 struct SMeshTreeNode;
 struct SMESHData;
+enum class ETextureType;
 
 class CObject3D
 {
@@ -167,6 +168,11 @@ private:
 public:
 	void LoadOB3D(const std::string& OB3DFileName, bool bIsRigged);
 	void SaveOB3D(const std::string& OB3DFileName);
+	void ExportEmbeddedTextures(const std::string& Directory);
+	
+private:
+	void ExportEmbeddedTexture(CMaterialTextureSet* const MaterialTextureSet, CMaterialData& MaterialData,
+		ETextureType eTextureType, const std::string& Directory);
 
 public:
 	void AddAnimationFromFile(const std::string& FileName, const std::string& AnimationName);

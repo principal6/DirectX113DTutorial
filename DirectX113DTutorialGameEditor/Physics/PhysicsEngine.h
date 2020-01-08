@@ -77,7 +77,10 @@ public:
 	void Update(float DeltaTime);
 
 private:
-	bool DetectCollisions();
+	void UpdateObject(float DeltaTime, CObject3D* const Object);
+
+private:
+	bool DetectEnvironmentCollisions(CObject3D* const ObjectA);
 	bool DetectFineCollisionDynamicStatic(
 		CObject3D* const DynamicObject, const XMVECTOR& DynamicPos, const SBoundingVolume& DynamicBV, const std::vector<SBoundingVolume>& vDynamicBVs,
 		CObject3D* const StaticObject, const XMVECTOR& StaticPos, const SBoundingVolume& StaticBV, const std::vector<SBoundingVolume>& vStaticBVs);

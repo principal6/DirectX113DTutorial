@@ -72,10 +72,13 @@ void CPhysicsEngine::RegisterPlayerObject(CObject3D* const Object3D)
 {
 	if (!Object3D) return;
 
+	// invariant
 	if (m_mapEnvironmentObjects.find(Object3D) != m_mapEnvironmentObjects.end())
 	{
 		m_mapEnvironmentObjects.erase(Object3D);
 	}
+
+	// invariant
 	if (m_mapMonsterObjects.find(Object3D) != m_mapMonsterObjects.end())
 	{
 		m_mapMonsterObjects.erase(Object3D);
@@ -89,8 +92,10 @@ void CPhysicsEngine::RegisterEnvironmentObject(CObject3D* const Object3D)
 	if (!Object3D) return;
 	if (m_PlayerObject == Object3D) return;
 
+	// avoid duplication
 	if (m_mapEnvironmentObjects.find(Object3D) != m_mapEnvironmentObjects.end()) return;
 
+	// invariant
 	if (m_mapMonsterObjects.find(Object3D) != m_mapMonsterObjects.end())
 	{
 		m_mapMonsterObjects.erase(Object3D);
@@ -105,8 +110,10 @@ void CPhysicsEngine::RegisterMonsterObject(CObject3D* const Object3D)
 	if (!Object3D) return;
 	if (m_PlayerObject == Object3D) return;
 
+	// avoid duplication
 	if (m_mapMonsterObjects.find(Object3D) != m_mapMonsterObjects.end()) return;
 
+	// invariant
 	if (m_mapEnvironmentObjects.find(Object3D) != m_mapEnvironmentObjects.end())
 	{
 		m_mapEnvironmentObjects.erase(Object3D);
@@ -301,32 +308,39 @@ void CPhysicsEngine::Update(float DeltaTime)
 {
 	if (DeltaTime <= 0) return;
 
-	if (m_PlayerObject)
+	UpdateObject(DeltaTime, m_PlayerObject);
+
+	for (auto& Monster : m_vMonsterObjects)
 	{
-		if (m_bShouldApplyGravity)
-		{
-			m_PlayerObject->ComponentPhysics.LinearAcceleration += m_Gravity; // Gravity
-		}
-
-		m_PlayerObject->ComponentPhysics.LinearVelocity += m_PlayerObject->ComponentPhysics.LinearAcceleration * DeltaTime;
-		m_PlayerObject->ComponentTransform.Translation += m_PlayerObject->ComponentPhysics.LinearVelocity * DeltaTime;
-		m_PlayerObject->ComponentPhysics.LinearAcceleration = KVectorZero;
-
-		if (XMVectorGetY(m_PlayerObject->ComponentTransform.Translation) < m_WorldFloorHeight)
-		{
-			m_PlayerObject->ComponentTransform.Translation = XMVectorSetY(m_PlayerObject->ComponentTransform.Translation, m_WorldFloorHeight);
-			m_PlayerObject->ComponentPhysics.LinearVelocity = XMVectorSetY(m_PlayerObject->ComponentPhysics.LinearVelocity, 0.0f);
-		}
-		else
-		{
-			DetectCollisions();
-		}
+		UpdateObject(DeltaTime, Monster);
 	}
 }
 
-bool CPhysicsEngine::DetectCollisions()
+void CPhysicsEngine::UpdateObject(float DeltaTime, CObject3D* const Object)
 {
-	if (!m_PlayerObject) return false;
+	if (m_bShouldApplyGravity)
+	{
+		Object->ComponentPhysics.LinearAcceleration += m_Gravity; // Gravity
+	}
+
+	Object->ComponentPhysics.LinearVelocity += Object->ComponentPhysics.LinearAcceleration * DeltaTime;
+	Object->ComponentTransform.Translation += Object->ComponentPhysics.LinearVelocity * DeltaTime;
+	Object->ComponentPhysics.LinearAcceleration = KVectorZero;
+
+	if (XMVectorGetY(Object->ComponentTransform.Translation) < m_WorldFloorHeight)
+	{
+		Object->ComponentTransform.Translation = XMVectorSetY(Object->ComponentTransform.Translation, m_WorldFloorHeight);
+		Object->ComponentPhysics.LinearVelocity = XMVectorSetY(Object->ComponentPhysics.LinearVelocity, 0.0f);
+	}
+	else
+	{
+		DetectEnvironmentCollisions(Object);
+	}
+}
+
+bool CPhysicsEngine::DetectEnvironmentCollisions(CObject3D* const ObjectA)
+{
+	if (!ObjectA) return false;
 	
 	bool bCollisionDetected{ false };
 
@@ -337,7 +351,7 @@ bool CPhysicsEngine::DetectCollisions()
 	// PvE
 	// @important: Player is dynamic && Environment is static
 	{
-		CObject3D* const A{ m_PlayerObject };
+		CObject3D* const A{ ObjectA };
 
 		for (auto& EnvironmentObject : m_vEnvironmentObjects)
 		{

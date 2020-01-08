@@ -532,6 +532,41 @@ void CObject3D::SaveOB3D(const std::string& OB3DFileName)
 	Object3DBinary.SaveToFile(OB3DFileName);
 }
 
+void CObject3D::ExportEmbeddedTextures(const std::string& Directory)
+{
+	if (!m_Model) return;
+
+	size_t iMaterial{};
+	for (const auto& MaterialTextureSet : m_vMaterialTextureSets)
+	{
+		ExportEmbeddedTexture(MaterialTextureSet.get(), m_Model->vMaterialData[iMaterial], ETextureType::BaseColorTexture, Directory);
+		ExportEmbeddedTexture(MaterialTextureSet.get(), m_Model->vMaterialData[iMaterial], ETextureType::NormalTexture, Directory);
+		ExportEmbeddedTexture(MaterialTextureSet.get(), m_Model->vMaterialData[iMaterial], ETextureType::OpacityTexture, Directory);
+		ExportEmbeddedTexture(MaterialTextureSet.get(), m_Model->vMaterialData[iMaterial], ETextureType::RoughnessTexture, Directory);
+		ExportEmbeddedTexture(MaterialTextureSet.get(), m_Model->vMaterialData[iMaterial], ETextureType::MetalnessTexture, Directory);
+		ExportEmbeddedTexture(MaterialTextureSet.get(), m_Model->vMaterialData[iMaterial], ETextureType::AmbientOcclusionTexture, Directory);
+		ExportEmbeddedTexture(MaterialTextureSet.get(), m_Model->vMaterialData[iMaterial], ETextureType::DisplacementTexture, Directory);
+		
+		++iMaterial;
+	}
+}
+
+void CObject3D::ExportEmbeddedTexture(CMaterialTextureSet* const MaterialTextureSet, CMaterialData& MaterialData,
+	ETextureType eTextureType, const std::string& Directory)
+{
+	if (MaterialTextureSet->HasTexture(eTextureType))
+	{
+		const auto& Texture{ MaterialTextureSet->GetTexture(eTextureType) };
+		const auto& FileName{ Texture.GetFileName() };
+		if (FileName.empty())
+		{
+			const string& InternalFileName{ MaterialData.GetTextureData(eTextureType).InternalFileName };
+			Texture.SaveWICFile(Directory + InternalFileName);
+			MaterialData.SetTextureFileName(eTextureType, Directory + InternalFileName);
+		}
+	}
+}
+
 void CObject3D::AddAnimationFromFile(const string& FileName, const string& AnimationName)
 {
 	if (!m_Model->bIsModelRigged) return;

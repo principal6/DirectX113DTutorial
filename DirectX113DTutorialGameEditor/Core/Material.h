@@ -47,6 +47,8 @@ struct STextureData
 	bool					bHasTexture{ false };
 	bool					bIsSRGB{ false };
 	std::string				FileName{};
+	std::string				Extension{};
+	std::string				InternalFileName{};
 	std::vector<uint8_t>	vRawData{};
 };
 
@@ -158,7 +160,9 @@ public:
 
 	void ReleaseResources();
 
-	void SaveDDSFile(const std::string& FileName, bool bIsLookUpTexture = false);
+public:
+	void SaveWICFile(const std::string& FileName) const;
+	void SaveDDSFile(const std::string& FileName, bool bIsLookUpTexture = false) const;
 
 private:
 	void UpdateTextureInfo();
@@ -186,7 +190,7 @@ private:
 	ID3D11DeviceContext* const			m_PtrDeviceContext{};
 
 private:
-	std::string							m_FileName{};
+	mutable std::string					m_FileName{};
 	XMFLOAT2							m_TextureSize{};
 	UINT								m_Slot{};
 	EShaderType							m_eShaderType{ EShaderType::PixelShader };
@@ -224,6 +228,7 @@ public:
 public:
 	bool HasTexture(ETextureType eType) const;
 	bool IssRGB(ETextureType eType) const;
+	const CTexture& GetTexture(ETextureType eType) const;
 	ID3D11ShaderResourceView* GetTextureSRV(ETextureType eType);
 
 private:

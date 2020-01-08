@@ -220,7 +220,40 @@ void CTexture::ReleaseResources()
 	m_bIsCreated = false;
 }
 
-void CTexture::SaveDDSFile(const string& FileName, bool bIsLookUpTexture)
+void CTexture::SaveWICFile(const std::string& FileName) const
+{
+	m_FileName = FileName;
+	size_t ExtPos{ m_FileName.find('.') };
+	string Ext{ m_FileName.substr(ExtPos + 1) };
+	for (auto& ch : Ext) ch = toupper(ch);
+
+	wstring wFileName{ FileName.begin(), FileName.end() };
+
+	D3D11_TEXTURE2D_DESC Texture2DDesc{};
+	m_Texture2D->GetDesc(&Texture2DDesc);
+
+	DirectX::ScratchImage _ScratchImage{};
+	CaptureTexture(m_PtrDevice, m_PtrDeviceContext, m_Texture2D.Get(), _ScratchImage);
+	
+	if (Ext == "PNG")
+	{
+		assert(SUCCEEDED(SaveToWICFile(*_ScratchImage.GetImage(0, 0, 0), WIC_FLAGS_NONE, GUID_ContainerFormatPng, wFileName.c_str())));
+	}
+	else if (Ext == "JPG" || Ext == "JPEG")
+	{
+		assert(SUCCEEDED(SaveToWICFile(*_ScratchImage.GetImage(0, 0, 0), WIC_FLAGS_NONE, GUID_ContainerFormatJpeg, wFileName.c_str())));
+	}
+	else if (Ext == "TIF" || Ext == "TIFF")
+	{
+		assert(SUCCEEDED(SaveToWICFile(*_ScratchImage.GetImage(0, 0, 0), WIC_FLAGS_NONE, GUID_ContainerFormatTiff, wFileName.c_str())));
+	}
+	else if (Ext == "GIF")
+	{
+		assert(SUCCEEDED(SaveToWICFile(*_ScratchImage.GetImage(0, 0, 0), WIC_FLAGS_NONE, GUID_ContainerFormatGif, wFileName.c_str())));
+	}
+}
+
+void CTexture::SaveDDSFile(const string& FileName, bool bIsLookUpTexture) const
 {
 	m_FileName = FileName;
 
@@ -448,6 +481,11 @@ bool CMaterialTextureSet::HasTexture(ETextureType eType) const
 bool CMaterialTextureSet::IssRGB(ETextureType eType) const
 {
 	return m_Textures[(size_t)eType].IssRGB();
+}
+
+const CTexture& CMaterialTextureSet::GetTexture(ETextureType eType) const
+{
+	return m_Textures[(int)eType];
 }
 
 ID3D11ShaderResourceView* CMaterialTextureSet::GetTextureSRV(ETextureType eType)
