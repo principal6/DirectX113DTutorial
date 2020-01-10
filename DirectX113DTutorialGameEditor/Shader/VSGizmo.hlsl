@@ -10,7 +10,6 @@ VS_OUTPUT main(VS_INPUT Input)
 	VS_OUTPUT Output;
 
 	Output.Position = mul(Input.Position, WVP);
-	Output.Position /= Output.Position.w;
 	Output.Position.z *= 0.01f;
 	Output.Color = Input.Color;
 

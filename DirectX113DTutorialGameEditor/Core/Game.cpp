@@ -5277,7 +5277,9 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					ItemsWidth = min(ItemsWidth, KItemsMaxWidth);
 					float ItemsOffsetX{ WindowWidth - ItemsWidth - 20 };
 
+					// TODO
 					// Instance culling data
+					if (false)
 					{
 						ImGui::AlignTextToFramePadding();
 						ImGui::Text((u8"Total Instance Count: " + to_string(m_Object3DTotalInstanceCount)).c_str());
