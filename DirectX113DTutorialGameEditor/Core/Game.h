@@ -40,7 +40,6 @@ public:
 		VSBase,
 		VSBase2D,
 		VSFoliage,
-		VSInstance,
 		VSLight,
 		VSLine,
 		VSSky,
@@ -277,7 +276,7 @@ public:
 
 		EObjectType	eObjectType{};
 		std::string	Name{};
-		void* PtrObject{};
+		void*		PtrObject{};
 		uint32_t	Extra{};
 	};
 
@@ -299,17 +298,17 @@ public:
 	{
 		SCopyObject3D() {}
 		SCopyObject3D(const std::string& _Name, const SMESHData& _Model,
-			const CObject3D::SComponentTransform& _ComponentTransform, const CObject3D::SComponentPhysics& _ComponentPhysics,
-			const CObject3D::SComponentRender& _ComponentRender, const std::vector<SObject3DInstanceCPUData> _vInstanceCPUData) :
+			const SComponentTransform& _ComponentTransform, const SComponentPhysics& _ComponentPhysics,
+			const SComponentRender& _ComponentRender, const std::vector<SObject3DInstanceCPUData> _vInstanceCPUData) :
 			Name{ _Name }, Model{ _Model },
 			ComponentTransform{ _ComponentTransform }, ComponentPhysics{ _ComponentPhysics }, ComponentRender{ _ComponentRender },
 			vInstanceCPUData{ _vInstanceCPUData } {}
 
 		std::string								Name{};
 		SMESHData								Model{};
-		CObject3D::SComponentTransform			ComponentTransform{};
-		CObject3D::SComponentPhysics			ComponentPhysics{};
-		CObject3D::SComponentRender				ComponentRender{};
+		SComponentTransform						ComponentTransform{};
+		SComponentPhysics						ComponentPhysics{};
+		SComponentRender						ComponentRender{};
 		std::vector<SObject3DInstanceCPUData>	vInstanceCPUData{};
 
 		size_t									PasteCounter{};
@@ -574,7 +573,8 @@ public:
 
 private:
 	void DrawOpaqueObject3Ds(bool bIgnoreOwnTexture = false, bool bUseVoidPS = false);
-	void DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances = false, bool bIgnoreOwnTexture = false, bool bUseVoidPS = false);
+	void DrawObject3D(CObject3D* const PtrObject3D,
+		EFlagsObject3DRendering eFlagsRendering = EFlagsObject3DRendering::None, size_t OneInstanceIndex = 0);
 	void DrawBoundingSphereRep(const XMVECTOR& Center, float Radius);
 	void DrawAxisAlignedBoundingBoxRep(const XMVECTOR& Center, float HalfSizeX, float HalfSizeY, float HalfSizeZ);
 
@@ -671,8 +671,8 @@ private:
 
 	std::unique_ptr<CShader>				m_VSAnimation{};
 	std::unique_ptr<CShader>				m_VSBase{};
+	std::unique_ptr<CShader>				m_VSBase_Instanced{};
 	std::unique_ptr<CShader>				m_VSBase2D{};
-	std::unique_ptr<CShader>				m_VSInstance{};
 	std::unique_ptr<CShader>				m_VSFoliage{};
 	std::unique_ptr<CShader>				m_VSLight{};
 	std::unique_ptr<CShader>				m_VSLine{};
@@ -825,8 +825,8 @@ private:
 // Scene testing
 private:
 	CCamera*								m_SavedCurrentCamera{};
-	CObject3D::SComponentTransform			m_SavedPlayerTransform{};
-	CObject3D::SComponentPhysics			m_SavedPlayerPhysics{};
+	SComponentTransform						m_SavedPlayerTransform{};
+	SComponentPhysics						m_SavedPlayerPhysics{};
 	EFlagsRendering							m_SavedRenderingFlags{};
 
 // Picking

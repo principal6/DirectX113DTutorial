@@ -10,10 +10,12 @@ struct VS_INPUT
 	float4	Normal		: NORMAL;
 	float4	Tangent		: TANGENT;
 
-	// Instance
+// Instance
 #ifndef DEBUG_SHADER
 	uint	InstanceID		: SV_InstanceID;
 #endif
+
+// Instance
 	float4	InstanceWorld0	: INSTANCE_WORLD0;
 	float4	InstanceWorld1	: INSTANCE_WORLD1;
 	float4	InstanceWorld2	: INSTANCE_WORLD2;
@@ -32,9 +34,19 @@ struct VS_INPUT_ANIMATION
 	uint4	BoneIndex	: BLEND_INDICES;
 	float4	BoneWeight	: BLEND_WEIGHT;
 
+// Instance
 #ifndef DEBUG_SHADER
 	uint	InstanceID	: SV_InstanceID;
 #endif
+
+// Instance
+	float4	InstanceWorld0	: INSTANCE_WORLD0;
+	float4	InstanceWorld1	: INSTANCE_WORLD1;
+	float4	InstanceWorld2	: INSTANCE_WORLD2;
+	float4	InstanceWorld3	: INSTANCE_WORLD3;
+	float	IsHighlighted	: IS_HIGHLIGHTED;
+	float	AnimTick		: ANIM_TICK;
+	uint	CurrAnimID		: CURR_ANIM_ID;
 };
 
 struct VS_OUTPUT
@@ -47,11 +59,14 @@ struct VS_OUTPUT
 	float4	WorldTangent	: TANGENT;
 	float4	WorldBitangent	: BITANGENT;
 	int		bUseVertexColor : BOOL;
-	float	IsHighlighted	: IS_HIGHLIGHTED;
 
+// Instance
 #ifndef DEBUG_SHADER
 	uint	InstanceID		: INSTANCEID;
 #endif
+
+// Instance
+	float	IsHighlighted	: IS_HIGHLIGHTED;
 };
 
 #define HS_OUTPUT VS_OUTPUT

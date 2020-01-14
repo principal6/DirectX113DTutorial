@@ -1,29 +1,37 @@
 #include "Base.hlsli"
 #include "iVSCBs.hlsli"
 
-VS_OUTPUT main(VS_INPUT Input)
+static VS_OUTPUT Internal(in float4x4 WorldMatrix, in VS_INPUT Input)
 {
 	VS_OUTPUT Output;
 
-	Output.WorldPosition = mul(Input.Position, World);
+	Output.WorldPosition = mul(Input.Position, WorldMatrix);
 	Output.Position = mul(Output.WorldPosition, ViewProjection);
 
 	Output.Color = Input.Color;
 	Output.TexCoord = Input.TexCoord;
 
-	float4 ResultNormal = normalize(mul(Input.Normal, World));
-	float4 ResultBitangent = normalize(float4(cross(ResultNormal.xyz, Input.Tangent.xyz), 0));
-	float4 ResultTangent = normalize(float4(cross(ResultBitangent.xyz, ResultNormal.xyz), 0));
-	Output.WorldNormal = ResultNormal;
-	Output.WorldTangent = normalize(mul(ResultTangent, World));
-	Output.WorldBitangent = normalize(mul(ResultBitangent, World));
+	Output.WorldNormal = normalize(mul(Input.Normal, WorldMatrix));
+	Output.WorldTangent = normalize(mul(Input.Tangent, WorldMatrix));
+	Output.WorldBitangent = normalize(float4(cross(Output.WorldNormal.xyz, Output.WorldTangent.xyz), 0));
 
 	Output.bUseVertexColor = 0;
-	Output.IsHighlighted = Input.IsHighlighted;
 
 #ifndef DEBUG_SHADER
 	Output.InstanceID = Input.InstanceID;
 #endif
+	Output.IsHighlighted = Input.IsHighlighted;
 
 	return Output;
+}
+
+VS_OUTPUT main(VS_INPUT Input)
+{
+	return Internal(World, Input);
+}
+
+VS_OUTPUT Instanced(VS_INPUT Input)
+{
+	float4x4 InstanceWorld = float4x4(Input.InstanceWorld0, Input.InstanceWorld1, Input.InstanceWorld2, Input.InstanceWorld3);
+	return Internal(InstanceWorld, Input);
 }

@@ -161,6 +161,7 @@ void CBinaryData::WriteXMMATRIX(const XMMATRIX& Value)
 
 void CBinaryData::WriteString(const std::string& String)
 {
+	if (String.empty()) return;
 	m_vBytes.reserve(m_vBytes.size() + String.size());
 	for (const auto& Character : String)
 	{

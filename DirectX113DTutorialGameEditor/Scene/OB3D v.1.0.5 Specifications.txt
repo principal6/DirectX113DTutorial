@@ -1,0 +1,67 @@
+// #########################
+// << .OB3D FILE STRUCTURE >>
+// @@@ SYNTAX @@@
+//  - <@PrefString>: 4B(uint32_t)[String length] + ??(string)[Non-zero-terminated string]
+// #########################
+// 8B (string) Signature "KJW-OB3D"
+// 4B (in total) Version
+//  = 2B (uint16_t) Version major "0x0001"
+//  + 1B (uint8_t) Version minor "0x00"
+//  + 1B (uint8_t) Version sub-minor "0x05"
+/********** BEGIN NEW **********/
+// ##### Object data #####
+// <@PrefString> Object3D name
+// 1B (bool) bIsPickable
+/**********  END NEW  **********/
+// ##### Mesh data #####
+// 1B (bool) bContainMeshData
+// - (TRUE) ?
+//   - 4B (uint32_t) Mesh byte count
+//   - ?? (byte) Mesh bytes
+// - (FALSE) ?
+//   - <@PrefString> Model file name
+// ##### ComponentTransform #####
+// 16B (XMVECTOR) Transform
+// 4B (float) Pitch
+// 4B (float) Yaw
+// 4B (float) Roll
+// 16B (XMVECTOR) Scaling
+// ##### ComponentPhysics #####
+// 16B (XMVECTOR) BoundingSphere CenterOffset
+// 4B (float) BoundingSphere RadiusBias
+// 4B (uint32_t) bounding volumes count
+// - 16B (XMVECTOR) bounding volume center
+// - 1B (uint8_t, enum) bounding volume type
+// - 4B (float) union data x
+// - 4B (float) union data y
+// - 4B (float) union data z
+// ##### ComponentRender #####
+// 1B (bool) bIsTransparent
+// ##### Instance #####
+// 4B (uint32_t) Instance count
+// - ### per-instance ###
+// - <@PrefString> Instance name
+// - 16B (XMVECTOR) Translation
+// - 4B (float) Pitch
+// - 4B (float) Yaw
+// - 4B (float) Roll
+// - 16B (XMVECTOR) Scaling
+/********** BEGIN NEW **********/
+// - 4B (float) Inverse mass
+// - 16B (XMVECTOR) Linear acceleration
+// - 16B (XMVECTOR) Linear velocity
+// - 4B (uint32_t) Current animation ID
+/**********  END NEW  **********/
+// - 16B (XMVECTOR) BoundingSphere CenterOffset
+// - 4B (float) BoundingSphere RadiusBias
+// ##### Animation #####
+/********** BEGIN NEW **********/
+// <@PrefString> Baked animation texture file name
+// 4B (uint32_t) Object animation ID
+/**********  END NEW  **********/
+// - ### per-animation ###
+// - 4B (uint32_t, enum) Registered animation type
+// - 4B (float) Behavior start tick
+/********** BEGIN NEW **********/
+// - 4B (float) Ticks per second (overriding the data in MESH)
+/**********  END NEW  **********/

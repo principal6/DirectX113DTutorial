@@ -675,9 +675,6 @@
     <FxCompile Include="Shader\PSCloud.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shader\VSInstance.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
     <FxCompile Include="Shader\VSFoliage.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>

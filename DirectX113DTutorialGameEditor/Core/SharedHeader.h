@@ -86,14 +86,14 @@ enum class EBoundingVolumeType
 	AxisAlignedBoundingBox,
 };
 
-struct SBoundingSphereData
-{
-	float Radius{ KBoundingSphereDefaultRadius };
-	float RadiusBias{ KBoundingSphereDefaultRadius };
-};
-
 struct alignas(16) SBoundingVolume
 {
+	struct SBoundingSphereData
+	{
+		float Radius{ KBoundingSphereDefaultRadius };
+		float RadiusBias{ KBoundingSphereDefaultRadius };
+	};
+
 	union UData
 	{
 		XMFLOAT3			AABBHalfSizes{ 1, 1, 1 };
@@ -105,32 +105,25 @@ struct alignas(16) SBoundingVolume
 	XMVECTOR			Center{};
 };
 
-struct SObject3DInstanceCPUData
+struct SComponentTransform
 {
-	static constexpr size_t KMaxNameLengthZeroTerminated{ 32 };
-
-	std::string				Name{};
-	XMVECTOR				Translation{};
-	XMVECTOR				Scaling{ XMVectorSet(1, 1, 1, 0) };
-	float					Pitch{};
-	float					Yaw{};
-	float					Roll{};
-	SBoundingVolume			EditorBoundingSphere{};
+	XMVECTOR	Translation{ 0, 0, 0, 1 };
+	XMVECTOR	Scaling{ 1, 1, 1, 0 };
+	float		Pitch{};
+	float		Yaw{};
+	float		Roll{};
 };
 
-struct SObject3DInstanceGPUData
+struct SComponentPhysics
 {
-	XMMATRIX	WorldMatrix{ KMatrixIdentity };
-	float		IsHighlighted{};
+	float		InverseMass{};			// unit: kilogram
+	XMVECTOR	LinearVelocity{};		// unit: m/s
+	XMVECTOR	LinearAcceleration{};	// unit: m/s^2
 };
 
-struct SVertexBufferBundle
+struct SComponentRender
 {
-	SVertexBufferBundle(size_t _Stride) : Stride{ static_cast<UINT>(_Stride) } {}
-
-	ComPtr<ID3D11Buffer>	Buffer{};
-	UINT					Stride{};
-	UINT					Offset{};
+	bool	bIsTransparent{ false };
 };
 
 enum class EAnimationRegistrationType
@@ -157,6 +150,46 @@ enum class EAnimationOption
 	Repeat,
 	PlayToLastFrame,
 	PlayToFirstFrame
+};
+
+struct SObject3DInstanceCPUData
+{
+	static constexpr size_t KMaxNameLengthZeroTerminated{ 32 };
+
+	std::string				Name{};
+	SComponentTransform		Transform{};
+	SComponentPhysics		Physics{};
+	SBoundingVolume			EditorBoundingSphere{};
+	size_t					CurrAnimPlayCount{};
+	EAnimationOption		eCurrAnimOption{};
+};
+
+struct SObject3DInstanceGPUData
+{
+	XMMATRIX	WorldMatrix{ KMatrixIdentity };
+	float		IsHighlighted{};
+	float		AnimTick{};
+	uint32_t	CurrAnimID{};
+};
+
+class CObject3D;
+struct SObjectIdentifier
+{
+	SObjectIdentifier() {}
+	SObjectIdentifier(CObject3D* _Object3D) : Object3D{ _Object3D } {}
+	SObjectIdentifier(CObject3D* _Object3D, const char* _PtrInstanceName) : Object3D{ _Object3D }, PtrInstanceName{ _PtrInstanceName } {}
+
+	CObject3D*	Object3D{};
+	const char*	PtrInstanceName{};
+};
+
+struct SVertexBufferBundle
+{
+	SVertexBufferBundle(size_t _Stride) : Stride{ static_cast<UINT>(_Stride) } {}
+
+	ComPtr<ID3D11Buffer>	Buffer{};
+	UINT					Stride{};
+	UINT					Offset{};
 };
 
 #define ENUM_CLASS_FLAG(enum_type)\

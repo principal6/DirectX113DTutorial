@@ -45,7 +45,7 @@ void CGizmo3D::Create()
 		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorX) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_RotationX->Create(MergeStaticMeshes(MeshRing, MeshAxis));
-		m_RotationX->ComponentTransform.Roll = -XM_PIDIV2;
+		m_RotationX->RotateRollTo(-XM_PIDIV2);
 	}
 
 	if (!m_RotationY)
@@ -64,7 +64,7 @@ void CGizmo3D::Create()
 		SMesh MeshAxis{ GenerateCylinder(K3DGizmoRadius, 1.0f, 16, KColorZ) };
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_RotationZ->Create(MergeStaticMeshes(MeshRing, MeshAxis));
-		m_RotationZ->ComponentTransform.Pitch = XM_PIDIV2;
+		m_RotationZ->RotatePitchTo(XM_PIDIV2);
 	}
 
 	if (!m_TranslationX)
@@ -76,7 +76,7 @@ void CGizmo3D::Create()
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_TranslationX->Create(MeshAxis);
-		m_TranslationX->ComponentTransform.Roll = -XM_PIDIV2;
+		m_TranslationX->RotateRollTo(-XM_PIDIV2);
 	}
 
 	if (!m_TranslationY)
@@ -99,7 +99,7 @@ void CGizmo3D::Create()
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCone);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_TranslationZ->Create(MeshAxis);
-		m_TranslationZ->ComponentTransform.Pitch = XM_PIDIV2;
+		m_TranslationZ->RotatePitchTo(XM_PIDIV2);
 	}
 
 	if (!m_ScalingX)
@@ -112,7 +112,7 @@ void CGizmo3D::Create()
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_ScalingX->Create(MeshAxis);
-		m_ScalingX->ComponentTransform.Roll = -XM_PIDIV2;
+		m_ScalingX->RotateRollTo(-XM_PIDIV2);
 	}
 
 	if (!m_ScalingY)
@@ -137,7 +137,7 @@ void CGizmo3D::Create()
 		MeshAxis = MergeStaticMeshes(MeshAxis, MeshCube);
 		TranslateMesh(MeshAxis, XMVectorSet(0, 0.5f, 0, 0));
 		m_ScalingZ->Create(MeshAxis);
-		m_ScalingZ->ComponentTransform.Pitch = XM_PIDIV2;
+		m_ScalingZ->RotatePitchTo(XM_PIDIV2);
 	}
 }
 
@@ -150,10 +150,15 @@ void CGizmo3D::UpdateTranslation(const XMVECTOR& CameraPosition)
 {
 	// @important
 	// Translate gizmos
-	m_TranslationX->ComponentTransform.Translation = m_TranslationY->ComponentTransform.Translation = m_TranslationZ->ComponentTransform.Translation =
-		m_RotationX->ComponentTransform.Translation = m_RotationY->ComponentTransform.Translation = m_RotationZ->ComponentTransform.Translation =
-		m_ScalingX->ComponentTransform.Translation = m_ScalingY->ComponentTransform.Translation = m_ScalingZ->ComponentTransform.Translation =
-		m_GizmoTranslation;
+	m_TranslationX->TranslateTo(m_GizmoTranslation);
+	m_TranslationY->TranslateTo(m_GizmoTranslation);
+	m_TranslationZ->TranslateTo(m_GizmoTranslation);
+	m_RotationX->TranslateTo(m_GizmoTranslation);
+	m_RotationY->TranslateTo(m_GizmoTranslation);
+	m_RotationZ->TranslateTo(m_GizmoTranslation);
+	m_ScalingX->TranslateTo(m_GizmoTranslation);
+	m_ScalingY->TranslateTo(m_GizmoTranslation);
+	m_ScalingZ->TranslateTo(m_GizmoTranslation);
 
 	// @important
 	// Calculate scalar IAW the distance from the camera	
@@ -492,10 +497,10 @@ void CGizmo3D::Draw(const XMMATRIX& ViewProjection)
 
 void CGizmo3D::DrawGizmo(CObject3D* const Gizmo, const XMMATRIX& ViewProjection, bool bShouldHighlight)
 {
-	Gizmo->ComponentTransform.Scaling = XMVectorSet(m_GizmoDistanceScalar, m_GizmoDistanceScalar, m_GizmoDistanceScalar, 0.0f);
+	Gizmo->ScaleTo(XMVectorSet(m_GizmoDistanceScalar, m_GizmoDistanceScalar, m_GizmoDistanceScalar, 0.0f));
 	Gizmo->UpdateWorldMatrix();
 
-	m_CBGizmoSpaceData.WVP = XMMatrixTranspose(Gizmo->ComponentTransform.MatrixWorld * ViewProjection);
+	m_CBGizmoSpaceData.WVP = XMMatrixTranspose(Gizmo->GetWorldMatrix() * ViewProjection);
 	m_CBGizmoSpace->Update();
 
 	// @important: alpha 0 means color overriding in PS

@@ -8,13 +8,15 @@
 //  = 2B (uint16_t) Version major "0x0001"
 //  + 1B (uint8_t) Version minor "0x00"
 //  + 1B (uint8_t) Version sub-minor "0x04"
+// ##### Object data #####
+// <@PrefString> Object3D name
 // ##### Mesh data #####
 // 1B (bool) bContainMeshData
 // - (TRUE) ?
 //   - 4B (uint32_t) Mesh byte count
 //   - ?? (byte) Mesh bytes
 // - (FALSE) ?
-//   - <@PrefString> Object3D name
+//   - <@PrefString> Model file name
 // ##### ComponentTransform #####
 // 16B (XMVECTOR) Transform
 // 4B (float) Pitch

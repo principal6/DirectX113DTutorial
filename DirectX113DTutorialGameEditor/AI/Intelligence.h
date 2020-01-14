@@ -42,7 +42,7 @@ private:
 
 struct SBehaviorSet
 {
-	CObject3D*					Object3D{};
+	SObjectIdentifier			Identifier{};
 	std::deque<SBehaviorData>	dqBehaviors{};
 };
 
@@ -56,19 +56,21 @@ public:
 	void ClearBehaviors();
 
 public:
-	void RegisterPriority(CObject3D* const Object3D, EObjectPriority ePriority, bool bShouldChangePriority = false);
-	void PushBackBehavior(CObject3D* const Object3D, const SBehaviorData& Behavior);
-	void PushFrontBehavior(CObject3D* const Object3D, const SBehaviorData& Behavior);
-	void PopFrontBehavior(CObject3D* const Object3D);
-	void PopFrontBehaviorIf(CObject3D* const Object3D, EBehaviorType eBehaviorType);
-	bool HasBehavior(CObject3D* const Object3D) const;
-	const SBehaviorData& PeekBehavior(CObject3D* const Object3D) const;
+	void RegisterPriority(const SObjectIdentifier& Identifier, EObjectPriority ePriority, bool bShouldChangePriority = false);
+
+public:
+	void PushBackBehavior(const SObjectIdentifier& Identifier, const SBehaviorData& Behavior);
+	void PushFrontBehavior(const SObjectIdentifier& Identifier, const SBehaviorData& Behavior);
+	void PopFrontBehavior(const SObjectIdentifier& Identifier);
+	void PopFrontBehaviorIf(const SObjectIdentifier& Identifier, EBehaviorType eBehaviorType);
+	bool HasBehavior(const SObjectIdentifier& Identifier) const;
+	const SBehaviorData& PeekBehavior(const SObjectIdentifier& Identifier) const;
 
 public:
 	void Execute();
 
 private:
-	void ExecuteBehavior(CObject3D* const Object3D, SBehaviorData& Behavior);
+	void ExecuteBehavior(const SObjectIdentifier& Identifier, SBehaviorData& Behavior);
 
 private:
 	static constexpr size_t					KPriorityCount{ 3 };
@@ -79,8 +81,8 @@ private:
 
 private:
 	std::vector<SBehaviorSet>				m_vBehaviorSets[KPriorityCount]{};
-	std::unordered_map<CObject3D*, size_t>	m_umapBehaviorSets[KPriorityCount]{};
-	std::unordered_map<CObject3D*, size_t>	m_umapPriority{};
+	std::unordered_map<std::string, size_t>	m_umapBehaviorSets[KPriorityCount]{};
+	std::unordered_map<std::string, size_t>	m_umapPriority{};
 
 private:
 	bool									m_bBehaviorStarted{ false };

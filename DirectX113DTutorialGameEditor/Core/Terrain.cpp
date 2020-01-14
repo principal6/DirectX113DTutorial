@@ -112,13 +112,13 @@ void CTerrain::Scale(const XMVECTOR& Scaling)
 {
 	if (m_Object3DTerrain) 
 	{
-		m_Object3DTerrain->ComponentTransform.Scaling = Scaling;
+		m_Object3DTerrain->ScaleTo(Scaling);
 		m_Object3DTerrain->UpdateWorldMatrix();
 	}
 
 	if (m_Object3DWater)
 	{
-		m_Object3DWater->ComponentTransform.Scaling = Scaling;
+		m_Object3DWater->ScaleTo(Scaling);
 		m_Object3DWater->UpdateWorldMatrix();
 	}
 }
@@ -419,7 +419,7 @@ void CTerrain::UpdateSelectionPosition(const XMVECTOR& PickingRayOrigin, const X
 void CTerrain::UpdateHeights(bool bIsLeftButton)
 {
 	const XMMATRIX KInverseWorld{ XMMatrixInverse(nullptr, m_CBTerrainSelectionData.TerrainWorld) };
-	const float KLocalSelectionRadius{ m_CBTerrainSelectionData.SelectionRadius / XMVectorGetX(m_Object3DTerrain->ComponentTransform.Scaling) };
+	const float KLocalSelectionRadius{ m_CBTerrainSelectionData.SelectionRadius / XMVectorGetX(m_Object3DTerrain->GetTransform().Scaling) };
 	const float KLocalRadiusSquare{ KLocalSelectionRadius * KLocalSelectionRadius };
 	const int KTerrainSizeX{ (int)m_TerrainFileData->SizeX };
 	const int KTerrainSizeZ{ (int)m_TerrainFileData->SizeZ };
@@ -511,7 +511,7 @@ void CTerrain::UpdateHeights(bool bIsLeftButton)
 void CTerrain::UpdateMasking(EMaskingLayer eLayer, float Value, bool bForceSet)
 {
 	const XMMATRIX KInverseWorld{ XMMatrixInverse(nullptr, m_CBTerrainSelectionData.TerrainWorld) };
-	const float KLocalSelectionRadius{ m_CBTerrainSelectionData.SelectionRadius / XMVectorGetX(m_Object3DTerrain->ComponentTransform.Scaling) };
+	const float KLocalSelectionRadius{ m_CBTerrainSelectionData.SelectionRadius / XMVectorGetX(m_Object3DTerrain->GetTransform().Scaling) };
 	const float KDetailSquare{ (float)m_TerrainFileData->MaskingDetail * (float)m_TerrainFileData->MaskingDetail };
 	const float KLocalRadiusSquare{ KLocalSelectionRadius * KLocalSelectionRadius * KDetailSquare };
 	const int KTerrainSizeX{ (int)m_TerrainFileData->SizeX };
@@ -596,8 +596,8 @@ void CTerrain::UpdateFoliagePlacing(bool bErase)
 	if (!m_FoliagePlacingTexture) return;
 
 	const XMMATRIX KInverseWorld{ XMMatrixInverse(nullptr, m_CBTerrainSelectionData.TerrainWorld) };
-	const float KScalingX{ XMVectorGetX(m_Object3DTerrain->ComponentTransform.Scaling) };
-	const float KScalingZ{ XMVectorGetX(m_Object3DTerrain->ComponentTransform.Scaling) };
+	const float KScalingX{ XMVectorGetX(m_Object3DTerrain->GetTransform().Scaling) };
+	const float KScalingZ{ XMVectorGetX(m_Object3DTerrain->GetTransform().Scaling) };
 	const float KLocalSelectionRadius{ m_CBTerrainSelectionData.SelectionRadius / KScalingX };
 	const float KDetailSquare{ (float)m_TerrainFileData->FoliagePlacingDetail * (float)m_TerrainFileData->FoliagePlacingDetail };
 	const float KLocalRadiusSquare{ KLocalSelectionRadius * KLocalSelectionRadius * KDetailSquare };
@@ -647,25 +647,25 @@ void CTerrain::UpdateFoliagePlacing(bool bErase)
 					const float Interval{ 1.0f / (float)m_TerrainFileData->FoliagePlacingDetail };
 					for (auto& Foliage : m_vFoliages)
 					{
-						Foliage->InsertInstance(KInstanceName);
-						auto& Instance{ Foliage->GetLastInstanceCPUData() };
+						if (Foliage->InsertInstance(KInstanceName))
+						{
+							float XDisplacement{ GetRandom(-0.2f, +0.2f) };
+							float YDisplacement{ GetRandom(-0.1f, 0.0f) };
+							float ZDisplacement{ GetRandom(-0.2f, +0.2f) };
+							Foliage->TranslateInstanceTo(
+								KInstanceName,
+								XMVectorSet
+								(
+									XDisplacement + (U - (int)(m_FoliagePlacingTextureSize.x * 0.5f)) * KScalingX * Interval,
+									YDisplacement,
+									ZDisplacement - (V - (int)(m_FoliagePlacingTextureSize.y * 0.5f)) * KScalingZ * Interval,
+									1
+								));
 
-						float XDisplacement{ GetRandom(-0.2f, +0.2f) };
-						float YDisplacement{ GetRandom(-0.1f, 0.0f) };
-						float ZDisplacement{ GetRandom(-0.2f, +0.2f) };
-						Instance.Translation =
-							XMVectorSet
-							(
-								XDisplacement + (U - (int)(m_FoliagePlacingTextureSize.x * 0.5f)) * KScalingX * Interval,
-								YDisplacement,
-								ZDisplacement - (V - (int)(m_FoliagePlacingTextureSize.y * 0.5f)) * KScalingZ * Interval,
-								1
-							);
-
-						float YRotationAngle{ GetRandom(0.0f, XM_2PI) };
-						Instance.Yaw = YRotationAngle;
-
-						Foliage->UpdateInstanceWorldMatrix(Instance.Name);
+							float YRotationAngle{ GetRandom(0.0f, XM_2PI) };
+							Foliage->RotateInstanceYawTo(KInstanceName, YRotationAngle);
+							Foliage->UpdateInstanceWorldMatrix(KInstanceName);
+						}
 					}
 				}
 			}
@@ -942,7 +942,7 @@ const DirectX::XMMATRIX& CTerrain::GetMaskingSpaceData() const
 
 const CTerrain::SCBTerrainSelectionData& CTerrain::GetSelectionData()
 {
-	m_CBTerrainSelectionData.TerrainWorld = m_Object3DTerrain->ComponentTransform.MatrixWorld;
+	m_CBTerrainSelectionData.TerrainWorld = m_Object3DTerrain->GetWorldMatrix();
 	m_CBTerrainSelectionData.InverseTerrainWorld = XMMatrixInverse(nullptr, m_CBTerrainSelectionData.TerrainWorld);
 
 	return m_CBTerrainSelectionData;
@@ -950,12 +950,12 @@ const CTerrain::SCBTerrainSelectionData& CTerrain::GetSelectionData()
 
 const DirectX::XMMATRIX& CTerrain::GetWaterWorldMatrix() const
 {
-	return m_Object3DWater->ComponentTransform.MatrixWorld;
+	return m_Object3DWater->GetWorldMatrix();
 }
 
 const DirectX::XMMATRIX& CTerrain::GetWindRepresentationWorldMatrix() const
 {
-	return m_Object3DWindRep->ComponentTransform.MatrixWorld;
+	return m_Object3DWindRep->GetWorldMatrix();
 }
 
 void CTerrain::UpdateWind(float DeltaTime)
@@ -1008,8 +1008,8 @@ void CTerrain::DrawTerrain(bool bDrawNormals)
 
 void CTerrain::DrawWater()
 {
-	m_Object3DWater->ComponentTransform = m_Object3DTerrain->ComponentTransform;
-	m_Object3DWater->ComponentTransform.Translation += XMVectorSet(0, m_TerrainFileData->WaterHeight, 0, 1);
+	m_Object3DWater->SetTransform(m_Object3DTerrain->GetTransform());
+	m_Object3DWater->Translate(XMVectorSet(0, m_TerrainFileData->WaterHeight, 0, 1));
 	m_Object3DWater->UpdateWorldMatrix();
 
 	//m_PtrDeviceContext->OMSetDepthStencilState(m_PtrGame->GetDepthStencilStateLessEqualNoWrite(), 0);
@@ -1059,8 +1059,8 @@ void CTerrain::DrawWindRepresentation()
 	{
 		m_PtrDeviceContext->RSSetState(m_PtrGame->GetCommonStates()->Wireframe());
 
-		m_Object3DWindRep->ComponentTransform.Translation = XMLoadFloat3(&m_CBWindData.Position);
-		m_Object3DWindRep->ComponentTransform.Scaling = XMVectorSet(m_CBWindData.Radius, m_CBWindData.Radius, m_CBWindData.Radius, 0);
+		m_Object3DWindRep->TranslateTo(XMLoadFloat3(&m_CBWindData.Position));
+		m_Object3DWindRep->ScaleTo(XMVectorSet(m_CBWindData.Radius, m_CBWindData.Radius, m_CBWindData.Radius, 0));
 		m_Object3DWindRep->UpdateWorldMatrix();
 
 		m_PtrGame->GetBaseShader(CGame::EBaseShader::VSBase)->Use();

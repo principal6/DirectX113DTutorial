@@ -190,21 +190,21 @@ void CGame::InitializeEditorAssets()
 	{
 		m_AClosestPointRep = make_unique<CObject3D>("ClosestPoint", m_Device.Get(), m_DeviceContext.Get());
 		m_AClosestPointRep->Create(GenerateSphere(16, XMVectorSet(1, 0, 0, 1)));
-		m_AClosestPointRep->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.1f, 0.1f, 0);
+		m_AClosestPointRep->ScaleTo(XMVectorSet(0.1f, 0.1f, 0.1f, 0));
 	}
 
 	if (!m_BClosestPointRep)
 	{
 		m_BClosestPointRep = make_unique<CObject3D>("ClosestPoint", m_Device.Get(), m_DeviceContext.Get());
 		m_BClosestPointRep->Create(GenerateSphere(16, XMVectorSet(0, 1, 0, 1)));
-		m_BClosestPointRep->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.1f, 0.1f, 0);
+		m_BClosestPointRep->ScaleTo(XMVectorSet(0.1f, 0.1f, 0.1f, 0));
 	}
 
 	if (!m_PickedPointRep)
 	{
 		m_PickedPointRep = make_unique<CObject3D>("PickedPoint", m_Device.Get(), m_DeviceContext.Get());
 		m_PickedPointRep->Create(GenerateSphere(16, XMVectorSet(0, 1, 1, 1)));
-		m_PickedPointRep->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.1f, 0.1f, 0);
+		m_PickedPointRep->ScaleTo(XMVectorSet(0.1f, 0.1f, 0.1f, 0));
 	}
 
 	if (!m_LightRep)
@@ -706,6 +706,11 @@ void CGame::CreateBaseShaders()
 			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
 		m_VSBase->ReserveConstantBufferSlots(KVSSharedCBCount);
 
+		m_VSBase_Instanced = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
+		m_VSBase_Instanced->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBase.hlsl", "Instanced",
+			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
+		m_VSBase_Instanced->ReserveConstantBufferSlots(KVSSharedCBCount);
+
 		m_VSBase2D = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSBase2D->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSBase2D.hlsl", "main",
 			CObject2D::KInputLayout, ARRAYSIZE(CObject2D::KInputLayout));
@@ -717,11 +722,6 @@ void CGame::CreateBaseShaders()
 		m_VSFoliage->ReserveConstantBufferSlots(KVSSharedCBCount);
 		m_VSFoliage->AttachConstantBuffer(m_CBTerrain.get());
 		m_VSFoliage->AttachConstantBuffer(m_CBWind.get());
-
-		m_VSInstance = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
-		m_VSInstance->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSInstance.hlsl", "main",
-			CObject3D::KInputElementDescs, ARRAYSIZE(CObject3D::KInputElementDescs));
-		m_VSInstance->ReserveConstantBufferSlots(KVSSharedCBCount);
 
 		m_VSLight = make_unique<CShader>(m_Device.Get(), m_DeviceContext.Get());
 		m_VSLight->Create(EShaderType::VertexShader, CShader::EVersion::_4_0, bShouldCompileShaders, L"Shader\\VSLight.hlsl", "main",
@@ -954,17 +954,18 @@ void CGame::CreateMiniAxes()
 	vMaterialData[1].SetUniformColor(XMFLOAT3(0, 1, 0));
 	vMaterialData[2].SetUniformColor(XMFLOAT3(0, 0, 1));
 	m_vMiniAxes[0]->Create(KAxisCone, vMaterialData[0]);
-	m_vMiniAxes[0]->ComponentTransform.Roll = -XM_PIDIV2;
+	m_vMiniAxes[0]->RotateRollTo(-XM_PIDIV2);
 	
 	m_vMiniAxes[1]->Create(KAxisCone, vMaterialData[1]);
 	
 	m_vMiniAxes[2]->Create(KAxisCone, vMaterialData[2]);
-	m_vMiniAxes[2]->ComponentTransform.Yaw = -XM_PIDIV2;
-	m_vMiniAxes[2]->ComponentTransform.Roll = -XM_PIDIV2;
+	m_vMiniAxes[2]->RotateYawTo(-XM_PIDIV2);
+	m_vMiniAxes[2]->RotateRollTo(-XM_PIDIV2);
 	
-	m_vMiniAxes[0]->ComponentTransform.Scaling =
-		m_vMiniAxes[1]->ComponentTransform.Scaling =
-		m_vMiniAxes[2]->ComponentTransform.Scaling = XMVectorSet(0.1f, 0.8f, 0.1f, 0);
+	XMVECTOR Scaling{ XMVectorSet(0.1f, 0.8f, 0.1f, 0) };
+	m_vMiniAxes[0]->ScaleTo(Scaling);
+	m_vMiniAxes[1]->ScaleTo(Scaling);
+	m_vMiniAxes[2]->ScaleTo(Scaling);
 }
 
 void CGame::CreatePickingRay()
@@ -1067,10 +1068,9 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 				SetPlayerCamera(Camera);
 			}
 
-			auto& CameraRepInstance{ m_CameraRep->GetInstanceCPUData(ReadString) };
-			CameraRepInstance.Translation = Camera->GetEyePosition();
-			CameraRepInstance.Pitch = Camera->GetPitch();
-			CameraRepInstance.Yaw = Camera->GetYaw();
+			m_CameraRep->TranslateInstanceTo(ReadString, Camera->GetEyePosition());
+			m_CameraRep->RotateInstancePitchTo(ReadString, Camera->GetPitch());
+			m_CameraRep->RotateInstanceYawTo(ReadString, Camera->GetYaw());
 			m_CameraRep->UpdateInstanceWorldMatrix(ReadString);
 		}
 	}
@@ -1535,22 +1535,22 @@ void CGame::CreateDynamicSky(const string& SkyDataFileName, float ScalingFactor)
 
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get());
 	m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom), m_SkyMaterialData);
-	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
-	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
+	m_Object3DSkySphere->ScaleTo(XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0));
+	m_Object3DSkySphere->IsPickable(false);
 
 	m_Object3DSun = make_unique<CObject3D>("Sun", m_Device.Get(), m_DeviceContext.Get());
 	m_Object3DSun->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterialData);
 	m_Object3DSun->UpdateQuadUV(m_SkyData.Sun.UVOffset, m_SkyData.Sun.UVSize);
-	m_Object3DSun->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Sun.WidthHeightRatio, 0);
-	m_Object3DSun->ComponentRender.bIsTransparent = true;
-	m_Object3DSun->ComponentPhysics.bIsPickable = false;
+	m_Object3DSun->ScaleTo(XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Sun.WidthHeightRatio, 0));
+	m_Object3DSun->IsTransparent(true);
+	m_Object3DSun->IsPickable(false);
 	
 	m_Object3DMoon = make_unique<CObject3D>("Moon", m_Device.Get(), m_DeviceContext.Get());
 	m_Object3DMoon->Create(GenerateSquareYZPlane(KColorWhite), m_SkyMaterialData);
 	m_Object3DMoon->UpdateQuadUV(m_SkyData.Moon.UVOffset, m_SkyData.Moon.UVSize);
-	m_Object3DMoon->ComponentTransform.Scaling = XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Moon.WidthHeightRatio, 0);
-	m_Object3DMoon->ComponentRender.bIsTransparent = true;
-	m_Object3DMoon->ComponentPhysics.bIsPickable = false;
+	m_Object3DMoon->ScaleTo(XMVectorSet(1.0f, ScalingFactor, ScalingFactor * m_SkyData.Moon.WidthHeightRatio, 0));
+	m_Object3DMoon->IsTransparent(true);
+	m_Object3DMoon->IsPickable(false);
 	
 	m_SkyData.bIsDataSet = true;
 	m_SkyData.bIsDynamic = true;
@@ -1565,8 +1565,8 @@ void CGame::CreateStaticSky(float ScalingFactor)
 	m_Object3DSkySphere = make_unique<CObject3D>("SkySphere", m_Device.Get(), m_DeviceContext.Get());
 	//m_Object3DSkySphere->Create(GenerateSphere(KSkySphereSegmentCount, KSkySphereColorUp, KSkySphereColorBottom));
 	m_Object3DSkySphere->Create(GenerateCubemapSphere(KSkySphereSegmentCount));
-	m_Object3DSkySphere->ComponentTransform.Scaling = XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0);
-	m_Object3DSkySphere->ComponentPhysics.bIsPickable = false;
+	m_Object3DSkySphere->ScaleTo(XMVectorSet(KSkyDistance, KSkyDistance, KSkyDistance, 0));
+	m_Object3DSkySphere->IsPickable(false);
 
 	m_SkyData.bIsDataSet = true;
 	m_SkyData.bIsDynamic = false;
@@ -1711,12 +1711,14 @@ void CGame::CopySelectedObject()
 				CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
 				if (SelectionData.eObjectType == EObjectType::Object3DInstance)
 				{
-					m_vCopyObject3DInstances.emplace_back(Object3D->GetInstanceCPUData(SelectionData.Name), Object3D);
+					const CObject3D* const KObject3D{ Object3D };
+					const auto& InstanceCPUData{ KObject3D->GetInstanceCPUData(SelectionData.Name) };
+					m_vCopyObject3DInstances.emplace_back(InstanceCPUData, Object3D);
 				}
 				else
 				{
 					m_vCopyObject3Ds.emplace_back(SelectionData.Name, Object3D->GetModel(),
-						Object3D->ComponentTransform, Object3D->ComponentPhysics, Object3D->ComponentRender,
+						Object3D->GetTransform(), Object3D->GetPhysics(), Object3D->GetRender(),
 						Object3D->GetInstanceCPUDataVector());
 				}
 				break;
@@ -1758,12 +1760,12 @@ void CGame::PasteCopiedObject()
 
 			Object3D->Create(CopyObject3D.Model);
 			Object3D->CreateInstances(CopyObject3D.vInstanceCPUData);
-			Object3D->ComponentTransform = CopyObject3D.ComponentTransform;
-			Object3D->ComponentPhysics = CopyObject3D.ComponentPhysics;
-			Object3D->ComponentRender = CopyObject3D.ComponentRender;
+			Object3D->SetTransform(CopyObject3D.ComponentTransform);
+			Object3D->SetPhysics(CopyObject3D.ComponentPhysics);
+			Object3D->SetRender(CopyObject3D.ComponentRender);
 
 			Object3D->UpdateWorldMatrix();
-			Object3D->UpdateAllInstancesWorldMatrix();
+			Object3D->UpdateAllInstances();
 
 			SelectObject(SSelectionData(EObjectType::Object3D, NewName, Object3D), ESelectionMode::Additive);
 			++SelectionCount;
@@ -1778,14 +1780,10 @@ void CGame::PasteCopiedObject()
 
 		if (Object3D->InsertInstance())
 		{
-			auto& InstanceCPUData{ Object3D->GetLastInstanceCPUData() };
-			string SavedName{ InstanceCPUData.Name };
-			InstanceCPUData = CopyObject3DInstance.InstanceCPUData;
-			InstanceCPUData.Name = SavedName; // @important
-
-			Object3D->UpdateInstanceWorldMatrix(SavedName);
-
-			SelectObject(SSelectionData(EObjectType::Object3DInstance, SavedName, Object3D), ESelectionMode::Additive);
+			auto& InstanceName{ Object3D->GetLastInstanceName() };
+			Object3D->SetInstanceCPUData(InstanceName, CopyObject3DInstance.InstanceCPUData);
+			Object3D->UpdateInstanceWorldMatrix(InstanceName);
+			SelectObject(SSelectionData(EObjectType::Object3DInstance, InstanceName, Object3D), ESelectionMode::Additive);
 			++SelectionCount;
 
 			++CopyObject3DInstance.PasteCounter;
@@ -1892,10 +1890,9 @@ bool CGame::InsertCamera(const string& Name, CCamera::EType eType)
 
 	m_CameraRep->InsertInstance(Name);
 
-	auto& InstanceCPUData{ m_CameraRep->GetInstanceCPUData(Name) };
-	InstanceCPUData.Translation = m_vCameras.back()->GetEyePosition();
-	InstanceCPUData.Pitch = m_vCameras.back()->GetPitch();
-	InstanceCPUData.Yaw = m_vCameras.back()->GetYaw();
+	m_CameraRep->TranslateInstanceTo(Name, m_vCameras.back()->GetEyePosition());
+	m_CameraRep->RotateInstancePitchTo(Name, m_vCameras.back()->GetPitch());
+	m_CameraRep->RotateInstanceYawTo(Name, m_vCameras.back()->GetYaw());
 	m_CameraRep->UpdateInstanceWorldMatrix(Name);
 
 	return true;
@@ -1974,9 +1971,6 @@ CShader* CGame::GetBaseShader(EBaseShader eShader) const
 	{
 	case EBaseShader::VSBase:
 		Result = m_VSBase.get();
-		break;
-	case EBaseShader::VSInstance:
-		Result = m_VSInstance.get();
 		break;
 	case EBaseShader::VSAnimation:
 		Result = m_VSAnimation.get();
@@ -2569,7 +2563,7 @@ void CGame::SelectMultipleObjects(ESelectionMode eSelectionMode)
 			const auto& vInstanceCPUData{ Object3D->GetInstanceCPUDataVector() };
 			for (const auto& Instance : vInstanceCPUData)
 			{
-				const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.Center };
+				const XMVECTOR KTranslation{ Instance.Transform.Translation + Instance.EditorBoundingSphere.Center };
 				const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(KTranslation, KViewProjection) };
 				const XMFLOAT2 KProjectionXY{ XMVectorGetX(KProjectionCenter), XMVectorGetY(KProjectionCenter) };
 
@@ -2582,7 +2576,7 @@ void CGame::SelectMultipleObjects(ESelectionMode eSelectionMode)
 		}
 		else
 		{
-			const XMVECTOR KTranslation{ Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset() };
+			const XMVECTOR KTranslation{ Object3D->GetTransform().Translation + Object3D->GetOuterBoundingSphereCenterOffset() };
 			const XMVECTOR KProjectionCenter{ XMVector3TransformCoord(KTranslation, KViewProjection) };
 			const XMFLOAT2 KProjectionXY{ XMVectorGetX(KProjectionCenter), XMVectorGetY(KProjectionCenter) };
 
@@ -2609,7 +2603,7 @@ void CGame::SelectMultipleObjects(ESelectionMode eSelectionMode)
 		}
 		++iCamera;
 	}
-	m_CameraRep->UpdateInstanceBuffers();
+	m_CameraRep->UpdateAllInstances();
 
 	for (const auto& Light : m_LightArray)
 	{
@@ -2689,7 +2683,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, ESelectionMode eSe
 	case CGame::EObjectType::Object3D:
 	{
 		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-		const XMVECTOR KTranslation{ Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset() };
+		const XMVECTOR KTranslation{ Object3D->GetTransform().Translation + Object3D->GetOuterBoundingSphereCenterOffset() };
 		
 		m_umapSelectionObject3D[SelectionData.Name] = KSelectionIndex;
 
@@ -2699,8 +2693,8 @@ void CGame::SelectObject(const SSelectionData& SelectionData, ESelectionMode eSe
 	case CGame::EObjectType::Object3DInstance:
 	{
 		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-		const auto& Instance{ Object3D->GetInstanceCPUData(SelectionData.Name) };
-		const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.Center };
+		const XMVECTOR KTranslation{ 
+			Object3D->GetInstanceTransform(SelectionData.Name).Translation + Object3D->GetInstanceOuterBoundingSphere(SelectionData.Name).Center };
 
 		m_umapSelectionObject3DInstance[Object3D->GetName() + SelectionData.Name] = KSelectionIndex;
 
@@ -2718,7 +2712,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, ESelectionMode eSe
 		m_umapSelectionCamera[SelectionData.Name] = KSelectionIndex;
 
 		m_CameraRep->SetInstanceHighlight(SelectionData.Name, true);
-		m_CameraRep->UpdateInstanceBuffers();
+		m_CameraRep->UpdateAllInstances(false);
 
 		MultipleSelectionWorldCenter += XMVectorSetW(m_vCameras[GetCameraID(SelectionData.Name)]->GetTranslation(), 1);
 		break;
@@ -2761,7 +2755,7 @@ void CGame::DeselectObject(const SSelectionData& SelectionData)
 		if (m_umapSelectionObject3D.find(SelectionData.Name) != m_umapSelectionObject3D.end())
 		{
 			CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-			const XMVECTOR KTranslation{ Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset() };
+			const XMVECTOR KTranslation{ Object3D->GetTransform().Translation + Object3D->GetOuterBoundingSphereCenterOffset() };
 			MultipleSelectionWorldCenter -= XMVectorSetW(KTranslation, 1);
 
 			size_t iSelectionData{ m_umapSelectionObject3D.at(SelectionData.Name) };
@@ -2782,8 +2776,8 @@ void CGame::DeselectObject(const SSelectionData& SelectionData)
 		string SelectionName{ GetSelectionName(SelectionData) };
 		if (m_umapSelectionObject3DInstance.find(SelectionName) != m_umapSelectionObject3DInstance.end())
 		{
-			const auto& Instance{ Object3D->GetInstanceCPUData(SelectionData.Name) };
-			const XMVECTOR KTranslation{ Instance.Translation + Instance.EditorBoundingSphere.Center };
+			const XMVECTOR KTranslation{ 
+				Object3D->GetInstanceTransform(SelectionData.Name).Translation + Object3D->GetInstanceOuterBoundingSphere(SelectionData.Name).Center };
 			MultipleSelectionWorldCenter -= XMVectorSetW(KTranslation, 1);
 
 			size_t iSelectionData{ m_umapSelectionObject3DInstance.at(SelectionName) };
@@ -2857,7 +2851,7 @@ void CGame::DeselectObject(const SSelectionData& SelectionData)
 			m_vSelectionData.pop_back();
 
 			m_CameraRep->SetInstanceHighlight(SelectionData.Name, false);
-			m_CameraRep->UpdateInstanceBuffers();
+			m_CameraRep->UpdateAllInstances(false);
 		}
 		break;
 	case CGame::EObjectType::Light:
@@ -2925,7 +2919,6 @@ void CGame::DeselectType(EObjectType eObjectType)
 	case CGame::EObjectType::Camera:
 		m_umapSelectionCamera.clear();
 		m_CameraRep->SetAllInstancesHighlightOff();
-		m_CameraRep->UpdateInstanceBuffers();
 		break;
 	case CGame::EObjectType::Light:
 		m_umapSelectionLight.clear();
@@ -2953,7 +2946,6 @@ void CGame::DeselectAll()
 	m_umapSelectionLight.clear();
 
 	m_CameraRep->SetAllInstancesHighlightOff();
-	m_CameraRep->UpdateInstanceBuffers();
 
 	m_LightRep->SetAllInstancesHighlightOff();
 	m_LightRep->UpdateInstanceBuffer();
@@ -2978,20 +2970,20 @@ void CGame::TranslateSelectionTo(EAxis eAxis, float Prime)
 		case CGame::EObjectType::Object3D:
 		{
 			CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-			Object3D->ComponentTransform.Translation =
-				(eAxis == EAxis::X) ? XMVectorSetX(Object3D->ComponentTransform.Translation, Prime) :
-				(eAxis == EAxis::Y) ? XMVectorSetY(Object3D->ComponentTransform.Translation, Prime) :
-				XMVectorSetZ(Object3D->ComponentTransform.Translation, Prime);
+			Object3D->TranslateTo(
+				(eAxis == EAxis::X) ? XMVectorSetX(Object3D->GetTransform().Translation, Prime) :
+				(eAxis == EAxis::Y) ? XMVectorSetY(Object3D->GetTransform().Translation, Prime) :
+				XMVectorSetZ(Object3D->GetTransform().Translation, Prime));
 			Object3D->UpdateWorldMatrix();
 			break;
 		}
 		case CGame::EObjectType::Object3DInstance:
 		{
 			CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-			Object3D->GetInstanceCPUData(SelectionData.Name).Translation =
-				(eAxis == EAxis::X) ? XMVectorSetX(Object3D->GetInstanceCPUData(SelectionData.Name).Translation, Prime) :
-				(eAxis == EAxis::Y) ? XMVectorSetY(Object3D->GetInstanceCPUData(SelectionData.Name).Translation, Prime) :
-				XMVectorSetZ(Object3D->GetInstanceCPUData(SelectionData.Name).Translation, Prime);
+			Object3D->TranslateInstanceTo(SelectionData.Name,
+				(eAxis == EAxis::X) ? XMVectorSetX(Object3D->GetInstanceTransform(SelectionData.Name).Translation, Prime) :
+				(eAxis == EAxis::Y) ? XMVectorSetY(Object3D->GetInstanceTransform(SelectionData.Name).Translation, Prime) :
+				XMVectorSetZ(Object3D->GetInstanceTransform(SelectionData.Name).Translation, Prime));
 			Object3D->UpdateInstanceWorldMatrix(SelectionData.Name);
 			break;
 		}
@@ -3096,7 +3088,7 @@ void CGame::PickBoundingSphere(ESelectionMode eSelectionMode)
 	XMVECTOR T{ KVectorGreatest };
 	for (const auto& Object3D : m_vObject3Ds)
 	{
-		if (Object3D->ComponentPhysics.bIsPickable)
+		if (Object3D->IsPickable())
 		{
 			if (Object3D->IsInstanced())
 			{
@@ -3105,7 +3097,7 @@ void CGame::PickBoundingSphere(ESelectionMode eSelectionMode)
 					XMVECTOR NewT{ KVectorGreatest };
 					if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
 						InstanceCPUData.EditorBoundingSphere.Data.BS.Radius, 
-						InstanceCPUData.Translation + InstanceCPUData.EditorBoundingSphere.Center, &NewT))
+						InstanceCPUData.Transform.Translation + InstanceCPUData.EditorBoundingSphere.Center, &NewT))
 					{
 						m_vObject3DPickingCandidates.emplace_back(Object3D.get(), InstanceCPUData.Name, NewT);
 					}
@@ -3115,8 +3107,8 @@ void CGame::PickBoundingSphere(ESelectionMode eSelectionMode)
 			{
 				XMVECTOR NewT{ KVectorGreatest };
 				if (IntersectRaySphere(m_PickingRayWorldSpaceOrigin, m_PickingRayWorldSpaceDirection,
-					Object3D->GetEditorBoundingSphereRadius(), 
-					Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset(), &NewT))
+					Object3D->GetOuterBoundingSphereRadius(), 
+					Object3D->GetTransform().Translation + Object3D->GetOuterBoundingSphereCenterOffset(), &NewT))
 				{
 					m_vObject3DPickingCandidates.emplace_back(Object3D.get(), NewT);
 				}
@@ -3141,11 +3133,10 @@ bool CGame::PickObject3DTriangle(ESelectionMode eSelectionMode)
 			}
 
 			Candidate.bHasFailedPickingTest = true;
-			XMMATRIX WorldMatrix{ Candidate.PtrObject3D->ComponentTransform.MatrixWorld };
+			XMMATRIX WorldMatrix{ Candidate.PtrObject3D->GetWorldMatrix() };
 			if (!Candidate.InstanceName.empty())
 			{
-				const auto& InstanceGPUData{ Candidate.PtrObject3D->GetInstanceGPUData(Candidate.InstanceName) };
-				WorldMatrix = InstanceGPUData.WorldMatrix;
+				WorldMatrix = Candidate.PtrObject3D->GetInstanceWorldMatrix(Candidate.InstanceName);
 			}
 			for (const SMesh& Mesh : Candidate.PtrObject3D->GetModel().vMeshes)
 			{
@@ -3327,8 +3318,7 @@ void CGame::Capture3DGizmoTranslation()
 				CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
 				if (SelectionData.eObjectType == EObjectType::Object3DInstance)
 				{
-					auto& InstanceCPUData{ Object3D->GetInstanceCPUData(SelectionData.Name) };
-					m_Gizmo3D->CaptureTranslation(InstanceCPUData.Translation);
+					m_Gizmo3D->CaptureTranslation(Object3D->GetInstanceTransform(SelectionData.Name).Translation);
 				}
 				else
 				{
@@ -3338,8 +3328,8 @@ void CGame::Capture3DGizmoTranslation()
 						const auto& mapNameToIndex{ Object3D->GetInstanceNameToIndexMap() };
 						for (const auto& InstancePair : mapNameToIndex)
 						{
-							auto& InstanceCPUData{ Object3D->GetInstanceCPUData(InstancePair.first) };
-							XMVECTOR InstanceTranslation{ InstanceCPUData.Translation / XMVectorGetW(InstanceCPUData.Translation) };
+							const auto& InstanceTransform{ Object3D->GetInstanceTransform(InstancePair.first) };
+							XMVECTOR InstanceTranslation{ InstanceTransform.Translation / XMVectorGetW(InstanceTransform.Translation) };
 							Center += InstanceTranslation;
 						}
 						Center /= static_cast<float>(Object3D->GetInstanceCount());
@@ -3347,7 +3337,7 @@ void CGame::Capture3DGizmoTranslation()
 					}
 					else
 					{
-						m_Gizmo3D->CaptureTranslation(Object3D->ComponentTransform.Translation);
+						m_Gizmo3D->CaptureTranslation(Object3D->GetTransform().Translation);
 					}
 				}
 
@@ -3395,12 +3385,10 @@ void CGame::Update3DGizmos()
 				Camera->Rotate(m_Gizmo3D->GetDeltaPitch(), m_Gizmo3D->GetDeltaYaw());
 				Camera->Update();
 
-				auto& CameraRep{ m_CameraRep->GetInstanceCPUData(SelectionData.Name) };
-				CameraRep.Translation = Camera->GetEyePosition();
-				CameraRep.Pitch = Camera->GetPitch();
-				CameraRep.Yaw = Camera->GetYaw();
+				m_CameraRep->TranslateInstanceTo(SelectionData.Name, Camera->GetEyePosition());
+				m_CameraRep->RotateInstancePitchTo(SelectionData.Name, Camera->GetPitch());
+				m_CameraRep->RotateInstanceYawTo(SelectionData.Name, Camera->GetYaw());
 				m_CameraRep->UpdateInstanceWorldMatrix(SelectionData.Name);
-
 				break;
 			}
 			case CGame::EObjectType::Light:
@@ -3416,13 +3404,11 @@ void CGame::Update3DGizmos()
 				CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
 				if (SelectionData.eObjectType == EObjectType::Object3DInstance)
 				{
-					auto& InstanceCPUData{ Object3D->GetInstanceCPUData(SelectionData.Name) };
-					InstanceCPUData.Translation += m_Gizmo3D->GetDeltaTranslation();
-					InstanceCPUData.Pitch += m_Gizmo3D->GetDeltaPitch();
-					InstanceCPUData.Yaw += m_Gizmo3D->GetDeltaYaw();
-					InstanceCPUData.Roll += m_Gizmo3D->GetDeltaRoll();
-					InstanceCPUData.Scaling += m_Gizmo3D->GetDeltaScaling();
-
+					Object3D->TranslateInstance(SelectionData.Name, m_Gizmo3D->GetDeltaTranslation());
+					Object3D->RotateInstancePitch(SelectionData.Name, m_Gizmo3D->GetDeltaPitch());
+					Object3D->RotateInstanceYaw(SelectionData.Name, m_Gizmo3D->GetDeltaYaw());
+					Object3D->RotateInstanceRoll(SelectionData.Name, m_Gizmo3D->GetDeltaRoll());
+					Object3D->ScaleInstance(SelectionData.Name, m_Gizmo3D->GetDeltaScaling());
 					Object3D->UpdateInstanceWorldMatrix(SelectionData.Name);
 				}
 				else
@@ -3432,22 +3418,21 @@ void CGame::Update3DGizmos()
 						const auto& mapNameToIndex{ Object3D->GetInstanceNameToIndexMap() };
 						for (const auto& InstancePair : mapNameToIndex)
 						{
-							auto& InstanceCPUData{ Object3D->GetInstanceCPUData(InstancePair.first) };
-							InstanceCPUData.Translation += m_Gizmo3D->GetDeltaTranslation();
-							InstanceCPUData.Pitch += m_Gizmo3D->GetDeltaPitch();
-							InstanceCPUData.Yaw += m_Gizmo3D->GetDeltaYaw();
-							InstanceCPUData.Roll += m_Gizmo3D->GetDeltaRoll();
-							InstanceCPUData.Scaling += m_Gizmo3D->GetDeltaScaling();
+							Object3D->TranslateInstance(SelectionData.Name, m_Gizmo3D->GetDeltaTranslation());
+							Object3D->RotateInstancePitch(SelectionData.Name, m_Gizmo3D->GetDeltaPitch());
+							Object3D->RotateInstanceYaw(SelectionData.Name, m_Gizmo3D->GetDeltaYaw());
+							Object3D->RotateInstanceRoll(SelectionData.Name, m_Gizmo3D->GetDeltaRoll());
+							Object3D->ScaleInstance(SelectionData.Name, m_Gizmo3D->GetDeltaScaling());
 						}
-						Object3D->UpdateAllInstancesWorldMatrix();
+						Object3D->UpdateAllInstances();
 					}
 					else
 					{
-						Object3D->ComponentTransform.Translation += m_Gizmo3D->GetDeltaTranslation();
-						Object3D->ComponentTransform.Pitch += m_Gizmo3D->GetDeltaPitch();
-						Object3D->ComponentTransform.Yaw += m_Gizmo3D->GetDeltaYaw();
-						Object3D->ComponentTransform.Roll += m_Gizmo3D->GetDeltaRoll();
-						Object3D->ComponentTransform.Scaling += m_Gizmo3D->GetDeltaScaling();
+						Object3D->Translate(m_Gizmo3D->GetDeltaTranslation());
+						Object3D->RotatePitch(m_Gizmo3D->GetDeltaPitch());
+						Object3D->RotateYaw(m_Gizmo3D->GetDeltaYaw());
+						Object3D->RotateRoll(m_Gizmo3D->GetDeltaRoll());
+						Object3D->Scale(m_Gizmo3D->GetDeltaScaling());
 
 						Object3D->UpdateWorldMatrix();
 					}
@@ -3698,7 +3683,7 @@ void CGame::Update()
 		CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
 		if (PlayerObject)
 		{
-			GetCurrentCamera()->TranslateTo(PlayerObject->ComponentTransform.Translation);
+			GetCurrentCamera()->TranslateTo(PlayerObject->GetTransform().Translation);
 		}
 
 		m_PhysicsEngine.Update(m_DeltaTime_s);
@@ -3937,22 +3922,22 @@ void CGame::Draw()
 				m_VSBase->Use();
 				m_PSBase_RawVertexColor->Use();
 
-				m_AClosestPointRep->ComponentTransform.Translation = m_PhysicsEngine.GetDynamicClosestPoint();
+				m_AClosestPointRep->TranslateTo(m_PhysicsEngine.GetDynamicClosestPoint());
 				m_AClosestPointRep->UpdateWorldMatrix();
 
-				m_BClosestPointRep->ComponentTransform.Translation = m_PhysicsEngine.GetStaticClosestPoint();
+				m_BClosestPointRep->TranslateTo(m_PhysicsEngine.GetStaticClosestPoint());
 				m_BClosestPointRep->UpdateWorldMatrix();
 
-				m_PickedPointRep->ComponentTransform.Translation = m_PhysicsEngine.GetPickedPoint();
+				m_PickedPointRep->TranslateTo(m_PhysicsEngine.GetPickedPoint());
 				m_PickedPointRep->UpdateWorldMatrix();
 
-				UpdateCBSpace(m_AClosestPointRep->ComponentTransform.MatrixWorld);
+				UpdateCBSpace(m_AClosestPointRep->GetWorldMatrix());
 				m_AClosestPointRep->Draw();
 
-				UpdateCBSpace(m_BClosestPointRep->ComponentTransform.MatrixWorld);
+				UpdateCBSpace(m_BClosestPointRep->GetWorldMatrix());
 				m_BClosestPointRep->Draw();
 
-				UpdateCBSpace(m_PickedPointRep->ComponentTransform.MatrixWorld);
+				UpdateCBSpace(m_PickedPointRep->GetWorldMatrix());
 				m_PickedPointRep->Draw();
 			}
 		}
@@ -3976,7 +3961,7 @@ void CGame::Draw()
 		// Transparent Object3Ds
 		for (auto& Object3D : m_vObject3Ds)
 		{
-			if (!Object3D->ComponentRender.bIsTransparent) continue;
+			if (!Object3D->IsTransparent()) continue;
 
 			Object3D->Animate(m_DeltaTime_s);
 			Object3D->UpdateWorldMatrix();
@@ -3984,8 +3969,8 @@ void CGame::Draw()
 
 			if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingVolumes))
 			{
-				DrawBoundingSphereRep(Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset(),
-					Object3D->GetEditorBoundingSphereRadius());
+				DrawBoundingSphereRep(Object3D->GetTransform().Translation + Object3D->GetOuterBoundingSphereCenterOffset(),
+					Object3D->GetOuterBoundingSphereRadius());
 			}
 		}
 
@@ -4058,14 +4043,12 @@ void CGame::DrawOpaqueObject3Ds(bool bIgnoreOwnTexture, bool bUseVoidPS)
 	// Opaque Object3Ds
 	for (auto& Object3D : m_vObject3Ds)
 	{
-		if (Object3D->ComponentRender.bIsTransparent) continue;
+		if (Object3D->IsTransparent()) continue;
 		if (Object3D->IsRigged())
 		{
-			if (Object3D->HasBakedAnimationTexture())
-			{
-				UpdateCBAnimationData(Object3D->GetAnimationData());
-			}
-			else
+			UpdateCBAnimationData(Object3D->GetAnimationData());
+
+			if (!Object3D->HasBakedAnimationTexture())
 			{
 				UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
 			}
@@ -4074,25 +4057,28 @@ void CGame::DrawOpaqueObject3Ds(bool bIgnoreOwnTexture, bool bUseVoidPS)
 		}
 
 		Object3D->UpdateWorldMatrix();
-		DrawObject3D(Object3D.get(), false, bIgnoreOwnTexture, bUseVoidPS);
+		EFlagsObject3DRendering eFlagsRendering{};
+		if (bIgnoreOwnTexture) eFlagsRendering |= EFlagsObject3DRendering::IgnoreOwnTextures;
+		if (bUseVoidPS) eFlagsRendering |= EFlagsObject3DRendering::UseVoidPS;
+		DrawObject3D(Object3D.get(), eFlagsRendering);
 
 		if (EFLAG_HAS(m_eFlagsRendering, EFlagsRendering::DrawBoundingVolumes))
 		{
-			DrawBoundingSphereRep(Object3D->ComponentTransform.Translation + Object3D->GetEditorBoundingSphereCenterOffset(),
-				Object3D->GetEditorBoundingSphereRadius());
+			DrawBoundingSphereRep(Object3D->GetTransform().Translation + Object3D->GetOuterBoundingSphereCenterOffset(),
+				Object3D->GetOuterBoundingSphereRadius());
 
-			if (Object3D->ComponentPhysics.vBoundingVolumes.size())
+			if (Object3D->HasInnerBoundingVolumes())
 			{
-				for (const auto& BoundingVolume : Object3D->ComponentPhysics.vBoundingVolumes)
+				for (const auto& BoundingVolume : Object3D->GetInnerBoundingVolumeVector())
 				{
 					if (BoundingVolume.eType == EBoundingVolumeType::BoundingSphere)
 					{
-						DrawBoundingSphereRep(Object3D->ComponentTransform.Translation + BoundingVolume.Center, 
+						DrawBoundingSphereRep(Object3D->GetTransform().Translation + BoundingVolume.Center, 
 							BoundingVolume.Data.BS.Radius);
 					}
 					else
 					{
-						DrawAxisAlignedBoundingBoxRep(Object3D->ComponentTransform.Translation + BoundingVolume.Center,
+						DrawAxisAlignedBoundingBoxRep(Object3D->GetTransform().Translation + BoundingVolume.Center,
 							BoundingVolume.Data.AABBHalfSizes.x, BoundingVolume.Data.AABBHalfSizes.y, BoundingVolume.Data.AABBHalfSizes.z);
 					}
 				}
@@ -4101,13 +4087,13 @@ void CGame::DrawOpaqueObject3Ds(bool bIgnoreOwnTexture, bool bUseVoidPS)
 	}
 }
 
-void CGame::DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances, bool bIgnoreOwnTexture, bool bUseVoidPS)
+void CGame::DrawObject3D(CObject3D* const PtrObject3D, EFlagsObject3DRendering eFlagsRendering, size_t OneInstanceIndex)
 {
 	if (!PtrObject3D) return;
 
-	UpdateCBSpace(PtrObject3D->ComponentTransform.MatrixWorld);
+	UpdateCBSpace(PtrObject3D->GetWorldMatrix());
 
-	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoCulling))
+	if (EFLAG_HAS(PtrObject3D->GetRenderingFlags(), CObject3D::EFlagsRendering::NoCulling))
 	{
 		m_DeviceContext->RSSetState(m_CommonStates->CullNone());
 	}
@@ -4118,9 +4104,9 @@ void CGame::DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances, bo
 	}
 	else
 	{
-		if (PtrObject3D->IsInstanced() && !bIgnoreInstances)
+		if (PtrObject3D->IsInstanced())
 		{
-			m_VSInstance->Use();
+			m_VSBase_Instanced->Use();
 		}
 		else
 		{
@@ -4137,7 +4123,7 @@ void CGame::DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances, bo
 		m_DSStatic->Use();
 	}
 
-	if (bUseVoidPS)
+	if (EFLAG_HAS(eFlagsRendering, EFlagsObject3DRendering::UseVoidPS))
 	{
 		m_PSBase_Void->Use();
 	}
@@ -4146,7 +4132,7 @@ void CGame::DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances, bo
 		(m_bIsDeferredRenderTargetsSet) ? m_PSBase_GBuffer->Use() : m_PSBase->Use();
 	}
 
-	PtrObject3D->Draw(bIgnoreOwnTexture, bIgnoreInstances);
+	PtrObject3D->Draw(eFlagsRendering, OneInstanceIndex);
 
 	if (PtrObject3D->ShouldTessellate())
 	{
@@ -4154,7 +4140,7 @@ void CGame::DrawObject3D(CObject3D* const PtrObject3D, bool bIgnoreInstances, bo
 		m_DeviceContext->DSSetShader(nullptr, nullptr, 0);
 	}
 
-	if (EFLAG_HAS(PtrObject3D->eFlagsRendering, CObject3D::EFlagsRendering::NoCulling))
+	if (EFLAG_HAS(PtrObject3D->GetRenderingFlags(), CObject3D::EFlagsRendering::NoCulling))
 	{
 		SetUniversalRSState();
 	}
@@ -4238,11 +4224,11 @@ void CGame::DrawMiniAxes()
 
 	for (auto& Object3D : m_vMiniAxes)
 	{
-		UpdateCBSpace(Object3D->ComponentTransform.MatrixWorld);
+		UpdateCBSpace(Object3D->GetWorldMatrix());
 
 		Object3D->Draw();
 
-		Object3D->ComponentTransform.Translation = m_PtrCurrentCamera->GetTranslation() + m_PtrCurrentCamera->GetForward();
+		Object3D->TranslateTo(m_PtrCurrentCamera->GetTranslation() + m_PtrCurrentCamera->GetForward());
 
 		Object3D->UpdateWorldMatrix();
 	}
@@ -4337,9 +4323,9 @@ void CGame::DrawSky(float DeltaTime)
 
 		// SkySphere
 		{
-			m_Object3DSkySphere->ComponentTransform.Translation = m_PtrCurrentCamera->GetTranslation();
+			m_Object3DSkySphere->TranslateTo(m_PtrCurrentCamera->GetTranslation());
 			m_Object3DSkySphere->UpdateWorldMatrix();
-			UpdateCBSpace(m_Object3DSkySphere->ComponentTransform.MatrixWorld);
+			UpdateCBSpace(m_Object3DSkySphere->GetWorldMatrix());
 
 			m_Object3DSkySphere->Draw();
 		}
@@ -4350,10 +4336,10 @@ void CGame::DrawSky(float DeltaTime)
 		{
 			float SunRoll{ XM_2PI * m_CBSkyTimeData.SkyTime - XM_PIDIV2 };
 			XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, SunRoll)) };
-			m_Object3DSun->ComponentTransform.Translation = m_PtrCurrentCamera->GetTranslation() + Offset;
-			m_Object3DSun->ComponentTransform.Roll = SunRoll;
+			m_Object3DSun->TranslateTo(m_PtrCurrentCamera->GetTranslation() + Offset);
+			m_Object3DSun->RotateRollTo(SunRoll);
 			m_Object3DSun->UpdateWorldMatrix();
-			UpdateCBSpace(m_Object3DSun->ComponentTransform.MatrixWorld);
+			UpdateCBSpace(m_Object3DSun->GetWorldMatrix());
 			
 			m_Object3DSun->Draw();
 		}
@@ -4362,10 +4348,10 @@ void CGame::DrawSky(float DeltaTime)
 		{
 			float MoonRoll{ XM_2PI * m_CBSkyTimeData.SkyTime + XM_PIDIV2 };
 			XMVECTOR Offset{ XMVector3TransformCoord(XMVectorSet(KSkyDistance, 0, 0, 1), XMMatrixRotationRollPitchYaw(0, 0, MoonRoll)) };
-			m_Object3DMoon->ComponentTransform.Translation = m_PtrCurrentCamera->GetTranslation() + Offset;
-			m_Object3DMoon->ComponentTransform.Roll = (MoonRoll > XM_2PI) ? (MoonRoll - XM_2PI) : MoonRoll;
+			m_Object3DMoon->TranslateTo(m_PtrCurrentCamera->GetTranslation() + Offset);
+			m_Object3DMoon->RotateRollTo((MoonRoll > XM_2PI) ? (MoonRoll - XM_2PI) : MoonRoll);
 			m_Object3DMoon->UpdateWorldMatrix();
-			UpdateCBSpace(m_Object3DMoon->ComponentTransform.MatrixWorld);
+			UpdateCBSpace(m_Object3DMoon->GetWorldMatrix());
 
 			m_Object3DMoon->Draw();
 		}
@@ -4374,9 +4360,9 @@ void CGame::DrawSky(float DeltaTime)
 	{
 		// SkySphere
 		{
-			m_Object3DSkySphere->ComponentTransform.Translation = m_PtrCurrentCamera->GetTranslation();
+			m_Object3DSkySphere->TranslateTo(m_PtrCurrentCamera->GetTranslation());
 			m_Object3DSkySphere->UpdateWorldMatrix();
-			UpdateCBSpace(m_Object3DSkySphere->ComponentTransform.MatrixWorld);
+			UpdateCBSpace(m_Object3DSkySphere->GetWorldMatrix());
 
 			m_VSSky->Use();
 			m_PSSky->Use();
@@ -4498,7 +4484,7 @@ void CGame::DrawCameraRep()
 	m_CBCameraInfoData.CurrentCameraID = m_CurrentCameraID;
 	m_CBCameraInfo->Update();
 
-	m_VSInstance->Use();
+	m_VSBase_Instanced->Use();
 	m_PSCamera->Use();
 
 	m_CameraRep->Draw();
@@ -4573,8 +4559,8 @@ void CGame::DrawEditorGUI()
 			{
 				if (SetMode(EMode::Test))
 				{
-					m_SavedPlayerTransform = m_PhysicsEngine.GetPlayerObject()->ComponentTransform;
-					m_SavedPlayerPhysics = m_PhysicsEngine.GetPlayerObject()->ComponentPhysics;
+					m_SavedPlayerTransform = m_PhysicsEngine.GetPlayerObject()->GetTransform();
+					m_SavedPlayerPhysics = m_PhysicsEngine.GetPlayerObject()->GetPhysics();
 
 					m_SavedCurrentCamera = m_PtrCurrentCamera;
 
@@ -4600,8 +4586,8 @@ void CGame::DrawEditorGUI()
 			{
 				if (SetMode(EMode::Edit))
 				{
-					m_PhysicsEngine.GetPlayerObject()->ComponentTransform = m_SavedPlayerTransform;
-					m_PhysicsEngine.GetPlayerObject()->ComponentPhysics = m_SavedPlayerPhysics;
+					m_PhysicsEngine.GetPlayerObject()->SetTransform(m_SavedPlayerTransform);
+					m_PhysicsEngine.GetPlayerObject()->SetPhysics(m_SavedPlayerPhysics);
 					
 					m_Intelligence->ClearBehaviors();
 
@@ -4670,12 +4656,12 @@ void CGame::DrawEditorGUI()
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text(u8"위치");
 				ImGui::SameLine(KLabelWidth);
-				ImGui::DragFloat3(u8"##위치", (float*)&PlayerObject->ComponentTransform.Translation, 0.1f);
+				ImGui::DragFloat3(u8"##위치", (float*)&PlayerObject->GetTransform().Translation, 0.1f);
 				
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text(u8"속도");
 				ImGui::SameLine(KLabelWidth);
-				ImGui::DragFloat3(u8"##속도", (float*)&PlayerObject->ComponentPhysics.LinearVelocity, 0.1f);
+				ImGui::DragFloat3(u8"##속도", (float*)&PlayerObject->GetPhysics().LinearVelocity, 0.1f);
 
 				ImGui::TreePop();
 			}
@@ -5094,17 +5080,17 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 						case 0:
 							Mesh = GenerateSquareXYPlane();
 							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, HeightScalar3D, 1.0f, 0));
-							Object3D->SetEditorBoundingSphereRadiusBias(sqrt(2.0f));
+							Object3D->SetOuterBoundingSphereRadiusBias(sqrt(2.0f));
 							break;
 						case 1:
 							Mesh = GenerateSquareXZPlane();
 							ScaleMesh(Mesh, XMVectorSet(WidthScalar3D, 1.0f, HeightScalar3D, 0));
-							Object3D->SetEditorBoundingSphereRadiusBias(sqrt(2.0f));
+							Object3D->SetOuterBoundingSphereRadiusBias(sqrt(2.0f));
 							break;
 						case 2:
 							Mesh = GenerateSquareYZPlane();
 							ScaleMesh(Mesh, XMVectorSet(1.0f, WidthScalar3D, HeightScalar3D, 0));
-							Object3D->SetEditorBoundingSphereRadiusBias(sqrt(2.0f));
+							Object3D->SetOuterBoundingSphereRadiusBias(sqrt(2.0f));
 							break;
 						case 3:
 							Mesh = GenerateCircleXZPlane(SideCount);
@@ -5115,18 +5101,18 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 							break;
 						case 5:
 							Mesh = GenerateCone(RadiusFactor, 1.0f, 1.0f, SideCount);
-							Object3D->SetEditorBoundingSphereCenterOffset(XMVectorSet(0, -0.5f, 0, 0));
+							Object3D->SetOuterBoundingSphereCenterOffset(XMVectorSet(0, -0.5f, 0, 0));
 							break;
 						case 6:
 							Mesh = GenerateCylinder(1.0f, 1.0f, SideCount);
-							Object3D->SetEditorBoundingSphereRadiusBias(sqrt(1.5f));
+							Object3D->SetOuterBoundingSphereRadiusBias(sqrt(1.5f));
 							break;
 						case 7:
 							Mesh = GenerateSphere(SegmentCount);
 							break;
 						case 8:
 							Mesh = GenerateTorus(InnerRadius, SideCount, SegmentCount);
-							Object3D->SetEditorBoundingSphereRadiusBias(1.0f + InnerRadius);
+							Object3D->SetOuterBoundingSphereRadiusBias(1.0f + InnerRadius);
 							break;
 						default:
 							break;
@@ -5342,25 +5328,24 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 								if (SelectionData.eObjectType == EObjectType::Object3DInstance)
 								{
-									auto& InstanceCPUData{ Object3D->GetInstanceCPUData(SelectionData.Name) };
+									auto& InstanceTransform{ Object3D->GetInstanceTransform(SelectionData.Name) };
 
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"선택된 인스턴스:");
 									ImGui::SameLine(ItemsOffsetX);
 									ImGui::AlignTextToFramePadding();
-									ImGui::Text(u8"<%s>", InstanceCPUData.Name.c_str());
+									ImGui::Text(u8"<%s>", SelectionData.Name.c_str());
 
 									ImGui::Separator();
 
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"위치");
 									ImGui::SameLine(ItemsOffsetX);
-									float Translation[3]{ XMVectorGetX(InstanceCPUData.Translation),
-										XMVectorGetY(InstanceCPUData.Translation), XMVectorGetZ(InstanceCPUData.Translation) };
-									if (ImGui::DragFloat3(u8"##위치", Translation, KTranslationDelta,
+									XMVECTOR Translation{ InstanceTransform.Translation };
+									if (ImGui::DragFloat3(u8"##위치", Translation.m128_f32, KTranslationDelta,
 										KTranslationMinLimit, KTranslationMaxLimit, "%.2f"))
 									{
-										InstanceCPUData.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
+										Object3D->TranslateInstanceTo(SelectionData.Name, Translation);
 										Object3D->UpdateInstanceWorldMatrix(SelectionData.Name);
 
 										Capture3DGizmoTranslation();
@@ -5369,27 +5354,27 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"회전");
 									ImGui::SameLine(ItemsOffsetX);
-									int PitchYawRoll360[3]{ (int)(InstanceCPUData.Pitch * KRotation2PITo360),
-										(int)(InstanceCPUData.Yaw * KRotation2PITo360),
-										(int)(InstanceCPUData.Roll * KRotation2PITo360) };
+									int PitchYawRoll360[3]{ 
+										(int)(InstanceTransform.Pitch * KRotation2PITo360),
+										(int)(InstanceTransform.Yaw * KRotation2PITo360),
+										(int)(InstanceTransform.Roll * KRotation2PITo360) };
 									if (ImGui::DragInt3(u8"##회전", PitchYawRoll360, KRotation360Unit,
 										KRotation360MinLimit, KRotation360MaxLimit))
 									{
-										InstanceCPUData.Pitch = PitchYawRoll360[0] * KRotation360To2PI;
-										InstanceCPUData.Yaw = PitchYawRoll360[1] * KRotation360To2PI;
-										InstanceCPUData.Roll = PitchYawRoll360[2] * KRotation360To2PI;
+										Object3D->RotateInstancePitchTo(SelectionData.Name, PitchYawRoll360[0] * KRotation360To2PI);
+										Object3D->RotateInstanceYawTo(SelectionData.Name, PitchYawRoll360[1] * KRotation360To2PI);
+										Object3D->RotateInstanceRollTo(SelectionData.Name, PitchYawRoll360[2] * KRotation360To2PI);
 										Object3D->UpdateInstanceWorldMatrix(SelectionData.Name);
 									}
 
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"크기");
 									ImGui::SameLine(ItemsOffsetX);
-									float Scaling[3]{ XMVectorGetX(InstanceCPUData.Scaling),
-										XMVectorGetY(InstanceCPUData.Scaling), XMVectorGetZ(InstanceCPUData.Scaling) };
-									if (ImGui::DragFloat3(u8"##크기", Scaling, KScalingDelta,
+									XMVECTOR Scaling{ InstanceTransform.Scaling };
+									if (ImGui::DragFloat3(u8"##크기", Scaling.m128_f32, KScalingDelta,
 										CObject3D::KScalingMinLimit, CObject3D::KScalingMaxLimit, "%.3f"))
 									{
-										InstanceCPUData.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
+										Object3D->ScaleInstanceTo(SelectionData.Name, Scaling);
 										Object3D->UpdateInstanceWorldMatrix(SelectionData.Name);
 
 										Update3DGizmos();
@@ -5411,12 +5396,11 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"위치");
 										ImGui::SameLine(ItemsOffsetX);
-										float Translation[3]{ XMVectorGetX(Object3D->ComponentTransform.Translation),
-										XMVectorGetY(Object3D->ComponentTransform.Translation), XMVectorGetZ(Object3D->ComponentTransform.Translation) };
-										if (ImGui::DragFloat3(u8"##위치", Translation, KTranslationDelta,
+										XMVECTOR Translation{ Object3D->GetTransform().Translation };
+										if (ImGui::DragFloat3(u8"##위치", Translation.m128_f32, KTranslationDelta,
 											KTranslationMinLimit, KTranslationMaxLimit, "%.2f"))
 										{
-											Object3D->ComponentTransform.Translation = XMVectorSet(Translation[0], Translation[1], Translation[2], 1.0f);
+											Object3D->TranslateTo(Translation);
 											Object3D->UpdateWorldMatrix();
 
 											Capture3DGizmoTranslation();
@@ -5425,15 +5409,16 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"회전");
 										ImGui::SameLine(ItemsOffsetX);
-										int PitchYawRoll360[3]{ (int)(Object3D->ComponentTransform.Pitch * KRotation2PITo360),
-											(int)(Object3D->ComponentTransform.Yaw * KRotation2PITo360),
-											(int)(Object3D->ComponentTransform.Roll * KRotation2PITo360) };
+										int PitchYawRoll360[3]{ 
+											(int)(Object3D->GetTransform().Pitch * KRotation2PITo360),
+											(int)(Object3D->GetTransform().Yaw * KRotation2PITo360),
+											(int)(Object3D->GetTransform().Roll * KRotation2PITo360) };
 										if (ImGui::DragInt3(u8"##회전", PitchYawRoll360, KRotation360Unit,
 											KRotation360MinLimit, KRotation360MaxLimit))
 										{
-											Object3D->ComponentTransform.Pitch = PitchYawRoll360[0] * KRotation360To2PI;
-											Object3D->ComponentTransform.Yaw = PitchYawRoll360[1] * KRotation360To2PI;
-											Object3D->ComponentTransform.Roll = PitchYawRoll360[2] * KRotation360To2PI;
+											Object3D->RotatePitchTo(PitchYawRoll360[0] * KRotation360To2PI);
+											Object3D->RotateYawTo(PitchYawRoll360[1] * KRotation360To2PI);
+											Object3D->RotateRollTo(PitchYawRoll360[2] * KRotation360To2PI);
 											Object3D->UpdateWorldMatrix();
 
 											Update3DGizmos();
@@ -5442,12 +5427,11 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"크기");
 										ImGui::SameLine(ItemsOffsetX);
-										float Scaling[3]{ XMVectorGetX(Object3D->ComponentTransform.Scaling),
-											XMVectorGetY(Object3D->ComponentTransform.Scaling), XMVectorGetZ(Object3D->ComponentTransform.Scaling) };
-										if (ImGui::DragFloat3(u8"##크기", Scaling, KScalingDelta,
+										XMVECTOR Scaling{ Object3D->GetTransform().Scaling };
+										if (ImGui::DragFloat3(u8"##크기", Scaling.m128_f32, KScalingDelta,
 											CObject3D::KScalingMinLimit, CObject3D::KScalingMaxLimit, "%.3f"))
 										{
-											Object3D->ComponentTransform.Scaling = XMVectorSet(Scaling[0], Scaling[1], Scaling[2], 0.0f);
+											Object3D->ScaleTo(Scaling);
 											Object3D->UpdateWorldMatrix();
 
 											Update3DGizmos();
@@ -5499,13 +5483,13 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									}
 
 									XMFLOAT3 LinearVelocity{};
-									XMStoreFloat3(&LinearVelocity, Object3D->ComponentPhysics.LinearVelocity);
+									XMStoreFloat3(&LinearVelocity, Object3D->GetPhysics().LinearVelocity);
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"속도");
 									ImGui::SameLine(ItemsOffsetX);
 									if (ImGui::DragFloat3(u8"##속도", &LinearVelocity.x, 0.1f))
 									{
-										Object3D->ComponentPhysics.LinearVelocity = XMLoadFloat3(&LinearVelocity);
+										Object3D->SetLinearVelocity(XMLoadFloat3(&LinearVelocity));
 									}
 
 									ImGui::TreePop();
@@ -5526,29 +5510,29 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										ImGui::Text(u8"Outer BS center");
 										ImGui::SameLine(ItemsOffsetX);
 										float BSCenterOffset[3]{
-											XMVectorGetX(Object3D->GetEditorBoundingSphereCenterOffset()),
-											XMVectorGetY(Object3D->GetEditorBoundingSphereCenterOffset()),
-											XMVectorGetZ(Object3D->GetEditorBoundingSphereCenterOffset()) };
+											XMVectorGetX(Object3D->GetOuterBoundingSphereCenterOffset()),
+											XMVectorGetY(Object3D->GetOuterBoundingSphereCenterOffset()),
+											XMVectorGetZ(Object3D->GetOuterBoundingSphereCenterOffset()) };
 										if (ImGui::DragFloat3(u8"##Outer BS center", BSCenterOffset, KBSCenterOffsetDelta,
 											KBSCenterOffsetMinLimit, KBSCenterOffsetMaxLimit, "%.2f"))
 										{
-											Object3D->SetEditorBoundingSphereCenterOffset(XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f));
+											Object3D->SetOuterBoundingSphereCenterOffset(XMVectorSet(BSCenterOffset[0], BSCenterOffset[1], BSCenterOffset[2], 1.0f));
 										}
 
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"Outer BS radius bias");
 										ImGui::SameLine(ItemsOffsetX);
-										float BSRadiusBias{ Object3D->GetEditorBoundingSphereRadiusBias() };
+										float BSRadiusBias{ Object3D->GetOuterBoundingSphereRadiusBias() };
 										if (ImGui::DragFloat(u8"##Outer BS radius bias", &BSRadiusBias, KBSRadiusBiasDelta,
 											KBSRadiusBiasMinLimit, KBSRadiusBiasMaxLimit, "%.2f"))
 										{
-											Object3D->SetEditorBoundingSphereRadiusBias(BSRadiusBias);
+											Object3D->SetOuterBoundingSphereRadiusBias(BSRadiusBias);
 										}
 
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"Outer BS radius (auto)");
 										ImGui::SameLine(ItemsOffsetX);
-										float BSRadius{ Object3D->GetEditorBoundingSphereRadius() };
+										float BSRadius{ Object3D->GetOuterBoundingSphereRadius() };
 										ImGui::DragFloat(u8"##Outer BS radius (auto)", &BSRadius, KBSRadiusDelta,
 											KBSRadiusMinLimit, KBSRadiusMaxLimit, "%.2f");
 
@@ -5559,26 +5543,26 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									{
 										if (ImGui::Button(u8"추가"))
 										{
-											Object3D->ComponentPhysics.vBoundingVolumes.emplace_back();
+											Object3D->GetInnerBoundingVolumeVector().emplace_back();
 										}
 
 										ImGui::SameLine();
-										if (ImGui::Button(u8"제거") && Object3D->ComponentPhysics.vBoundingVolumes.size())
+										if (ImGui::Button(u8"제거") && Object3D->HasInnerBoundingVolumes())
 										{
-											if (SelectedBoundingVolumeIndex != (int)(Object3D->ComponentPhysics.vBoundingVolumes.size() - 1))
+											auto& vInnerBoundingVolumes{ Object3D->GetInnerBoundingVolumeVector() };
+											if (SelectedBoundingVolumeIndex != (int)(vInnerBoundingVolumes.size() - 1))
 											{
-												swap(Object3D->ComponentPhysics.vBoundingVolumes[SelectedBoundingVolumeIndex],
-													Object3D->ComponentPhysics.vBoundingVolumes.back());
-												Object3D->ComponentPhysics.vBoundingVolumes.pop_back();
+												swap(vInnerBoundingVolumes[SelectedBoundingVolumeIndex], vInnerBoundingVolumes.back());
+												vInnerBoundingVolumes.pop_back();
 											}
 											else
 											{
-												Object3D->ComponentPhysics.vBoundingVolumes.pop_back();
+												vInnerBoundingVolumes.pop_back();
 											}
 										}
 
 										int BoundingVolumeIndex{};
-										for (const auto& BoundingVolume : Object3D->ComponentPhysics.vBoundingVolumes)
+										for (const auto& BoundingVolume : Object3D->GetInnerBoundingVolumeVector())
 										{
 											int Type{ (int)BoundingVolume.eType };
 											if (ImGui::Selectable((to_string(BoundingVolumeIndex) + KTypes[Type]).c_str(),
@@ -5589,15 +5573,16 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 											++BoundingVolumeIndex;
 										}
 
-										if (Object3D->ComponentPhysics.vBoundingVolumes.size())
+										if (Object3D->HasInnerBoundingVolumes())
 										{
 											if (ImGui::TreeNode(u8"세부사항 편집"))
 											{
-												if (SelectedBoundingVolumeIndex >= Object3D->ComponentPhysics.vBoundingVolumes.size())
+												auto& vInnerBoundingVolumes{ Object3D->GetInnerBoundingVolumeVector() };
+												if (SelectedBoundingVolumeIndex >= vInnerBoundingVolumes.size())
 												{
-													SelectedBoundingVolumeIndex = (int)(Object3D->ComponentPhysics.vBoundingVolumes.size() - 1);
+													SelectedBoundingVolumeIndex = (int)(vInnerBoundingVolumes.size() - 1);
 												}
-												auto& SelectedBoundingVolume{ Object3D->ComponentPhysics.vBoundingVolumes[SelectedBoundingVolumeIndex] };
+												auto& SelectedBoundingVolume{ vInnerBoundingVolumes[SelectedBoundingVolumeIndex] };
 
 												ImGui::PushItemWidth(300);
 												{
@@ -5752,19 +5737,15 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									if (ImGui::TreeNode(u8"애니메이션"))
 									{
 										ImGui::AlignTextToFramePadding();
+										ImGui::Text(u8"GPU 스키닝 사용 여부:");
+										ImGui::SameLine(ItemsOffsetX);
+										ImGui::Text((Object3D->IsGPUSkinned() ? u8"예" : u8"아니오"));
+
+										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"애니메이션 개수:");
 										ImGui::SameLine(ItemsOffsetX);
 										int AnimationCount{ static_cast<int>(Object3D->GetAnimationCount()) };
 										ImGui::Text(u8"%d", AnimationCount);
-
-										ImGui::AlignTextToFramePadding();
-										ImGui::Text(u8"애니메이션 ID");
-										ImGui::SameLine(ItemsOffsetX);
-										int AnimationID{ Object3D->GetCurrentAnimationID() };
-										if (ImGui::SliderInt(u8"##애니메이션 ID", &AnimationID, 0, AnimationCount - 1))
-										{
-											Object3D->SetAnimation(AnimationID);
-										}
 
 										ImGui::AlignTextToFramePadding();
 										ImGui::Text(u8"애니메이션 목록");
@@ -5785,7 +5766,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 												if (FileDialog.SaveFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 저장", ".dds"))
 												{
 													Object3D->BakeAnimationTexture();
-													Object3D->SaveBakedAnimationTexture(FileDialog.GetFileName());
+													Object3D->SaveBakedAnimationTexture(FileDialog.GetRelativeFileName());
 												}
 											}
 										}
@@ -5797,7 +5778,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 											static CFileDialog FileDialog{ GetWorkingDirectory() };
 											if (FileDialog.OpenFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 불러오기"))
 											{
-												Object3D->LoadBakedAnimationTexture(FileDialog.GetFileName());
+												Object3D->LoadBakedAnimationTexture(FileDialog.GetRelativeFileName());
 											}
 										}
 
@@ -5835,6 +5816,31 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 											}
 
 											ImGui::ListBoxFooter();
+										}
+
+										if (Object3D->IsInstanced() && (SelectionData.eObjectType == EObjectType::Object3DInstance))
+										{
+											SObjectIdentifier Identifier{ Object3D, SelectionData.Name.c_str() };
+											ImGui::AlignTextToFramePadding();
+											ImGui::Text(u8"인스턴스 애니메이션 ID");
+											ImGui::SameLine(ItemsOffsetX);
+											int AnimationID{ (int)Object3D->GetAnimationID(Identifier) };
+											if (ImGui::SliderInt(u8"##인스턴스 애니메이션 ID", &AnimationID, 0, AnimationCount - 1))
+											{
+												Object3D->SetAnimation(SObjectIdentifier(Object3D, SelectionData.Name.c_str()), AnimationID);
+											}
+										}
+										else
+										{
+											SObjectIdentifier Identifier{ Object3D };
+											ImGui::AlignTextToFramePadding();
+											ImGui::Text(u8"오브젝트 애니메이션 ID");
+											ImGui::SameLine(ItemsOffsetX);
+											int AnimationID{ (int)Object3D->GetAnimationID(Identifier) };
+											if (ImGui::SliderInt(u8"##오브젝트 애니메이션 ID", &AnimationID, 0, AnimationCount - 1))
+											{
+												Object3D->SetAnimation(SObjectIdentifier(Object3D), AnimationID);
+											}
 										}
 
 										ImGui::TreePop();
@@ -7607,8 +7613,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 					const SSelectionData& SelectionData{ m_vSelectionData.back() };
 					CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
 
-					if ((SelectionData.eObjectType == EObjectType::Object3D || SelectionData.eObjectType == EObjectType::Object3DInstance) &&
-						!Object3D->IsRigged())
+					if ((SelectionData.eObjectType == EObjectType::Object3D || SelectionData.eObjectType == EObjectType::Object3DInstance))
 					{
 						// 인스턴스 추가
 
@@ -7617,7 +7622,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 						{
 							Object3D->InsertInstance();
 
-							SelectObject(SSelectionData(EObjectType::Object3DInstance, Object3D->GetLastInstanceCPUData().Name, Object3D));
+							SelectObject(SSelectionData(EObjectType::Object3DInstance, Object3D->GetLastInstanceName(), Object3D));
 						}
 						ImGui::PopID();
 					}
@@ -7630,11 +7635,10 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 						ImGui::PushID(iObject3DPair * 2 + 1);
 						if (ImGui::Button(u8"-Inst"))
 						{
-							const SObject3DInstanceCPUData& InstanceCPUData{ Object3D->GetInstanceCPUData(SelectionData.Name) };
-							Object3D->DeleteInstance(InstanceCPUData.Name);
+							Object3D->DeleteInstance(SelectionData.Name);
 							if (Object3D->GetInstanceCount() > 0)
 							{
-								SelectObject(SSelectionData(EObjectType::Object3DInstance, Object3D->GetLastInstanceCPUData().Name, Object3D));
+								SelectObject(SSelectionData(EObjectType::Object3DInstance, Object3D->GetLastInstanceName(), Object3D));
 							}
 							else
 							{
@@ -7908,12 +7912,17 @@ void CGame::EndRendering()
 					CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
 					if (SelectionData.eObjectType == EObjectType::Object3DInstance)
 					{
-						const auto& InstanceGPUData{ Object3D->GetInstanceGPUData(SelectionData.Name) };
-						Object3D->ComponentTransform.MatrixWorld = InstanceGPUData.WorldMatrix;
-						DrawObject3D(Object3D, true);
+						size_t InstanceIndex{ Object3D->GetInstanceIndex(SelectionData.Name) };
+						DrawObject3D(Object3D, EFlagsObject3DRendering::DrawOneInstance, InstanceIndex);
 					}
 					else
 					{
+						if (Object3D->IsRigged())
+						{
+							Object3D->Animate(0);
+							UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
+						}
+
 						Object3D->UpdateWorldMatrix();
 						DrawObject3D(Object3D);
 					}

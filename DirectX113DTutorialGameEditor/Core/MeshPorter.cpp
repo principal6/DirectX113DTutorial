@@ -139,19 +139,19 @@ void CMeshPorter::ImportTerrain(const std::string& FileName, STERRData& Data)
 			m_BinaryData->ReadString(InstanceData.Name, SObject3DInstanceCPUData::KMaxNameLengthZeroTerminated);
 
 			// # 16B (XMVECTOR) Foliage instance translation
-			m_BinaryData->ReadXMVECTOR(InstanceData.Translation);
+			m_BinaryData->ReadXMVECTOR(InstanceData.Transform.Translation);
 
 			// # 4B (float) Foliage instance pitch
-			m_BinaryData->ReadFloat(InstanceData.Pitch);
+			m_BinaryData->ReadFloat(InstanceData.Transform.Pitch);
 
 			// # 4B (float) Foliage instance yaw
-			m_BinaryData->ReadFloat(InstanceData.Yaw);
+			m_BinaryData->ReadFloat(InstanceData.Transform.Yaw);
 
 			// # 4B (float) Foliage instance roll
-			m_BinaryData->ReadFloat(InstanceData.Roll);
+			m_BinaryData->ReadFloat(InstanceData.Transform.Roll);
 
 			// # 16B (XMVECTOR) Foliage instance scaling
-			m_BinaryData->ReadXMVECTOR(InstanceData.Scaling);
+			m_BinaryData->ReadXMVECTOR(InstanceData.Transform.Scaling);
 		}
 	}
 
@@ -270,19 +270,19 @@ void CMeshPorter::ExportTerrain(const std::string& FileName, const STERRData& Da
 			m_BinaryData->WriteString(InstanceData.Name, SObject3DInstanceCPUData::KMaxNameLengthZeroTerminated);
 
 			// # 16B (XMVECTOR) Foliage instance translation
-			m_BinaryData->WriteXMVECTOR(InstanceData.Translation);
+			m_BinaryData->WriteXMVECTOR(InstanceData.Transform.Translation);
 
 			// # 4B (float) Foliage instance pitch
-			m_BinaryData->WriteFloat(InstanceData.Pitch);
+			m_BinaryData->WriteFloat(InstanceData.Transform.Pitch);
 
 			// # 4B (float) Foliage instance yaw
-			m_BinaryData->WriteFloat(InstanceData.Yaw);
+			m_BinaryData->WriteFloat(InstanceData.Transform.Yaw);
 
 			// # 4B (float) Foliage instance roll
-			m_BinaryData->WriteFloat(InstanceData.Roll);
+			m_BinaryData->WriteFloat(InstanceData.Transform.Roll);
 
 			// # 16B (XMVECTOR) Foliage instance scaling
-			m_BinaryData->WriteXMVECTOR(InstanceData.Scaling);
+			m_BinaryData->WriteXMVECTOR(InstanceData.Transform.Scaling);
 		}
 	}
 	

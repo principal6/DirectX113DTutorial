@@ -9,9 +9,9 @@ cbuffer cbBones : register(b1)
 cbuffer cbAnimation : register(b2)
 {
 	bool bUseGPUSkinning;
-	int AnimationID;
-	int AnimtaionDuration;
-	float AnimationTick;
+	bool bIsInstanced;
+	uint g_AnimationID;
+	float g_AnimationTick;
 }
 
 Texture2D<float4> AnimationTexture : register(t0); // For GPU skinning
@@ -25,39 +25,75 @@ float4x4 GetBoneMatrixFromAnimationTexture(int BoneIndex, int AnimationOffset)
 	return float4x4(Row0, Row1, Row2, Row3);
 }
 
-VS_OUTPUT main(VS_INPUT_ANIMATION Input)
+static VS_OUTPUT Internal(in float4x4 WorldMatrix, in VS_INPUT_ANIMATION Input)
 {
 	VS_OUTPUT Output;
 
+	Output.WorldPosition = mul(Input.Position, WorldMatrix);
+	Output.WorldPosition.w = 1.0;
+	Output.Position = mul(Output.WorldPosition, ViewProjection);
+
+	Output.Color = Input.Color;
+	Output.TexCoord = Input.TexCoord;
+
+	Output.WorldNormal = normalize(mul(Input.Normal, WorldMatrix));
+	Output.WorldTangent = normalize(mul(Input.Tangent, WorldMatrix));
+	Output.WorldBitangent = float4(normalize(cross(Output.WorldNormal.xyz, Output.WorldTangent.xyz)), 0);
+
+	Output.bUseVertexColor = 0;
+
+#ifndef DEBUG_SHADER
+	Output.InstanceID = Input.InstanceID;
+#endif
+	Output.IsHighlighted = 0;
+
+	return Output;
+}
+
+static float4 GetGPUSkinnedPosition(float4 VertexPosition, uint AnimationID, float AnimationTick, uint4 BoneIndex, float4 BoneWeight)
+{
+	static const int KAnimationTextureReservedFirstPixelCount = 2;
+	const int KAnimationCount = AnimationTexture[int2(1, 0)].x;
+	const float4 KAnimationInfo = AnimationTexture[int2(KAnimationTextureReservedFirstPixelCount + AnimationID * 2 + 0, 0)];
+	int AnimationOffset = KAnimationInfo.x;
+	int AnimationDuration = KAnimationInfo.y;
+
+	int iCurrTick = (int)AnimationTick;
+	int iNextTick = (int)AnimationTick + 1;
+	if (iNextTick > AnimationDuration) iNextTick = 0;
+
+	float4x4 CurrTickBone = 
+		GetBoneMatrixFromAnimationTexture(BoneIndex.x, AnimationOffset + iCurrTick) * BoneWeight.x +
+		GetBoneMatrixFromAnimationTexture(BoneIndex.y, AnimationOffset + iCurrTick) * BoneWeight.y +
+		GetBoneMatrixFromAnimationTexture(BoneIndex.z, AnimationOffset + iCurrTick) * BoneWeight.z +
+		GetBoneMatrixFromAnimationTexture(BoneIndex.w, AnimationOffset + iCurrTick) * BoneWeight.w;
+
+	float4x4 NextTickBone = 
+		GetBoneMatrixFromAnimationTexture(BoneIndex.x, AnimationOffset + iNextTick) * BoneWeight.x +
+		GetBoneMatrixFromAnimationTexture(BoneIndex.y, AnimationOffset + iNextTick) * BoneWeight.y +
+		GetBoneMatrixFromAnimationTexture(BoneIndex.z, AnimationOffset + iNextTick) * BoneWeight.z +
+		GetBoneMatrixFromAnimationTexture(BoneIndex.w, AnimationOffset + iNextTick) * BoneWeight.w;
+
+	float4 CurrTickPosition = float4(mul(VertexPosition, CurrTickBone).xyz, 1);
+	float4 NextTickPosition = float4(mul(VertexPosition, NextTickBone).xyz, 1);
+
+	float t = AnimationTick - (float)iCurrTick;
+	return lerp(CurrTickPosition, NextTickPosition, t);
+}
+
+VS_OUTPUT main(VS_INPUT_ANIMATION Input)
+{
 	float4x4 FinalBone = KMatrixIdentity;
-	float4 ResultPosition;
 	if (bUseGPUSkinning == true)
 	{
-		const int KAnimationTextureReservedFirstPixelCount = 2;
-		const int KAnimationCount = AnimationTexture[int2(1, 0)].x;
-		const float4 KAnimationInfo = AnimationTexture[int2(KAnimationTextureReservedFirstPixelCount + AnimationID * 2 + 0, 0)];
-		int AnimationOffset = KAnimationInfo.x;
-		int AnimationDuration = KAnimationInfo.y;
-
-		int iTickCurrent = (int)AnimationTick;
-		int iTickNext = (int)AnimationTick + 1;
-		if (iTickNext > AnimationDuration) iTickNext = 0;
-
-		float4x4 CurrentTickBone = GetBoneMatrixFromAnimationTexture(Input.BoneIndex.x, AnimationOffset + iTickCurrent) * Input.BoneWeight.x;
-		CurrentTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.y, AnimationOffset + iTickCurrent) * Input.BoneWeight.y;
-		CurrentTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.z, AnimationOffset + iTickCurrent) * Input.BoneWeight.z;
-		CurrentTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.w, AnimationOffset + iTickCurrent) * Input.BoneWeight.w;
-
-		float4x4 NextTickBone = GetBoneMatrixFromAnimationTexture(Input.BoneIndex.x, AnimationOffset + iTickNext) * Input.BoneWeight.x;
-		NextTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.y, AnimationOffset + iTickNext) * Input.BoneWeight.y;
-		NextTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.z, AnimationOffset + iTickNext) * Input.BoneWeight.z;
-		NextTickBone += GetBoneMatrixFromAnimationTexture(Input.BoneIndex.w, AnimationOffset + iTickNext) * Input.BoneWeight.w;
-
-		float4 CurrentTickPosition = float4(mul(Input.Position, CurrentTickBone).xyz, 1);
-		float4 NextTickPosition = float4(mul(Input.Position, NextTickBone).xyz, 1);
-
-		float t = AnimationTick - (float)iTickCurrent;
-		ResultPosition = lerp(CurrentTickPosition, NextTickPosition, t);
+		if (bIsInstanced == true)
+		{
+			Input.Position = GetGPUSkinnedPosition(Input.Position, Input.CurrAnimID, Input.AnimTick, Input.BoneIndex, Input.BoneWeight);
+		}
+		else
+		{
+			Input.Position = GetGPUSkinnedPosition(Input.Position, g_AnimationID, g_AnimationTick, Input.BoneIndex, Input.BoneWeight);
+		}
 	}
 	else
 	{
@@ -66,29 +102,15 @@ VS_OUTPUT main(VS_INPUT_ANIMATION Input)
 		FinalBone += BoneMatrices[Input.BoneIndex.z] * Input.BoneWeight.z;
 		FinalBone += BoneMatrices[Input.BoneIndex.w] * Input.BoneWeight.w;
 
-		ResultPosition = float4(mul(Input.Position, FinalBone).xyz, 1);
+		Input.Position = float4(mul(Input.Position, FinalBone).xyz, 1);
 	}
-	
-	float4 ResultNormal = normalize(mul(Input.Normal, FinalBone));
-	float4 ResultTangent = normalize(mul(Input.Tangent, FinalBone));
+	Input.Normal = normalize(mul(Input.Normal, FinalBone));
+	Input.Tangent = normalize(mul(Input.Tangent, FinalBone));
 
-	Output.WorldPosition = mul(ResultPosition, World);
-	Output.WorldPosition.w = 1.0f;
-	Output.Position = mul(Output.WorldPosition, ViewProjection);
-	
-	Output.Color = Input.Color;
-	Output.TexCoord = Input.TexCoord;
-
-	Output.WorldNormal = normalize(mul(ResultNormal, World));
-	Output.WorldTangent = normalize(mul(ResultTangent, World));
-	Output.WorldBitangent = float4(normalize(cross(Output.WorldNormal.xyz, Output.WorldTangent.xyz)), 0);
-
-	Output.bUseVertexColor = 0;
-	Output.IsHighlighted = 0.0;
-
-#ifndef DEBUG_SHADER
-	Output.InstanceID = Input.InstanceID;
-#endif
-
-	return Output;
+	if (bIsInstanced == true)
+	{
+		float4x4 InstanceWorld = float4x4(Input.InstanceWorld0, Input.InstanceWorld1, Input.InstanceWorld2, Input.InstanceWorld3);
+		return Internal(InstanceWorld, Input);
+	}
+	return Internal(World, Input);
 }
