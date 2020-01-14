@@ -855,8 +855,7 @@ private:
 	// @important: below are for faster search & display in Editor GUI!
 	// <Key | Index in m_vSelectionData>
 	size_t									m_EditorCameraSelectionIndex{ KInvalidIndex };
-	std::unordered_map<std::string, size_t>	m_umapSelectionObject3D{};
-	std::unordered_map<std::string, size_t>	m_umapSelectionObject3DInstance{}; // @important: Object3DName + IntanceName
+	std::unordered_map<std::string, size_t>	m_umapSelectionObject3D{}; // @important: Instance [Object3DName + InstanceName]
 	std::unordered_map<std::string, size_t>	m_umapSelectionObject3DLine{};
 	std::unordered_map<std::string, size_t>	m_umapSelectionObject2D{};
 	std::unordered_map<std::string, size_t>	m_umapSelectionCamera{};

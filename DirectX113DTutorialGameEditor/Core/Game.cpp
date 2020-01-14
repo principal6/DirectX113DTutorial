@@ -2645,7 +2645,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, ESelectionMode eSe
 	case CGame::EObjectType::Object3DInstance:
 	{
 		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-		if (m_umapSelectionObject3DInstance.find(Object3D->GetName() + SelectionData.Name) != m_umapSelectionObject3DInstance.end()) return;
+		if (m_umapSelectionObject3D.find(Object3D->GetName() + SelectionData.Name) != m_umapSelectionObject3D.end()) return;
 		break;
 	}
 	case CGame::EObjectType::Object3DLine:
@@ -2696,7 +2696,7 @@ void CGame::SelectObject(const SSelectionData& SelectionData, ESelectionMode eSe
 		const XMVECTOR KTranslation{ 
 			Object3D->GetInstanceTransform(SelectionData.Name).Translation + Object3D->GetInstanceOuterBoundingSphere(SelectionData.Name).Center };
 
-		m_umapSelectionObject3DInstance[Object3D->GetName() + SelectionData.Name] = KSelectionIndex;
+		m_umapSelectionObject3D[Object3D->GetName() + SelectionData.Name] = KSelectionIndex;
 
 		MultipleSelectionWorldCenter += XMVectorSetW(KTranslation, 1);
 		break;
@@ -2774,21 +2774,21 @@ void CGame::DeselectObject(const SSelectionData& SelectionData)
 	{
 		CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
 		string SelectionName{ GetSelectionName(SelectionData) };
-		if (m_umapSelectionObject3DInstance.find(SelectionName) != m_umapSelectionObject3DInstance.end())
+		if (m_umapSelectionObject3D.find(SelectionName) != m_umapSelectionObject3D.end())
 		{
 			const XMVECTOR KTranslation{ 
 				Object3D->GetInstanceTransform(SelectionData.Name).Translation + Object3D->GetInstanceOuterBoundingSphere(SelectionData.Name).Center };
 			MultipleSelectionWorldCenter -= XMVectorSetW(KTranslation, 1);
 
-			size_t iSelectionData{ m_umapSelectionObject3DInstance.at(SelectionName) };
+			size_t iSelectionData{ m_umapSelectionObject3D.at(SelectionName) };
 			if (iSelectionData < m_vSelectionData.size() - 1)
 			{
 				string BackSelectionName{ GetSelectionName(m_vSelectionData.back()) };
-				swap(m_umapSelectionObject3DInstance.at(BackSelectionName), m_umapSelectionObject3DInstance.at(SelectionName)); // @important
+				swap(m_umapSelectionObject3D.at(BackSelectionName), m_umapSelectionObject3D.at(SelectionName)); // @important
 
 				swap(m_vSelectionData[iSelectionData], m_vSelectionData.back());
 			}
-			m_umapSelectionObject3DInstance.erase(SelectionName);
+			m_umapSelectionObject3D.erase(SelectionName);
 			m_vSelectionData.pop_back();
 		}
 		break;
@@ -2905,6 +2905,7 @@ void CGame::DeselectType(EObjectType eObjectType)
 	case CGame::EObjectType::NONE:
 		break;
 	case CGame::EObjectType::Object3D:
+	case CGame::EObjectType::Object3DInstance:
 		m_umapSelectionObject3D.clear();
 		break;
 	case CGame::EObjectType::Object3DLine:
@@ -2925,9 +2926,6 @@ void CGame::DeselectType(EObjectType eObjectType)
 		m_LightRep->SetAllInstancesHighlightOff();
 		m_LightRep->UpdateInstanceBuffer();
 		break;
-	case CGame::EObjectType::Object3DInstance:
-		m_umapSelectionObject3DInstance.clear();
-		break;
 	}
 }
 
@@ -2938,7 +2936,6 @@ void CGame::DeselectAll()
 	m_MultipleSelectionWorldCenter = XMVectorSet(0, 0, 0, 0); // @important
 
 	m_umapSelectionObject3D.clear();
-	m_umapSelectionObject3DInstance.clear();
 	m_umapSelectionObject3DLine.clear();
 	m_umapSelectionObject2D.clear();
 	m_EditorCameraSelectionIndex = KInvalidIndex;
@@ -7586,9 +7583,8 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 							for (const auto& InstancePair : Object3D->GetInstanceNameToIndexMap())
 							{
 								bool bSelected{ false };
-								if (m_umapSelectionObject3DInstance.find(Object3D->GetName() + InstancePair.first) != m_umapSelectionObject3DInstance.end())
+								if (m_umapSelectionObject3D.find(Object3D->GetName() + InstancePair.first) != m_umapSelectionObject3D.end())
 								{
-									
 									bSelected = true;
 								}
 
@@ -7910,6 +7906,14 @@ void CGame::EndRendering()
 				if (SelectionData.eObjectType == EObjectType::Object3D || SelectionData.eObjectType == EObjectType::Object3DInstance)
 				{
 					CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
+
+					if (Object3D->IsRigged())
+					{
+						Object3D->Animate(0);
+						UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
+						UpdateCBAnimationData(Object3D->GetAnimationData());
+					}
+
 					if (SelectionData.eObjectType == EObjectType::Object3DInstance)
 					{
 						size_t InstanceIndex{ Object3D->GetInstanceIndex(SelectionData.Name) };
@@ -7917,12 +7921,6 @@ void CGame::EndRendering()
 					}
 					else
 					{
-						if (Object3D->IsRigged())
-						{
-							Object3D->Animate(0);
-							UpdateCBAnimationBoneMatrices(Object3D->GetAnimationBoneMatrices());
-						}
-
 						Object3D->UpdateWorldMatrix();
 						DrawObject3D(Object3D);
 					}
