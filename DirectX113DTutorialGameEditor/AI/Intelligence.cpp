@@ -192,7 +192,7 @@ void CIntelligence::ExecuteBehavior(const SObjectIdentifier& Identifier, SBehavi
 		{
 			const XMVECTOR& Direction{ XMVector3Normalize(DestinationXZ - PlayerXZ) };
 			float OldY{ XMVectorGetY(Identifier.Object3D->GetPhysics(Identifier).LinearVelocity) };
-			Identifier.Object3D->SetLinearVelocity(Identifier, XMVectorSetY(Direction * Behavior.Factor, OldY));
+			Identifier.Object3D->SetLinearVelocity(Identifier, XMVectorSetY(Direction * Behavior.Scalar, OldY));
 
 			XMVECTOR DirectionXY{ XMVectorSetY(Direction, 0) };
 			float Dot{ XMVectorGetX(XMVector3Dot(DirectionXY, KNegativeZAxis)) };
@@ -218,7 +218,7 @@ void CIntelligence::ExecuteBehavior(const SObjectIdentifier& Identifier, SBehavi
 			{
 				if (Identifier.Object3D->GetAnimationTick(Identifier) >= Identifier.Object3D->GetCurrentAnimationBehaviorStartTick(Identifier))
 				{
-					Identifier.Object3D->SetLinearVelocity(Identifier, XMVectorSetY(m_SavedVectorXZ, Behavior.Factor));
+					Identifier.Object3D->SetLinearVelocity(Identifier, XMVectorSetY(m_SavedVectorXZ, Behavior.Scalar));
 					m_bBehaviorStarted = true;
 				}
 			}

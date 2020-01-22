@@ -128,7 +128,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AI\Analyzer.cpp" />
     <ClCompile Include="AI\Intelligence.cpp" />
+    <ClCompile Include="AI\Pattern.cpp" />
+    <ClCompile Include="AI\SyntaxTree.cpp" />
+    <ClCompile Include="AI\Tokenizer.cpp" />
     <ClCompile Include="Core\AssimpLoader.cpp" />
     <ClCompile Include="Core\Billboard.cpp" />
     <ClCompile Include="Core\BinaryData.cpp" />
@@ -160,7 +164,11 @@
     <ClCompile Include="TinyXml2\tinyxml2.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AI\Analyzer.h" />
     <ClInclude Include="AI\Intelligence.h" />
+    <ClInclude Include="AI\Pattern.h" />
+    <ClInclude Include="AI\SyntaxTree.h" />
+    <ClInclude Include="AI\Tokenizer.h" />
     <ClInclude Include="Assimp\aabb.h" />
     <ClInclude Include="Assimp\ai_assert.h" />
     <ClInclude Include="Assimp\anim.h" />

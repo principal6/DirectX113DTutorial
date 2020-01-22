@@ -2357,7 +2357,7 @@ void CGame::WalkPlayerToPickedPoint(float WalkSpeed)
 						SBehaviorData Behavior{};
 						Behavior.eBehaviorType = EBehaviorType::WalkTo;
 						Behavior.Vector = DestinationXZ;
-						Behavior.Factor = WalkSpeed;
+						Behavior.Scalar = WalkSpeed;
 						m_Intelligence->PushBackBehavior(PlayerObject, Behavior);
 					}
 				}
@@ -2385,7 +2385,7 @@ void CGame::JumpPlayer(float JumpSpeed)
 
 	SBehaviorData BehaviorData{};
 	BehaviorData.eBehaviorType = EBehaviorType::Jump;
-	BehaviorData.Factor = JumpSpeed;
+	BehaviorData.Scalar = JumpSpeed;
 	m_Intelligence->PushFrontBehavior(PlayerObject, BehaviorData);
 }
 

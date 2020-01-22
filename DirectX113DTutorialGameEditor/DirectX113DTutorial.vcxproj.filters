@@ -118,6 +118,18 @@
     <ClCompile Include="AI\Intelligence.cpp">
       <Filter>AI</Filter>
     </ClCompile>
+    <ClCompile Include="AI\Tokenizer.cpp">
+      <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="AI\Analyzer.cpp">
+      <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="AI\SyntaxTree.cpp">
+      <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="AI\Pattern.cpp">
+      <Filter>AI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTK\Audio.h">
@@ -508,6 +520,18 @@
       <Filter>Physics</Filter>
     </ClInclude>
     <ClInclude Include="AI\Intelligence.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="AI\Tokenizer.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="AI\Analyzer.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="AI\SyntaxTree.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="AI\Pattern.h">
       <Filter>AI</Filter>
     </ClInclude>
   </ItemGroup>

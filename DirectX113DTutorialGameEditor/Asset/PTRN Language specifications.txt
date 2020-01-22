@@ -1,0 +1,32 @@
+// @ PTRN Language
+
+// @ data type
+// only floating point is used (no need to write data type)
+// test = 3 + 4.0;
+//
+// @ literal
+// 0* ~ 9*, true, false
+//
+// @ punctuator
+//         ,
+//         ;
+//        ' '
+//       '\t'
+//       '\n'
+//
+// @ operator precedence
+// == Grouping ==  ===== Unary =====  ================== Binary ==================
+//                                     Arithmetic  Relational  Logical  Assignment
+//      ( )         +  positive           *   +      <    ==     &&          =
+//      { }         -  negative           /   -      <=   !=     ||         *=
+//      [ ]         !  logical NOT                   >                      /=
+//                                                   >=                     +=
+//                                                                          -=
+//
+// @ function
+// function_name(argument);
+//
+// @ control
+// if (), else
+// #state []
+// 

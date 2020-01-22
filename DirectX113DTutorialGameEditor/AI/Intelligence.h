@@ -27,7 +27,7 @@ struct SBehaviorData
 
 	EBehaviorType	eBehaviorType{};
 	XMVECTOR		Vector{};
-	float			Factor{ 1.0f };
+	float			Scalar{ 1.0f };
 
 private:
 	enum class EStatus
