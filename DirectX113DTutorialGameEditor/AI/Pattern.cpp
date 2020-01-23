@@ -14,6 +14,7 @@ using std::swap;
 using std::make_unique;
 using std::stof;
 using std::to_string;
+using std::min;
 
 CPattern::CPattern()
 {
@@ -25,6 +26,20 @@ CPattern::~CPattern()
 
 void CPattern::Load(const char* FileName)
 {
+	m_FileName = FileName;
+
+	ifstream ifs{ FileName };
+	if (ifs.is_open())
+	{
+		ifs.seekg(0, ifs.end);
+		auto end_pos{ ifs.tellg() };
+		ifs.seekg(0, ifs.beg);
+
+		m_FileContent.resize(end_pos);
+		ifs.read(&m_FileContent[0], end_pos);
+		ifs.close();
+	}
+
 	srand((unsigned int)time(nullptr));
 
 	CTokenizer Tokenizer{};
@@ -36,6 +51,8 @@ void CPattern::Load(const char* FileName)
 		Tokenizer.AddDivider('\t');
 		Tokenizer.AddDivider('\n');
 
+		Tokenizer.AddDivider('\'');
+		Tokenizer.AddDivider('\"');
 		Tokenizer.AddDivider(',');
 		Tokenizer.AddDivider(';');
 
@@ -131,7 +148,7 @@ void CPattern::Load(const char* FileName)
 	{
 		if (StateNode->Identifier == "#state")
 		{
-			m_umapStateNameToID[StateNode->Identifier] = m_StateCount;
+			m_umapStateNameToID[StateNode->vChildNodes[0]->Identifier] = m_StateCount;
 			++m_StateCount;
 		}
 	}
@@ -183,6 +200,16 @@ const SSyntaxTreeNode* CPattern::Execute(SPatternState& PatternState)
 	return m_InstructionSyntaxTree->GetRootNode();
 }
 
+const std::string& CPattern::GetFileName() const
+{
+	return m_FileName;
+}
+
+const std::string& CPattern::GetFileContent() const
+{
+	return m_FileContent;
+}
+
 bool CPattern::ExecuteIfNode(const SSyntaxTreeNode* const IfNode)
 {
 	if (!IfNode) return false;
@@ -192,40 +219,9 @@ bool CPattern::ExecuteIfNode(const SSyntaxTreeNode* const IfNode)
 	Tree.CopyFrom(IfNode);
 
 	auto& OperatorNode{ Tree.GetRootNode()->vChildNodes[0] };
-	assert(OperatorNode->vChildNodes.size() == 2);
-	for (auto& SideNode : OperatorNode->vChildNodes)
-	{
-		_ExecuteIfNode(SideNode);
-	}
-	float Left{ stof(OperatorNode->vChildNodes[0]->Identifier) };
-	float Right{ stof(OperatorNode->vChildNodes[1]->Identifier) };
+	_ExecuteIfNode(OperatorNode);
 
-	if (OperatorNode->Identifier == "==")
-	{
-		return Left == Right;
-	}
-	else if (OperatorNode->Identifier == "!=")
-	{
-		return Left != Right;
-	}
-	else if (OperatorNode->Identifier == ">=")
-	{
-		return Left >= Right;
-	}
-	else if (OperatorNode->Identifier == ">")
-	{
-		return Left > Right;
-	}
-	else if (OperatorNode->Identifier == "<=")
-	{
-		return Left <= Right;
-	}
-	else if (OperatorNode->Identifier == "<")
-	{
-		return Left < Right;
-	}
-
-	return false;
+	return (OperatorNode->Identifier == "true" ? true : false);
 }
 
 void CPattern::_ExecuteIfNode(SSyntaxTreeNode*& Node)
@@ -234,7 +230,66 @@ void CPattern::_ExecuteIfNode(SSyntaxTreeNode*& Node)
 
 	if (Node->eType == SSyntaxTreeNode::EType::Operator)
 	{
-		_ExecuteIfNode(Node);
+		for (auto& ChildNode : Node->vChildNodes)
+		{
+			_ExecuteIfNode(ChildNode);
+		}
+
+		if (Node->Identifier == "!")
+		{
+			// unary
+
+			bool bChild{ (Node->vChildNodes[0]->Identifier == "true" ? true : false) };
+
+			CSyntaxTree::Substitute(SSyntaxTreeNode((bChild == true ? "false" : "true"), SSyntaxTreeNode::EType::Literal, Node->ParentNode), Node);
+		}
+		else
+		{
+			// binary
+
+			const auto& Left{ Node->vChildNodes[0]->Identifier };
+			const auto& Right{ Node->vChildNodes[1]->Identifier };
+
+			bool Result{ false };
+			if (Node->Identifier == "==")
+			{
+				Result = (Left == Right);
+			}
+			else if (Node->Identifier == "!=")
+			{
+				Result = (Left != Right);
+			}
+			else if (Node->Identifier == ">=")
+			{
+				Result = (Left >= Right);
+			}
+			else if (Node->Identifier == ">")
+			{
+				Result = (Left > Right);
+			}
+			else if (Node->Identifier == "<=")
+			{
+				Result = (Left <= Right);
+			}
+			else if (Node->Identifier == "<")
+			{
+				Result = (Left < Right);
+			}
+			else if (Node->Identifier == "&&")
+			{
+				bool bLeft{ (Left == "true" ? true : false) };
+				bool bRight{ (Right == "true" ? true : false) };
+				Result = (bLeft && bRight);
+			}
+			else if (Node->Identifier == "||")
+			{
+				bool bLeft{ (Left == "true" ? true : false) };
+				bool bRight{ (Right == "true" ? true : false) };
+				Result = (bLeft || bRight);
+			}
+
+			CSyntaxTree::Substitute(SSyntaxTreeNode((Result == true ? "true" : "false"), SSyntaxTreeNode::EType::Literal, Node->ParentNode), Node);
+		}
 	}
 
 	if (Node->eType == SSyntaxTreeNode::EType::Identifier)
@@ -272,8 +327,8 @@ void CPattern::ExecuteFunctionNode(SSyntaxTreeNode*& Node)
 		}
 		else
 		{
-			// variable node
-			if (Argument->eType != SSyntaxTreeNode::EType::Literal)
+			// variable or literal node
+			if (Node->Identifier != "set_state" && Argument->eType != SSyntaxTreeNode::EType::Literal)
 			{
 				float Value{ GetVariableValue(Argument->Identifier) };
 				Argument->Identifier = to_string(Value);
@@ -306,7 +361,9 @@ void CPattern::ExecuteFunctionNode(SSyntaxTreeNode*& Node)
 void CPattern::ExecuteInstructionNode(const SSyntaxTreeNode* const ExecutionNode, size_t& InstructionIndex)
 {
 	if (!ExecutionNode) return;
-	assert(InstructionIndex < ExecutionNode->vChildNodes.size());
+	if (ExecutionNode->vChildNodes.empty()) return;
+
+	InstructionIndex = min(InstructionIndex, ExecutionNode->vChildNodes.size() - 1);
 
 	if (InstructionIndex == 0)
 	{

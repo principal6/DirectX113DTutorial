@@ -628,7 +628,8 @@ void CPhysicsEngine::ResolvePenetration(const SCollisionItem& FineCollision)
 
 			if (XMVectorGetY(N) == +1.0f)
 			{
-				A_Object->SetLinearVelocity(FineCollision.A, XMVectorSetY(A_Object->GetPhysics(FineCollision.A).LinearVelocity, 0));
+				// @important
+				A_Object->SetLinearVelocity(FineCollision.A, XMVectorSetY(A_Object->GetPhysics(FineCollision.A).LinearVelocity, -0.01f));
 			}
 			A_Object->Translate(FineCollision.A, Resolution);
 		}
@@ -661,7 +662,8 @@ void CPhysicsEngine::ResolvePenetration(const SCollisionItem& FineCollision)
 
 			if (XMVectorGetY(N) == +1.0f)
 			{
-				A_Object->SetLinearVelocity(FineCollision.A, XMVectorSetY(A_Object->GetPhysics(FineCollision.A).LinearVelocity, 0));
+				// @important
+				A_Object->SetLinearVelocity(FineCollision.A, XMVectorSetY(A_Object->GetPhysics(FineCollision.A).LinearVelocity, -0.01f));
 			}
 			A_Object->Translate(FineCollision.A, Resolution);
 		}

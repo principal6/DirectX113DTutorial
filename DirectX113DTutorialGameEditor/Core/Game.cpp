@@ -20,8 +20,6 @@ using std::swap;
 
 void CGame::CreateWin32(WNDPROC const WndProc, const std::string& WindowName, bool bWindowed)
 {
-	GetCurrentDirectoryA(MAX_PATH, m_WorkingDirectory);
-
 	CreateWin32Window(WndProc, WindowName);
 
 	InitializeDirectX(bWindowed);
@@ -90,24 +88,24 @@ void CGame::CreateWin32Window(WNDPROC const WndProc, const std::string& WindowNa
 
 void CGame::InitializeDirectX(bool bWindowed)
 {
-	CreateSwapChain(bWindowed);
+	_CreateSwapChain(bWindowed);
 
-	CreateViews();
+	_CreateViews();
 
-	CreateDepthStencilStates();
-	CreateBlendStates();
+	_CreateDepthStencilStates();
+	_CreateBlendStates();
 
-	CreateInputDevices();
+	_CreateInputDevices();
 
-	CreateConstantBuffers();
-	CreateBaseShaders();
+	_CreateConstantBuffers();
+	_CreateBaseShaders();
 
-	CreateMiniAxes();
-	CreatePickingRay();
-	CreatePickedTriangle();
+	_CreateMiniAxes();
+	_CreatePickingRay();
+	_CreatePickedTriangle();
 
 	SetProjectionMatrices(KDefaultFOV, KDefaultNearZ, KDefaultFarZ);
-	InitializeViewports();
+	_InitializeViewports();
 
 	m_CommonStates = make_unique<CommonStates>(m_Device.Get());
 }
@@ -117,6 +115,7 @@ void CGame::InitializeGameData()
 	if (!m_Intelligence)
 	{
 		m_Intelligence = make_unique<CIntelligence>(m_Device.Get(), m_DeviceContext.Get());
+		m_Intelligence->LinkPhysicsEngine(&m_PhysicsEngine);
 	}
 
 	if (!m_LightArray[0])
@@ -334,7 +333,7 @@ void CGame::InitializeImGui(const std::string& FontFileName, float FontSize)
 	m_EditorGUIFont = igIO.Fonts->AddFontFromFileTTF(FontFileName.c_str(), FontSize, nullptr, igIO.Fonts->GetGlyphRangesKorean());
 }
 
-void CGame::CreateSwapChain(bool bWindowed)
+void CGame::_CreateSwapChain(bool bWindowed)
 {
 	DXGI_SWAP_CHAIN_DESC SwapChainDesc{};
 	SwapChainDesc.BufferCount = 1;
@@ -357,7 +356,7 @@ void CGame::CreateSwapChain(bool bWindowed)
 		&SwapChainDesc, m_SwapChain.ReleaseAndGetAddressOf(), m_Device.ReleaseAndGetAddressOf(), nullptr, m_DeviceContext.ReleaseAndGetAddressOf());
 }
 
-void CGame::CreateViews()
+void CGame::_CreateViews()
 {
 	// Create depth-stencil DSV + GBuffer #0
 	{
@@ -483,7 +482,7 @@ void CGame::CreateViews()
 	}
 }
 
-void CGame::InitializeViewports()
+void CGame::_InitializeViewports()
 {
 	// #0
 	{
@@ -551,7 +550,7 @@ void CGame::InitializeViewports()
 	}
 }
 
-void CGame::CreateDepthStencilStates()
+void CGame::_CreateDepthStencilStates()
 {
 	D3D11_DEPTH_STENCIL_DESC DepthStencilDesc{};
 	DepthStencilDesc.DepthEnable = TRUE;
@@ -572,7 +571,7 @@ void CGame::CreateDepthStencilStates()
 	assert(SUCCEEDED(m_Device->CreateDepthStencilState(&DepthStencilDesc, m_DepthStencilStateAlways.ReleaseAndGetAddressOf())));
 }
 
-void CGame::CreateBlendStates()
+void CGame::_CreateBlendStates()
 {
 	{
 		D3D11_BLEND_DESC BlendDesc{};
@@ -605,7 +604,7 @@ void CGame::CreateBlendStates()
 	}
 }
 
-void CGame::CreateRasterizerStates()
+void CGame::_CreateRasterizerStates()
 {
 	D3D11_RASTERIZER_DESC RasterizerDesc{};
 	RasterizerDesc.AntialiasedLineEnable = FALSE;
@@ -621,7 +620,7 @@ void CGame::CreateRasterizerStates()
 	m_Device->CreateRasterizerState(&RasterizerDesc, m_RSCCWCullFront.ReleaseAndGetAddressOf());
 }
 
-void CGame::CreateInputDevices()
+void CGame::_CreateInputDevices()
 {
 	m_Keyboard = make_unique<Keyboard>();
 
@@ -630,7 +629,7 @@ void CGame::CreateInputDevices()
 	m_Mouse->SetMode(Mouse::Mode::MODE_ABSOLUTE);
 }
 
-void CGame::CreateConstantBuffers()
+void CGame::_CreateConstantBuffers()
 {
 	m_CBSpace = make_unique<CConstantBuffer>(m_Device.Get(), m_DeviceContext.Get(),
 		&m_CBSpaceData, sizeof(m_CBSpaceData));
@@ -686,7 +685,7 @@ void CGame::CreateConstantBuffers()
 	m_CBSceneMaterial->Create();
 }
 
-void CGame::CreateBaseShaders()
+void CGame::_CreateBaseShaders()
 {
 	bool bShouldCompileShaders{ false };
 
@@ -940,7 +939,7 @@ void CGame::CreateBaseShaders()
 	}
 }
 
-void CGame::CreateMiniAxes()
+void CGame::_CreateMiniAxes()
 {
 	m_vMiniAxes.clear();
 	m_vMiniAxes.emplace_back(make_unique<CObject3D>("AxisX", m_Device.Get(), m_DeviceContext.Get()));
@@ -968,7 +967,7 @@ void CGame::CreateMiniAxes()
 	m_vMiniAxes[2]->ScaleTo(Scaling);
 }
 
-void CGame::CreatePickingRay()
+void CGame::_CreatePickingRay()
 {
 	m_PickingRayRep = make_unique<CObject3DLine>("PickingRay", m_Device.Get(), m_DeviceContext.Get());
 
@@ -979,7 +978,7 @@ void CGame::CreatePickingRay()
 	m_PickingRayRep->Create(Vertices);
 }
 
-void CGame::CreatePickedTriangle()
+void CGame::_CreatePickedTriangle()
 {
 	m_PickedTriangleRep = make_unique<CObject3D>("PickedTriangle", m_Device.Get(), m_DeviceContext.Get());
 
@@ -987,18 +986,66 @@ void CGame::CreatePickedTriangle()
 		XMVectorSet(1.0f, 1.0f, 0.0f, 1.0f)));
 }
 
-void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
+void CGame::SetAssetDirectory(const std::string& Directory)
+{
+	m_AssetDirectory = Directory;
+}
+
+void CGame::SetSceneDirectory(const std::string& Directory)
+{
+	m_SceneDirectory = Directory;
+}
+
+const std::string& CGame::GetAssetDirectory() const
+{
+	return m_AssetDirectory;
+}
+
+const std::string& CGame::GetSceneDirectory() const
+{
+	return m_SceneDirectory;
+}
+
+void CGame::EmptyScene()
 {
 	DeselectAll();
 	ClearCopyList();
+	ClearObject3Ds();
+	ClearCameras();
+	ClearLights();
+
 	m_PhysicsEngine.ClearData();
+	m_Intelligence = make_unique<CIntelligence>(m_Device.Get(), m_DeviceContext.Get());
+	m_Intelligence->LinkPhysicsEngine(&m_PhysicsEngine); // @important
 	m_PtrPlayerCamera = nullptr;
+	m_SceneMaterial->ClearAllTexturesData();
+	m_SceneMaterialTextureSet->DestroyAllTextures();
+
+	m_Terrain.reset();
+
+	ClearPatterns();
+}
+
+void CGame::LoadScene(const string& FileName, const std::string& SceneContentDirectory)
+{
+	EmptyScene();
 
 	string ReadString{};
 	XMVECTOR ReadXMVECTOR{};
 
 	CBinaryData SceneBinaryData{};
 	SceneBinaryData.LoadFromFile(FileName);
+
+	// Scene Intelligence (Patterns)
+	{
+		size_t PatternCount{ SceneBinaryData.ReadUint32() };
+		for (size_t iPattern = 0; iPattern < PatternCount; ++iPattern)
+		{
+			SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+
+			InsertPattern(ReadString);
+		}
+	}
 
 	// Terrain
 	{
@@ -1008,8 +1055,6 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 	
 	// Object3D
 	{
-		ClearObject3Ds();
-
 		uint32_t Object3DCount{ SceneBinaryData.ReadUint32() };
 		CBinaryData Object3DBinary{};
 		string Object3DName{};
@@ -1031,7 +1076,27 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 			CObject3D* const Object3D{ GetObject3D(Object3DName) };
 			Object3D->LoadOB3D(ReadString, bIsRigged);
 
+			// physics engine
 			m_PhysicsEngine.RegisterObject(Object3D, eObjectRole);
+
+			// instance
+			{
+				bool bIsInstanced{ SceneBinaryData.ReadBool() };
+				if (bIsInstanced)
+				{
+					for (const auto& InstanceCPUData : Object3D->GetInstanceCPUDataVector())
+					{
+						bool bHasPattern{ SceneBinaryData.ReadBool() };
+						if (bHasPattern)
+						{
+							SObjectIdentifier Identifier{ Object3D, InstanceCPUData.Name.c_str() };
+
+							SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
+							m_Intelligence->RegisterPattern(Identifier, GetPattern(ReadString));
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -1047,8 +1112,6 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 
 	// Camera
 	{
-		ClearCameras();
-
 		uint32_t CameraCount{ SceneBinaryData.ReadUint32() };
 		for (uint32_t iCamera = 0; iCamera < CameraCount; ++iCamera)
 		{
@@ -1077,8 +1140,6 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 	
 	// Light
 	{
-		ClearLights();
-
 		for (uint32_t iLightType = 0; iLightType < CLight::KLightTypeCount; ++iLightType)
 		{
 			uint32_t LightType{ SceneBinaryData.ReadUint32() };
@@ -1109,9 +1170,6 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 
 	// Scene material
 	{
-		m_SceneMaterial->ClearAllTexturesData();
-		m_SceneMaterialTextureSet->DestroyAllTextures();
-
 		SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
 		m_SceneMaterial->SetTextureFileName(ETextureType::BaseColorTexture, ReadString);
 
@@ -1171,12 +1229,21 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneDirectory)
 	}
 }
 
-void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
+void CGame::SaveScene(const string& FileName, const std::string& SceneContentDirectory)
 {
-	std::filesystem::remove_all(SceneDirectory.c_str());
-	std::filesystem::create_directory(SceneDirectory.c_str());
+	std::filesystem::remove_all(SceneContentDirectory.c_str());
+	std::filesystem::create_directory(SceneContentDirectory.c_str());
 
 	CBinaryData SceneBinaryData{};
+
+	// Scene Intelligence (Patterns)
+	{
+		SceneBinaryData.WriteUint32((uint32_t)m_vPatterns.size());
+		for (const auto& Pattern : m_vPatterns)
+		{
+			SceneBinaryData.WriteStringWithPrefixedLength(Pattern->GetFileName());
+		}
+	}
 	
 	// Terrain
 	{
@@ -1184,7 +1251,7 @@ void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 		{
 			if (m_Terrain->GetFileName().empty())
 			{
-				m_Terrain->Save(SceneDirectory + "terrain.terr");
+				m_Terrain->Save(SceneContentDirectory + "terrain.terr");
 			}
 
 			SceneBinaryData.WriteStringWithPrefixedLength(m_Terrain->GetFileName());
@@ -1205,7 +1272,7 @@ void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 			{
 				// @important: always save OB3D
 				{
-					Object3D->SaveOB3D(SceneDirectory + Object3D->GetName() + ".ob3d");
+					Object3D->SaveOB3D(SceneContentDirectory + Object3D->GetName() + ".ob3d");
 				}
 
 				SceneBinaryData.WriteStringWithPrefixedLength(Object3D->GetOB3DFileName());
@@ -1215,6 +1282,26 @@ void CGame::SaveScene(const string& FileName, const std::string& SceneDirectory)
 
 				EObjectRole eObjectRole{ m_PhysicsEngine.GetObjectRole(Object3D.get()) };
 				SceneBinaryData.WriteUint8((uint8_t)eObjectRole);
+
+				// instance
+				{
+					SceneBinaryData.WriteBool(Object3D->IsInstanced());
+					if (Object3D->IsInstanced())
+					{
+						for (const auto& InstanceCPUData : Object3D->GetInstanceCPUDataVector())
+						{
+							SObjectIdentifier Identifier{ Object3D.get(), InstanceCPUData.Name.c_str() };
+
+							bool bHasPattern{ m_Intelligence->HasPattern(Identifier) };
+							SceneBinaryData.WriteBool(bHasPattern);
+							if (bHasPattern)
+							{
+								CPattern* Pattern{ m_Intelligence->GetPattern(Identifier) };
+								SceneBinaryData.WriteStringWithPrefixedLength(Pattern->GetFileName());
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -2339,7 +2426,7 @@ void CGame::WalkPlayerToPickedPoint(float WalkSpeed)
 					bool bShouldWalk{ true };
 					if (m_Intelligence->HasBehavior(PlayerObject))
 					{
-						EBehaviorType eBehaviorType{ m_Intelligence->PeekBehavior(PlayerObject).eBehaviorType };
+						EBehaviorType eBehaviorType{ m_Intelligence->PeekFrontBehavior(PlayerObject).eBehaviorType };
 						if (eBehaviorType == EBehaviorType::Jump)
 						{
 							bShouldWalk = false;
@@ -2354,11 +2441,12 @@ void CGame::WalkPlayerToPickedPoint(float WalkSpeed)
 					{
 						XMVECTOR DestinationXZ{ XMVectorSetY(m_PhysicsEngine.GetPickedPoint(), 0) };
 
-						SBehaviorData Behavior{};
-						Behavior.eBehaviorType = EBehaviorType::WalkTo;
-						Behavior.Vector = DestinationXZ;
-						Behavior.Scalar = WalkSpeed;
-						m_Intelligence->PushBackBehavior(PlayerObject, Behavior);
+						SBehaviorData BehaviorData{};
+						BehaviorData.eBehaviorType = EBehaviorType::WalkTo;
+						BehaviorData.Vector = DestinationXZ;
+						BehaviorData.Scalar = WalkSpeed;
+						BehaviorData.bIsPlayer = true;
+						m_Intelligence->PushBackBehavior(PlayerObject, BehaviorData);
 					}
 				}
 				else if (eObjectRole == EObjectRole::Monster)
@@ -2377,7 +2465,7 @@ void CGame::JumpPlayer(float JumpSpeed)
 	CObject3D* const PlayerObject{ m_PhysicsEngine.GetPlayerObject() };
 	if (m_Intelligence->HasBehavior(PlayerObject))
 	{
-		const auto& CurrentBehavior{ m_Intelligence->PeekBehavior(PlayerObject) };
+		const auto& CurrentBehavior{ m_Intelligence->PeekFrontBehavior(PlayerObject) };
 		if (CurrentBehavior.eBehaviorType == EBehaviorType::Jump) return;
 
 		m_Intelligence->PopFrontBehaviorIf(PlayerObject, EBehaviorType::WalkTo);
@@ -2386,6 +2474,7 @@ void CGame::JumpPlayer(float JumpSpeed)
 	SBehaviorData BehaviorData{};
 	BehaviorData.eBehaviorType = EBehaviorType::Jump;
 	BehaviorData.Scalar = JumpSpeed;
+	BehaviorData.bIsPlayer = true;
 	m_Intelligence->PushFrontBehavior(PlayerObject, BehaviorData);
 }
 
@@ -2428,6 +2517,48 @@ void CGame::ClearLights()
 		Light->ClearInstances();
 	}
 	m_LightRep->ClearInstances();
+}
+
+bool CGame::InsertPattern(const std::string& FileName)
+{
+	if (m_umapPatternFileNameToIndex.find(FileName) != m_umapPatternFileNameToIndex.end()) return false;
+
+	m_vPatterns.emplace_back(make_unique<CPattern>());
+	m_vPatterns.back()->Load(FileName.c_str());
+	m_umapPatternFileNameToIndex[FileName] = m_vPatterns.size() - 1;
+
+	return false;
+}
+
+void CGame::DeletePattern(const std::string& FileName)
+{
+	if (m_umapPatternFileNameToIndex.find(FileName) != m_umapPatternFileNameToIndex.end())
+	{
+		size_t At{ m_umapPatternFileNameToIndex.at(FileName) };
+		if (At < m_vPatterns.size() - 1)
+		{
+			swap(m_umapPatternFileNameToIndex[m_vPatterns.back()->GetFileName()], m_umapPatternFileNameToIndex[FileName]);
+			swap(m_vPatterns[At], m_vPatterns.back());
+		}
+
+		m_vPatterns.pop_back();
+		m_umapPatternFileNameToIndex.erase(FileName);
+	}
+}
+
+void CGame::ClearPatterns()
+{
+	m_vPatterns.clear();
+	m_umapPatternFileNameToIndex.clear();
+}
+
+CPattern* CGame::GetPattern(const std::string& FileName)
+{
+	if (m_umapPatternFileNameToIndex.find(FileName) != m_umapPatternFileNameToIndex.end())
+	{
+		return m_vPatterns[m_umapPatternFileNameToIndex.at(FileName)].get();
+	}
+	return nullptr;
 }
 
 bool CGame::SetMode(EMode eMode)
@@ -3672,8 +3803,12 @@ void CGame::Update()
 	m_TimePrev_ms = m_TimeNow_ms;
 	++m_FrameCounter;
 
-	m_Intelligence->Execute(); // @important
-
+	// Intelligence
+	if (GetMode() != EMode::Edit)
+	{
+		m_Intelligence->Execute();
+	}
+	
 	// Physics engine
 	if (GetMode() != EMode::Edit)
 	{
@@ -4695,7 +4830,7 @@ void CGame::DrawEditorGUIMenuBar()
 
 		if (bShowDialogLoadTerrain)
 		{
-			static CFileDialog FileDialog{ GetWorkingDirectory() };
+			static CFileDialog FileDialog{ GetAssetDirectory() };
 			if (FileDialog.OpenFileDialog("지형 파일(*.terr)\0*.terr\0", "지형 파일 불러오기"))
 			{
 				LoadTerrain(FileDialog.GetRelativeFileName());
@@ -4706,7 +4841,7 @@ void CGame::DrawEditorGUIMenuBar()
 		{
 			if (GetTerrain())
 			{
-				static CFileDialog FileDialog{ GetWorkingDirectory() };
+				static CFileDialog FileDialog{ GetAssetDirectory() };
 				if (FileDialog.SaveFileDialog("지형 파일(*.terr)\0*.terr\0", "지형 파일 내보내기", ".terr"))
 				{
 					SaveTerrain(FileDialog.GetRelativeFileName());
@@ -5214,7 +5349,7 @@ void CGame::DrawEditorGUIPopupObjectAdder()
 
 		if (bShowDialogLoad3DModel)
 		{
-			static CFileDialog FileDialog{ GetWorkingDirectory() };
+			static CFileDialog FileDialog{ GetAssetDirectory() };
 			if (FileDialog.OpenFileDialog("FBX 파일\0*.fbx\0MESH 파일\0*.mesh\0OB3D 파일\0*.ob3d\0모든 파일\0*.*\0", "모델 불러오기"))
 			{
 				strcpy_s(ModelFileNameWithPath, FileDialog.GetRelativeFileName().c_str());
@@ -5759,7 +5894,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 											if (ImGui::Button(u8"저장"))
 											{
-												static CFileDialog FileDialog{ GetWorkingDirectory() };
+												static CFileDialog FileDialog{ GetAssetDirectory() };
 												if (FileDialog.SaveFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 저장", ".dds"))
 												{
 													Object3D->BakeAnimationTexture();
@@ -5772,7 +5907,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 										if (ImGui::Button(u8"열기"))
 										{
-											static CFileDialog FileDialog{ GetWorkingDirectory() };
+											static CFileDialog FileDialog{ GetAssetDirectory() };
 											if (FileDialog.OpenFileDialog("애니메이션 텍스처 파일(*.dds)\0*.dds\0", "애니메이션 텍스처 불러오기"))
 											{
 												Object3D->LoadBakedAnimationTexture(FileDialog.GetRelativeFileName());
@@ -5865,7 +6000,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 								if (ImGui::Button(u8"불러오기"))
 								{
-									static CFileDialog FileDialog{ GetWorkingDirectory() };
+									static CFileDialog FileDialog{ GetAssetDirectory() };
 									if (FileDialog.OpenFileDialog("모델 파일(*.fbx)\0*.fbx\0", "애니메이션 불러오기"))
 									{
 										strcpy_s(FileName, FileDialog.GetRelativeFileName().c_str());
@@ -5978,6 +6113,78 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 								}
 
 								ImGui::EndPopup();
+							}
+
+							ImGui::Separator();
+
+							// 인스턴스 인공지능 패턴
+							if (SelectionData.eObjectType == EObjectType::Object3DInstance)
+							{
+								if (ImGui::TreeNodeEx(u8"인공지능"))
+								{
+									CObject3D* Object3D{ (CObject3D*)SelectionData.PtrObject };
+									SObjectIdentifier Identifier{ SObjectIdentifier(Object3D, 
+										((const CObject3D*)Object3D)->GetInstanceCPUData(SelectionData.Name).Name.c_str()) };
+
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text(u8"연결된 패턴:");
+									ImGui::SameLine(ItemsOffsetX);
+									ImGui::AlignTextToFramePadding();
+									if (m_Intelligence->HasPattern(Identifier))
+									{
+										ImGui::Text(m_Intelligence->GetPattern(Identifier)->GetFileName().c_str());
+									}
+									else
+									{
+										ImGui::Text(u8"없음");
+									}
+
+									if (ImGui::Button(u8"패턴 연결")) ImGui::OpenPopup(u8"패턴 목록");
+									ImGui::SetNextWindowSize(ImVec2(240, 160), ImGuiCond_Appearing);
+									if (ImGui::BeginPopupModal(u8"패턴 목록", nullptr))
+									{
+										static size_t iSelectedPattern{};
+										bool bClosing{ false };
+
+										if (ImGui::Button(u8"닫기")) bClosing = true;
+
+										if (m_vPatterns.size())
+										{
+											ImGui::SameLine();
+
+											if (ImGui::Button(u8"결정"))
+											{
+												m_Intelligence->RegisterPattern(Identifier, m_vPatterns[iSelectedPattern].get());
+
+												bClosing = true;
+											}
+										}
+										else
+										{
+											ImGui::Text(u8"패턴이 존재하지 않습니다.");
+										}
+
+										size_t iPattern{};
+										for (const auto& Pattern : m_vPatterns)
+										{
+											if (ImGui::Selectable(Pattern->GetFileName().c_str(), iSelectedPattern == iPattern, 
+												ImGuiSelectableFlags_DontClosePopups))
+											{
+												iSelectedPattern = iPattern;
+											}
+										}
+
+										if (bClosing)
+										{
+											iSelectedPattern = 0;
+											ImGui::CloseCurrentPopup();
+										}
+
+										ImGui::EndPopup();
+									}
+
+									ImGui::TreePop();
+								}
 							}
 
 							break;
@@ -6566,7 +6773,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 						{
 							if (ImGui::Button(u8"추가"))
 							{
-								static CFileDialog FileDialog{ GetWorkingDirectory() };
+								static CFileDialog FileDialog{ GetAssetDirectory() };
 								if (FileDialog.OpenFileDialog("모델 파일(*.fbx)\0*.fbx\0", "초목 오브젝트 불러오기"))
 								{
 									vFoliageFileNames.emplace_back(FileDialog.GetRelativeFileName());
@@ -6651,44 +6858,111 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					float ItemsOffsetX{ WindowWidth - ItemsWidth - 20 };
 
 					ImGui::PushItemWidth(ItemsWidth);
-
-					float FloorHeight{ m_PhysicsEngine.GetWorldFloorHeight() };
-					ImGui::AlignTextToFramePadding();
-					ImGui::Text(u8"World 바닥 높이");
-					ImGui::SameLine(ItemsOffsetX);
-					if (ImGui::DragFloat(u8"##World 바닥 높이", &FloorHeight, 0.1f))
 					{
-						m_PhysicsEngine.SetWorldFloorHeight(FloorHeight);
-					}
 
-					ImGui::Separator();
-
-					// 장면 재질
-					ImGui::AlignTextToFramePadding();
-					ImGui::Text(u8"장면 재질");
-					{
-						static CMaterialData* capturedMaterialData{};
-						static CMaterialTextureSet* capturedMaterialTextureSet{};
-						static ETextureType eCapturedTextureType{};
-						if (!ImGui::IsPopupOpen(u8"텍스처탐색기")) m_EditorGUIBools.bShowPopupMaterialTextureExplorer = false;
-
-						if (DrawEditorGUIWindowPropertyEditor_MaterialData(*m_SceneMaterial, m_SceneMaterialTextureSet.get(), 
-							eCapturedTextureType, ItemsWidth, true))
+						float FloorHeight{ m_PhysicsEngine.GetWorldFloorHeight() };
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"World 바닥 높이");
+						ImGui::SameLine(ItemsOffsetX);
+						if (ImGui::DragFloat(u8"##World 바닥 높이", &FloorHeight, 0.1f))
 						{
-							capturedMaterialData = m_SceneMaterial.get();
-							capturedMaterialTextureSet = m_SceneMaterialTextureSet.get();
-
-							UpdateSceneMaterial();
+							m_PhysicsEngine.SetWorldFloorHeight(FloorHeight);
 						}
 
-						if (DrawEditorGUIPopupMaterialTextureExplorer(capturedMaterialData, capturedMaterialTextureSet, eCapturedTextureType))
+						ImGui::Separator();
+
+						// 장면 재질
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"장면 재질");
 						{
-							UpdateSceneMaterial();
+							static CMaterialData* capturedMaterialData{};
+							static CMaterialTextureSet* capturedMaterialTextureSet{};
+							static ETextureType eCapturedTextureType{};
+							if (!ImGui::IsPopupOpen(u8"텍스처탐색기")) m_EditorGUIBools.bShowPopupMaterialTextureExplorer = false;
+
+							if (DrawEditorGUIWindowPropertyEditor_MaterialData(*m_SceneMaterial, m_SceneMaterialTextureSet.get(),
+								eCapturedTextureType, ItemsWidth, true))
+							{
+								capturedMaterialData = m_SceneMaterial.get();
+								capturedMaterialTextureSet = m_SceneMaterialTextureSet.get();
+
+								UpdateSceneMaterial();
+							}
+
+							if (DrawEditorGUIPopupMaterialTextureExplorer(capturedMaterialData, capturedMaterialTextureSet, eCapturedTextureType))
+							{
+								UpdateSceneMaterial();
+							}
+
+							ImGui::EndTabItem();
 						}
 
-						ImGui::EndTabItem();
+						ImGui::Separator();
+
+						// 인공지능 패턴
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text(u8"인공지능 패턴");
+						if (ImGui::TreeNodeEx(u8"패턴 목록", ImGuiTreeNodeFlags_DefaultOpen))
+						{
+							static size_t iSelectedPattern{};
+
+							if (ImGui::Button(u8"불러오기"))
+							{
+								static CFileDialog FileDialog{ GetAssetDirectory() };
+								if (FileDialog.OpenFileDialog("패턴 파일(*.ptrn)\0*.ptrn\0", "인공지능 패턴 파일 불러오기"))
+								{
+									InsertPattern(FileDialog.GetRelativeFileName());
+								}
+							}
+							
+							ImGui::SameLine();
+
+							if (m_vPatterns.size())
+							{
+								if (ImGui::Button(u8"내용 보기")) ImGui::OpenPopup(u8"패턴 파일 보기");
+							}
+
+							ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_Appearing);
+							if (ImGui::BeginPopupModal(u8"패턴 파일 보기", nullptr, ImGuiWindowFlags_NoScrollbar))
+							{
+								const ImVec2 WindowSize{ ImGui::GetWindowSize() };
+								ImVec2 ChildSizeMax{ WindowSize };
+								ChildSizeMax.x -= 15;
+								ChildSizeMax.y -= 50;
+
+								ImGui::BeginChild(u8"메뉴", ImVec2(ChildSizeMax.x, 30));
+								{
+									if (ImGui::Button(u8"닫기"))
+									{
+										ImGui::CloseCurrentPopup();
+									}
+								}
+								ImGui::EndChild();
+
+								ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(0, 0, 0, 1.0));
+								ImGui::BeginChild(u8"내용", ImVec2(ChildSizeMax.x, ChildSizeMax.y - 30));
+								{
+									ImGui::Text(m_vPatterns[iSelectedPattern]->GetFileContent().c_str());
+								}
+								ImGui::EndChild();
+								ImGui::PopStyleColor();
+								
+								ImGui::EndPopup();
+							}
+
+							size_t iPattern{};
+							for (const auto& Pattern : m_vPatterns)
+							{
+								if (ImGui::Selectable(Pattern->GetFileName().c_str(), (iSelectedPattern == iPattern)))
+								{
+									iSelectedPattern = iPattern;
+								}
+								++iPattern;
+							}
+						}
+
+						ImGui::TreePop();
 					}
-					
 					ImGui::PopItemWidth();
 				}
 
@@ -6705,7 +6979,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					{
 						if (ImGui::Button(u8"불러오기"))
 						{
-							static CFileDialog FileDialog{ GetWorkingDirectory() };
+							static CFileDialog FileDialog{ GetAssetDirectory() };
 							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0HDR 파일\0*.hdr\0", "Environment map 불러오기"))
 							{
 								m_EnvironmentTexture->CreateCubeMapFromFile(FileDialog.GetRelativeFileName());
@@ -6727,7 +7001,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 							if (ImGui::Button(u8"내보내기"))
 							{
-								static CFileDialog FileDialog{ GetWorkingDirectory() };
+								static CFileDialog FileDialog{ GetAssetDirectory() };
 								if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.DDS\0", "Environment map 내보내기", ".DDS"))
 								{
 									m_EnvironmentTexture->SaveDDSFile(FileDialog.GetRelativeFileName());
@@ -6750,7 +7024,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					{
 						if (ImGui::Button(u8"불러오기"))
 						{
-							static CFileDialog FileDialog{ GetWorkingDirectory() };
+							static CFileDialog FileDialog{ GetAssetDirectory() };
 							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0", "Irradiance map 불러오기"))
 							{
 								m_IrradianceTexture->CreateCubeMapFromFile(FileDialog.GetRelativeFileName());
@@ -6789,7 +7063,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 							if (ImGui::Button(u8"내보내기"))
 							{
-								static CFileDialog FileDialog{ GetWorkingDirectory() };
+								static CFileDialog FileDialog{ GetAssetDirectory() };
 								if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.dds\0", "Irradiance map 내보내기", ".dds"))
 								{
 									m_IrradianceTexture->SaveDDSFile(FileDialog.GetRelativeFileName());
@@ -6814,7 +7088,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					{
 						if (ImGui::Button(u8"불러오기"))
 						{
-							static CFileDialog FileDialog{ GetWorkingDirectory() };
+							static CFileDialog FileDialog{ GetAssetDirectory() };
 							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0", "Prefiltered radiance map 불러오기"))
 							{
 								m_PrefilteredRadianceTexture->CreateCubeMapFromFile(FileDialog.GetRelativeFileName());
@@ -6851,7 +7125,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 							if (ImGui::Button(u8"내보내기"))
 							{
-								static CFileDialog FileDialog{ GetWorkingDirectory() };
+								static CFileDialog FileDialog{ GetAssetDirectory() };
 								if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.DDS\0", "Prefiltered radiance map 내보내기", ".DDS"))
 								{
 									m_PrefilteredRadianceTexture->SaveDDSFile(FileDialog.GetRelativeFileName());
@@ -6874,7 +7148,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 					{
 						if (ImGui::Button(u8"불러오기"))
 						{
-							static CFileDialog FileDialog{ GetWorkingDirectory() };
+							static CFileDialog FileDialog{ GetAssetDirectory() };
 							if (FileDialog.OpenFileDialog("DDS 파일\0*.dds\0", "Integrated BRDF map 불러오기"))
 							{
 								m_IntegratedBRDFTexture->CreateTextureFromFile(FileDialog.GetRelativeFileName(), false);
@@ -6898,7 +7172,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 							if (ImGui::Button(u8"내보내기"))
 							{
-								static CFileDialog FileDialog{ GetWorkingDirectory() };
+								static CFileDialog FileDialog{ GetAssetDirectory() };
 								if (FileDialog.SaveFileDialog("DDS 파일(*.DDS)\0*.DDS\0", "Integrated BRDF map 내보내기", ".DDS"))
 								{
 									m_IntegratedBRDFTexture->SaveDDSFile(FileDialog.GetRelativeFileName(), true);
@@ -7422,7 +7696,7 @@ bool CGame::DrawEditorGUIPopupMaterialTextureExplorer(CMaterialData* const captu
 
 		if (ImGui::Button(u8"파일에서 텍스처 불러오기"))
 		{
-			static CFileDialog FileDialog{ GetWorkingDirectory() };
+			static CFileDialog FileDialog{ GetAssetDirectory() };
 			if (FileDialog.OpenFileDialog(KTextureDialogFilter, KTextureDialogTitle))
 			{
 				capturedMaterialData->SetTextureFileName(eSelectedTextureType, FileDialog.GetRelativeFileName());
@@ -7464,9 +7738,17 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 		if (ImGui::Begin(u8"장면 편집기", &m_EditorGUIBools.bShowWindowSceneEditor, ImGuiWindowFlags_AlwaysAutoResize))
 		{
 			// 장면 내보내기
+			if (ImGui::Button(u8"장면 비우기"))
+			{
+				EmptyScene();
+			}
+
+			ImGui::SameLine();
+
+			// 장면 내보내기
 			if (ImGui::Button(u8"장면 내보내기"))
 			{
-				static CFileDialog FileDialog{ GetWorkingDirectory() };
+				static CFileDialog FileDialog{ GetSceneDirectory() };
 				if (FileDialog.SaveFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 내보내기", ".scene"))
 				{
 					SaveScene(FileDialog.GetRelativeFileName(), "Scene\\" + FileDialog.GetFileNameWithoutExt() + '\\');
@@ -7478,7 +7760,8 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 			// 장면 불러오기
 			if (ImGui::Button(u8"장면 불러오기"))
 			{
-				static CFileDialog FileDialog{ GetWorkingDirectory() };
+				static CFileDialog FileDialog{ GetSceneDirectory() };
+				
 				if (FileDialog.OpenFileDialog("장면 파일(*.scene)\0*.scene\0", "장면 불러오기"))
 				{
 					LoadScene(FileDialog.GetRelativeFileName(), "Scene\\" + FileDialog.GetFileNameWithoutExt() + '\\');
@@ -7496,7 +7779,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 			// 오브젝트 저장
 			if (ImGui::Button(u8"오브젝트 저장"))
 			{
-				static CFileDialog FileDialog{ GetWorkingDirectory() };
+				static CFileDialog FileDialog{ GetAssetDirectory() };
 				if (m_vSelectionData.size() == 1)
 				{
 					const SSelectionData& SelectionData{ m_vSelectionData.back() };
@@ -8042,11 +8325,6 @@ auto CGame::GetDepthStencilStateLessEqualNoWrite() const -> ID3D11DepthStencilSt
 auto CGame::GetBlendStateAlphaToCoverage() const -> ID3D11BlendState*
 {
 	return m_BlendAlphaToCoverage.Get();
-}
-
-auto CGame::GetWorkingDirectory() const -> const char*
-{
-	return m_WorkingDirectory;
 }
 
 auto CGame::GetDeltaTime() const -> float

@@ -1,9 +1,10 @@
 #pragma once
 
 #include "../Core/SharedHeader.h"
+#include "Pattern.h"
 
 class CObject3D;
-class CIntelligence;
+class CPhysicsEngine;
 
 enum class EObjectPriority
 {
@@ -28,6 +29,7 @@ struct SBehaviorData
 	EBehaviorType	eBehaviorType{};
 	XMVECTOR		Vector{};
 	float			Scalar{ 1.0f };
+	bool			bIsPlayer{ false };
 
 private:
 	enum class EStatus
@@ -46,6 +48,16 @@ struct SBehaviorSet
 	std::deque<SBehaviorData>	dqBehaviors{};
 };
 
+struct SPatternInfo
+{
+	SPatternInfo() {}
+	SPatternInfo(const SObjectIdentifier& _ObjectIdentifier, CPattern* const _Pattern) : ObjectIdentifier{ _ObjectIdentifier }, Pattern { _Pattern } {}
+
+	SObjectIdentifier	ObjectIdentifier{};
+	CPattern*			Pattern{};
+	SPatternState		PatternState{};
+};
+
 class CIntelligence final
 {
 public:
@@ -53,39 +65,58 @@ public:
 	~CIntelligence();
 
 public:
+	void LinkPhysicsEngine(CPhysicsEngine* PhysicsEngine);
 	void ClearBehaviors();
 
 public:
 	void RegisterPriority(const SObjectIdentifier& Identifier, EObjectPriority ePriority, bool bShouldChangePriority = false);
 
 public:
+	void ClearBehavior(const SObjectIdentifier& Identifier);
 	void PushBackBehavior(const SObjectIdentifier& Identifier, const SBehaviorData& Behavior);
 	void PushFrontBehavior(const SObjectIdentifier& Identifier, const SBehaviorData& Behavior);
 	void PopFrontBehavior(const SObjectIdentifier& Identifier);
 	void PopFrontBehaviorIf(const SObjectIdentifier& Identifier, EBehaviorType eBehaviorType);
 	bool HasBehavior(const SObjectIdentifier& Identifier) const;
-	const SBehaviorData& PeekBehavior(const SObjectIdentifier& Identifier) const;
+	bool IsFrontBehavior(const SObjectIdentifier& Identifier, EBehaviorType eBehaviorType) const;
+	const SBehaviorData& PeekFrontBehavior(const SObjectIdentifier& Identifier) const;
+	const SBehaviorData& PeekBackBehavior(const SObjectIdentifier& Identifier) const;
+
+private:
+	SBehaviorSet& GetBehaviorSet(const SObjectIdentifier& Identifier);
+	const SBehaviorSet& GetBehaviorSet(const SObjectIdentifier& Identifier) const;
+
+public:
+	void RegisterPattern(const SObjectIdentifier& Identifier, CPattern* const Pattern);
+	bool HasPattern(const SObjectIdentifier& Identifier) const;
+	CPattern* GetPattern(const SObjectIdentifier& Identifier) const;
 
 public:
 	void Execute();
 
 private:
+	void ConvertPatternsIntoBehaviors();
 	void ExecuteBehavior(const SObjectIdentifier& Identifier, SBehaviorData& Behavior);
 
 private:
-	static constexpr size_t					KPriorityCount{ 3 };
+	static constexpr size_t							KPriorityCount{ 3 };
 
 private:
-	ID3D11Device* const						m_PtrDevice{};
-	ID3D11DeviceContext* const				m_PtrDeviceContext{};
+	ID3D11Device* const								m_PtrDevice{};
+	ID3D11DeviceContext* const						m_PtrDeviceContext{};
 
 private:
-	std::vector<SBehaviorSet>				m_vBehaviorSets[KPriorityCount]{};
-	std::unordered_map<std::string, size_t>	m_umapBehaviorSets[KPriorityCount]{};
-	std::unordered_map<std::string, size_t>	m_umapPriority{};
+	std::vector<SBehaviorSet>						m_vBehaviorSets[KPriorityCount]{};
+	std::unordered_map<std::string, size_t>			m_umapBehaviorSets[KPriorityCount]{};
+	std::unordered_map<std::string, size_t>			m_umapPriority{};
 
 private:
-	bool									m_bBehaviorStarted{ false };
-	XMVECTOR								m_SavedVector{};
-	XMVECTOR								m_SavedVectorXZ{};
+	std::vector<SPatternInfo>						m_vPatternInfos{};
+	std::unordered_map<std::string, size_t>			m_umapPatternInfos{};
+	CPhysicsEngine*									m_PhysicsEngine{};
+
+private:
+	bool											m_bBehaviorStarted{ false };
+	XMVECTOR										m_SavedVector{};
+	XMVECTOR										m_SavedVectorXZ{};
 };

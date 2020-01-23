@@ -743,6 +743,11 @@ float CObject3D::GetAnimationBehaviorStartTick(uint32_t AnimationID) const
 	return m_vAnimationBehaviorStartTicks[AnimationID];
 }
 
+float CObject3D::GetAnimationDuration(uint32_t AnimationID) const
+{
+	return m_Model->vAnimations[AnimationID].Duration;
+}
+
 const DirectX::XMMATRIX* CObject3D::GetAnimationBoneMatrices() const
 {
 	return m_AnimatedBoneMatrices;
@@ -778,6 +783,15 @@ uint32_t CObject3D::GetAnimationID(const SObjectIdentifier& Identifier) const
 	return GetObjectAnimationID();
 }
 
+size_t CObject3D::GetAnimationPlayCount(const SObjectIdentifier& Identifier) const
+{
+	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	{
+		return GetInstanceAnimationPlayCount(Identifier.PtrInstanceName);
+	}
+	return GetObjectAnimationPlayCount();
+}
+
 float CObject3D::GetCurrentAnimationBehaviorStartTick(const SObjectIdentifier& Identifier) const
 {
 	return GetAnimationBehaviorStartTick(GetAnimationID(Identifier));
@@ -798,6 +812,11 @@ uint32_t CObject3D::GetObjectAnimationID() const
 	return m_CurrentAnimationID;
 }
 
+size_t CObject3D::GetObjectAnimationPlayCount() const
+{
+	return m_CurrentAnimationPlayCount;
+}
+
 float CObject3D::GetObjectCurrentAnimationBehaviorStartTick() const
 {
 	return GetAnimationBehaviorStartTick(GetObjectAnimationID());
@@ -816,6 +835,11 @@ float CObject3D::GetInstanceAnimationTick(const std::string& InstanceName) const
 uint32_t CObject3D::GetInstanceAnimationID(const std::string& InstanceName) const
 {
 	return GetInstanceGPUData(InstanceName).CurrAnimID;
+}
+
+size_t CObject3D::GetInstanceAnimationPlayCount(const std::string& InstanceName) const
+{
+	return GetInstanceCPUData(InstanceName).CurrAnimPlayCount;
 }
 
 float CObject3D::GetInstanceCurrentAnimationBehaviorStartTick(const std::string& InstanceName) const

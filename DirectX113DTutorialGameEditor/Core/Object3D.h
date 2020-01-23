@@ -207,6 +207,7 @@ public:
 	EAnimationRegistrationType GetRegisteredAnimationType(uint32_t AnimationID) const;
 	float GetAnimationTicksPerSecond(uint32_t AnimationID) const;
 	float GetAnimationBehaviorStartTick(uint32_t AnimationID) const;
+	float GetAnimationDuration(uint32_t AnimationID) const;
 	const DirectX::XMMATRIX* GetAnimationBoneMatrices() const;
 
 // Animation info (identifier)
@@ -214,6 +215,7 @@ public:
 	bool IsCurrentAnimationRegisteredAs(const SObjectIdentifier& Identifier, EAnimationRegistrationType eRegistrationType) const;
 	float GetAnimationTick(const SObjectIdentifier& Identifier) const;
 	uint32_t GetAnimationID(const SObjectIdentifier& Identifier) const;
+	size_t GetAnimationPlayCount(const SObjectIdentifier& Identifier) const;
 	float GetCurrentAnimationBehaviorStartTick(const SObjectIdentifier& Identifier) const;
 
 // Animation info (object & instance)
@@ -221,11 +223,13 @@ private:
 	bool IsObjectCurrentAnimationRegisteredAs(EAnimationRegistrationType eRegistrationType) const;
 	float GetObjectAnimationTick() const;
 	uint32_t GetObjectAnimationID() const;
+	size_t GetObjectAnimationPlayCount() const;
 	float GetObjectCurrentAnimationBehaviorStartTick() const;
 
 	bool IsInstanceCurrentAnimationRegisteredAs(const std::string& InstanceName, EAnimationRegistrationType eRegistrationType) const;
 	float GetInstanceAnimationTick(const std::string& InstanceName) const;
 	uint32_t GetInstanceAnimationID(const std::string& InstanceName) const;
+	size_t GetInstanceAnimationPlayCount(const std::string& InstanceName) const;
 	float GetInstanceCurrentAnimationBehaviorStartTick(const std::string& InstanceName) const;
 
 // Animation baking (general)

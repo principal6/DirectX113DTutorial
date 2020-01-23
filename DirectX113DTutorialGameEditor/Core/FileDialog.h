@@ -5,11 +5,17 @@
 class CFileDialog final
 {
 public:
-	CFileDialog(const char* const WorkingDirectory) : m_WorkingDirectory{ WorkingDirectory } {}
+	CFileDialog() {}
+	CFileDialog(const std::string& InitialDirectory);
 	~CFileDialog() {}
 
 public:
+	// 예시
+	// ("모델 파일(*.fbx)\0*.fbx\0", "초목 오브젝트 불러오기")
 	bool OpenFileDialog(const char* const Filter, const char* const Title);
+
+	// 예시
+	// ("지형 파일(*.terr)\0*.terr\0", "지형 파일 내보내기", ".terr")
 	bool SaveFileDialog(const char* const Filter, const char* const Title, const char* const DefaultExtension);
 
 public:
@@ -21,9 +27,6 @@ public:
 	const std::string& GetCapitalExtension() const { return m_CapitalExtension; }
 
 private:
-	const char* const	m_WorkingDirectory{};
-
-private:
 	std::string			m_FileName{};
 	std::string			m_FileNameWithoutPath{};
 	std::string			m_FileNameWithoutExt{};
@@ -31,4 +34,7 @@ private:
 	std::string			m_RelativeFileName{};
 	std::string			m_CapitalExtension{};
 	OPENFILENAME		m_OpenFileName{};
+
+private:
+	std::string			m_InitialDirectory{};
 };

@@ -133,7 +133,9 @@ enum class EAnimationRegistrationType
 	Idle,
 	Walking,
 	Jumping,
-	Landing
+	Landing,
+	AttackingA,
+	AttackingB
 };
 
 static const char* KRegisteredAnimationTypeNames[]
@@ -142,7 +144,9 @@ static const char* KRegisteredAnimationTypeNames[]
 	u8"Idle",
 	u8"Walking",
 	u8"Jumping",
-	u8"Landing"
+	u8"Landing",
+	u8"AttackingA",
+	u8"AttackingB"
 };
 
 enum class EAnimationOption

@@ -4,15 +4,18 @@
 #include <string>
 #include <memory>
 #include <unordered_map>
-#include "Core/SharedHeader.h"
+#include "../Core/SharedHeader.h"
 
 class CSyntaxTree;
 struct SSyntaxTreeNode;
 
 struct SPatternState
 {
-	size_t StateID{};
-	size_t InstructionIndex{};
+	SPatternState() {}
+	SPatternState(const XMVECTOR* const _MyPosition) : MyPosition{ _MyPosition } {}
+
+	size_t			StateID{};
+	size_t			InstructionIndex{};
 	const XMVECTOR* MyPosition{};
 	const XMVECTOR* EnemyPosition{};
 };
@@ -31,6 +34,10 @@ public:
 
 public:
 	const SSyntaxTreeNode* Execute(SPatternState& PatternState);
+
+public:
+	const std::string& GetFileName() const;
+	const std::string& GetFileContent() const;
 
 private:
 	bool ExecuteIfNode(const SSyntaxTreeNode* const IfNode);
@@ -61,4 +68,8 @@ private:
 
 private:
 	std::unique_ptr<CSyntaxTree>			m_InstructionSyntaxTree{};
+
+private:
+	std::string								m_FileName{};
+	std::string								m_FileContent{};
 };

@@ -25,6 +25,7 @@
 #include "Gizmo3D.h"
 #include "../Physics/PhysicsEngine.h"
 #include "../AI/Intelligence.h"
+#include "../AI/Pattern.h"
 
 #include "TinyXml2/tinyxml2.h"
 #include "ImGui/imgui.h"
@@ -376,22 +377,29 @@ private:
 	void InitializeImGui(const std::string& FontFileName, float FontSize);
 
 private:
-	void CreateSwapChain(bool bWindowed);
-	void CreateViews();
-	void InitializeViewports();
-	void CreateDepthStencilStates();
-	void CreateBlendStates();
-	void CreateRasterizerStates();
-	void CreateInputDevices();
-	void CreateConstantBuffers();
-	void CreateBaseShaders();
-	void CreateMiniAxes();
-	void CreatePickingRay();
-	void CreatePickedTriangle();
+	void _CreateSwapChain(bool bWindowed);
+	void _CreateViews();
+	void _InitializeViewports();
+	void _CreateDepthStencilStates();
+	void _CreateBlendStates();
+	void _CreateRasterizerStates();
+	void _CreateInputDevices();
+	void _CreateConstantBuffers();
+	void _CreateBaseShaders();
+	void _CreateMiniAxes();
+	void _CreatePickingRay();
+	void _CreatePickedTriangle();
 
 public:
-	void LoadScene(const std::string& FileName, const std::string& SceneDirectory);
-	void SaveScene(const std::string& FileName, const std::string& SceneDirectory);
+	void SetAssetDirectory(const std::string& Directory);
+	void SetSceneDirectory(const std::string& Directory);
+	const std::string& GetAssetDirectory() const;
+	const std::string& GetSceneDirectory() const;
+
+public:
+	void EmptyScene();
+	void LoadScene(const std::string& FileName, const std::string& SceneContentDirectory);
+	void SaveScene(const std::string& FileName, const std::string& SceneContentDirectory);
 
 	// Advanced settings
 public:
@@ -501,6 +509,12 @@ public:
 	void ClearLights();
 
 public:
+	bool InsertPattern(const std::string& FileName);
+	void DeletePattern(const std::string& FileName);
+	void ClearPatterns();
+	CPattern* GetPattern(const std::string& FileName);
+
+public:
 	bool SetMode(EMode eMode);
 	EMode GetMode() const { return m_eMode; }
 
@@ -568,7 +582,6 @@ public:
 	auto GetWindowSize() const->const XMFLOAT2&;
 	auto GetDepthStencilStateLessEqualNoWrite() const->ID3D11DepthStencilState*;
 	auto GetBlendStateAlphaToCoverage() const->ID3D11BlendState*;
-	auto GetWorkingDirectory() const->const char*;
 	auto GetDeltaTime() const->float;
 
 private:
@@ -903,6 +916,8 @@ private:
 private:
 	std::unique_ptr<CMaterialData>			m_SceneMaterial{};
 	std::unique_ptr<CMaterialTextureSet>	m_SceneMaterialTextureSet{};
+	std::vector<std::unique_ptr<CPattern>>	m_vPatterns{};
+	std::unordered_map<std::string, size_t> m_umapPatternFileNameToIndex{};
 
 // IBL
 private:
@@ -972,7 +987,8 @@ private:
 	HWND									m_hWnd{};
 	HINSTANCE								m_hInstance{};
 	XMFLOAT2								m_WindowSize{};
-	char									m_WorkingDirectory[MAX_PATH]{};
+	std::string								m_AssetDirectory{ "Asset\\" };
+	std::string								m_SceneDirectory{ "Scene\\" };
 };
 
 ENUM_CLASS_FLAG(CGame::EFlagsRendering)

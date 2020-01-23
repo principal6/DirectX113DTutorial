@@ -33,7 +33,6 @@ void CAnalyzer::Analyze(const std::vector<std::string>& vTokens)
 	OrganizeFunctionNodes(m_SyntaxTree->GetRootNode());
 	OrganizeCastingNodes(m_SyntaxTree->GetRootNode());
 
-
 	OrganizeUnaryOperatorNodes(m_SyntaxTree->GetRootNode(), "+");
 	OrganizeUnaryOperatorNodes(m_SyntaxTree->GetRootNode(), "-");
 	OrganizeUnaryOperatorNodes(m_SyntaxTree->GetRootNode(), "!");

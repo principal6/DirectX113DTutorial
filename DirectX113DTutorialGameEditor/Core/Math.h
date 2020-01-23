@@ -74,19 +74,20 @@ static int GetRandom(int Min, int Max)
 {
 	if (Min >= Max) return Min;
 
-	return (rand() % (Max - Min + 1)) + Min;
+	int Range{ Max - Min };
+	float NormalRandom{ (float)rand() / (float)RAND_MAX };
+	int ScaledRandom{ static_cast<int>(NormalRandom * (float)Range) };
+	return (Min + ScaledRandom);
 }
 
 static float GetRandom(float Min, float Max)
 {
 	if (Min >= Max) return Min;
 
-	constexpr float KFreedom{ 100.0f };
 	float Range{ Max - Min };
-	int IntRange{ (int)(KFreedom * Range) };
-	int IntRangeHalf{ (int)(IntRange / 2) };
-
-	return static_cast<float>((rand() % (IntRange + 1) / KFreedom) + Min);
+	float NormalRandom{ (float)rand() / (float)RAND_MAX };
+	float ScaledRandom{ NormalRandom * Range };
+	return (Min + ScaledRandom);
 }
 
 static bool IntersectPointSphere(const XMVECTOR& PointInSpace, float SphereRadius, const XMVECTOR& SphereCenter)
