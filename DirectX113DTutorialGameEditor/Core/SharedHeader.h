@@ -4,13 +4,13 @@
 
 #include <string>
 #include <vector>
+#include <memory>
+#include <unordered_map>
+#include <map>
 #include <cassert>
 #include <d3d11.h>
 #include <wrl.h>
-#include <memory>
 #include <algorithm>
-#include <map>
-#include <unordered_map>
 #include <deque>
 #include "../DirectXTK/DirectXTK.h"
 #include "../DirectXTex/DirectXTex.h"

@@ -167,6 +167,7 @@
     <ClInclude Include="AI\Analyzer.h" />
     <ClInclude Include="AI\Intelligence.h" />
     <ClInclude Include="AI\Pattern.h" />
+    <ClInclude Include="AI\PatternTypes.h" />
     <ClInclude Include="AI\SyntaxTree.h" />
     <ClInclude Include="AI\Tokenizer.h" />
     <ClInclude Include="Assimp\aabb.h" />

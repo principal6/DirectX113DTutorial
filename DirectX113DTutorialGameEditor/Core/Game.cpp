@@ -3599,6 +3599,7 @@ void CGame::Update()
 		if (m_TimePrev_ms == 0) m_TimePrev_ms = m_TimeNow_ms;
 		if (m_Timer_Test_ms == 0) m_Timer_Test_ms = m_TimePrev_ms;
 		m_DeltaTime_s = static_cast<float>(0.001 * (m_TimeNow_ms - m_TimePrev_ms));
+		m_DeltaTime_s = min(m_DeltaTime_s, 0.0625f);
 
 		if (m_bIsTestTimerPaused)
 		{

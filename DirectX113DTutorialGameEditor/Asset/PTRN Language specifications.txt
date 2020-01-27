@@ -30,3 +30,26 @@
 // if (), else
 // #state []
 // 
+// ### AVAILABLE INTRINSIC FUNCTION LIST ###
+// set_value(variable_name, value);
+//  => variable_name: 'WalkSpeed'
+// set_state(state_name);
+// random(min, max);
+//
+// ### AVAILABLE FUNCTION LIST ###
+// Walk(time_in_seconds); // clear all the behaviors
+// WalkTo(position_prime); // clear all the behaviors
+// RotateYaw(delta_yaw); // no behavior
+// RotateYawTo(target_position); // no behavior
+// Wait(time_in_seconds); // no behavior
+// Attack(); // clear other behaviors
+//
+// ### AVAILABLE VALUE LIST ###
+// @ enemy is 'closest player' in 'normal' state
+// EnemyPosition.xyz
+// DistanceToEnemy
+//
+// ### 16 floats of stack per Pattern
+//
+// ### first state is the initial state
+//

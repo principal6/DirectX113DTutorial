@@ -1,24 +1,10 @@
 #pragma once
 
-#include <vector>
-#include <string>
-#include <memory>
-#include <unordered_map>
 #include "../Core/SharedHeader.h"
+#include "PatternTypes.h"
 
 class CSyntaxTree;
 struct SSyntaxTreeNode;
-
-struct SPatternState
-{
-	SPatternState() {}
-	SPatternState(const XMVECTOR* const _MyPosition) : MyPosition{ _MyPosition } {}
-
-	size_t			StateID{};
-	size_t			InstructionIndex{};
-	const XMVECTOR* MyPosition{};
-	const XMVECTOR* EnemyPosition{};
-};
 
 class CPattern
 {
@@ -44,9 +30,9 @@ private:
 	void _ExecuteIfNode(SSyntaxTreeNode*& Node);
 
 	void ExecuteFunctionNode(SSyntaxTreeNode*& Node);
-	void ExecuteVariableNode(SSyntaxTreeNode*& Node);
+	void ExecuteNonFunctionNode(SSyntaxTreeNode*& Node);
 
-	void ExecuteInstructionNode(const SSyntaxTreeNode* const ExecutionNode, size_t& InstructionIndex);
+	void ExecuteInstructionNode(const SSyntaxTreeNode* const ExecutionNode);
 
 private:
 	float GetVariableValue(const std::string& Identifier);
@@ -64,7 +50,7 @@ private:
 	std::unordered_map<std::string, size_t>	m_umapStackVariableNameToID{};
 
 private:
-	SPatternState							m_InternalState{};
+	SPatternState							m_CopiedState{};
 
 private:
 	std::unique_ptr<CSyntaxTree>			m_InstructionSyntaxTree{};

@@ -115,6 +115,7 @@ void CPattern::Load(const char* FileName)
 		Analyzer.AddOperator("}");
 		Analyzer.AddOperator("[");
 		Analyzer.AddOperator("]");
+		Analyzer.AddOperator("\'");
 		Analyzer.AddOperator("+");
 		Analyzer.AddOperator("-");
 		Analyzer.AddOperator("!");
@@ -159,34 +160,37 @@ const SSyntaxTreeNode* CPattern::Execute(SPatternState& PatternState)
 	if (!m_SyntaxTree) return nullptr;
 	if (!m_SyntaxTree->GetRootNode()) return nullptr;
 
-	m_InternalState.StateID = PatternState.StateID;
-	m_InternalState.MyPosition = PatternState.MyPosition;
-	m_InternalState.EnemyPosition = PatternState.EnemyPosition;
+	m_CopiedState = PatternState;
 
 	const auto& StateNode{ m_SyntaxTree->GetRootNode()->vChildNodes[PatternState.StateID] };
 	const auto& GroupingNode{ StateNode->vChildNodes.back() };
 
-	size_t ControlNodeCount{ GroupingNode->vChildNodes.size() };
-	for (size_t iControlNode = 0; iControlNode < ControlNodeCount; ++iControlNode)
+	size_t SubStateNodeCount{ GroupingNode->vChildNodes.size() };
+	for (size_t iSubStateNode = 0; iSubStateNode < SubStateNodeCount; ++iSubStateNode)
 	{
-		auto& ControlNode{ GroupingNode->vChildNodes[iControlNode] };
-		if (ControlNode->Identifier == "else" && iControlNode == ControlNodeCount - 1) // last else
+		auto& SubStateNode{ GroupingNode->vChildNodes[iSubStateNode] };
+
+		ExecuteFunctionNode(SubStateNode);
+
+		if (SubStateNode->Identifier == "else" && iSubStateNode == SubStateNodeCount - 1) // last else
 		{
-			ExecuteInstructionNode(ControlNode->vChildNodes.back(), PatternState.InstructionIndex);
+			ExecuteInstructionNode(SubStateNode->vChildNodes.back());
+
+			break;
 		}
-		if (ControlNode->Identifier == "if") // if, else if
+		if (SubStateNode->Identifier == "if") // if, else if
 		{
 			// process if
-			bool IfResult{ ExecuteIfNode(ControlNode) }; 
+			bool IfResult{ ExecuteIfNode(SubStateNode) }; 
 			if (IfResult)
 			{
-				ExecuteInstructionNode(ControlNode->vChildNodes.back(), PatternState.InstructionIndex);
+				ExecuteInstructionNode(SubStateNode->vChildNodes.back());
 			}
 
 			// process else if
-			if (iControlNode + 1 < ControlNodeCount)
+			if (iSubStateNode + 1 < SubStateNodeCount)
 			{
-				auto& NextControlNode{ GroupingNode->vChildNodes[iControlNode + 1] };
+				auto& NextControlNode{ GroupingNode->vChildNodes[iSubStateNode + 1] };
 				if (NextControlNode->Identifier == "else")
 				{
 					if (IfResult == true) break;
@@ -195,7 +199,7 @@ const SSyntaxTreeNode* CPattern::Execute(SPatternState& PatternState)
 		}
 	}
 
-	PatternState.StateID = m_InternalState.StateID;
+	PatternState = m_CopiedState;
 
 	return m_InstructionSyntaxTree->GetRootNode();
 }
@@ -261,19 +265,27 @@ void CPattern::_ExecuteIfNode(SSyntaxTreeNode*& Node)
 			}
 			else if (Node->Identifier == ">=")
 			{
-				Result = (Left >= Right);
+				float fLeft{ stof(Left) };
+				float fRight{ stof(Right) };
+				Result = (fLeft >= fRight);
 			}
 			else if (Node->Identifier == ">")
 			{
-				Result = (Left > Right);
+				float fLeft{ stof(Left) };
+				float fRight{ stof(Right) };
+				Result = (fLeft > fRight);
 			}
 			else if (Node->Identifier == "<=")
 			{
-				Result = (Left <= Right);
+				float fLeft{ stof(Left) };
+				float fRight{ stof(Right) };
+				Result = (fLeft <= fRight);
 			}
 			else if (Node->Identifier == "<")
 			{
-				Result = (Left < Right);
+				float fLeft{ stof(Left) };
+				float fRight{ stof(Right) };
+				Result = (fLeft < fRight);
 			}
 			else if (Node->Identifier == "&&")
 			{
@@ -317,6 +329,7 @@ void CPattern::ExecuteFunctionNode(SSyntaxTreeNode*& Node)
 {
 	if (!Node) return;
 	if (Node->vChildNodes.empty()) return;
+	if (Node->eType != SSyntaxTreeNode::EType::Identifier) return;
 
 	for (auto& Argument : Node->vChildNodes)
 	{
@@ -328,18 +341,16 @@ void CPattern::ExecuteFunctionNode(SSyntaxTreeNode*& Node)
 		else
 		{
 			// variable or literal node
-			if (Node->Identifier != "set_state" && Argument->eType != SSyntaxTreeNode::EType::Literal)
-			{
-				float Value{ GetVariableValue(Argument->Identifier) };
-				Argument->Identifier = to_string(Value);
-				Argument->eType = SSyntaxTreeNode::EType::Literal;
-			}
+			ExecuteNonFunctionNode(Argument);
 		}
 	}
 
 	if (Node->Identifier == "random")
 	{
 		assert(Node->vChildNodes.size() == 2);
+
+		ExecuteNonFunctionNode(Node->vChildNodes[0]);
+		ExecuteNonFunctionNode(Node->vChildNodes[1]);
 
 		float Min{ stof(Node->vChildNodes[0]->Identifier) };
 		float Max{ stof(Node->vChildNodes[1]->Identifier) };
@@ -354,24 +365,37 @@ void CPattern::ExecuteFunctionNode(SSyntaxTreeNode*& Node)
 	}
 	else if (Node->Identifier == "set_state")
 	{
-		m_InternalState.StateID = m_umapStateNameToID.at(Node->vChildNodes[0]->Identifier);
+		assert(Node->vChildNodes.size() == 1);
+
+		m_CopiedState.StateID = m_umapStateNameToID.at(Node->vChildNodes[0]->Identifier);
+	}
+	else if (Node->Identifier == "set_value")
+	{
+		assert(Node->vChildNodes.size() == 2);
+
+		if (Node->vChildNodes[0]->Identifier == "WalkSpeed")
+		{
+			ExecuteNonFunctionNode(Node->vChildNodes[1]);
+			float Value{ stof(Node->vChildNodes[1]->Identifier) };
+
+			m_CopiedState.WalkSpeed = Value;
+		}
 	}
 }
 
-void CPattern::ExecuteInstructionNode(const SSyntaxTreeNode* const ExecutionNode, size_t& InstructionIndex)
+void CPattern::ExecuteInstructionNode(const SSyntaxTreeNode* const ExecutionNode)
 {
 	if (!ExecutionNode) return;
 	if (ExecutionNode->vChildNodes.empty()) return;
 
-	InstructionIndex = min(InstructionIndex, ExecutionNode->vChildNodes.size() - 1);
-
-	if (InstructionIndex == 0)
+	m_CopiedState.InstructionIndex = min(m_CopiedState.InstructionIndex, ExecutionNode->vChildNodes.size() - 1);
+	if (m_CopiedState.InstructionIndex == 0)
 	{
 		m_StackCount = 0; // @important
 		m_umapStackVariableNameToID.clear();
 	}
 
-	const auto& CurrentNode{ ExecutionNode->vChildNodes[InstructionIndex] };
+	const auto& CurrentNode{ ExecutionNode->vChildNodes[m_CopiedState.InstructionIndex] };
 	const auto& FirstChildNode{ CurrentNode->vChildNodes.front() };
 	if (FirstChildNode->Identifier == "=" ||
 		FirstChildNode->Identifier == "+=" ||
@@ -382,7 +406,7 @@ void CPattern::ExecuteInstructionNode(const SSyntaxTreeNode* const ExecutionNode
 		// variable
 
 		m_InstructionSyntaxTree->CopyFrom(CurrentNode);
-		ExecuteVariableNode(m_InstructionSyntaxTree->GetRootNode());
+		ExecuteNonFunctionNode(m_InstructionSyntaxTree->GetRootNode());
 
 		if (m_umapStackVariableNameToID.find(CurrentNode->Identifier) != m_umapStackVariableNameToID.end())
 		{
@@ -405,11 +429,11 @@ void CPattern::ExecuteInstructionNode(const SSyntaxTreeNode* const ExecutionNode
 		ExecuteFunctionNode(m_InstructionSyntaxTree->GetRootNode());
 	}
 
-	++InstructionIndex;
-	if (InstructionIndex >= ExecutionNode->vChildNodes.size()) InstructionIndex = 0;
+	++m_CopiedState.InstructionIndex;
+	if (m_CopiedState.InstructionIndex >= ExecutionNode->vChildNodes.size()) m_CopiedState.InstructionIndex = 0;
 }
 
-void CPattern::ExecuteVariableNode(SSyntaxTreeNode*& Node)
+void CPattern::ExecuteNonFunctionNode(SSyntaxTreeNode*& Node)
 {
 	if (!Node) return;
 
@@ -446,27 +470,40 @@ void CPattern::ExecuteVariableNode(SSyntaxTreeNode*& Node)
 			// unary
 			if (Node->vChildNodes[0]->eType != SSyntaxTreeNode::EType::Literal)
 			{
-				ExecuteVariableNode(Node->vChildNodes[0]);
+				ExecuteNonFunctionNode(Node->vChildNodes[0]);
 			}
 
-			float Result{ stof(Node->vChildNodes[0]->Identifier) };
-			if (Node->Identifier == "-")
+			if (Node->vChildNodes[0]->Identifier == "true" ||
+				Node->vChildNodes[0]->Identifier == "false")
 			{
-				Result = -Result;
+				if (Node->Identifier == "!")
+				{
+					string Result{ (Node->vChildNodes[0]->Identifier == "true") ? "false" : "true" };
+					
+					CSyntaxTree::Substitute(SSyntaxTreeNode(Result, SSyntaxTreeNode::EType::Literal, Node->ParentNode), Node);
+				}
 			}
+			else
+			{
+				float Result{ stof(Node->vChildNodes[0]->Identifier) };
+				if (Node->Identifier == "-")
+				{
+					Result = -Result;
+				}
 
-			CSyntaxTree::Substitute(SSyntaxTreeNode(to_string(Result), SSyntaxTreeNode::EType::Literal, Node->ParentNode), Node);
+				CSyntaxTree::Substitute(SSyntaxTreeNode(to_string(Result), SSyntaxTreeNode::EType::Literal, Node->ParentNode), Node);
+			}
 		}
 		else if (ChildCount == 2)
 		{
 			// binary
 			if (Node->vChildNodes[0]->eType != SSyntaxTreeNode::EType::Literal)
 			{
-				ExecuteVariableNode(Node->vChildNodes[0]);
+				ExecuteNonFunctionNode(Node->vChildNodes[0]);
 			}
 			if (Node->vChildNodes[1]->eType != SSyntaxTreeNode::EType::Literal)
 			{
-				ExecuteVariableNode(Node->vChildNodes[1]);
+				ExecuteNonFunctionNode(Node->vChildNodes[1]);
 			}
 
 			float Left{ stof(Node->vChildNodes[0]->Identifier) };
@@ -502,19 +539,19 @@ float CPattern::GetVariableValue(const std::string& Identifier)
 
 	if (Identifier == "EnemyPosition.x")
 	{
-		return m_InternalState.EnemyPosition->m128_f32[0];
+		return m_CopiedState.EnemyPosition->m128_f32[0];
 	}
 	else if (Identifier == "EnemyPosition.y")
 	{
-		return m_InternalState.EnemyPosition->m128_f32[1];
+		return m_CopiedState.EnemyPosition->m128_f32[1];
 	}
 	else if (Identifier == "EnemyPosition.z")
 	{
-		return m_InternalState.EnemyPosition->m128_f32[2];
+		return m_CopiedState.EnemyPosition->m128_f32[2];
 	}
 	else if (Identifier == "DistanceToEnemy")
 	{
-		XMVECTOR Diff{ *m_InternalState.MyPosition - *m_InternalState.EnemyPosition };
+		XMVECTOR Diff{ *m_CopiedState.MyPosition - *m_CopiedState.EnemyPosition };
 		return XMVectorGetX(XMVector3Length(Diff));
 	}
 	else if (m_umapStackVariableNameToID.find(Identifier) != m_umapStackVariableNameToID.end())

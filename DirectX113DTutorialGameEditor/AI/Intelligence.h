@@ -1,10 +1,11 @@
 #pragma once
 
 #include "../Core/SharedHeader.h"
-#include "Pattern.h"
+#include "PatternTypes.h"
 
 class CObject3D;
 class CPhysicsEngine;
+class CPattern;
 
 enum class EObjectPriority
 {
@@ -48,18 +49,20 @@ struct SBehaviorSet
 	std::deque<SBehaviorData>	dqBehaviors{};
 };
 
-struct SPatternInfo
-{
-	SPatternInfo() {}
-	SPatternInfo(const SObjectIdentifier& _ObjectIdentifier, CPattern* const _Pattern) : ObjectIdentifier{ _ObjectIdentifier }, Pattern { _Pattern } {}
-
-	SObjectIdentifier	ObjectIdentifier{};
-	CPattern*			Pattern{};
-	SPatternState		PatternState{};
-};
-
 class CIntelligence final
 {
+private:
+	struct SInternalPatternData
+	{
+		SInternalPatternData() {}
+		SInternalPatternData(const SObjectIdentifier& _ObjectIdentifier, CPattern* const _Pattern) : 
+			ObjectIdentifier{ _ObjectIdentifier }, Pattern{ _Pattern } {}
+
+		SObjectIdentifier	ObjectIdentifier{};
+		CPattern*			Pattern{};
+		SPatternState		PatternState{};
+	};
+
 public:
 	CIntelligence(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext);
 	~CIntelligence();
@@ -111,7 +114,7 @@ private:
 	std::unordered_map<std::string, size_t>			m_umapPriority{};
 
 private:
-	std::vector<SPatternInfo>						m_vPatternInfos{};
+	std::vector<SInternalPatternData>				m_vInternalPatternData{};
 	std::unordered_map<std::string, size_t>			m_umapPatternInfos{};
 	CPhysicsEngine*									m_PhysicsEngine{};
 

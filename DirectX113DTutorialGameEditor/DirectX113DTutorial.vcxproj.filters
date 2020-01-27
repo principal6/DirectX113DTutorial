@@ -534,6 +534,9 @@
     <ClInclude Include="AI\Pattern.h">
       <Filter>AI</Filter>
     </ClInclude>
+    <ClInclude Include="AI\PatternTypes.h">
+      <Filter>AI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Library Include="DirectXTK\DirectXTK.lib">

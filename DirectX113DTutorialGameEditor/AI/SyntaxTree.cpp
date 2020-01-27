@@ -42,6 +42,7 @@ void CSyntaxTree::MoveChildrenAsTail(SSyntaxTreeNode*& From, SSyntaxTreeNode*& T
 
 	for (auto& iter : From->vChildNodes)
 	{
+		iter->ParentNode = To; // @important
 		To->vChildNodes.emplace_back(iter);
 	}
 	From->vChildNodes.clear();

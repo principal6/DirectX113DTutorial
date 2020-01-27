@@ -2,11 +2,14 @@
 #include "../Core/Object3D.h"
 #include "../Physics/PhysicsEngine.h"
 #include "../Core/Math.h"
+#include "Pattern.h"
 #include "SyntaxTree.h"
+#include <chrono>
 
 using std::swap;
 using std::string;
 using std::to_string;
+using std::chrono::steady_clock;
 
 static constexpr XMVECTOR KNegativeZAxis{ 0, 0, -1.0f, 0 };
 
@@ -185,20 +188,20 @@ void CIntelligence::RegisterPattern(const SObjectIdentifier& Identifier, CPatter
 		// already registered
 
 		size_t iPatternInfo{ m_umapPatternInfos.at(IdentifierString) };
-		m_vPatternInfos[iPatternInfo].Pattern = Pattern;
+		m_vInternalPatternData[iPatternInfo].Pattern = Pattern;
 	}
 	else
 	{
 		// registered for the first time
 
-		SPatternInfo PatternInfo{};
+		SInternalPatternData PatternInfo{};
 		PatternInfo.ObjectIdentifier = Identifier;
 		PatternInfo.Pattern = Pattern;
 		PatternInfo.PatternState.MyPosition = &Identifier.Object3D->GetTransform(Identifier).Translation;
 		PatternInfo.PatternState.EnemyPosition = &m_PhysicsEngine->GetPlayerObject()->GetTransform().Translation; // @important
-		m_vPatternInfos.emplace_back(PatternInfo);
+		m_vInternalPatternData.emplace_back(PatternInfo);
 		
-		m_umapPatternInfos[IdentifierString] = m_vPatternInfos.size() - 1;
+		m_umapPatternInfos[IdentifierString] = m_vInternalPatternData.size() - 1;
 	}
 }
 
@@ -214,7 +217,7 @@ CPattern* CIntelligence::GetPattern(const SObjectIdentifier& Identifier) const
 	string IdentifierString{ GetIdentifierString(Identifier) };
 	size_t iPatternInfo{ m_umapPatternInfos.at(IdentifierString) };
 	
-	return m_vPatternInfos[iPatternInfo].Pattern;
+	return m_vInternalPatternData[iPatternInfo].Pattern;
 }
 
 void CIntelligence::Execute()
@@ -242,38 +245,92 @@ void CIntelligence::Execute()
 
 void CIntelligence::ConvertPatternsIntoBehaviors()
 {
-	for (auto& PatternInfo : m_vPatternInfos)
+	static steady_clock Clockk{};
+	long long Now_ms{ Clockk.now().time_since_epoch().count() / 1'000'000 };
+
+	for (auto& Datum : m_vInternalPatternData)
 	{
-		auto Result{ PatternInfo.Pattern->Execute(PatternInfo.PatternState) };
+		bool bIsInstructionDone{ true };
+		
+		if (Datum.PatternState.InstructionEndTime == 0) Datum.PatternState.InstructionEndTime = Now_ms; // @important: time initialization
 
-		if (Result->Identifier == "WalkTo")
+		auto ResultNode{ Datum.Pattern->Execute(Datum.PatternState) };
+		if (ResultNode->Identifier == "Wait") // @important
 		{
-			XMVECTOR DestVector{ XMVectorSet(
-					stof(Result->vChildNodes[0]->Identifier),
-					stof(Result->vChildNodes[1]->Identifier),
-					stof(Result->vChildNodes[2]->Identifier),
-					1) };
+			float Duration_s{ stof(ResultNode->vChildNodes[0]->Identifier) };
+			long long Duration_ms{ static_cast<long long>(Duration_s * 1000.0) };
+			if (Now_ms - Datum.PatternState.InstructionEndTime < Duration_ms)
+			{
+				--Datum.PatternState.InstructionIndex;
+				bIsInstructionDone = false;
+			}
 
+			if (!HasBehavior(Datum.ObjectIdentifier))
+			{
+				const auto& LinearVelocity{ Datum.ObjectIdentifier.Object3D->GetPhysics(Datum.ObjectIdentifier).LinearVelocity };
+				Datum.ObjectIdentifier.Object3D->SetLinearVelocity(Datum.ObjectIdentifier, XMVectorSet(0, XMVectorGetY(LinearVelocity), 0, 0));
+
+				Datum.ObjectIdentifier.Object3D->SetAnimation(Datum.ObjectIdentifier, EAnimationRegistrationType::Idle, EAnimationOption::Repeat,
+					!Datum.ObjectIdentifier.Object3D->IsCurrentAnimationRegisteredAs(Datum.ObjectIdentifier, EAnimationRegistrationType::Idle));
+			}
+		}
+		else if (ResultNode->Identifier == "Walk")
+		{
+			float Duration_s{ stof(ResultNode->vChildNodes[0]->Identifier) };
+			float TotalSpeed{ Datum.PatternState.WalkSpeed * Duration_s };
+
+			float Yaw{ Datum.ObjectIdentifier.Object3D->GetTransform(Datum.ObjectIdentifier).Yaw };
+			XMMATRIX RotationY{ XMMatrixRotationY(Yaw) };
+			XMVECTOR Forward{ XMVector3TransformNormal(KNegativeZAxis, RotationY) };
+
+			XMVECTOR DestVector{ Forward * TotalSpeed };
+			
 			if (!XMVector3Equal(m_PhysicsEngine->GetPlayerObject()->GetTransform().Translation, DestVector))
 			{
-				ClearBehavior(PatternInfo.ObjectIdentifier);
+				ClearBehavior(Datum.ObjectIdentifier);
 
 				SBehaviorData Behavior{};
 				Behavior.eBehaviorType = EBehaviorType::WalkTo;
 				Behavior.Vector = DestVector;
+				Behavior.Scalar = Datum.PatternState.WalkSpeed; // speed
 
-				PushBackBehavior(PatternInfo.ObjectIdentifier, Behavior);
+				PushBackBehavior(Datum.ObjectIdentifier, Behavior);
 			}
 		}
-		else if (Result->Identifier == "RotateYawTo")
+		else if (ResultNode->Identifier == "WalkTo")
 		{
 			XMVECTOR DestVector{ XMVectorSet(
-					stof(Result->vChildNodes[0]->Identifier),
-					stof(Result->vChildNodes[1]->Identifier),
-					stof(Result->vChildNodes[2]->Identifier),
+					stof(ResultNode->vChildNodes[0]->Identifier),
+					stof(ResultNode->vChildNodes[1]->Identifier),
+					stof(ResultNode->vChildNodes[2]->Identifier),
 					1) };
 
-			const XMVECTOR& MyPosition{ PatternInfo.ObjectIdentifier.Object3D->GetTransform(PatternInfo.ObjectIdentifier).Translation };
+			if (!XMVector3Equal(m_PhysicsEngine->GetPlayerObject()->GetTransform().Translation, DestVector))
+			{
+				ClearBehavior(Datum.ObjectIdentifier);
+
+				SBehaviorData Behavior{};
+				Behavior.eBehaviorType = EBehaviorType::WalkTo;
+				Behavior.Vector = DestVector;
+				Behavior.Scalar = Datum.PatternState.WalkSpeed; // speed
+
+				PushBackBehavior(Datum.ObjectIdentifier, Behavior);
+			}
+		}
+		else if (ResultNode->Identifier == "RotateYaw")
+		{
+			float DeltaYaw{ stof(ResultNode->vChildNodes[0]->Identifier) };
+			Datum.ObjectIdentifier.Object3D->RotateYaw(Datum.ObjectIdentifier, DeltaYaw);
+		}
+		else if (ResultNode->Identifier == "RotateYawTo")
+		{
+			XMVECTOR DestVector{ XMVectorSet(
+					stof(ResultNode->vChildNodes[0]->Identifier),
+					stof(ResultNode->vChildNodes[1]->Identifier),
+					stof(ResultNode->vChildNodes[2]->Identifier),
+					1) };
+
+			const XMVECTOR& MyPosition{ Datum.ObjectIdentifier.Object3D->GetTransform(Datum.ObjectIdentifier).Translation };
 
 			XMVECTOR Direction{ XMVector3Normalize(DestVector - MyPosition) };
 			XMVECTOR DirectionXY{ XMVectorSetY(Direction, 0) };
@@ -282,28 +339,31 @@ void CIntelligence::ConvertPatternsIntoBehaviors()
 			float Yaw{ acos(Dot) };
 			if (CrossY > 0) Yaw = XM_2PI - Yaw;
 
-			PatternInfo.ObjectIdentifier.Object3D->RotateYawTo(PatternInfo.ObjectIdentifier, Yaw);
+			Datum.ObjectIdentifier.Object3D->RotateYawTo(Datum.ObjectIdentifier, Yaw);
 		}
-		else if (Result->Identifier == "Attack")
+		else if (ResultNode->Identifier == "Attack")
 		{
 			SBehaviorData Behavior{};
 			Behavior.eBehaviorType = EBehaviorType::Attack;
 			Behavior.Scalar = 0;
 
-			if (!IsFrontBehavior(PatternInfo.ObjectIdentifier, EBehaviorType::Attack))
+			if (!IsFrontBehavior(Datum.ObjectIdentifier, EBehaviorType::Attack))
 			{
-				ClearBehavior(PatternInfo.ObjectIdentifier);
-				const auto& LinearVelocity{ PatternInfo.ObjectIdentifier.Object3D->GetPhysics(PatternInfo.ObjectIdentifier).LinearVelocity };
-				PatternInfo.ObjectIdentifier.Object3D->SetLinearVelocity(PatternInfo.ObjectIdentifier, XMVectorSet(0, XMVectorGetY(LinearVelocity), 0, 0));
+				ClearBehavior(Datum.ObjectIdentifier);
 
-				PushBackBehavior(PatternInfo.ObjectIdentifier, Behavior);
+				const auto& LinearVelocity{ Datum.ObjectIdentifier.Object3D->GetPhysics(Datum.ObjectIdentifier).LinearVelocity };
+				Datum.ObjectIdentifier.Object3D->SetLinearVelocity(Datum.ObjectIdentifier, XMVectorSet(0, XMVectorGetY(LinearVelocity), 0, 0));
+
+				PushBackBehavior(Datum.ObjectIdentifier, Behavior);
 			}
 
-			if (!HasBehavior(PatternInfo.ObjectIdentifier))
+			if (!HasBehavior(Datum.ObjectIdentifier))
 			{
-				PushBackBehavior(PatternInfo.ObjectIdentifier, Behavior);
+				PushBackBehavior(Datum.ObjectIdentifier, Behavior);
 			}
 		}
+
+		if (bIsInstructionDone) Datum.PatternState.InstructionEndTime = Now_ms;
 	}
 }
 

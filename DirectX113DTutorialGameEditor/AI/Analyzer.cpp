@@ -28,6 +28,7 @@ void CAnalyzer::Analyze(const std::vector<std::string>& vTokens)
 	MakeGroupingNodes(m_SyntaxTree->GetRootNode(), "(", ")");
 	MakeGroupingNodes(m_SyntaxTree->GetRootNode(), "{", "}");
 	MakeGroupingNodes(m_SyntaxTree->GetRootNode(), "[", "]");
+	MakeGroupingNodes(m_SyntaxTree->GetRootNode(), "\'", "\'");
 
 
 	OrganizeFunctionNodes(m_SyntaxTree->GetRootNode());
@@ -56,7 +57,6 @@ void CAnalyzer::Analyze(const std::vector<std::string>& vTokens)
 
 	OrganizeBinaryOperatorNodes(m_SyntaxTree->GetRootNode(), "&&");
 	OrganizeBinaryOperatorNodes(m_SyntaxTree->GetRootNode(), "||");
-
 
 	OrganizeNonCastingGroupingNodes(m_SyntaxTree->GetRootNode());
 	
@@ -181,6 +181,11 @@ void CAnalyzer::RemoveUnnecessaryGroupingNodes(SSyntaxTreeNode*& CurrentNode)
 			}
 			else if (GroupingNode->vChildNodes.size() == 1)
 			{
+				if (GroupingNode->Identifier == "\'\'")
+				{
+					GroupingNode->vChildNodes[0]->eType = SSyntaxTreeNode::EType::Literal;
+				}
+
 				CSyntaxTree::Substitute(GroupingNode->vChildNodes[0], GroupingNode);
 			}
 		}
@@ -307,8 +312,6 @@ void CAnalyzer::OrganizeUnaryOperatorNodes(SSyntaxTreeNode*& CurrentNode, const 
 			(UnaryNode->Identifier == UnaryOperator)
 			&&
 			(PostUnaryNode->eType == SSyntaxTreeNode::EType::Literal || PostUnaryNode->Identifier == "()")
-			&&
-			(iUnaryNode == 0 ? true : (CurrentNode->vChildNodes[iUnaryNode - 1]->eType == SSyntaxTreeNode::EType::Operator))
 			)
 		{
 			CSyntaxTree::MoveAsTail(CurrentNode->vChildNodes[iUnaryNode + 1], UnaryNode);
