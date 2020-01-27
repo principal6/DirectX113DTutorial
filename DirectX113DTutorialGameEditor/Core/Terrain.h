@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SharedHeader.h"
-#include "Object3D.h"
+#include "../Model/Object3D.h"
 
 class CGame;
 class CObject2D;

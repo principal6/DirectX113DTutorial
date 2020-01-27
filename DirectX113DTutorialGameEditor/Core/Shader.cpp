@@ -1,7 +1,7 @@
 #include "Shader.h"
+#include "ConstantBuffer.h"
 #include <d3dcompiler.h>
 #include <fstream>
-#include "ConstantBuffer.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 

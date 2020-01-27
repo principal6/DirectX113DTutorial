@@ -31,12 +31,13 @@ void CAnalyzer::Analyze(const std::vector<std::string>& vTokens)
 	MakeGroupingNodes(m_SyntaxTree->GetRootNode(), "\'", "\'");
 
 
-	OrganizeFunctionNodes(m_SyntaxTree->GetRootNode());
-	OrganizeCastingNodes(m_SyntaxTree->GetRootNode());
-
 	OrganizeUnaryOperatorNodes(m_SyntaxTree->GetRootNode(), "+");
 	OrganizeUnaryOperatorNodes(m_SyntaxTree->GetRootNode(), "-");
 	OrganizeUnaryOperatorNodes(m_SyntaxTree->GetRootNode(), "!");
+
+
+	OrganizeFunctionNodes(m_SyntaxTree->GetRootNode());
+	OrganizeCastingNodes(m_SyntaxTree->GetRootNode());
 
 
 	OrganizeDeclarationNodes(m_SyntaxTree->GetRootNode(), "real");
@@ -48,6 +49,7 @@ void CAnalyzer::Analyze(const std::vector<std::string>& vTokens)
 	OrganizeBinaryOperatorNodes(m_SyntaxTree->GetRootNode(), "+");
 	OrganizeBinaryOperatorNodes(m_SyntaxTree->GetRootNode(), "-");
 
+
 	OrganizeBinaryOperatorNodes(m_SyntaxTree->GetRootNode(), "<");
 	OrganizeBinaryOperatorNodes(m_SyntaxTree->GetRootNode(), "<=");
 	OrganizeBinaryOperatorNodes(m_SyntaxTree->GetRootNode(), ">");
@@ -57,6 +59,7 @@ void CAnalyzer::Analyze(const std::vector<std::string>& vTokens)
 
 	OrganizeBinaryOperatorNodes(m_SyntaxTree->GetRootNode(), "&&");
 	OrganizeBinaryOperatorNodes(m_SyntaxTree->GetRootNode(), "||");
+
 
 	OrganizeNonCastingGroupingNodes(m_SyntaxTree->GetRootNode());
 	
@@ -312,6 +315,10 @@ void CAnalyzer::OrganizeUnaryOperatorNodes(SSyntaxTreeNode*& CurrentNode, const 
 			(UnaryNode->Identifier == UnaryOperator)
 			&&
 			(PostUnaryNode->eType == SSyntaxTreeNode::EType::Literal || PostUnaryNode->Identifier == "()")
+			&&
+			(iUnaryNode == 0 ||
+				(iUnaryNode >= 1 && CurrentNode->vChildNodes[iUnaryNode - 1]->eType != SSyntaxTreeNode::EType::Identifier
+				 && CurrentNode->vChildNodes[iUnaryNode - 1]->eType != SSyntaxTreeNode::EType::Literal))
 			)
 		{
 			CSyntaxTree::MoveAsTail(CurrentNode->vChildNodes[iUnaryNode + 1], UnaryNode);

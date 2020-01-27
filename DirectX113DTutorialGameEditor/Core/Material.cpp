@@ -1,5 +1,8 @@
 #include "Material.h"
 #include <wincodec.h>
+#include "../DirectXTex/DirectXTex.h"
+
+#pragma comment(lib, "DirectXTex.lib")
 
 using std::vector;
 using std::string;

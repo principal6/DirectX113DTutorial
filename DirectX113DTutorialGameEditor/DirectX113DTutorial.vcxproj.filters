@@ -28,12 +28,15 @@
     <Filter Include="AI">
       <UniqueIdentifier>{e1c24dbe-3bae-47c0-86a9-17091305398f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Model">
+      <UniqueIdentifier>{efbb09f5-c22a-4fcd-88d2-b6edf9b22f75}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Editor">
+      <UniqueIdentifier>{91dec2b4-47f7-479e-90cb-cef5f8a2dc05}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\Shader.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Core\Object3D.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\Game.cpp">
@@ -42,14 +45,8 @@
     <ClCompile Include="Core\Camera.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Core\Object2D.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="TinyXml2\tinyxml2.cpp">
       <Filter>TinyXml2</Filter>
-    </ClCompile>
-    <ClCompile Include="Core\Object3DLine.cpp">
-      <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="ImGui\imgui.cpp">
       <Filter>ImGui</Filter>
@@ -75,17 +72,11 @@
     <ClCompile Include="Core\Material.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Core\AssimpLoader.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="Core\FileDialog.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Core\ConstantBuffer.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Core\CubemapRep.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\Billboard.cpp">
@@ -97,19 +88,10 @@
     <ClCompile Include="Core\BinaryData.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Core\MeshPorter.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="Core\CascadedShadowMap.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\FullScreenQuad.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Core\IBLBaker.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Core\Gizmo3D.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Physics\PhysicsEngine.cpp">
@@ -129,6 +111,30 @@
     </ClCompile>
     <ClCompile Include="AI\Pattern.cpp">
       <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\AssimpLoader.cpp">
+      <Filter>Model</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\MeshPorter.cpp">
+      <Filter>Model</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Object2D.cpp">
+      <Filter>Model</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Object3D.cpp">
+      <Filter>Model</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Object3DLine.cpp">
+      <Filter>Model</Filter>
+    </ClCompile>
+    <ClCompile Include="Editor\CubemapRep.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Editor\Gizmo3D.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Editor\IBLBaker.cpp">
+      <Filter>Editor</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -199,9 +205,6 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\SharedHeader.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\Object3D.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\PrimitiveGenerator.h">
@@ -423,9 +426,6 @@
     <ClInclude Include="Assimp\ZipArchiveIOSystem.h">
       <Filter>Assimp</Filter>
     </ClInclude>
-    <ClInclude Include="Core\AssimpLoader.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Assimp\config.h">
       <Filter>Assimp</Filter>
     </ClInclude>
@@ -438,14 +438,8 @@
     <ClInclude Include="Core\Camera.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\Object2D.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="TinyXml2\tinyxml2.h">
       <Filter>TinyXml2</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\Object3DLine.h">
-      <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="ImGui\imconfig.h">
       <Filter>ImGui</Filter>
@@ -486,9 +480,6 @@
     <ClInclude Include="DirectXTex\DirectXTex.h">
       <Filter>DirectXTex</Filter>
     </ClInclude>
-    <ClInclude Include="Core\CubemapRep.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Core\Billboard.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -498,9 +489,6 @@
     <ClInclude Include="Core\BinaryData.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\MeshPorter.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Core\ShadowMapFrustum.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -508,12 +496,6 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\FullScreenQuad.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\IBLBaker.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Core\Gizmo3D.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Physics\PhysicsEngine.h">
@@ -536,6 +518,33 @@
     </ClInclude>
     <ClInclude Include="AI\PatternTypes.h">
       <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\AssimpLoader.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\MeshPorter.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Object2D.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Object3D.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Object3DLine.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Editor\CubemapRep.h">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="Editor\Gizmo3D.h">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="Editor\IBLBaker.h">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\ObjectTypes.h">
+      <Filter>Model</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

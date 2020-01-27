@@ -1,6 +1,6 @@
 #include "Billboard.h"
-#include "Material.h"
 #include "ConstantBuffer.h"
+#include "Material.h"
 #include "Shader.h"
 
 using std::string;

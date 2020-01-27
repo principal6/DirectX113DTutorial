@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../Core/SharedHeader.h"
+#include "../Model/ObjectTypes.h"
 #include "PatternTypes.h"
+#include <deque>
 
 class CObject3D;
 class CPhysicsEngine;
@@ -29,8 +31,10 @@ struct SBehaviorData
 
 	EBehaviorType	eBehaviorType{};
 	XMVECTOR		Vector{};
+	XMVECTOR		PrevTranslation{};
 	float			Scalar{ 1.0f };
 	bool			bIsPlayer{ false };
+	long long		StartTime_ms{};
 
 private:
 	enum class EStatus
@@ -91,6 +95,7 @@ private:
 
 public:
 	void RegisterPattern(const SObjectIdentifier& Identifier, CPattern* const Pattern);
+	void DeregisterPattern(const SObjectIdentifier& Identifier);
 	bool HasPattern(const SObjectIdentifier& Identifier) const;
 	CPattern* GetPattern(const SObjectIdentifier& Identifier) const;
 
@@ -122,4 +127,5 @@ private:
 	bool											m_bBehaviorStarted{ false };
 	XMVECTOR										m_SavedVector{};
 	XMVECTOR										m_SavedVectorXZ{};
+	long long										m_Now_ms{};
 };

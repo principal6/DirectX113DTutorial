@@ -44,7 +44,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		}
 		else
 		{
-			if (KeyDown == VK_SPACE) Game.JumpPlayer(6.0f);
+			if (KeyDown == VK_SPACE) Game.JumpPlayer(5.0f);
 			if (KeyDown == VK_DELETE) Game.DeleteSelectedObjects();
 			if (GetKeyState(VK_CONTROL) && (KeyDown == 'c' || KeyDown == 'C')) Game.CopySelectedObject();
 			if (GetKeyState(VK_CONTROL) && (KeyDown == 'v' || KeyDown == 'V')) Game.PasteCopiedObject();

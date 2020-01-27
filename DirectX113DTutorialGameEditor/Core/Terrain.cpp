@@ -2,9 +2,9 @@
 #include "Game.h"
 #include "Material.h"
 #include "Math.h"
-#include "MeshPorter.h"
-#include "Object2D.h"
 #include "PrimitiveGenerator.h"
+#include "../Model/MeshPorter.h"
+#include "../Model/Object2D.h"
 
 using std::max;
 using std::min;

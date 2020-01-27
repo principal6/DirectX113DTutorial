@@ -46,6 +46,7 @@
 //
 // ### AVAILABLE VALUE LIST ###
 // @ enemy is 'closest player' in 'normal' state
+// MyPosition.xyz
 // EnemyPosition.xyz
 // DistanceToEnemy
 //

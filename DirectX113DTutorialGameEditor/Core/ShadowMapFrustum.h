@@ -1,4 +1,5 @@
 #pragma once
+
 #include "SharedHeader.h"
 
 struct SShadowMapFrustum

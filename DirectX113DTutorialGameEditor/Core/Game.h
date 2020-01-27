@@ -2,6 +2,8 @@
 
 #define NOMINMAX 0
 
+#include "SharedHeader.h"
+
 #include <Windows.h>
 #include <chrono>
 
@@ -10,19 +12,19 @@
 #include "Shader.h"
 #include "ConstantBuffer.h"
 #include "Material.h"
-#include "Object3D.h"
-#include "Object3DLine.h"
-#include "Object2D.h"
 #include "PrimitiveGenerator.h"
 #include "Terrain.h"
-#include "CubemapRep.h"
-#include "MeshPorter.h"
 #include "Billboard.h"
 #include "Light.h"
 #include "CascadedShadowMap.h"
 #include "FullScreenQuad.h"
-#include "IBLBaker.h"
-#include "Gizmo3D.h"
+#include "../Model/Object3D.h"
+#include "../Model/Object3DLine.h"
+#include "../Model/Object2D.h"
+#include "../Model/MeshPorter.h"
+#include "../Editor/CubemapRep.h"
+#include "../Editor/IBLBaker.h"
+#include "../Editor/Gizmo3D.h"
 #include "../Physics/PhysicsEngine.h"
 #include "../AI/Intelligence.h"
 #include "../AI/Pattern.h"

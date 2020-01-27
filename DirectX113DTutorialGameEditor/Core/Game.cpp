@@ -2444,8 +2444,10 @@ void CGame::WalkPlayerToPickedPoint(float WalkSpeed)
 						SBehaviorData BehaviorData{};
 						BehaviorData.eBehaviorType = EBehaviorType::WalkTo;
 						BehaviorData.Vector = DestinationXZ;
+						BehaviorData.PrevTranslation = PlayerObject->GetTransform().Translation;
 						BehaviorData.Scalar = WalkSpeed;
 						BehaviorData.bIsPlayer = true;
+						BehaviorData.StartTime_ms = m_TimeNow_ms;
 						m_Intelligence->PushBackBehavior(PlayerObject, BehaviorData);
 					}
 				}
@@ -2468,13 +2470,14 @@ void CGame::JumpPlayer(float JumpSpeed)
 		const auto& CurrentBehavior{ m_Intelligence->PeekFrontBehavior(PlayerObject) };
 		if (CurrentBehavior.eBehaviorType == EBehaviorType::Jump) return;
 
-		m_Intelligence->PopFrontBehaviorIf(PlayerObject, EBehaviorType::WalkTo);
+		m_Intelligence->ClearBehavior(PlayerObject);
 	}
 
 	SBehaviorData BehaviorData{};
 	BehaviorData.eBehaviorType = EBehaviorType::Jump;
 	BehaviorData.Scalar = JumpSpeed;
 	BehaviorData.bIsPlayer = true;
+	BehaviorData.StartTime_ms = m_TimeNow_ms;
 	m_Intelligence->PushFrontBehavior(PlayerObject, BehaviorData);
 }
 
@@ -6140,7 +6143,14 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										ImGui::Text(u8"없음");
 									}
 
+									// Button
 									if (ImGui::Button(u8"패턴 연결")) ImGui::OpenPopup(u8"패턴 목록");
+
+									ImGui::SameLine();
+
+									// Button
+									if (ImGui::Button(u8"패턴 연결 해제")) m_Intelligence->DeregisterPattern(Identifier);
+
 									ImGui::SetNextWindowSize(ImVec2(240, 160), ImGuiCond_Appearing);
 									if (ImGui::BeginPopupModal(u8"패턴 목록", nullptr))
 									{

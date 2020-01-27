@@ -1,10 +1,11 @@
 #pragma once
 
-#include "Math.h"
-#include "Object3D.h"
-#include "Object3DLine.h"
-#include "Object2D.h"
 #include <unordered_map>
+
+#include "Math.h"
+#include "../Model/Object3D.h"
+#include "../Model/Object3DLine.h"
+#include "../Model/Object2D.h"
 
 static constexpr uint32_t KDefaultPrimitiveDetail{ 32 };
 static constexpr uint32_t KMinPrimitiveDetail{ 3 };

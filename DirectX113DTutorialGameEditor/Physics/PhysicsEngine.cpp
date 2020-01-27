@@ -1,6 +1,6 @@
 #include "PhysicsEngine.h"
-#include "../Core/Object3D.h"
 #include "../Core/Math.h"
+#include "../Model/Object3D.h"
 
 using std::sort;
 using std::swap;
@@ -575,10 +575,7 @@ void CPhysicsEngine::ResolvePenetration(const SCollisionItem& FineCollision)
 	XMVECTOR _A_T{ *FineCollision.A_Translation + A_BS.Center };
 	XMVECTOR _B_T{ *FineCollision.B_Translation + B_BS.Center };
 
-	XMVECTOR A_MovingDir{ 
-		(FineCollision.A.PtrInstanceName) ? 
-		XMVector3Normalize(A_Object->GetPhysics(FineCollision.A).LinearVelocity) :
-		XMVector3Normalize(A_Object->GetPhysics(FineCollision.A).LinearVelocity) };
+	XMVECTOR A_MovingDir{ XMVector3Normalize(A_Object->GetPhysics(FineCollision.A).LinearVelocity) };
 	XMVECTOR AToB{ _B_T - _A_T };
 
 	if (A_BS.eType == EBoundingVolumeType::BoundingSphere)
@@ -658,14 +655,19 @@ void CPhysicsEngine::ResolvePenetration(const SCollisionItem& FineCollision)
 				_B_T, B_BS.Data.AABBHalfSizes.x, B_BS.Data.AABBHalfSizes.y, B_BS.Data.AABBHalfSizes.z) };
 
 			XMVECTOR Resolution{ XMVector3Dot(Diff, N) * N };
-			m_PenetrationDepth = XMVectorGetX(XMVector3Length(Resolution));
 
-			if (XMVectorGetY(N) == +1.0f)
+			float Dot{ XMVectorGetX(XMVector3Dot(XMVector3Normalize(Resolution), N)) };
+			if (Dot >= 0)
 			{
-				// @important
-				A_Object->SetLinearVelocity(FineCollision.A, XMVectorSetY(A_Object->GetPhysics(FineCollision.A).LinearVelocity, -0.01f));
+				m_PenetrationDepth = XMVectorGetX(XMVector3Length(Resolution));
+
+				if (XMVectorGetY(N) == +1.0f)
+				{
+					// @important
+					A_Object->SetLinearVelocity(FineCollision.A, XMVectorSetY(A_Object->GetPhysics(FineCollision.A).LinearVelocity, -0.01f));
+				}
+				A_Object->Translate(FineCollision.A, Resolution);
 			}
-			A_Object->Translate(FineCollision.A, Resolution);
 		}
 	}
 }

@@ -14,7 +14,7 @@
 	{
 		Wait(random(3.0, 6.0));
 		RotateYaw(random(-1.0, +1.0));
-		Walk(random(0.0, 2.0));
+		Walk(random(1.0, 2.0));
 	}
 }
 

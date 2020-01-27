@@ -40,7 +40,7 @@ void CPattern::Load(const char* FileName)
 		ifs.close();
 	}
 
-	srand((unsigned int)time(nullptr));
+	srand((unsigned int)GetTickCount64());
 
 	CTokenizer Tokenizer{};
 	CAnalyzer Analyzer{};
@@ -333,16 +333,11 @@ void CPattern::ExecuteFunctionNode(SSyntaxTreeNode*& Node)
 
 	for (auto& Argument : Node->vChildNodes)
 	{
-		if (Argument->vChildNodes.size())
-		{
-			// function node
-			ExecuteFunctionNode(Argument);
-		}
-		else
-		{
-			// variable or literal node
-			ExecuteNonFunctionNode(Argument);
-		}
+		// function node
+		ExecuteFunctionNode(Argument);
+
+		// variable or literal node
+		ExecuteNonFunctionNode(Argument);
 	}
 
 	if (Node->Identifier == "random")
@@ -388,7 +383,8 @@ void CPattern::ExecuteInstructionNode(const SSyntaxTreeNode* const ExecutionNode
 	if (!ExecutionNode) return;
 	if (ExecutionNode->vChildNodes.empty()) return;
 
-	m_CopiedState.InstructionIndex = min(m_CopiedState.InstructionIndex, ExecutionNode->vChildNodes.size() - 1);
+	if (m_CopiedState.InstructionIndex >= ExecutionNode->vChildNodes.size()) m_CopiedState.InstructionIndex = 0;
+	//m_CopiedState.InstructionIndex = min(m_CopiedState.InstructionIndex, ExecutionNode->vChildNodes.size() - 1);
 	if (m_CopiedState.InstructionIndex == 0)
 	{
 		m_StackCount = 0; // @important
@@ -430,7 +426,6 @@ void CPattern::ExecuteInstructionNode(const SSyntaxTreeNode* const ExecutionNode
 	}
 
 	++m_CopiedState.InstructionIndex;
-	if (m_CopiedState.InstructionIndex >= ExecutionNode->vChildNodes.size()) m_CopiedState.InstructionIndex = 0;
 }
 
 void CPattern::ExecuteNonFunctionNode(SSyntaxTreeNode*& Node)
@@ -548,6 +543,18 @@ float CPattern::GetVariableValue(const std::string& Identifier)
 	else if (Identifier == "EnemyPosition.z")
 	{
 		return m_CopiedState.EnemyPosition->m128_f32[2];
+	}
+	else if (Identifier == "MyPosition.x")
+	{
+		return m_CopiedState.MyPosition->m128_f32[0];
+	}
+	else if (Identifier == "MyPosition.y")
+	{
+		return m_CopiedState.MyPosition->m128_f32[1];
+	}
+	else if (Identifier == "MyPosition.z")
+	{
+		return m_CopiedState.MyPosition->m128_f32[2];
 	}
 	else if (Identifier == "DistanceToEnemy")
 	{

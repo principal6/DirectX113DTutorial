@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Core/SharedHeader.h"
+#include "../Model/ObjectTypes.h"
 
 class CObject3D;
 
@@ -108,33 +109,33 @@ private:
 	static constexpr float KDefaultWorldFloorHeight{ -5.0f };
 
 private:
-	CObject3D* m_PlayerObject{};
+	CObject3D*							m_PlayerObject{};
 
 private:
-	std::vector<CObject3D*> m_vEnvironmentObjects{};
-	std::unordered_map<void*, uint32_t> m_mapEnvironmentObjects{}; // avoid duplication
+	std::vector<CObject3D*>				m_vEnvironmentObjects{};
+	std::unordered_map<void*, uint32_t>	m_mapEnvironmentObjects{}; // avoid duplication
 
 private:
-	std::vector<CObject3D*> m_vMonsterObjects{};
-	std::unordered_map<void*, uint32_t> m_mapMonsterObjects{}; // avoid duplication
+	std::vector<CObject3D*>				m_vMonsterObjects{};
+	std::unordered_map<void*, uint32_t>	m_mapMonsterObjects{}; // avoid duplication
 
 private:
-	std::vector<SCollisionItem> m_vCoarseCollisionList{};
+	std::vector<SCollisionItem>			m_vCoarseCollisionList{};
 
 private:
-	XMVECTOR m_DynamicClosestPoint{};
-	XMVECTOR m_StaticClosestPoint{};
-	XMVECTOR m_CollisionNormal{}; // From B to A
-	float m_PenetrationDepth{};
+	XMVECTOR							m_DynamicClosestPoint{};
+	XMVECTOR							m_StaticClosestPoint{};
+	XMVECTOR							m_CollisionNormal{}; // From B to A
+	float								m_PenetrationDepth{};
 
 private:
-	float m_WorldFloorHeight{ KDefaultWorldFloorHeight };
-	XMVECTOR m_Gravity{ KDefaultGravity };
+	float								m_WorldFloorHeight{ KDefaultWorldFloorHeight };
+	XMVECTOR							m_Gravity{ KDefaultGravity };
 
 private:
-	bool m_bShouldApplyGravity{};
+	bool								m_bShouldApplyGravity{};
 
 private:
-	XMVECTOR m_PickedPoint{};
-	CObject3D* m_PickedObject{};
+	XMVECTOR							m_PickedPoint{};
+	CObject3D*							m_PickedObject{};
 };
