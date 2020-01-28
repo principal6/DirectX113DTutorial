@@ -50,10 +50,10 @@ struct SObjectIdentifier
 {
 	SObjectIdentifier() {}
 	SObjectIdentifier(CObject3D* _Object3D) : Object3D{ _Object3D } {}
-	SObjectIdentifier(CObject3D* _Object3D, const char* _PtrInstanceName) : Object3D{ _Object3D }, PtrInstanceName{ _PtrInstanceName } {}
+	SObjectIdentifier(CObject3D* _Object3D, const std::string& _InstanceName) : Object3D{ _Object3D }, InstanceName{ _InstanceName } {}
 
-	CObject3D* Object3D{};
-	const char* PtrInstanceName{};
+	CObject3D*	Object3D{};
+	std::string	InstanceName{};
 };
 
 struct SObject3DInstanceCPUData

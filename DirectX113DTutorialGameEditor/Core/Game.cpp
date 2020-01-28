@@ -1089,7 +1089,7 @@ void CGame::LoadScene(const string& FileName, const std::string& SceneContentDir
 						bool bHasPattern{ SceneBinaryData.ReadBool() };
 						if (bHasPattern)
 						{
-							SObjectIdentifier Identifier{ Object3D, InstanceCPUData.Name.c_str() };
+							SObjectIdentifier Identifier{ Object3D, InstanceCPUData.Name };
 
 							SceneBinaryData.ReadStringWithPrefixedLength(ReadString);
 							m_Intelligence->RegisterPattern(Identifier, GetPattern(ReadString));
@@ -1290,7 +1290,7 @@ void CGame::SaveScene(const string& FileName, const std::string& SceneContentDir
 					{
 						for (const auto& InstanceCPUData : Object3D->GetInstanceCPUDataVector())
 						{
-							SObjectIdentifier Identifier{ Object3D.get(), InstanceCPUData.Name.c_str() };
+							SObjectIdentifier Identifier{ Object3D.get(), InstanceCPUData.Name };
 
 							bool bHasPattern{ m_Intelligence->HasPattern(Identifier) };
 							SceneBinaryData.WriteBool(bHasPattern);
@@ -1934,7 +1934,7 @@ void CGame::DeleteSelectedObjects()
 			case CGame::EObjectType::Object3DInstance:
 			{
 				CObject3D* const Object3D{ (CObject3D*)SelectionData.PtrObject };
-				Object3D->DeleteInstance(SelectionData.Name);
+				DeleteObject3DInstance(Object3D, SelectionData.Name);
 				break;
 			}
 			}
@@ -2263,7 +2263,12 @@ void CGame::DeleteObject3D(const string& Name)
 	// @important
 	{
 		CObject3D* const Object3D{ GetObject3D(Name) };
+		for (const auto& Instance : Object3D->GetInstanceCPUDataVector())
+		{
+			DeleteObject3DInstance(Object3D, Instance.Name);
+		}
 		m_PhysicsEngine.DeregisterObject(Object3D);
+		m_Intelligence->DeregisterPattern(Object3D);
 	}
 
 	size_t iObject3D{ m_mapObject3DNameToIndex.at(Name) };
@@ -2295,6 +2300,13 @@ CObject3D* CGame::GetObject3D(const string& Name, bool bShowWarning) const
 		return nullptr;
 	}
 	return m_vObject3Ds[m_mapObject3DNameToIndex.at(Name)].get();
+}
+
+void CGame::DeleteObject3DInstance(CObject3D* Object3D, const std::string& Name)
+{
+	m_Intelligence->DeregisterPattern(SObjectIdentifier(Object3D, Name));
+
+	Object3D->DeleteInstance(Name);
 }
 
 bool CGame::InsertObject3DLine(const string& Name, bool bShowWarning)
@@ -5956,14 +5968,14 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 										if (Object3D->IsInstanced() && (SelectionData.eObjectType == EObjectType::Object3DInstance))
 										{
-											SObjectIdentifier Identifier{ Object3D, SelectionData.Name.c_str() };
+											SObjectIdentifier Identifier{ Object3D, SelectionData.Name };
 											ImGui::AlignTextToFramePadding();
 											ImGui::Text(u8"인스턴스 애니메이션 ID");
 											ImGui::SameLine(ItemsOffsetX);
 											int AnimationID{ (int)Object3D->GetAnimationID(Identifier) };
 											if (ImGui::SliderInt(u8"##인스턴스 애니메이션 ID", &AnimationID, 0, AnimationCount - 1))
 											{
-												Object3D->SetAnimation(SObjectIdentifier(Object3D, SelectionData.Name.c_str()), AnimationID);
+												Object3D->SetAnimation(SObjectIdentifier(Object3D, SelectionData.Name), AnimationID);
 											}
 										}
 										else
@@ -6121,14 +6133,14 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 							ImGui::Separator();
 
-							// 인스턴스 인공지능 패턴
-							if (SelectionData.eObjectType == EObjectType::Object3DInstance)
+							// 인공지능 패턴
 							{
-								if (ImGui::TreeNodeEx(u8"인공지능"))
+								if (ImGui::TreeNodeEx(
+									(SelectionData.eObjectType == EObjectType::Object3DInstance) ? u8"인스턴스 인공지능" : u8"오브젝트 인공지능"))
 								{
 									CObject3D* Object3D{ (CObject3D*)SelectionData.PtrObject };
 									SObjectIdentifier Identifier{ SObjectIdentifier(Object3D, 
-										((const CObject3D*)Object3D)->GetInstanceCPUData(SelectionData.Name).Name.c_str()) };
+										(SelectionData.eObjectType == EObjectType::Object3DInstance) ? SelectionData.Name : "") };
 
 									ImGui::AlignTextToFramePadding();
 									ImGui::Text(u8"연결된 패턴:");
@@ -6144,13 +6156,12 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 									}
 
 									// Button
-									if (ImGui::Button(u8"패턴 연결")) ImGui::OpenPopup(u8"패턴 목록");
+									if (ImGui::Button(u8"패턴 연결"))
+									{
+										ImGui::OpenPopup(u8"패턴 목록");
+									}
 
-									ImGui::SameLine();
-
-									// Button
-									if (ImGui::Button(u8"패턴 연결 해제")) m_Intelligence->DeregisterPattern(Identifier);
-
+									// Pattern list
 									ImGui::SetNextWindowSize(ImVec2(240, 160), ImGuiCond_Appearing);
 									if (ImGui::BeginPopupModal(u8"패턴 목록", nullptr))
 									{
@@ -6165,7 +6176,19 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 
 											if (ImGui::Button(u8"결정"))
 											{
-												m_Intelligence->RegisterPattern(Identifier, m_vPatterns[iSelectedPattern].get());
+												if (SelectionData.eObjectType == EObjectType::Object3DInstance)
+												{
+													m_Intelligence->RegisterPattern(Identifier, m_vPatterns[iSelectedPattern].get());
+												}
+												else
+												{
+													for (const auto& InstanceCPUData : Object3D->GetInstanceCPUDataVector())
+													{
+														m_Intelligence->RegisterPattern(
+															SObjectIdentifier(Object3D, InstanceCPUData.Name), m_vPatterns[iSelectedPattern].get());
+													}
+													m_Intelligence->RegisterPattern(Object3D, m_vPatterns[iSelectedPattern].get());
+												}
 
 												bClosing = true;
 											}
@@ -6178,7 +6201,7 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										size_t iPattern{};
 										for (const auto& Pattern : m_vPatterns)
 										{
-											if (ImGui::Selectable(Pattern->GetFileName().c_str(), iSelectedPattern == iPattern, 
+											if (ImGui::Selectable(Pattern->GetFileName().c_str(), iSelectedPattern == iPattern,
 												ImGuiSelectableFlags_DontClosePopups))
 											{
 												iSelectedPattern = iPattern;
@@ -6192,6 +6215,25 @@ void CGame::DrawEditorGUIWindowPropertyEditor()
 										}
 
 										ImGui::EndPopup();
+									}
+
+									ImGui::SameLine();
+
+									// Button
+									if (ImGui::Button(u8"패턴 연결 해제"))
+									{
+										if (SelectionData.eObjectType == EObjectType::Object3DInstance)
+										{
+											m_Intelligence->DeregisterPattern(Identifier);
+										}
+										else
+										{
+											for (const auto& InstanceCPUData : Object3D->GetInstanceCPUDataVector())
+											{
+												m_Intelligence->DeregisterPattern(SObjectIdentifier(Object3D, InstanceCPUData.Name));
+											}
+											m_Intelligence->DeregisterPattern(Object3D);
+										}
 									}
 
 									ImGui::TreePop();
@@ -7925,7 +7967,7 @@ void CGame::DrawEditorGUIWindowSceneEditor()
 						ImGui::PushID(iObject3DPair * 2 + 1);
 						if (ImGui::Button(u8"-Inst"))
 						{
-							Object3D->DeleteInstance(SelectionData.Name);
+							DeleteObject3DInstance(Object3D, SelectionData.Name);
 							if (Object3D->GetInstanceCount() > 0)
 							{
 								SelectObject(SSelectionData(EObjectType::Object3DInstance, Object3D->GetLastInstanceName(), Object3D));

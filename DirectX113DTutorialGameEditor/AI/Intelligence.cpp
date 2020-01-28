@@ -15,7 +15,7 @@ static constexpr XMVECTOR KNegativeZAxis{ 0, 0, -1.0f, 0 };
 
 static std::string GetIdentifierString(const SObjectIdentifier& Identifier)
 {
-	return (to_string((size_t)Identifier.Object3D) + to_string((size_t)Identifier.PtrInstanceName));
+	return (to_string((size_t)Identifier.Object3D) + Identifier.InstanceName);
 }
 
 CIntelligence::CIntelligence(ID3D11Device* const PtrDevice, ID3D11DeviceContext* const PtrDeviceContext) :

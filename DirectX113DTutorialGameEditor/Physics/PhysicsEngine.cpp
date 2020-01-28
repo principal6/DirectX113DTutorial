@@ -323,7 +323,7 @@ void CPhysicsEngine::UpdateObject(float DeltaTime, CObject3D* const Object)
 	{
 		for (const auto& Instance : Object->GetInstanceCPUDataVector())
 		{
-			Identifier.PtrInstanceName = Instance.Name.c_str();
+			Identifier.InstanceName = Instance.Name;
 
 			_UpdateObject(Identifier, DeltaTime);
 		}
@@ -380,7 +380,7 @@ bool CPhysicsEngine::DetectResolveEnvironmentCollisions(const SObjectIdentifier&
 			{
 				for (const auto& InstanceCPUData : B->GetInstanceCPUDataVector())
 				{
-					B_Identifier.PtrInstanceName = InstanceCPUData.Name.c_str();
+					B_Identifier.InstanceName = InstanceCPUData.Name;
 					DetectEnvironmentCoarseCollision(A_Identifier, B_Identifier);
 				}
 			}
@@ -396,10 +396,6 @@ bool CPhysicsEngine::DetectResolveEnvironmentCollisions(const SObjectIdentifier&
 		{
 			if (DetectResolveFineCollision(CoarseCollision))
 			{
-				if (CoarseCollision.A.PtrInstanceName)
-				{
-					int deb{};
-				}
 				bCollisionDetected = true;
 			}
 		}

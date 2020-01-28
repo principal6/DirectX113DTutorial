@@ -250,7 +250,7 @@ public:
 		SObject3DPickingCandiate(CObject3D* const _PtrObject3D, const std::string& _InstanceName, XMVECTOR _T) :
 			PtrObject3D{ _PtrObject3D }, InstanceName{ _InstanceName }, T{ _T } {}
 
-		CObject3D* PtrObject3D{};
+		CObject3D*	PtrObject3D{};
 		std::string	InstanceName{};
 		XMVECTOR	T{};
 		bool		bHasFailedPickingTest{ false };
@@ -490,6 +490,8 @@ public:
 	void ClearObject3Ds();
 	CObject3D* GetObject3D(const std::string& Name, bool bShowWarning = true) const;
 	const std::map<std::string, size_t>& GetObject3DMap() const { return m_mapObject3DNameToIndex; }
+
+	void DeleteObject3DInstance(CObject3D* Object3D, const std::string& Name);
 
 	bool InsertObject3DLine(const std::string& Name, bool bShowWarning = true);
 	void ClearObject3DLines();

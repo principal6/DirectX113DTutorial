@@ -755,18 +755,18 @@ const DirectX::XMMATRIX* CObject3D::GetAnimationBoneMatrices() const
 
 bool CObject3D::IsCurrentAnimationRegisteredAs(const SObjectIdentifier& Identifier, EAnimationRegistrationType eRegistrationType) const
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		return IsInstanceCurrentAnimationRegisteredAs(Identifier.PtrInstanceName, eRegistrationType);
+		return IsInstanceCurrentAnimationRegisteredAs(Identifier.InstanceName, eRegistrationType);
 	}
 	return IsObjectCurrentAnimationRegisteredAs(eRegistrationType);
 }
 
 float CObject3D::GetAnimationTick(const SObjectIdentifier& Identifier) const
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		return GetInstanceAnimationTick(Identifier.PtrInstanceName);
+		return GetInstanceAnimationTick(Identifier.InstanceName);
 	}
 	else
 	{
@@ -776,18 +776,18 @@ float CObject3D::GetAnimationTick(const SObjectIdentifier& Identifier) const
 
 uint32_t CObject3D::GetAnimationID(const SObjectIdentifier& Identifier) const
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		return GetInstanceAnimationID(Identifier.PtrInstanceName);
+		return GetInstanceAnimationID(Identifier.InstanceName);
 	}
 	return GetObjectAnimationID();
 }
 
 size_t CObject3D::GetAnimationPlayCount(const SObjectIdentifier& Identifier) const
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		return GetInstanceAnimationPlayCount(Identifier.PtrInstanceName);
+		return GetInstanceAnimationPlayCount(Identifier.InstanceName);
 	}
 	return GetObjectAnimationPlayCount();
 }
@@ -850,9 +850,9 @@ float CObject3D::GetInstanceCurrentAnimationBehaviorStartTick(const std::string&
 void CObject3D::SetAnimation(const SObjectIdentifier& Identifier, uint32_t AnimationID, 
 	EAnimationOption eAnimationOption, bool bShouldIgnoreCurrentAnimation)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		SetInstanceAnimation(Identifier.PtrInstanceName, AnimationID, eAnimationOption, bShouldIgnoreCurrentAnimation);
+		SetInstanceAnimation(Identifier.InstanceName, AnimationID, eAnimationOption, bShouldIgnoreCurrentAnimation);
 	}
 	else
 	{
@@ -863,9 +863,9 @@ void CObject3D::SetAnimation(const SObjectIdentifier& Identifier, uint32_t Anima
 void CObject3D::SetAnimation(const SObjectIdentifier& Identifier, EAnimationRegistrationType eRegisteredType, 
 	EAnimationOption eAnimationOption, bool bShouldIgnoreCurrentAnimation)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		SetInstanceAnimation(Identifier.PtrInstanceName, eRegisteredType, eAnimationOption, bShouldIgnoreCurrentAnimation);
+		SetInstanceAnimation(Identifier.InstanceName, eRegisteredType, eAnimationOption, bShouldIgnoreCurrentAnimation);
 	}
 	else
 	{
@@ -931,18 +931,18 @@ void CObject3D::SetInstanceAnimation(const std::string& InstanceName, EAnimation
 
 const SComponentTransform& CObject3D::GetTransform(const SObjectIdentifier& Identifier) const
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		return GetInstanceTransform(Identifier.PtrInstanceName);
+		return GetInstanceTransform(Identifier.InstanceName);
 	}
 	return GetTransform();
 }
 
 const SComponentPhysics& CObject3D::GetPhysics(const SObjectIdentifier& Identifier) const
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		return GetInstancePhysics(Identifier.PtrInstanceName);
+		return GetInstancePhysics(Identifier.InstanceName);
 	}
 	return GetPhysics();
 }
@@ -954,18 +954,18 @@ CObject3D::EFlagsRendering CObject3D::GetRenderingFlags() const
 
 const SBoundingVolume& CObject3D::GetOuterBoundingSphere(const SObjectIdentifier& Identifier) const
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		return GetInstanceOuterBoundingSphere(Identifier.PtrInstanceName);
+		return GetInstanceOuterBoundingSphere(Identifier.InstanceName);
 	}
 	return GetOuterBoundingSphere();
 }
 
 void CObject3D::TranslateTo(const SObjectIdentifier& Identifier, const XMVECTOR& Prime)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		TranslateInstanceTo(Identifier.PtrInstanceName, Prime);
+		TranslateInstanceTo(Identifier.InstanceName, Prime);
 		return;
 	}
 	TranslateTo(Prime);
@@ -973,9 +973,9 @@ void CObject3D::TranslateTo(const SObjectIdentifier& Identifier, const XMVECTOR&
 
 void CObject3D::RotatePitchTo(const SObjectIdentifier& Identifier, float Prime)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		RotateInstancePitchTo(Identifier.PtrInstanceName, Prime);
+		RotateInstancePitchTo(Identifier.InstanceName, Prime);
 		return;
 	}
 	RotatePitchTo(Prime);
@@ -983,9 +983,9 @@ void CObject3D::RotatePitchTo(const SObjectIdentifier& Identifier, float Prime)
 
 void CObject3D::RotateYawTo(const SObjectIdentifier& Identifier, float Prime)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		RotateInstanceYawTo(Identifier.PtrInstanceName, Prime);
+		RotateInstanceYawTo(Identifier.InstanceName, Prime);
 		return;
 	}
 	RotateYawTo(Prime);
@@ -993,9 +993,9 @@ void CObject3D::RotateYawTo(const SObjectIdentifier& Identifier, float Prime)
 
 void CObject3D::RotateRollTo(const SObjectIdentifier& Identifier, float Prime)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		RotateInstanceRollTo(Identifier.PtrInstanceName, Prime);
+		RotateInstanceRollTo(Identifier.InstanceName, Prime);
 		return;
 	}
 	RotateRollTo(Prime);
@@ -1003,9 +1003,9 @@ void CObject3D::RotateRollTo(const SObjectIdentifier& Identifier, float Prime)
 
 void CObject3D::ScaleTo(const SObjectIdentifier& Identifier, const XMVECTOR& Prime)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		ScaleInstanceTo(Identifier.PtrInstanceName, Prime);
+		ScaleInstanceTo(Identifier.InstanceName, Prime);
 		return;
 	}
 	ScaleTo(Prime);
@@ -1013,9 +1013,9 @@ void CObject3D::ScaleTo(const SObjectIdentifier& Identifier, const XMVECTOR& Pri
 
 void CObject3D::Translate(const SObjectIdentifier& Identifier, const XMVECTOR& Delta)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		TranslateInstance(Identifier.PtrInstanceName, Delta);
+		TranslateInstance(Identifier.InstanceName, Delta);
 		return;
 	}
 	Translate(Delta);
@@ -1023,9 +1023,9 @@ void CObject3D::Translate(const SObjectIdentifier& Identifier, const XMVECTOR& D
 
 void CObject3D::RotatePitch(const SObjectIdentifier& Identifier, float Delta)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		RotateInstancePitch(Identifier.PtrInstanceName, Delta);
+		RotateInstancePitch(Identifier.InstanceName, Delta);
 		return;
 	}
 	RotatePitch(Delta);
@@ -1033,9 +1033,9 @@ void CObject3D::RotatePitch(const SObjectIdentifier& Identifier, float Delta)
 
 void CObject3D::RotateYaw(const SObjectIdentifier& Identifier, float Delta)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		RotateInstanceYaw(Identifier.PtrInstanceName, Delta);
+		RotateInstanceYaw(Identifier.InstanceName, Delta);
 		return;
 	}
 	RotateYaw(Delta);
@@ -1043,9 +1043,9 @@ void CObject3D::RotateYaw(const SObjectIdentifier& Identifier, float Delta)
 
 void CObject3D::RotateRoll(const SObjectIdentifier& Identifier, float Delta)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		RotateInstanceRoll(Identifier.PtrInstanceName, Delta);
+		RotateInstanceRoll(Identifier.InstanceName, Delta);
 		return;
 	}
 	RotateRoll(Delta);
@@ -1053,9 +1053,9 @@ void CObject3D::RotateRoll(const SObjectIdentifier& Identifier, float Delta)
 
 void CObject3D::Scale(const SObjectIdentifier& Identifier, const XMVECTOR& Delta)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		ScaleInstance(Identifier.PtrInstanceName, Delta);
+		ScaleInstance(Identifier.InstanceName, Delta);
 		return;
 	}
 	Scale(Delta);
@@ -1063,9 +1063,9 @@ void CObject3D::Scale(const SObjectIdentifier& Identifier, const XMVECTOR& Delta
 
 void CObject3D::SetLinearAcceleration(const SObjectIdentifier& Identifier, const XMVECTOR& Prime)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		GetInstanceCPUData(Identifier.PtrInstanceName).Physics.LinearAcceleration = Prime;
+		GetInstanceCPUData(Identifier.InstanceName).Physics.LinearAcceleration = Prime;
 		return;
 	}
 	SetLinearAcceleration(Prime);
@@ -1073,9 +1073,9 @@ void CObject3D::SetLinearAcceleration(const SObjectIdentifier& Identifier, const
 
 void CObject3D::SetLinearVelocity(const SObjectIdentifier& Identifier, const XMVECTOR& Prime)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		GetInstanceCPUData(Identifier.PtrInstanceName).Physics.LinearVelocity = Prime;
+		GetInstanceCPUData(Identifier.InstanceName).Physics.LinearVelocity = Prime;
 		return;
 	}
 	SetLinearVelocity(Prime);
@@ -1083,9 +1083,9 @@ void CObject3D::SetLinearVelocity(const SObjectIdentifier& Identifier, const XMV
 
 void CObject3D::AddLinearAcceleration(const SObjectIdentifier& Identifier, const XMVECTOR& Delta)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		GetInstanceCPUData(Identifier.PtrInstanceName).Physics.LinearAcceleration += Delta;
+		GetInstanceCPUData(Identifier.InstanceName).Physics.LinearAcceleration += Delta;
 		return;
 	}
 	AddLinearAcceleration(Delta);
@@ -1093,9 +1093,9 @@ void CObject3D::AddLinearAcceleration(const SObjectIdentifier& Identifier, const
 
 void CObject3D::AddLinearVelocity(const SObjectIdentifier& Identifier, const XMVECTOR& Delta)
 {
-	if (Identifier.PtrInstanceName && strlen(Identifier.PtrInstanceName))
+	if (Identifier.InstanceName.size())
 	{
-		GetInstanceCPUData(Identifier.PtrInstanceName).Physics.LinearVelocity += Delta;
+		GetInstanceCPUData(Identifier.InstanceName).Physics.LinearVelocity += Delta;
 		return;
 	}
 	AddLinearVelocity(Delta);
