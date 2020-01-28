@@ -427,7 +427,7 @@ void CIntelligence::ExecuteBehavior(const SObjectIdentifier& Identifier, SBehavi
 		XMVECTOR Diff{ DestinationXZ - MyXZ };
 		float Distance{ XMVectorGetX(XMVector3Length(Diff)) };
 
-		if (m_Now_ms > Behavior.StartTime_ms + 1000)
+		if (m_Now_ms > Behavior.StartTime_ms + 500)
 		{
 			XMVECTOR PrevTranslationXZ{ XMVectorSetY(Behavior.PrevTranslation, 0) };
 			float Diff{ XMVectorGetX(XMVector3Length(MyXZ - PrevTranslationXZ)) };
