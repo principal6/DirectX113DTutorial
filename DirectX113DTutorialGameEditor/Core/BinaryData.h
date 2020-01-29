@@ -16,6 +16,7 @@ public:
 
 public:
 	void WriteBool(bool Value);
+	void WriteChar(char Value);
 	void WriteInt8(int8_t Value);
 	void WriteInt16(int16_t Value);
 	void WriteInt32(int32_t Value);
@@ -36,8 +37,10 @@ public:
 
 public:
 	bool ReadSkip(size_t SkippingByteCount);
+	bool ReadByte(byte& Out);
 	bool ReadBytes(size_t ByteCount, std::vector<byte>& Out);
 	bool ReadBool(bool& Out);
+	bool ReadChar(char& Out);
 	bool ReadInt8(int8_t& Out);
 	bool ReadInt16(int16_t& Out);
 	bool ReadInt32(int32_t& Out);
@@ -56,7 +59,9 @@ public:
 	bool ReadNullTerminatedString(std::string& Out);
 
 // @important: below are for more convenient reading of built-in types, though less safer
+	byte ReadByte();
 	bool ReadBool();
+	char ReadChar();
 	int8_t ReadInt8();
 	int16_t ReadInt16();
 	int32_t ReadInt32();

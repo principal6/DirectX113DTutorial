@@ -47,6 +47,11 @@ void CBinaryData::WriteBool(bool Value)
 	m_vBytes.emplace_back((Value == true) ? 0xBB : 0x00);
 }
 
+void CBinaryData::WriteChar(char Value)
+{
+	WriteInt8(Value);
+}
+
 void CBinaryData::WriteInt8(int8_t Value)
 {
 	byte Byte{};
@@ -213,6 +218,11 @@ bool CBinaryData::ReadSkip(size_t SkippingByteCount)
 	return true;
 }
 
+bool CBinaryData::ReadByte(byte& Out)
+{
+	return ReadUint8(Out);
+}
+
 bool CBinaryData::ReadBytes(size_t ByteCount, std::vector<byte>& Out)
 {
 	if (m_ReadByteOffset + ByteCount - 1 >= m_vBytes.size()) return false;
@@ -235,6 +245,11 @@ bool CBinaryData::ReadBool(bool& Out)
 	Out = (m_vBytes[m_ReadByteOffset] == 0) ? false : true;
 	m_ReadByteOffset += KBoolByteCount;
 	return true;
+}
+
+bool CBinaryData::ReadChar(char& Out)
+{
+	return ReadInt8((int8_t&)Out);
 }
 
 bool CBinaryData::ReadInt8(int8_t& Out)
@@ -399,15 +414,21 @@ bool CBinaryData::ReadNullTerminatedString(std::string& Out)
 	size_t At{};
 	while (true)
 	{
-		Out += m_vBytes[m_ReadByteOffset + At];
-
 		if (m_vBytes[m_ReadByteOffset + At] == '\0') break;
+
+		Out += m_vBytes[m_ReadByteOffset + At];
 
 		++At;
 	}
 
-	m_ReadByteOffset += At;
+	m_ReadByteOffset += (At + 1);
+
 	return true;
+}
+
+byte CBinaryData::ReadByte()
+{
+	return ReadUint8();
 }
 
 bool CBinaryData::ReadBool()
@@ -415,6 +436,11 @@ bool CBinaryData::ReadBool()
 	bool Value{};
 	ReadBool(Value);
 	return Value;
+}
+
+char CBinaryData::ReadChar()
+{
+	return ReadInt8();
 }
 
 int8_t CBinaryData::ReadInt8()
