@@ -32,6 +32,7 @@ public:
 	void WriteString(const std::string& String, size_t FixedLength);
 	// @important: string length is written in <uint32_t>
 	void WriteStringWithPrefixedLength(const std::string& String);
+	void WriteNullTerminatedString(const std::string& String);
 
 public:
 	bool ReadSkip(size_t SkippingByteCount);
@@ -52,6 +53,7 @@ public:
 	bool ReadString(std::string& Out, uint32_t Length);
 	bool ReadStringWithPrefixedLength(std::string& OutString);
 	bool ReadStringWithPrefixedLength(uint32_t& OutLength, std::string& OutString);
+	bool ReadNullTerminatedString(std::string& Out);
 
 // @important: below are for more convenient reading of built-in types, though less safer
 	bool ReadBool();

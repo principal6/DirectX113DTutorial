@@ -191,6 +191,20 @@ void CBinaryData::WriteStringWithPrefixedLength(const std::string& String)
 	WriteString(String);
 }
 
+void CBinaryData::WriteNullTerminatedString(const std::string& String)
+{
+	std::string Output{ String };
+
+	if (Output.empty()) Output += '\0';
+	if (Output.back() != '\0') Output += '\0';
+
+	m_vBytes.reserve(m_vBytes.size() + Output.size());
+	for (const auto& Character : Output)
+	{
+		m_vBytes.emplace_back(Character);
+	}
+}
+
 bool CBinaryData::ReadSkip(size_t SkippingByteCount)
 {
 	if (m_ReadByteOffset + SkippingByteCount - 1 >= m_vBytes.size()) return false;
@@ -376,6 +390,24 @@ bool CBinaryData::ReadStringWithPrefixedLength(uint32_t& OutLength, std::string&
 		return ReadString(OutString, OutLength);
 	}
 	return false;
+}
+
+bool CBinaryData::ReadNullTerminatedString(std::string& Out)
+{
+	Out.clear();
+
+	size_t At{};
+	while (true)
+	{
+		Out += m_vBytes[m_ReadByteOffset + At];
+
+		if (m_vBytes[m_ReadByteOffset + At] == '\0') break;
+
+		++At;
+	}
+
+	m_ReadByteOffset += At;
+	return true;
 }
 
 bool CBinaryData::ReadBool()
