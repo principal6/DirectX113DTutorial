@@ -136,6 +136,15 @@
     <ClCompile Include="Editor\IBLBaker.cpp">
       <Filter>Editor</Filter>
     </ClCompile>
+    <ClCompile Include="Core\UTF8.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\BMFont.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\BMFontRenderer.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectXTK\Audio.h">
@@ -546,6 +555,15 @@
     <ClInclude Include="Model\ObjectTypes.h">
       <Filter>Model</Filter>
     </ClInclude>
+    <ClInclude Include="Core\UTF8.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\BMFont.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\BMFontRenderer.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Library Include="DirectXTK\DirectXTK.lib">
@@ -644,6 +662,9 @@
       <Filter>Shader</Filter>
     </None>
     <None Include="Shader\iHSCBs.hlsli">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="Shader\iFont.hlsli">
       <Filter>Shader</Filter>
     </None>
   </ItemGroup>
@@ -790,6 +811,12 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\PSSpotLight.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\VSFont.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\PSFont.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

@@ -2576,6 +2576,31 @@ CPattern* CGame::GetPattern(const std::string& FileName)
 	return nullptr;
 }
 
+bool CGame::InsertBMFontRenederer(const std::string& BMFontRendererName, const std::string& FNT_FileName)
+{
+	if (m_umapBMFontRendererNameToIndex.find(BMFontRendererName) != m_umapBMFontRendererNameToIndex.end())
+	{
+		MB_WARN("해당 이름의 BMFontRenderer가 이미 존재합니다.", "BMFontRenderer 추가 실패");
+		return false;
+	}
+
+	m_vBMFontRenderers.emplace_back(make_unique<CBMFontRenderer>(m_Device.Get(), m_DeviceContext.Get()));
+	m_vBMFontRenderers.back()->Create(FNT_FileName, m_WindowSize);
+
+	m_umapBMFontRendererNameToIndex[BMFontRendererName] = m_vBMFontRenderers.size() - 1;
+	
+	return true;
+}
+
+CBMFontRenderer* CGame::GetBMFontRenderer(const std::string& BMFontRendererName)
+{
+	if (m_umapBMFontRendererNameToIndex.find(BMFontRendererName) != m_umapBMFontRendererNameToIndex.end())
+	{
+		return m_vBMFontRenderers[m_umapBMFontRendererNameToIndex.at(BMFontRendererName)].get();
+	}
+	return nullptr;
+}
+
 bool CGame::SetMode(EMode eMode)
 {
 	if (eMode != EMode::Edit)
@@ -4163,7 +4188,7 @@ void CGame::Draw()
 		SetUniversalRSState();
 	}
 
-	// 2D & Billboard
+	// Object2D & BMFontRenderer & Billboard
 	{
 		m_DeviceContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 		m_DeviceContext->GSSetShader(nullptr, nullptr, 0);

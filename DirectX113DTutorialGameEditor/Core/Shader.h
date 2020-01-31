@@ -42,6 +42,8 @@ public:
 	void Create(EShaderType Type, EVersion eVersion, bool bShouldCompile, const std::wstring& FileName, const std::string& EntryPoint,
 		const D3D11_INPUT_ELEMENT_DESC* InputElementDescs = nullptr, UINT NumElements = 0);
 
+	bool CompileCSO(EShaderType Type, EVersion eVersion, const std::wstring& FileName, const std::string& EntryPoint);
+
 public:
 	void ReserveConstantBufferSlots(uint32_t Count);
 	void AttachConstantBuffer(const CConstantBuffer* const ConstantBuffer, int32_t Slot = -1);

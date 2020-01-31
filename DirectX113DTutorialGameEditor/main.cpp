@@ -25,6 +25,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	//Game.CreateDynamicSky("Asset\\Sky.xml", 30.0f);
 	Game.CreateStaticSky(30.0f);
 
+	Game.InsertBMFontRenederer("BMScore", "Asset\\HarlowSolidItalic_48px.fnt");
+
 	// Main loop
 	while (true)
 	{
@@ -55,6 +57,12 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 			Game.Update();
 			Game.Draw();
+
+			CBMFontRenderer* BMScore{ Game.GetBMFontRenderer("BMScore") };
+			BMScore->SetFontColor(XMFLOAT4(1, 0.8f, 1, 0.5f));
+			BMScore->RenderConstantString(u8"+210 abc test!", XMFLOAT2(100, 40));
+			BMScore->SetFontColor(XMFLOAT4(1, 0.5f, 1, 1));
+			BMScore->RenderConstantString(u8"+543 def done?", XMFLOAT2(100, 80));
 
 			Game.EndRendering();
 

@@ -18,6 +18,7 @@
 #include "Light.h"
 #include "CascadedShadowMap.h"
 #include "FullScreenQuad.h"
+#include "BMFontRenderer.h"
 #include "../Model/Object3D.h"
 #include "../Model/Object3DLine.h"
 #include "../Model/Object2D.h"
@@ -403,7 +404,7 @@ public:
 	void LoadScene(const std::string& FileName, const std::string& SceneContentDirectory);
 	void SaveScene(const std::string& FileName, const std::string& SceneContentDirectory);
 
-	// Advanced settings
+// Advanced settings
 public:
 	void SetProjectionMatrices(float FOV, float NearZ, float FarZ);
 	void SetRenderingFlags(EFlagsRendering Flags);
@@ -461,7 +462,7 @@ public:
 	void SaveTerrain(const std::string& TerrainFileName);
 	CTerrain* GetTerrain() const { return m_Terrain.get(); }
 
-	// Object pool
+// Object pool
 public:
 	void ClearCopyList();
 	void CopySelectedObject();
@@ -517,6 +518,10 @@ public:
 	void DeletePattern(const std::string& FileName);
 	void ClearPatterns();
 	CPattern* GetPattern(const std::string& FileName);
+
+public:
+	bool InsertBMFontRenederer(const std::string& BMFontRendererName, const std::string& FNT_FileName);
+	CBMFontRenderer* GetBMFontRenderer(const std::string& BMFontRendererName);
 
 public:
 	bool SetMode(EMode eMode);
@@ -682,7 +687,7 @@ private:
 	static constexpr char KTextureDialogFilter[45]{ "JPG 파일\0*.jpg\0PNG 파일\0*.png\0모든 파일\0*.*\0" };
 	static constexpr char KTextureDialogTitle[16]{ "텍스쳐 불러오기" };
 
-	// Shader
+// Shader
 private:
 	std::vector<std::unique_ptr<CShader>>	m_vCustomShaders{};
 
@@ -736,7 +741,7 @@ private:
 	std::unique_ptr<CShader>				m_PSTerrain_gbuffer{};
 	std::unique_ptr<CShader>				m_PSWater{};
 
-	// Constant buffer
+// Constant buffer
 private:
 	std::unique_ptr<CConstantBuffer>		m_CBSpace{};
 	std::unique_ptr<CConstantBuffer>		m_CBAnimationBones{};
@@ -774,7 +779,7 @@ private:
 	CCascadedShadowMap::SCBShadowMapData	m_CBShadowMapData{};
 	SCBSceneMaterialData					m_CBSceneMaterialData{};
 
-	// Object pool
+// Object pool
 private:
 	std::vector<std::unique_ptr<CObject3D>>		m_vObject3Ds{};
 	size_t										m_Object3DTotalInstanceCount{};
@@ -838,6 +843,11 @@ private:
 	int										m_CurrentCameraID{ -1 };
 	CCamera*								m_PtrPlayerCamera{};
 	std::unique_ptr<CObject3D>				m_CameraRep{};
+
+// BMFont renderer
+private:
+	std::vector<std::unique_ptr<CBMFontRenderer>>	m_vBMFontRenderers{};
+	std::unordered_map<std::string, size_t>			m_umapBMFontRendererNameToIndex{};
 
 // Scene testing
 private:

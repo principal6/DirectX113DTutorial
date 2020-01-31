@@ -135,9 +135,11 @@
     <ClCompile Include="AI\Tokenizer.cpp" />
     <ClCompile Include="Core\Billboard.cpp" />
     <ClCompile Include="Core\BinaryData.cpp" />
+    <ClCompile Include="Core\BMFont.cpp" />
     <ClCompile Include="Core\Camera.cpp" />
     <ClCompile Include="Core\ConstantBuffer.cpp" />
     <ClCompile Include="Core\FileDialog.cpp" />
+    <ClCompile Include="Core\BMFontRenderer.cpp" />
     <ClCompile Include="Core\FullScreenQuad.cpp" />
     <ClCompile Include="Core\Game.cpp" />
     <ClCompile Include="Core\Light.cpp" />
@@ -145,6 +147,7 @@
     <ClCompile Include="Core\CascadedShadowMap.cpp" />
     <ClCompile Include="Core\Terrain.cpp" />
     <ClCompile Include="Core\Material.cpp" />
+    <ClCompile Include="Core\UTF8.cpp" />
     <ClCompile Include="Editor\CubemapRep.cpp" />
     <ClCompile Include="Editor\Gizmo3D.cpp" />
     <ClCompile Include="Editor\IBLBaker.cpp" />
@@ -245,9 +248,11 @@
     <ClInclude Include="Assimp\ZipArchiveIOSystem.h" />
     <ClInclude Include="Core\Billboard.h" />
     <ClInclude Include="Core\BinaryData.h" />
+    <ClInclude Include="Core\BMFont.h" />
     <ClInclude Include="Core\Camera.h" />
     <ClInclude Include="Core\ConstantBuffer.h" />
     <ClInclude Include="Core\FileDialog.h" />
+    <ClInclude Include="Core\BMFontRenderer.h" />
     <ClInclude Include="Core\FullScreenQuad.h" />
     <ClInclude Include="Core\Game.h" />
     <ClInclude Include="Core\Light.h" />
@@ -259,6 +264,7 @@
     <ClInclude Include="Core\SharedHeader.h" />
     <ClInclude Include="Core\Terrain.h" />
     <ClInclude Include="Core\Material.h" />
+    <ClInclude Include="Core\UTF8.h" />
     <ClInclude Include="DirectXTex\DirectXTex.h" />
     <ClInclude Include="DirectXTK\Audio.h" />
     <ClInclude Include="DirectXTK\CommonStates.h" />
@@ -341,6 +347,9 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </None>
     <None Include="Shader\iDSCBs.hlsli">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </None>
+    <None Include="Shader\iFont.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </None>
     <None Include="Shader\iGSCBs.hlsli">
@@ -577,6 +586,13 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.1</ShaderModel>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="Shader\PSFont.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="Shader\PSFromHDR.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -762,6 +778,13 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Shader\VSFont.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="Shader\VSGizmo.hlsl">

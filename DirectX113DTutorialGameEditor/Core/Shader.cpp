@@ -44,38 +44,33 @@ void CShader::Create(EShaderType Type, EVersion eVersion, bool bShouldCompile, c
 		break;
 	}
 
+	string ShaderPrefix{};
+	switch (m_ShaderType)
+	{
+	case EShaderType::VertexShader:
+		ShaderPrefix = "vs";
+		break;
+	case EShaderType::HullShader:
+		ShaderPrefix = "hs";
+		break;
+	case EShaderType::DomainShader:
+		ShaderPrefix = "ds";
+		break;
+	case EShaderType::GeometryShader:
+		ShaderPrefix = "gs";
+		break;
+	case EShaderType::PixelShader:
+		ShaderPrefix = "ps";
+		break;
+	default:
+		break;
+	}
+
 	if (bShouldCompile)
 	{
-		switch (m_ShaderType)
-		{
-		case EShaderType::VertexShader:
-			D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
-				("vs" + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
-			if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
-			break;
-		case EShaderType::HullShader:
-			D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
-				("hs" + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
-			if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
-			break;
-		case EShaderType::DomainShader:
-			D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
-				("ds" + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
-			if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
-			break;
-		case EShaderType::GeometryShader:
-			D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
-				("gs" + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
-			if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
-			break;
-		case EShaderType::PixelShader:
-			D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
-				("ps" + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_Blob, nullptr);
-			if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
-			break;
-		default:
-			break;
-		}
+		D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
+			(ShaderPrefix + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, m_Blob.ReleaseAndGetAddressOf(), nullptr);
+		if (!m_Blob) MB_WARN(KCompileFailureMessage, KCompileFailureTitle);
 	}
 	else
 	{
@@ -128,6 +123,71 @@ void CShader::Create(EShaderType Type, EVersion eVersion, bool bShouldCompile, c
 		ofs.write((const char*)PtrBuffer, BufferSize);
 		ofs.close();
 	}
+}
+
+bool CShader::CompileCSO(EShaderType Type, EVersion eVersion, const std::wstring& FileName, const std::string& EntryPoint)
+{
+	ComPtr<ID3DBlob> Blob{};
+
+	string VersionSuffix{};
+	switch (eVersion)
+	{
+	case CShader::EVersion::_4_0:
+		VersionSuffix = "_4_0";
+		break;
+	case CShader::EVersion::_4_1:
+		VersionSuffix = "_4_1";
+		break;
+	case CShader::EVersion::_5_0:
+		VersionSuffix = "_5_0";
+		break;
+	case CShader::EVersion::_5_1:
+		VersionSuffix = "_5_1";
+		break;
+	default:
+		break;
+	}
+
+	string ShaderPrefix{};
+	switch (Type)
+	{
+	case EShaderType::VertexShader:
+		ShaderPrefix = "vs";
+		break;
+	case EShaderType::HullShader:
+		ShaderPrefix = "hs";
+		break;
+	case EShaderType::DomainShader:
+		ShaderPrefix = "ds";
+		break;
+	case EShaderType::GeometryShader:
+		ShaderPrefix = "gs";
+		break;
+	case EShaderType::PixelShader:
+		ShaderPrefix = "ps";
+		break;
+	default:
+		break;
+	}
+
+	if (SUCCEEDED(D3DCompileFromFile(FileName.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(),
+		(ShaderPrefix + VersionSuffix).c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, Blob.ReleaseAndGetAddressOf(), nullptr)))
+	{
+		const void* PtrBuffer{ Blob->GetBufferPointer() };
+		size_t BufferSize{ Blob->GetBufferSize() };
+
+		auto Dot{ FileName.find_last_of('.') };
+		wstring wEntryPoint{ EntryPoint.begin(), EntryPoint.end() };
+		wstring CSOFileName{ FileName.substr(0, Dot) + ((EntryPoint == "main") ? L"" : L"_" + wEntryPoint) + L".cso" };
+
+		std::ofstream ofs{};
+		ofs.open(CSOFileName, ofs.binary);
+		ofs.write((const char*)PtrBuffer, BufferSize);
+		ofs.close();
+
+		return true;
+	}
+	return false;
 }
 
 void CShader::ReserveConstantBufferSlots(uint32_t Count)
